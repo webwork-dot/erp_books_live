@@ -673,3 +673,82 @@ a.btn {
 a.btn:hover {
     text-decoration: none;
 }
+
+/* ============================================
+   Compact Dashboard Cards
+   ============================================ */
+
+/* Reduce card margins */
+.vendor-dashboard .card,
+[class*="dashboard"] .card {
+    margin-bottom: 0.5rem !important;
+}
+
+/* Compact card headers */
+.vendor-dashboard .card-header,
+[class*="dashboard"] .card-header {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+}
+
+/* Compact card body padding */
+.vendor-dashboard .card-body,
+[class*="dashboard"] .card-body {
+    padding: 0.5rem !important;
+}
+
+/* Nested cards in dashboard - even more compact */
+.vendor-dashboard .card .card,
+[class*="dashboard"] .card .card {
+    margin-bottom: 0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.vendor-dashboard .card .card .card-body,
+[class*="dashboard"] .card .card .card-body {
+    padding: 0.5rem !important;
+}
+
+/* Compact avatar sizes */
+.vendor-dashboard .avatar-32,
+[class*="dashboard"] .avatar-32 {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+}
+
+/* Reduce gap between cards */
+.vendor-dashboard .row.g-2,
+[class*="dashboard"] .row.g-2 {
+    --bs-gutter-x: 0.5rem;
+    --bs-gutter-y: 0.5rem;
+}
+
+/* Compact font sizes in dashboard cards */
+.vendor-dashboard .card .card-body h6,
+[class*="dashboard"] .card .card-body h6 {
+    font-size: 1rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 0 !important;
+}
+
+.vendor-dashboard .card .card-body p,
+[class*="dashboard"] .card .card-body p {
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 0 !important;
+}
+
+/* Reduce icon sizes in dashboard cards */
+.vendor-dashboard .card .card-body i,
+[class*="dashboard"] .card .card-body i {
+    font-size: 1rem !important;
+}
+
+/* Compact welcome card */
+.vendor-dashboard .card .card-body.py-2,
+[class*="dashboard"] .card .card-body.py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}

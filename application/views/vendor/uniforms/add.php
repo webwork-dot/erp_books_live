@@ -1,23 +1,25 @@
 <!-- Start Breadcrumb -->
-<div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
+<div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-2 mb-2">
 	<div>
-		<h6><a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms' : 'products/uniforms'); ?>"><i class="isax isax-arrow-left me-2"></i><?php echo isset($uniform) ? 'Edit Uniform' : 'Add New Uniform'; ?></a></h6>
+		<h6 class="mb-0 fs-14"><a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms' : 'products/uniforms'); ?>"><i class="isax isax-arrow-left me-1"></i>Add New Uniform</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
 <?php echo form_open_multipart(isset($uniform) ? (isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/uniforms/edit/' . $uniform['id']) : base_url('products/uniforms/edit/' . $uniform['id'])) : (isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/uniforms/add') : base_url('products/uniforms/add')), array('id' => 'uniform-form')); ?>
 <!-- Images Card (Outside Main Card) -->
-<div class="row mt-3">
+<div class="row mt-2">
 	<div class="col-12">
-		<div class="card mb-3">
-			<div class="card-body">
-				<h2 class=" border-bottom pb-3  mb-3">Images</h2>
-				<div class="row gx-3">
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Images</h6>
+			</div>
+			<div class="card-body p-2">
+				<div class="row g-2">
 					<div class="col-12">
-						<div class="mb-3">
-							<label class="form-label">Images (Size: 440px * 530px) <span class="text-danger">*</span></label>
-							<input type="file" name="images[]" id="images" class="form-control" form="uniform-form" accept="image/*" multiple required>
-							<small class="text-muted fs-13">You can select multiple images. Recommended size: 440px × 530px. Drag images to reorder. Click "Set as Main" to choose the main image.</small>
+						<div class="mb-2">
+							<label class="form-label fs-13 mb-1">Images (Size: 440px * 530px) <span class="text-danger">*</span></label>
+							<input type="file" name="images[]" id="images" class="form-control form-control-sm" form="uniform-form" accept="image/*" multiple required>
+							<small class="text-muted fs-12">Multiple images: 440px × 530px. Drag to reorder.</small>
 							<div id="image-preview" class="mt-3 image-sortable-container"></div>
 							<input type="hidden" name="image_order" id="image_order" value="">
 							<input type="hidden" name="main_image_index" id="main_image_index" value="0">
@@ -31,10 +33,11 @@
 
 <div class="row">
 	<div class="col-12">
-		<div class="card">
-			<div class="card-body">
-				<h2 class=" border-bottom pb-3  mb-3">Uniform Details</h2>
-				
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Uniform Details</h6>
+			</div>
+			<div class="card-body p-2">
 				<?php if (validation_errors()): ?>
 					<div class="alert alert-danger alert-dismissible fade show" role="alert">
 						<strong>Please fix the following errors:</strong>
@@ -46,12 +49,12 @@
 				<?php endif; ?>
 				
 					<!-- Basic Information -->
-					<div class="row gx-3">
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Uniform Type <span class="text-danger">*</span></label>
+					<div class="row g-2">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Uniform Type <span class="text-danger">*</span></label>
 								<div class="input-group">
-									<select name="uniform_type_id" id="uniform_type_id" class="select2" required>
+									<select name="uniform_type_id" id="uniform_type_id" class="form-select form-select-sm" required>
 										<option value="">Select Uniform Type</option>
 										<?php if (!empty($uniform_types)): ?>
 											<?php foreach ($uniform_types as $type): ?>
@@ -59,17 +62,17 @@
 											<?php endforeach; ?>
 										<?php endif; ?>
 									</select>
-									<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addUniformTypeModal" style="padding: 0.4rem 1rem;">
-										<i class="isax isax-add"></i> Add
+									<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUniformTypeModal" style="padding: 4px 8px;">
+										<i class="isax isax-add"></i>
 									</button>
 								</div>
-								<?php echo form_error('uniform_type_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('uniform_type_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">School <span class="text-danger">*</span></label>
-								<select name="school_id" id="school_id" class="select2" required>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">School <span class="text-danger">*</span></label>
+								<select name="school_id" id="school_id" class="form-select form-select-sm" required>
 									<option value="">Select School</option>
 									<?php if (!empty($schools)): ?>
 										<?php foreach ($schools as $school): ?>
@@ -77,75 +80,75 @@
 										<?php endforeach; ?>
 									<?php endif; ?>
 								</select>
-								<?php echo form_error('school_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('school_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6" id="branch_container" style="display: none;">
-							<div class="mb-3">
-								<label class="form-label">Branch</label>
-								<select name="branch_id" id="branch_id" class="select">
+						<div class="col-xl-3 col-lg-4 col-md-6" id="branch_container" style="display: none;">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Branch</label>
+								<select name="branch_id" id="branch_id" class="form-select form-select-sm">
 									<option value="">Select Branch</option>
 								</select>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Board <span class="text-danger">*</span></label>
-								<select name="board_id" id="board_id" class="select" required>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Board <span class="text-danger">*</span></label>
+								<select name="board_id" id="board_id" class="form-select form-select-sm" required>
 									<option value="">Select Board</option>
 								</select>
-								<?php echo form_error('board_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('board_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Gender <span class="text-danger">*</span></label>
-								<select name="gender" id="gender" class="select" required>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Gender <span class="text-danger">*</span></label>
+								<select name="gender" id="gender" class="form-select form-select-sm" required>
 									<option value="">Select Gender</option>
 									<option value="male" <?php echo (isset($uniform) && $uniform['gender'] == 'male') ? 'selected' : ''; ?>>Male</option>
 									<option value="female" <?php echo (isset($uniform) && $uniform['gender'] == 'female') ? 'selected' : ''; ?>>Female</option>
 									<option value="unisex" <?php echo (isset($uniform) && $uniform['gender'] == 'unisex') ? 'selected' : ''; ?>>Unisex</option>
 								</select>
-								<?php echo form_error('gender', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('gender', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Color</label>
-								<input type="text" name="color" id="color" class="form-control" value="<?php echo set_value('color', isset($uniform) ? $uniform['color'] : ''); ?>">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Color</label>
+								<input type="text" name="color" id="color" class="form-control form-control-sm" value="<?php echo set_value('color', isset($uniform) ? $uniform['color'] : ''); ?>">
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Product Name/Display Name <span class="text-danger">*</span></label>
-								<input type="text" name="product_name" id="product_name" class="form-control" value="<?php echo set_value('product_name', isset($uniform) ? $uniform['product_name'] : ''); ?>" required>
-								<?php echo form_error('product_name', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Product Name <span class="text-danger">*</span></label>
+								<input type="text" name="product_name" id="product_name" class="form-control form-control-sm" value="<?php echo set_value('product_name', isset($uniform) ? $uniform['product_name'] : ''); ?>" required>
+								<?php echo form_error('product_name', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">ISBN / Bar Code No./SKU No.</label>
-								<input type="text" name="isbn" id="isbn" class="form-control" value="<?php echo set_value('isbn', isset($uniform) ? $uniform['isbn'] : ''); ?>">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">ISBN/SKU</label>
+								<input type="text" name="isbn" id="isbn" class="form-control form-control-sm" value="<?php echo set_value('isbn', isset($uniform) ? $uniform['isbn'] : ''); ?>">
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Min Quantity <span class="text-danger">*</span></label>
-								<input type="number" name="min_quantity" id="min_quantity" class="form-control" value="<?php echo set_value('min_quantity', isset($uniform) ? $uniform['min_quantity'] : 1); ?>" min="1" required>
-								<?php echo form_error('min_quantity', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Min Quantity <span class="text-danger">*</span></label>
+								<input type="number" name="min_quantity" id="min_quantity" class="form-control form-control-sm" value="<?php echo set_value('min_quantity', isset($uniform) ? $uniform['min_quantity'] : 1); ?>" min="1" required>
+								<?php echo form_error('min_quantity', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Days To Exchange</label>
-								<input type="number" name="days_to_exchange" id="days_to_exchange" class="form-control" value="<?php echo set_value('days_to_exchange', isset($uniform) ? $uniform['days_to_exchange'] : ''); ?>" min="0">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Days To Exchange</label>
+								<input type="number" name="days_to_exchange" id="days_to_exchange" class="form-control form-control-sm" value="<?php echo set_value('days_to_exchange', isset($uniform) ? $uniform['days_to_exchange'] : ''); ?>" min="0">
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Select Material <span class="text-danger">*</span></label>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Material <span class="text-danger">*</span></label>
 								<div class="input-group">
-									<select name="material_id" id="material_id" class="select" required>
+									<select name="material_id" id="material_id" class="form-select form-select-sm" required>
 										<option value="">Select Material</option>
 										<?php if (!empty($materials)): ?>
 											<?php foreach ($materials as $material): ?>
@@ -153,17 +156,17 @@
 											<?php endforeach; ?>
 										<?php endif; ?>
 									</select>
-									<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMaterialModal" style="padding: 0.4rem 1rem;">
-										<i class="isax isax-add"></i> Add
+									<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMaterialModal" style="padding: 4px 8px;">
+										<i class="isax isax-add"></i>
 									</button>
 								</div>
-								<?php echo form_error('material_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('material_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Product Origin</label>
-								<input type="text" name="product_origin" id="product_origin" class="form-control" value="<?php echo set_value('product_origin', isset($uniform) ? $uniform['product_origin'] : 'India'); ?>">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Product Origin</label>
+								<input type="text" name="product_origin" id="product_origin" class="form-control form-control-sm" value="<?php echo set_value('product_origin', isset($uniform) ? $uniform['product_origin'] : 'India'); ?>">
 							</div>
 						</div>
 					</div>

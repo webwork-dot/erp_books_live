@@ -1364,6 +1364,91 @@ if (!function_exists('get_vendor_site_settings')) {
 }
 
 /**
+ * Generate vendor URL (subdomain-based)
+ * 
+ * @param string $path Path to append (e.g., 'dashboard', 'products/add')
+ * @param string|null $vendor_domain Optional vendor base domain (if not provided, uses current HTTP_HOST or session)
+ * @param string $subdomain Subdomain prefix (default: 'master')
+ * @return string Full URL with subdomain
+ */
+if (!function_exists('vendor_url')) {
+    function vendor_url($path = '', $vendor_domain = null, $subdomain = 'master') {
+        $CI =& get_instance();
+        
+        // Get vendor base domain
+        if (!$vendor_domain) {
+            // Try HTTP_HOST first (domain-based routing)
+            $http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+            if (strpos($http_host, ':') !== false) {
+                $http_host = substr($http_host, 0, strpos($http_host, ':'));
+            }
+            
+            // Check if HTTP_HOST is a vendor domain (not localhost/admin)
+            if (!empty($http_host) && 
+                strpos($http_host, 'localhost') === false && 
+                strpos($http_host, '127.0.0.1') === false &&
+                strpos($http_host, 'erp-admin') === false) {
+                
+                // Extract base domain from subdomain if needed
+                if (strpos($http_host, '.') !== false) {
+                    $parts = explode('.', $http_host);
+                    if (count($parts) >= 2) {
+                        // Remove subdomain (first part) to get base domain
+                        array_shift($parts);
+                        $vendor_domain = implode('.', $parts);
+                    } else {
+                        $vendor_domain = $http_host;
+                    }
+                } else {
+                    $vendor_domain = $http_host;
+                }
+            } else {
+                // Fallback to session vendor domain
+                if (property_exists($CI, 'session') && is_object($CI->session)) {
+                    $vendor_domain = $CI->session->userdata('vendor_domain');
+                    // Extract base domain if session has subdomain
+                    if ($vendor_domain && strpos($vendor_domain, '.') !== false) {
+                        $parts = explode('.', $vendor_domain);
+                        if (count($parts) >= 2 && $parts[0] === $subdomain) {
+                            array_shift($parts);
+                            $vendor_domain = implode('.', $parts);
+                        }
+                    }
+                }
+            }
+        }
+        
+        if ($vendor_domain) {
+            // Check if we're on localhost - use path-based URLs for local development
+            $http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+            if (strpos($http_host, ':') !== false) {
+                $http_host = substr($http_host, 0, strpos($http_host, ':'));
+            }
+            
+            $is_localhost = (strpos($http_host, 'localhost') !== false || 
+                            strpos($http_host, '127.0.0.1') !== false ||
+                            empty($http_host));
+            
+            if ($is_localhost) {
+                // Use path-based URL for localhost (e.g., localhost/erp_books_live/varitty.in/dashboard)
+                $path = ltrim($path, '/');
+                return base_url($vendor_domain . ($path ? '/' . $path : ''));
+            } else {
+                // Generate subdomain URL for production (e.g., master.varitty.in/dashboard)
+                $full_domain = $subdomain . '.' . $vendor_domain;
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                $path = ltrim($path, '/');
+                return $protocol . '://' . $full_domain . ($path ? '/' . $path : '');
+            }
+        } else {
+            // Fallback to path-based URL (for backward compatibility)
+            $path = ltrim($path, '/');
+            return base_url($path);
+        }
+    }
+}
+
+/**
  * Generate dynamic CSS for vendor colors
  *
  * @param array $settings Vendor settings array

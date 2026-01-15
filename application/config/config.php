@@ -24,7 +24,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |
 */
 
-$config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "https" : "http");
+$config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "http" : "http");
 $config['base_url'] .= "://".$_SERVER['HTTP_HOST'];
 $config['base_url'] .= str_replace(basename($_SERVER['SCRIPT_NAME']),"",$_SERVER['SCRIPT_NAME']);
 
@@ -472,6 +472,7 @@ $config['csrf_regenerate'] = TRUE;
 $config['csrf_exclude_uris'] = array(
 	'api/.*', 
 	'erp-admin/features/.*',
+	'erp-admin/vendors/toggle_status/.*',
 	'.*/products/textbook/add_type', 
 	'.*/products/textbook/add_publisher',
 	'.*/products/bookset/package/add_category',

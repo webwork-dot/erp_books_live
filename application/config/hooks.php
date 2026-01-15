@@ -28,6 +28,14 @@ $hook['pre_system'] = array(
 	'filepath' => ''
 );
 
+// Vendor domain routing hook - runs before controller
+$hook['pre_controller'] = array(
+	'class'    => '',
+	'function' => 'route_vendor_domain',
+	'filename' => 'vendor_routing_hook.php',
+	'filepath' => 'hooks'
+);
+
 // Controller case normalization is handled by core/MY_Router.php
 // Hook disabled to avoid conflicts
 // $hook['pre_controller'] = array(

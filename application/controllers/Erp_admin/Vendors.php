@@ -107,10 +107,10 @@ class Vendors extends Erp_base
 		// 1. Validation
 		// --------------------------------------------------
 		$this->form_validation->set_rules('name', 'Vendor Name', 'required|trim');
-		$this->form_validation->set_rules('domain', 'Domain', 'required|trim|is_unique[erp_clients.domain]|alpha_dash');
-		$this->form_validation->set_rules('username', 'Username', 'required|trim|is_unique[erp_clients.username]|min_length[3]|max_length[100]');
+		$this->form_validation->set_rules('domain', 'Domain', 'required|trim|is_unique[erp_clients.domain]|callback_validate_domain');
+		$this->form_validation->set_rules('username', 'Username', 'required|trim|callback_check_username_unique[0]|min_length[3]|max_length[100]');
 		$this->form_validation->set_rules('password', 'Password', 'required|min_length[6]');
-		$this->form_validation->set_rules('status', 'Status', 'required|in_list[active,suspended,inactive]');
+		$this->form_validation->set_rules('status', 'Status', 'in_list[active,suspended]');
 
 		if ($this->form_validation->run() === FALSE) {
 			$data['title'] = 'Add New Vendor';
@@ -128,12 +128,17 @@ class Vendors extends Erp_base
 		// --------------------------------------------------
 		// 3. CREATE VENDOR (MASTER DB)
 		// --------------------------------------------------
+		$status = $this->input->post('status');
+		if (empty($status) || !in_array($status, ['active', 'suspended'])) {
+			$status = 'active'; // Default to active
+		}
+		
 		$vendor_data = [
 			'name'     => $this->input->post('name'),
 			'domain'   => $this->input->post('domain'),
 			'username' => $this->input->post('username'),
 			'password' => $hashed_password,
-			'status'   => $this->input->post('status')
+			'status'   => $status
 		];
 
 		$vendor_id = $this->Erp_client_model->createClient($vendor_data);
@@ -323,11 +328,35 @@ class Vendors extends Erp_base
 		
 		// Set validation rules
 		$this->form_validation->set_rules('name', 'Vendor Name', 'required|trim');
-		$this->form_validation->set_rules('domain', 'Domain', 'required|trim|callback_check_domain_unique[' . $vendor_id . ']|alpha_dash');
+		$this->form_validation->set_rules('domain', 'Domain', 'required|trim|callback_check_domain_unique[' . $vendor_id . ']|callback_validate_domain');
 		$this->form_validation->set_rules('username', 'Username', 'required|trim|callback_check_username_unique[' . $vendor_id . ']|min_length[3]|max_length[100]');
 		$this->form_validation->set_rules('password', 'Password', 'min_length[6]');
-		$this->form_validation->set_rules('status', 'Status', 'required|in_list[active,suspended,inactive]');
 		$this->form_validation->set_rules('sidebar_color', 'Sidebar Color', 'trim|callback_validate_color');
+		$this->form_validation->set_rules('payment_gateway', 'Payment Gateway', 'trim|in_list[razorpay,ccavenue,]');
+		
+		// Conditional validation for payment gateway fields
+		$payment_gateway = $this->input->post('payment_gateway');
+		if ($payment_gateway == 'razorpay') {
+			$this->form_validation->set_rules('razorpay_key_id', 'Razorpay Key ID', 'required|trim');
+			$this->form_validation->set_rules('razorpay_key_secret', 'Razorpay Key Secret', 'required|trim');
+		} elseif ($payment_gateway == 'ccavenue') {
+			$this->form_validation->set_rules('ccavenue_merchant_id', 'CCAvenue Merchant ID', 'required|trim');
+			$this->form_validation->set_rules('ccavenue_access_code', 'CCAvenue Access Code', 'required|trim');
+			$this->form_validation->set_rules('ccavenue_working_key', 'CCAvenue Working Key', 'required|trim');
+		}
+		
+		// Email (Zepto Mail) validation
+		$this->form_validation->set_rules('zepto_mail_api_key', 'Zepto Mail API Key', 'trim');
+		$this->form_validation->set_rules('zepto_mail_from_email', 'Zepto Mail From Email', 'trim|valid_email');
+		$this->form_validation->set_rules('zepto_mail_from_name', 'Zepto Mail From Name', 'trim');
+		
+		// Firebase validation
+		$this->form_validation->set_rules('firebase_api_key', 'Firebase API Key', 'trim');
+		$this->form_validation->set_rules('firebase_auth_domain', 'Firebase Auth Domain', 'trim');
+		$this->form_validation->set_rules('firebase_project_id', 'Firebase Project ID', 'trim');
+		$this->form_validation->set_rules('firebase_storage_bucket', 'Firebase Storage Bucket', 'trim');
+		$this->form_validation->set_rules('firebase_messaging_sender_id', 'Firebase Messaging Sender ID', 'trim');
+		$this->form_validation->set_rules('firebase_app_id', 'Firebase App ID', 'trim');
 		
 		if ($this->form_validation->run() == FALSE)
 		{
@@ -390,9 +419,49 @@ class Vendors extends Erp_base
 				'name' => $this->input->post('name'),
 				'domain' => $this->input->post('domain'),
 				'username' => $this->input->post('username'),
-				'status' => $this->input->post('status'),
-				'sidebar_color' => $this->input->post('sidebar_color') ? $this->input->post('sidebar_color') : 'sidebarbg1'
+				// Preserve existing status when editing (no status field in edit form)
+				'status' => $vendor['status'],
+				'sidebar_color' => $this->input->post('sidebar_color') ? $this->input->post('sidebar_color') : 'sidebarbg1',
+				'payment_gateway' => $this->input->post('payment_gateway') ? $this->input->post('payment_gateway') : ''
 			);
+			
+			// Handle payment gateway fields based on selection
+			$payment_gateway = $this->input->post('payment_gateway');
+			if ($payment_gateway == 'razorpay') {
+				$vendor_data['razorpay_key_id'] = $this->input->post('razorpay_key_id');
+				$vendor_data['razorpay_key_secret'] = $this->input->post('razorpay_key_secret');
+				// Clear CCAvenue fields
+				$vendor_data['ccavenue_merchant_id'] = NULL;
+				$vendor_data['ccavenue_access_code'] = NULL;
+				$vendor_data['ccavenue_working_key'] = NULL;
+			} elseif ($payment_gateway == 'ccavenue') {
+				$vendor_data['ccavenue_merchant_id'] = $this->input->post('ccavenue_merchant_id');
+				$vendor_data['ccavenue_access_code'] = $this->input->post('ccavenue_access_code');
+				$vendor_data['ccavenue_working_key'] = $this->input->post('ccavenue_working_key');
+				// Clear Razorpay fields
+				$vendor_data['razorpay_key_id'] = NULL;
+				$vendor_data['razorpay_key_secret'] = NULL;
+			} else {
+				// No gateway selected, clear all payment fields
+				$vendor_data['razorpay_key_id'] = NULL;
+				$vendor_data['razorpay_key_secret'] = NULL;
+				$vendor_data['ccavenue_merchant_id'] = NULL;
+				$vendor_data['ccavenue_access_code'] = NULL;
+				$vendor_data['ccavenue_working_key'] = NULL;
+			}
+			
+			// Handle Email (Zepto Mail) fields
+			$vendor_data['zepto_mail_api_key'] = $this->input->post('zepto_mail_api_key') ? $this->input->post('zepto_mail_api_key') : NULL;
+			$vendor_data['zepto_mail_from_email'] = $this->input->post('zepto_mail_from_email') ? $this->input->post('zepto_mail_from_email') : NULL;
+			$vendor_data['zepto_mail_from_name'] = $this->input->post('zepto_mail_from_name') ? $this->input->post('zepto_mail_from_name') : NULL;
+			
+			// Handle Firebase fields
+			$vendor_data['firebase_api_key'] = $this->input->post('firebase_api_key') ? $this->input->post('firebase_api_key') : NULL;
+			$vendor_data['firebase_auth_domain'] = $this->input->post('firebase_auth_domain') ? $this->input->post('firebase_auth_domain') : NULL;
+			$vendor_data['firebase_project_id'] = $this->input->post('firebase_project_id') ? $this->input->post('firebase_project_id') : NULL;
+			$vendor_data['firebase_storage_bucket'] = $this->input->post('firebase_storage_bucket') ? $this->input->post('firebase_storage_bucket') : NULL;
+			$vendor_data['firebase_messaging_sender_id'] = $this->input->post('firebase_messaging_sender_id') ? $this->input->post('firebase_messaging_sender_id') : NULL;
+			$vendor_data['firebase_app_id'] = $this->input->post('firebase_app_id') ? $this->input->post('firebase_app_id') : NULL;
 			
 			// Update password only if provided
 			$password = $this->input->post('password');
@@ -457,12 +526,26 @@ class Vendors extends Erp_base
 			
 			// Update vendor user in erp_users table (non-critical, continue even if fails)
 			$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
-			
+
 			if ($vendor_role_id)
 			{
+				// Check if username has changed
+				$username_changed = ($vendor['username'] !== $vendor_data['username']);
+
+				// If username changed, check if new username already exists
+				if ($username_changed)
+				{
+					$user_with_new_username = $this->Erp_user_model->getUserByUsername($vendor_data['username']);
+					if ($user_with_new_username)
+					{
+						$this->session->set_flashdata('error', 'Username "' . $vendor_data['username'] . '" is already taken.');
+						redirect('erp-admin/vendors/edit/' . $vendor_id);
+					}
+				}
+
 				// Get existing user by old username
 				$existing_user = $this->Erp_user_model->getUserByUsername($vendor['username']);
-				
+
 				if ($existing_user)
 				{
 					// Update existing user
@@ -472,13 +555,13 @@ class Vendors extends Erp_base
 						'role_id' => $vendor_role_id,
 						'status' => ($vendor_data['status'] == 'active') ? 1 : 0
 					);
-					
+
 					// Update password if provided (already hashed)
 					if (!empty($password))
 					{
 						$user_data['password'] = $vendor_data['password']; // Already SHA1 hashed
 					}
-					
+
 					// Direct update to avoid double hashing
 					if (!empty($password))
 					{
@@ -493,17 +576,8 @@ class Vendors extends Erp_base
 				}
 				else
 				{
-					// Create new user if doesn't exist
-					$user_data = array(
-						'username' => $vendor_data['username'],
-						'email' => $vendor_data['username'] . '@' . $vendor_data['domain'] . '.local',
-						'password' => !empty($password) ? $vendor_data['password'] : $vendor['password'], // Already hashed
-						'role_id' => $vendor_role_id,
-						'status' => ($vendor_data['status'] == 'active') ? 1 : 0
-					);
-					
-					// Direct insert to avoid double hashing
-					$this->db->insert('erp_users', $user_data);
+					// This shouldn't happen in edit mode, but handle it just in case
+					log_message('error', 'Vendor user not found during edit operation for vendor: ' . $vendor['username']);
 				}
 			}
 			
@@ -1458,6 +1532,24 @@ class Vendors extends Erp_base
 	}
 	
 	/**
+	 * Validate domain format (callback)
+	 *
+	 * @param	string	$domain	Domain name
+	 * @return	bool	TRUE if valid, FALSE otherwise
+	 */
+	public function validate_domain($domain)
+	{
+		// Allow alphanumeric, dots, dashes, and underscores
+		if (preg_match('/^[a-zA-Z0-9._-]+$/', $domain))
+		{
+			return TRUE;
+		}
+		
+		$this->form_validation->set_message('validate_domain', 'The {field} field may only contain letters, numbers, dots, dashes, and underscores.');
+		return FALSE;
+	}
+	
+	/**
 	 * Check domain uniqueness (callback)
 	 *
 	 * @param	string	$domain	Domain name
@@ -1488,16 +1580,42 @@ class Vendors extends Erp_base
 	 */
 	public function check_username_unique($username, $vendor_id)
 	{
+		// Check uniqueness in erp_clients table (exclude current vendor if editing)
 		$this->db->where('username', $username);
-		$this->db->where('id !=', $vendor_id);
+		if (!empty($vendor_id) && $vendor_id > 0)
+		{
+			$this->db->where('id !=', $vendor_id);
+		}
 		$query = $this->db->get('erp_clients');
-		
+
 		if ($query->num_rows() > 0)
 		{
 			$this->form_validation->set_message('check_username_unique', 'The {field} field must contain a unique value.');
 			return FALSE;
 		}
-		
+
+		// For editing, we need to check if username has actually changed
+		// If editing and username hasn't changed, allow it
+		if (!empty($vendor_id) && $vendor_id > 0)
+		{
+			$current_vendor = $this->db->where('id', $vendor_id)->get('erp_clients')->row();
+			if ($current_vendor && $current_vendor->username === $username)
+			{
+				// Username hasn't changed, so it's valid
+				return TRUE;
+			}
+		}
+
+		// Check uniqueness in erp_users table (only for new usernames)
+		$this->db->where('username', $username);
+		$query = $this->db->get('erp_users');
+
+		if ($query->num_rows() > 0)
+		{
+			$this->form_validation->set_message('check_username_unique', 'The {field} field must contain a unique value.');
+			return FALSE;
+		}
+
 		return TRUE;
 	}
 	
@@ -1531,6 +1649,93 @@ class Vendors extends Erp_base
 		
 		$this->form_validation->set_message('validate_color', 'The {field} field must be a valid hex color code (e.g., #7539ff) or a predefined theme name.');
 		return FALSE;
+	}
+	
+	/**
+	 * Toggle vendor status (Active/Suspended)
+	 *
+	 * @param int $vendor_id
+	 * @return void
+	 */
+	public function toggle_status($vendor_id)
+	{
+		// Check permission
+		if (!$this->hasPermission('vendors', 'update'))
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'error',
+					'message' => 'You do not have permission to perform this action.'
+				]));
+			return;
+		}
+		
+		// Validate vendor ID
+		if (empty($vendor_id) || !is_numeric($vendor_id))
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'error',
+					'message' => 'Invalid vendor ID.'
+				]));
+			return;
+		}
+		
+		// Get status from POST
+		$status = $this->input->post('status');
+		
+		// Validate status
+		if (!in_array($status, ['active', 'suspended']))
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'error',
+					'message' => 'Invalid status. Only active or suspended are allowed.'
+				]));
+			return;
+		}
+		
+		// Get vendor
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+		
+		if (!$vendor)
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'error',
+					'message' => 'Vendor not found.'
+				]));
+			return;
+		}
+		
+		// Update status
+		$result = $this->Erp_client_model->updateClient($vendor_id, [
+			'status' => $status
+		]);
+		
+		if ($result)
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'success',
+					'message' => 'Vendor status updated successfully.',
+					'new_status' => $status
+				]));
+		}
+		else
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'error',
+					'message' => 'Failed to update vendor status.'
+				]));
+		}
 	}
 }
 

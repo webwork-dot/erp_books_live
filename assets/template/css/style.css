@@ -61,7 +61,7 @@
   2.mixins
 ============================*/
 :root {
-  --sidenav-width: 276px;
+  --sidenav-width: 210px;
   --sidenav-width-sm: 70px;
   --topbar-height: 55px;
   --topbar-bg: var(--white);
@@ -11769,7 +11769,7 @@ svg.feather-14 {
   -webkit-transition: all 0.5s ease;
   -ms-transition: all 0.5s ease;
   transition: all 0.5s ease;
-  margin: 0 0 0 276px;
+  margin: 0 0 0 210px;
   padding: 56px 0 0;
   position: relative;
   left: 0;
@@ -11784,7 +11784,7 @@ svg.feather-14 {
   }
 }
 .page-wrapper .content {
-  padding: 24px 24px 0px 0px;
+  padding: 24px 24px 0px 24px;
   padding-bottom: 0;
   min-height: calc(100vh - 105px);
 }
@@ -11952,6 +11952,11 @@ p:last-child {
 }
 .header .main-header {
   height: inherit;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 .header .flag-nav > a img {
   border-radius: 50%;
@@ -12078,7 +12083,8 @@ p:last-child {
 }
 @media (min-width: 992px) {
   .header {
-    left: 276px;
+    left: 210px;
+    padding: 0;
   }
   .header #toggle_btn {
     display: -webkit-box;
@@ -12166,16 +12172,16 @@ p:last-child {
   top: 10px;
 }
 .header .header-user {
-  padding: 15px 24px;
+  padding: 0;
   display: contents;
 }
 .header .header-user .user-menu {
   align-items: center;
   -webkit-box-align: center;
   -ms-flex-align: center;
-  justify-content: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
+  justify-content: space-between;
+  -webkit-justify-content: space-between;
+  -ms-flex-pack: space-between;
   margin: 0;
   position: relative;
   height: 100%;
@@ -12185,6 +12191,8 @@ p:last-child {
   -webkit-transition: all 0.5s ease;
   -ms-transition: all 0.5s ease;
   transition: all 0.5s ease;
+  width: 100%;
+  display: flex;
 }
 @media (max-width: 991.98px) {
   .header .header-user .user-menu {
@@ -12373,6 +12381,10 @@ p:last-child {
   height: 20px;
   border-radius: 50%;
   margin-right: 10px;
+}
+.header .header-user .user-menu #header-search {
+  flex: 1;
+  min-width: 0;
 }
 .header .header-user .user-menu #header-search .dropdown {
   display: none;
@@ -12874,7 +12886,7 @@ p:last-child {
   -webkit-transition: all 0.5s ease;
   -ms-transition: all 0.5s ease;
   transition: all 0.5s ease;
-  width: 250px;
+  width: 210px;
 }
 @media (max-width: 991.98px) {
   .sidebar, .sidebars {
@@ -12890,7 +12902,7 @@ p:last-child {
 .sidebar .sidebar-logo, .sidebars .sidebar-logo {
   position: fixed;
   height: 56px;
-  width: 250px;
+  width: 210px;
   padding: 16px 16px 0;
 }
 .sidebar .sidebar-logo .logo, .sidebars .sidebar-logo .logo {
@@ -13344,7 +13356,7 @@ p:last-child {
 }
 @media (min-width: 992px) {
   .expand-menu.mini-sidebar .two-col-sidebar {
-    width: 276px;
+    width: 210px;
   }
   .expand-menu.mini-sidebar .sidebar {
     width: 240px;
@@ -13526,7 +13538,7 @@ p:last-child {
 }
 
 .two-col-sidebar {
-  width: 250px;
+  width: 210px;
   z-index: 99;
   transition: all 0.5s ease;
   background: var(--menu-bg);
@@ -14153,7 +14165,7 @@ p:last-child {
 [data-layout=transparent][data-width=box] .layout-box-mode .header {
   margin: auto;
   max-width: 1044px;
-  left: 276px;
+  left: 210px;
   padding-left: 0;
 }
 @media (max-width: 1399.98px) {

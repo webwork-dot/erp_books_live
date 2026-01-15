@@ -1,11 +1,11 @@
 <!-- Start Header -->
-<div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
+<div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-2 mb-2">
 	<div>
-		<h6>Add New School</h6>
+		<h6 class="mb-0 fs-14">Add New School</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary">
-			<i class="isax isax-arrow-left me-1"></i>Back to List
+		<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary btn-sm">
+			<i class="isax isax-arrow-left me-1"></i>Back
 		</a>
 	</div>
 </div>
@@ -16,17 +16,15 @@
 <div class="row">
 	<!-- School Information -->
 	<div class="col-md-12">
-		<div class="card mb-3">
-			<div class="card-header">
-				<h6 class="mb-0">School Information</h6>
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">School Information</h6>
 			</div>
-			<div class="card-body" id="school-info-section">
-				<div class="row">
-					
-					
-					<div class="col-md-6 mb-3" id="parent_school_container" style="display: none;">
-						<label class="form-label">Parent School <span class="text-danger">*</span></label>
-						<select name="parent_school_id" id="parent_school_id" class="form-select">
+			<div class="card-body p-2" id="school-info-section">
+				<div class="row g-2">
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2" id="parent_school_container" style="display: none;">
+						<label class="form-label fs-13 mb-1">Parent School <span class="text-danger">*</span></label>
+						<select name="parent_school_id" id="parent_school_id" class="form-select form-select-sm">
 							<option value="" selected disabled>Select Parent School</option>
 							<?php if (!empty($parent_schools)): ?>
 								<?php foreach ($parent_schools as $school): ?>
@@ -36,21 +34,20 @@
 								<?php endforeach; ?>
 							<?php endif; ?>
 						</select>
-						<?php echo form_error('parent_school_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<?php echo form_error('parent_school_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-6 mb-3">
-						<label class="form-label" id="name_label">School Name <span class="text-danger">*</span></label>
-						<input type="text" name="school_name" id="school_name" class="form-control" value="<?php echo set_value('school_name'); ?>" required>
-						<?php echo form_error('school_name', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1" id="name_label">School Name <span class="text-danger">*</span></label>
+						<input type="text" name="school_name" id="school_name" class="form-control form-control-sm" value="<?php echo set_value('school_name'); ?>" required>
+						<?php echo form_error('school_name', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-6 mb-3">
-						<label class="form-label">School Board <span class="text-danger">*</span></label>
-						<div class="d-flex gap-2 align-items-start">
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">School Board <span class="text-danger">*</span></label>
+						<div class="d-flex gap-1 align-items-start">
 							<div class="flex-grow-1">
-								<select name="school_board[]" id="school_board" class="form-select select2" multiple required>
-									<option value="">Select Board(s)</option>
+								<select name="school_board[]" id="school_board" class="form-select form-select-sm" multiple required>
 									<?php if (!empty($boards)): ?>
 										<?php foreach ($boards as $board): ?>
 											<option value="<?php echo $board['id']; ?>" <?php echo set_select('school_board[]', $board['id']); ?>>
@@ -59,31 +56,31 @@
 										<?php endforeach; ?>
 									<?php endif; ?>
 								</select>
-								<small class="text-muted">You can select multiple boards</small>
-								<?php echo form_error('school_board', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<small class="text-muted fs-12">Multiple boards</small>
+								<?php echo form_error('school_board', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
-							<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addBoardModal" style="padding: 6px;">
-								<i class="isax isax-add me-1"></i>Add Board
+							<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addBoardModal" style="padding: 4px 8px;">
+								<i class="isax isax-add"></i>
 							</button>
 						</div>
 					</div>
 					
-					<div class="col-md-6 mb-3">
-						<label class="form-label">Total School Strength</label>
-						<input type="number" name="total_strength" class="form-control" value="<?php echo set_value('total_strength'); ?>" min="0">
-						<?php echo form_error('total_strength', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">Total Strength</label>
+						<input type="number" name="total_strength" class="form-control form-control-sm" value="<?php echo set_value('total_strength'); ?>" min="0">
+						<?php echo form_error('total_strength', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-6 mb-3">
-						<label class="form-label">Affiliation No.</label>
-						<input type="text" name="affiliation_no" class="form-control" value="<?php echo set_value('affiliation_no'); ?>">
-						<?php echo form_error('affiliation_no', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">Affiliation No.</label>
+						<input type="text" name="affiliation_no" class="form-control form-control-sm" value="<?php echo set_value('affiliation_no'); ?>">
+						<?php echo form_error('affiliation_no', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-12 mb-3">
-						<label class="form-label">School Description <span class="text-danger">*</span></label>
-						<textarea name="school_description" class="form-control" rows="4" required><?php echo set_value('school_description'); ?></textarea>
-						<?php echo form_error('school_description', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+					<div class="col-md-12 mb-2">
+						<label class="form-label fs-13 mb-1">School Description</label>
+						<textarea name="school_description" class="form-control form-control-sm" rows="2"><?php echo set_value('school_description'); ?></textarea>
+						<?php echo form_error('school_description', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 				</div>
 			</div>
@@ -92,21 +89,21 @@
 	
 	<!-- Address Information -->
 	<div class="col-md-12">
-		<div class="card mb-3">
-			<div class="card-header">
-				<h6 class="mb-0">Address Information</h6>
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Address Information</h6>
 			</div>
-			<div class="card-body">
-				<div class="row">
-					<div class="col-md-12 mb-3">
-						<label class="form-label">Address <span class="text-danger">*</span></label>
-						<textarea name="address" class="form-control" rows="3" required><?php echo set_value('address'); ?></textarea>
-						<?php echo form_error('address', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+			<div class="card-body p-2">
+				<div class="row g-2">
+					<div class="col-md-12 mb-2">
+						<label class="form-label fs-13 mb-1">Address <span class="text-danger">*</span></label>
+						<textarea name="address" class="form-control form-control-sm" rows="2" required><?php echo set_value('address'); ?></textarea>
+						<?php echo form_error('address', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-4 mb-3">
-						<label class="form-label">State <span class="text-danger">*</span></label>
-						<select name="state_id" id="state_id" class="form-select" required onchange="loadCities(this.value)">
+					<div class="col-xl-4 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">State <span class="text-danger">*</span></label>
+						<select name="state_id" id="state_id" class="form-select form-select-sm" required onchange="loadCities(this.value)">
 							<option value="">Select State</option>
 							<?php foreach ($states as $state): ?>
 								<option value="<?php echo $state['id']; ?>" <?php echo set_select('state_id', $state['id']); ?>>
@@ -114,21 +111,21 @@
 								</option>
 							<?php endforeach; ?>
 						</select>
-						<?php echo form_error('state_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<?php echo form_error('state_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-4 mb-3">
-						<label class="form-label">City <span class="text-danger">*</span></label>
-						<select name="city_id" id="city_id" class="form-select" required>
+					<div class="col-xl-4 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">City <span class="text-danger">*</span></label>
+						<select name="city_id" id="city_id" class="form-select form-select-sm" required>
 							<option value="">Select State First</option>
 						</select>
-						<?php echo form_error('city_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<?php echo form_error('city_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-4 mb-3">
-						<label class="form-label">Pincode <span class="text-danger">*</span></label>
-						<input type="text" name="pincode" class="form-control" value="<?php echo set_value('pincode'); ?>" pattern="[0-9]{6}" maxlength="10" required>
-						<?php echo form_error('pincode', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+					<div class="col-xl-4 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">Pincode <span class="text-danger">*</span></label>
+						<input type="text" name="pincode" class="form-control form-control-sm" value="<?php echo set_value('pincode'); ?>" pattern="[0-9]{6}" maxlength="10" required>
+						<?php echo form_error('pincode', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 				</div>
 			</div>
@@ -137,40 +134,40 @@
 	
 	<!-- Admin Login Details -->
 	<div class="col-md-12" id="admin-section">
-		<div class="card mb-3">
-			<div class="card-header">
-				<h6 class="mb-0">Admin Login Details</h6>
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Admin Login Details</h6>
 			</div>
-			<div class="card-body">
-				<div class="row">
-					<div class="col-md-4 mb-3">
-						<label class="form-label">Admin Name <span class="text-danger">*</span></label>
-						<input type="text" name="admin_name" class="form-control" value="<?php echo set_value('admin_name'); ?>" required>
-						<?php echo form_error('admin_name', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+			<div class="card-body p-2">
+				<div class="row g-2">
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">Admin Name <span class="text-danger">*</span></label>
+						<input type="text" name="admin_name" class="form-control form-control-sm" value="<?php echo set_value('admin_name'); ?>" required>
+						<?php echo form_error('admin_name', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-4 mb-3">
-						<label class="form-label">Admin Phone <span class="text-danger">*</span></label>
-						<input type="text" name="admin_phone" class="form-control" value="<?php echo set_value('admin_phone'); ?>" required>
-						<?php echo form_error('admin_phone', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">Admin Phone <span class="text-danger">*</span></label>
+						<input type="text" name="admin_phone" class="form-control form-control-sm" value="<?php echo set_value('admin_phone'); ?>" required>
+						<?php echo form_error('admin_phone', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-4 mb-3">
-						<label class="form-label">Admin Email <span class="text-danger">*</span></label>
-						<input type="email" name="admin_email" class="form-control" value="<?php echo set_value('admin_email'); ?>" required>
-						<?php echo form_error('admin_email', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">Admin Email <span class="text-danger">*</span></label>
+						<input type="email" name="admin_email" class="form-control form-control-sm" value="<?php echo set_value('admin_email'); ?>" required>
+						<?php echo form_error('admin_email', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
-					<div class="col-md-12 mb-3">
-						<label class="form-label">Admin Password <span class="text-danger">*</span></label>
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
+						<label class="form-label fs-13 mb-1">Admin Password <span class="text-danger">*</span></label>
 						<div class="position-relative">
-							<input type="password" name="admin_password" id="admin_password" class="form-control" required minlength="6">
-							<span class="position-absolute end-0 top-50 translate-middle-y pe-3" style="cursor: pointer;" onclick="togglePassword('admin_password')">
-								<i class="isax isax-eye" id="admin_password-eye"></i>
+							<input type="password" name="admin_password" id="admin_password" class="form-control form-control-sm" required minlength="6">
+							<span class="position-absolute end-0 top-50 translate-middle-y pe-2" style="cursor: pointer;" onclick="togglePassword('admin_password')">
+								<i class="isax isax-eye fs-14" id="admin_password-eye"></i>
 							</span>
 						</div>
-						<small class="text-muted">Minimum 6 characters</small>
-						<?php echo form_error('admin_password', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<small class="text-muted fs-12">Min 6 chars</small>
+						<?php echo form_error('admin_password', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 				</div>
 			</div>
@@ -179,15 +176,15 @@
 	
 	<!-- School Images -->
 	<div class="col-md-12" id="images-section">
-		<div class="card mb-3">
-			<div class="card-header">
-				<h6 class="mb-0">School Images</h6>
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">School Images</h6>
 			</div>
-			<div class="card-body">
-				<div class="mb-3">
-					<label class="form-label">Upload Images</label>
-					<input type="file" name="school_images[]" class="form-control" multiple accept="image/*">
-					<small class="text-muted">You can select multiple images. Supported formats: JPG, PNG, GIF, WEBP (Max 5MB each)</small>
+			<div class="card-body p-2">
+				<div class="mb-2">
+					<label class="form-label fs-13 mb-1">Upload Images</label>
+					<input type="file" name="school_images[]" class="form-control form-control-sm" multiple accept="image/*">
+					<small class="text-muted fs-12">Multiple images: JPG, PNG, GIF, WEBP (Max 5MB each)</small>
 				</div>
 			</div>
 		</div>
@@ -196,10 +193,10 @@
 	<!-- Submit Buttons -->
 	<div class="col-md-12">
 		<div class="d-flex gap-2">
-			<button type="submit" class="btn btn-primary">
+			<button type="submit" class="btn btn-primary btn-sm">
 				<i class="isax isax-tick-circle me-1"></i>Create School
 			</button>
-			<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary">
+			<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary btn-sm">
 				<i class="isax isax-close-circle me-1"></i>Cancel
 			</a>
 		</div>
@@ -210,7 +207,7 @@
 
 <!-- Add Board Modal -->
 <div class="modal fade" id="addBoardModal" tabindex="-1" aria-labelledby="addBoardModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-dialog-centered">
 		<div class="modal-content">
 			<div class="modal-header">
 				<h5 class="modal-title" id="addBoardModalLabel">Add New Board</h5>
@@ -242,9 +239,6 @@
 $(document).ready(function () {
 	if ($.fn.select2) {
 		$('#school_board').select2({
-			theme: 'bootstrap-5',
-			placeholder: 'Select Board(s)',
-			allowClear: true,
 			width: '100%'
 		});
 	} else {
@@ -272,7 +266,6 @@ $(document).ready(function () {
 			imagesSection.hide();
 			// Remove required from school-specific fields
 			$('#school_board').prop('required', false);
-			$('textarea[name="school_description"]').prop('required', false);
 			$('input[name="admin_name"]').prop('required', false);
 			$('input[name="admin_phone"]').prop('required', false);
 			$('input[name="admin_email"]').prop('required', false);
@@ -289,7 +282,6 @@ $(document).ready(function () {
 			imagesSection.show();
 			// Add required back to school-specific fields
 			$('#school_board').prop('required', true);
-			$('textarea[name="school_description"]').prop('required', true);
 			$('input[name="admin_name"]').prop('required', true);
 			$('input[name="admin_phone"]').prop('required', true);
 			$('input[name="admin_email"]').prop('required', true);

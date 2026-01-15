@@ -25,9 +25,17 @@
                             <td><?php echo htmlspecialchars($vendor['domain']); ?></td>
                             <td><?php echo htmlspecialchars($vendor['database_name']); ?></td>
                             <td>
-                                <span class="badge <?php echo $vendor['status'] == 'active' ? 'badge-success' : ($vendor['status'] == 'suspended' ? 'badge-warning' : 'badge-danger'); ?>">
-                                    <?php echo ucfirst($vendor['status']); ?>
-                                </span>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input status-toggle" type="checkbox" 
+                                           id="status_<?php echo $vendor['id']; ?>" 
+                                           data-vendor-id="<?php echo $vendor['id']; ?>"
+                                           <?php echo $vendor['status'] == 'active' ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="status_<?php echo $vendor['id']; ?>">
+                                        <span class="badge <?php echo $vendor['status'] == 'active' ? 'badge-success' : 'badge-warning'; ?>">
+                                            <?php echo ucfirst($vendor['status']); ?>
+                                        </span>
+                                    </label>
+                                </div>
                             </td>
                             <td class="text-end">
                                 <a href="<?php echo base_url('erp-admin/vendors/edit/' . $vendor['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
@@ -325,5 +333,70 @@ function escapeHtml(text) {
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
+
+// Status toggle handler
+document.addEventListener('DOMContentLoaded', function() {
+    var statusToggles = document.querySelectorAll('.status-toggle');
+    
+    statusToggles.forEach(function(toggle) {
+        toggle.addEventListener('change', function() {
+            var vendorId = this.getAttribute('data-vendor-id');
+            var newStatus = this.checked ? 'active' : 'suspended';
+            var label = this.nextElementSibling;
+            var badge = label.querySelector('.badge');
+            
+            // Disable toggle while processing
+            this.disabled = true;
+            
+            // Update badge immediately for better UX
+            badge.className = 'badge ' + (newStatus === 'active' ? 'badge-success' : 'badge-warning');
+            badge.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+            
+            // Make AJAX request
+            fetch('<?php echo base_url('erp-admin/vendors/toggle_status/'); ?>' + vendorId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'status=' + encodeURIComponent(newStatus)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                this.disabled = false;
+                
+                if (data.status === 'success') {
+                    // Success - status already updated visually
+                    badge.className = 'badge ' + (newStatus === 'active' ? 'badge-success' : 'badge-warning');
+                    badge.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                } else {
+                    // Revert toggle on error
+                    this.checked = !this.checked;
+                    var revertedStatus = this.checked ? 'active' : 'suspended';
+                    badge.className = 'badge ' + (revertedStatus === 'active' ? 'badge-success' : 'badge-warning');
+                    badge.textContent = revertedStatus.charAt(0).toUpperCase() + revertedStatus.slice(1);
+                    
+                    alert(data.message || 'Failed to update status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.disabled = false;
+                
+                // Revert toggle on error
+                this.checked = !this.checked;
+                var revertedStatus = this.checked ? 'active' : 'suspended';
+                badge.className = 'badge ' + (revertedStatus === 'active' ? 'badge-success' : 'badge-warning');
+                badge.textContent = revertedStatus.charAt(0).toUpperCase() + revertedStatus.slice(1);
+                
+                alert('An error occurred while updating status');
+            });
+        });
+    });
+});
 </script>
 

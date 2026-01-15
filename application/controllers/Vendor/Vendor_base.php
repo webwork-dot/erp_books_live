@@ -53,14 +53,36 @@ class Vendor_base extends CI_Controller
 		// Allow access if vendor_logged_in is true OR user_type is vendor
 		if (!$vendor_logged_in && $user_type !== 'vendor')
 		{
-			$vendor_domain = $this->uri->segment(1);
-			$reserved_routes = array('erp-admin', 'api', 'frontend', 'vendor', 'Vendor', 'auth');
-			if ($vendor_domain && !in_array($vendor_domain, $reserved_routes))
-			{
-				redirect($vendor_domain . '/login', 'refresh');
+			// Get vendor domain from HTTP_HOST first (subdomain-based routing)
+			$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+			if (strpos($http_host, ':') !== false) {
+				$http_host = substr($http_host, 0, strpos($http_host, ':'));
 			}
-			else
-			{
+			
+			// Check if HTTP_HOST is a vendor domain
+			$vendor = null;
+			if (!empty($http_host) && strpos($http_host, 'localhost') === false && strpos($http_host, '127.0.0.1') === false) {
+				$vendor = $this->Erp_client_model->getClientByDomain($http_host);
+			}
+			
+			// Fallback to URI segment (path-based routing) - for backward compatibility
+			if (!$vendor) {
+				$vendor_domain_segment = $this->uri->segment(1);
+				$reserved_routes = array('erp-admin', 'api', 'frontend', 'vendor', 'Vendor', 'auth');
+				if ($vendor_domain_segment && !in_array($vendor_domain_segment, $reserved_routes)) {
+					$vendor = $this->Erp_client_model->getClientByDomain($vendor_domain_segment);
+				}
+			}
+			
+			if ($vendor) {
+				// Use vendor_url helper which handles localhost vs production automatically
+				$base_domain = $this->Erp_client_model->extractBaseDomain($vendor['domain']);
+				if (empty($base_domain)) {
+					$base_domain = $vendor['domain'];
+				}
+				$this->load->helper('common');
+				redirect(vendor_url('login', $base_domain), 'refresh');
+			} else {
 				redirect('auth/login', 'refresh');
 			}
 		}
@@ -75,6 +97,32 @@ class Vendor_base extends CI_Controller
 	{
 		$vendor_id = $this->session->userdata('vendor_id');
 		
+		// If no vendor_id in session, try to detect from HTTP_HOST
+		if (!$vendor_id) {
+			$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+			if (strpos($http_host, ':') !== false) {
+				$http_host = substr($http_host, 0, strpos($http_host, ':'));
+			}
+			
+			if (!empty($http_host) && strpos($http_host, 'localhost') === false && strpos($http_host, '127.0.0.1') === false) {
+				// getClientByDomain now handles subdomain matching automatically
+				$vendor = $this->Erp_client_model->getClientByDomain($http_host);
+				if ($vendor) {
+					$vendor_id = $vendor['id'];
+					// Set session for future requests
+					// Store base domain (not subdomain) in session
+					$base_domain = $this->Erp_client_model->extractBaseDomain($vendor['domain']);
+					if (empty($base_domain)) {
+						$base_domain = $vendor['domain'];
+					}
+					$this->session->set_userdata('vendor_id', $vendor_id);
+					$this->session->set_userdata('vendor_logged_in', true);
+					$this->session->set_userdata('user_type', 'vendor');
+					$this->session->set_userdata('vendor_domain', $base_domain);
+				}
+			}
+		}
+		
 		if ($vendor_id)
 		{
 			$this->current_vendor = $this->Erp_client_model->getClientById($vendor_id);
@@ -83,7 +131,8 @@ class Vendor_base extends CI_Controller
 			{
 				$this->session->set_flashdata('error', 'Your vendor account is not active.');
 				$this->session->unset_userdata('vendor_logged_in');
-				redirect($this->current_vendor['domain'] . '/login', 'refresh');
+				$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+				redirect($protocol . '://' . $this->current_vendor['domain'] . '/login', 'refresh');
 			}
 			
 			// Switch to vendor's database if database_name is set
@@ -143,13 +192,28 @@ class Vendor_base extends CI_Controller
 		// Try to get from vendor database first (preferred method)
 		if (!empty($this->current_vendor['database_name']))
 		{
-			$this->load->library('Feature_access');
-			$this->Feature_access->setVendorDatabase($this->current_vendor['database_name']);
-			$vendor_db_features = $this->Feature_access->getEnabledFeatures();
-			
-			if (!empty($vendor_db_features))
-			{
-				return $vendor_db_features;
+			try {
+				$this->load->library('Feature_access');
+				
+				// Check if library loaded successfully
+				if (!isset($this->Feature_access) || !is_object($this->Feature_access))
+				{
+					log_message('error', 'Feature_access library failed to load');
+					// Fall through to master database check
+				}
+				else
+				{
+					$this->Feature_access->setVendorDatabase($this->current_vendor['database_name']);
+					$vendor_db_features = $this->Feature_access->getEnabledFeatures();
+					
+					if (!empty($vendor_db_features))
+					{
+						return $vendor_db_features;
+					}
+				}
+			} catch (Exception $e) {
+				log_message('error', 'Error loading Feature_access library: ' . $e->getMessage());
+				// Fall through to master database check
 			}
 		}
 		

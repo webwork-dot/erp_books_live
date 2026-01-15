@@ -407,13 +407,14 @@ class Erp_client_model extends CI_Model
 	}
 	
 	/**
-	 * Get client by domain
+	 * Get client by domain (supports subdomain matching)
 	 *
-	 * @param	string	$domain	Domain name
+	 * @param	string	$domain	Domain name (can be subdomain like master.varitty.in or base domain like varitty.in)
 	 * @return	array|NULL	Client data or NULL if not found
 	 */
 	public function getClientByDomain($domain)
 	{
+		// First try exact match
 		$this->db->where('domain', $domain);
 		$this->db->where('status', 'active');
 		$query = $this->db->get('erp_clients');
@@ -423,7 +424,78 @@ class Erp_client_model extends CI_Model
 			return $query->row_array();
 		}
 		
+		// If not found and domain contains subdomain (e.g., master.varitty.in)
+		// Extract base domain (varitty.in) and try matching
+		if (strpos($domain, '.') !== false)
+		{
+			$parts = explode('.', $domain);
+			if (count($parts) >= 2)
+			{
+				// Remove first part (subdomain) and join rest (base domain)
+				array_shift($parts);
+				$base_domain = implode('.', $parts);
+				
+				// Try matching with base domain
+				$this->db->where('domain', $base_domain);
+				$this->db->where('status', 'active');
+				$query = $this->db->get('erp_clients');
+				
+				if ($query->num_rows() > 0)
+				{
+					return $query->row_array();
+				}
+			}
+		}
+		
+		// Also try reverse: if stored domain is a subdomain and request is base domain
+		// Match any subdomain of the requested domain
+		$this->db->like('domain', '.' . $domain, 'after');
+		$this->db->or_where('domain', $domain);
+		$this->db->where('status', 'active');
+		$query = $this->db->get('erp_clients');
+		
+		if ($query->num_rows() > 0)
+		{
+			return $query->row_array();
+		}
+		
 		return NULL;
+	}
+	
+	/**
+	 * Extract base domain from subdomain
+	 *
+	 * @param	string	$domain	Full domain (e.g., master.varitty.in)
+	 * @return	string	Base domain (e.g., varitty.in)
+	 */
+	public function extractBaseDomain($domain)
+	{
+		if (strpos($domain, '.') === false)
+		{
+			return $domain;
+		}
+		
+		$parts = explode('.', $domain);
+		if (count($parts) >= 2)
+		{
+			// Remove first part (subdomain) and return rest
+			array_shift($parts);
+			return implode('.', $parts);
+		}
+		
+		return $domain;
+	}
+	
+	/**
+	 * Generate vendor subdomain URL
+	 *
+	 * @param	string	$base_domain	Base domain (e.g., varitty.in)
+	 * @param	string	$subdomain		Subdomain prefix (default: 'master')
+	 * @return	string	Full subdomain (e.g., master.varitty.in)
+	 */
+	public function getVendorSubdomain($base_domain, $subdomain = 'master')
+	{
+		return $subdomain . '.' . $base_domain;
 	}
 	
 	/**

@@ -101,10 +101,12 @@
 
 							<!-- Search -->
 							<div class="input-icon-end position-relative me-2">
-								<input type="text" class="form-control" placeholder="Search">
-								<span class="input-icon-addon">
-									<i class="isax isax-search-normal"></i>
-								</span>
+								<form method="get" action="<?php echo base_url('erp-admin/search'); ?>" class="d-flex">
+									<input type="text" name="q" class="form-control" placeholder="Search..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" style="min-width: 200px;">
+									<span class="input-icon-addon">
+										<i class="isax isax-search-normal"></i>
+									</span>
+								</form>
 							</div>
 							<!-- /Search -->
 
@@ -156,13 +158,19 @@
 							<div class="dropdown profile-dropdown">
 								<a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center" data-bs-toggle="dropdown"  data-bs-auto-close="outside">
 									<span class="avatar online">
-										<img src="<?php echo base_url('assets/template/img/profiles/avatar-01.jpg'); ?>" alt="Img" class="img-fluid rounded-circle">
+										<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="img-fluid rounded-circle" style="color: #6c757d;">
+											<path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
+											<path d="M12.0002 14.5C6.99016 14.5 2.91016 17.86 2.91016 22C2.91016 22.28 3.13016 22.5 3.41016 22.5H20.5902C20.8702 22.5 21.0902 22.28 21.0902 22C21.0902 17.86 17.0102 14.5 12.0002 14.5Z" fill="currentColor"/>
+										</svg>
 									</span>
 								</a>
 								<div class="dropdown-menu p-2">
 									<div class="d-flex align-items-center bg-light rounded-1 p-2 mb-2">
 										<span class="avatar avatar-lg me-2">
-											<img src="<?php echo base_url('assets/template/img/profiles/avatar-01.jpg'); ?>" alt="img" class="rounded-circle" >
+											<svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="rounded-circle" style="color: #6c757d;">
+												<path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
+												<path d="M12.0002 14.5C6.99016 14.5 2.91016 17.86 2.91016 22C2.91016 22.28 3.13016 22.5 3.41016 22.5H20.5902C20.8702 22.5 21.0902 22.28 21.0902 22C21.0902 17.86 17.0102 14.5 12.0002 14.5Z" fill="currentColor"/>
+											</svg>
 										</span>
 										<div>
 											<h6 class="fs-14 fw-medium mb-1"><?php echo isset($current_user['username']) ? htmlspecialchars($current_user['username']) : 'User'; ?></h6>
@@ -197,7 +205,10 @@
 				<div class="dropdown mobile-user-menu profile-dropdown">
 					<a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center" data-bs-toggle="dropdown"  data-bs-auto-close="outside">
 						<span class="avatar avatar-md online">
-							<img src="<?php echo base_url('assets/template/img/profiles/avatar-01.jpg'); ?>" alt="Img" class="img-fluid rounded-circle">
+							<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="img-fluid rounded-circle" style="color: #6c757d;">
+								<path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
+								<path d="M12.0002 14.5C6.99016 14.5 2.91016 17.86 2.91016 22C2.91016 22.28 3.13016 22.5 3.41016 22.5H20.5902C20.8702 22.5 21.0902 22.28 21.0902 22C21.0902 17.86 17.0102 14.5 12.0002 14.5Z" fill="currentColor"/>
+							</svg>
 						</span>
 					</a>
 					<div class="dropdown-menu p-2 mt-0">

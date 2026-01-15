@@ -56,15 +56,31 @@ if (!function_exists('resolve_tenant'))
 				return;
 			}
 			
+			// Get HTTP_HOST first - prioritize domain-based resolution
+			$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+			
+			// Remove port if present (e.g., localhost:8080 -> localhost)
+			if (strpos($http_host, ':') !== false) {
+				$http_host = substr($http_host, 0, strpos($http_host, ':'));
+			}
+			
 			// Get current URI segments
 			$first_segment = $CI->uri->segment(1);
 			
 			// Check if this route should skip tenant resolution
 			$skip_routes = isset($tenant_config['skip_tenant_routes']) ? $tenant_config['skip_tenant_routes'] : array('erp-admin', 'erp_admin', 'api', 'frontend', 'Frontend');
 			
-			// Skip tenant resolution for certain routes
-			// Also skip if no segments (default route/homepage) or if first segment is empty/null
-			if (empty($first_segment) || $first_segment === FALSE || in_array($first_segment, $skip_routes))
+			// Check if HTTP_HOST matches a reserved/admin domain (like localhost, erp-admin domain, etc.)
+			$is_admin_domain = false;
+			if (strpos($http_host, 'localhost') !== false || 
+				strpos($http_host, '127.0.0.1') !== false ||
+				strpos($http_host, 'erp-admin') !== false ||
+				$http_host === '') {
+				$is_admin_domain = true;
+			}
+			
+			// Skip tenant resolution for certain routes or admin domains
+			if ($is_admin_domain || (empty($first_segment) || $first_segment === FALSE || in_array($first_segment, $skip_routes)))
 			{
 				// Use master database for ERP admin, API, and frontend home
 				return;
@@ -106,6 +122,14 @@ if (!function_exists('resolve_tenant'))
 			}
 			
 			// If not resolved yet, try configured resolution method
+			// PRIORITIZE HTTP_HOST domain resolution first
+			if (!$tenant && !empty($http_host) && !$is_admin_domain)
+			{
+				// Try to resolve by HTTP_HOST domain first
+				$tenant = $CI->tenant->resolveByDomain($http_host);
+			}
+			
+			// If still not resolved, try configured resolution method
 			if (!$tenant)
 			{
 				$resolution_method = isset($tenant_config['tenant_resolution_method']) ? $tenant_config['tenant_resolution_method'] : 'domain';
@@ -113,12 +137,7 @@ if (!function_exists('resolve_tenant'))
 				switch ($resolution_method)
 				{
 					case 'domain':
-						$domain = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
-						if ($domain)
-						{
-							$tenant = $CI->tenant->resolveByDomain($domain);
-						}
-						// If domain resolution fails, try resolving by first URI segment (for vendor domain routes)
+						// Already tried HTTP_HOST above, now try URI segment as fallback
 						if (!$tenant && !empty($first_segment) && $first_segment !== FALSE && !in_array($first_segment, $skip_routes))
 						{
 							// Try resolving by domain name from URI segment using tenant library

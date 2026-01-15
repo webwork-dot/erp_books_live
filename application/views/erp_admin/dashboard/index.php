@@ -6,26 +6,32 @@
 				</div>
 				<!-- End Breadcrumb -->
 
-				<!-- Welcome Section -->
-				<div class="bg-primary rounded welcome-wrap position-relative mb-3">
-					<div class="row">
-						<div class="col-lg-8 col-md-9 col-sm-7">
-							<div>
-								<h5 class="text-white mb-1">Good Morning, <?php echo isset($current_user['username']) ? htmlspecialchars($current_user['username']) : 'Admin'; ?></h5>
-								<p class="text-white mb-3">Welcome to ERP Admin Dashboard</p>
-								<div class="d-flex align-items-center flex-wrap gap-3">
-									<p class="d-flex align-items-center fs-13 text-white mb-0"><i class="isax isax-calendar5 me-1"></i><?php echo date('l, d M Y'); ?></p>
-									<p class="d-flex align-items-center fs-13 text-white mb-0"><i class="isax isax-clock5 me-1"></i><?php echo date('h:i A'); ?></p>
-								</div>
-							</div>
+			<!-- Welcome Section -->
+			<?php
+			// Set timezone to IST
+			date_default_timezone_set('Asia/Kolkata');
+			$ist_date = date('l, d M Y');
+			$ist_time = date('h:i A');
+			$user_name = isset($current_user['username']) ? htmlspecialchars($current_user['username']) : 'Admin';
+			?>
+			<div class="card mb-3">
+				<div class="card-body py-2">
+					<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+						<div class="d-flex align-items-center flex-wrap gap-3">
+							<span class="text-muted">Welcome,</span>
+							<span class="fw-semibold"><?php echo $user_name; ?></span>
 						</div>
-						<div class="col-lg-4 col-md-3 col-sm-5">
-							<div class="position-absolute end-0 top-50 translate-middle-y p-2 d-none d-sm-block">
-								<img src="<?php echo base_url('assets/template/img/icons/dashboard.svg'); ?>" alt="img">
-							</div>
+						<div class="d-flex align-items-center flex-wrap gap-3">
+							<span class="d-flex align-items-center text-muted fs-13">
+								<i class="isax isax-calendar5 me-1"></i><?php echo $ist_date; ?>
+							</span>
+							<span class="d-flex align-items-center text-muted fs-13">
+								<i class="isax isax-clock5 me-1"></i><?php echo $ist_time; ?> IST
+							</span>
 						</div>
 					</div>
 				</div>
+			</div>
 
 				<!-- Statistics Cards -->
 				<div class="row">
