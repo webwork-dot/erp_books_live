@@ -1,0 +1,232 @@
+/* ============================================
+   Vendor Logo Fix - Responsive Logo Sizing
+   ============================================ */
+
+/* Fix sidebar logo container height - More aggressive targeting */
+#two-col-sidebar .sidebar .sidebar-logo,
+#two-col-sidebar .sidebars .sidebar-logo,
+.sidebar .sidebar-logo,
+.sidebars .sidebar-logo,
+.idebar-logo {
+  height: 56px !important;
+  max-height: 56px !important;
+  min-height: 56px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 8px 16px !important;
+  box-sizing: border-box !important;
+  gap: 12px !important;
+}
+
+/* Make all logo images responsive and fit within container - More specific selectors */
+#two-col-sidebar .sidebar .sidebar-logo img,
+#two-col-sidebar .sidebar .sidebar-logo .logo img,
+#two-col-sidebar .sidebar .sidebar-logo .logo-normal img,
+#two-col-sidebar .sidebar .sidebar-logo .logo-small img,
+#two-col-sidebar .sidebar .sidebar-logo .dark-logo img,
+#two-col-sidebar .sidebar .sidebar-logo .dark-small img,
+.sidebar .sidebar-logo img,
+.sidebars .sidebar-logo img,
+.sidebar .sidebar-logo .logo img,
+.sidebars .sidebar-logo .logo img,
+.sidebar .sidebar-logo .logo-normal img,
+.sidebars .sidebar-logo .logo-normal img,
+.sidebar .sidebar-logo .logo-small img,
+.sidebars .sidebar-logo .logo-small img,
+.sidebar .sidebar-logo .dark-logo img,
+.sidebars .sidebar-logo .dark-logo img,
+.sidebar .sidebar-logo .dark-small img,
+.sidebars .sidebar-logo .dark-small img,
+.idebar-logo img,
+.idebar-logo .logo img,
+.idebar-logo .logo-normal img,
+.idebar-logo .dark-logo img {
+  max-width: 120px !important;
+  max-height: 40px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure visible logo links don't add extra height - Only apply to visible logos */
+#two-col-sidebar .sidebar .sidebar-logo .logo,
+.sidebar .sidebar-logo .logo,
+.sidebars .sidebar-logo .logo,
+#two-col-sidebar .sidebar .sidebar-logo .logo-normal,
+.sidebar .sidebar-logo .logo-normal,
+.sidebars .sidebar-logo .logo-normal,
+#two-col-sidebar .sidebar .sidebar-logo .dark-logo,
+.sidebar .sidebar-logo .dark-logo,
+.sidebars .sidebar-logo .dark-logo {
+  display: flex !important;
+  align-items: center !important;
+  height: auto !important;
+  max-height: 40px !important;
+  max-width: 120px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Keep hidden logos hidden - Only show logo-normal by default */
+.sidebar .sidebar-logo .logo-small,
+.sidebar .sidebar-logo .dark-logo,
+.sidebar .sidebar-logo .dark-small,
+.sidebars .sidebar-logo .logo-small,
+.sidebars .sidebar-logo .dark-logo,
+.sidebars .sidebar-logo .dark-small,
+#two-col-sidebar .sidebar .sidebar-logo .logo-small,
+#two-col-sidebar .sidebar .sidebar-logo .dark-logo,
+#two-col-sidebar .sidebar .sidebar-logo .dark-small {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Ensure only logo-normal is visible in sidebar by default */
+.sidebar .sidebar-logo .logo.logo-normal,
+.sidebars .sidebar-logo .logo.logo-normal,
+#two-col-sidebar .sidebar .sidebar-logo .logo.logo-normal {
+  display: flex !important;
+  visibility: visible !important;
+  align-items: center !important;
+}
+
+/* For mini sidebar - show logo-small, hide logo-normal */
+.mini-sidebar .sidebar .sidebar-logo .logo.logo-normal,
+.mini-sidebar .sidebars .sidebar-logo .logo.logo-normal,
+.mini-sidebar #two-col-sidebar .sidebar .sidebar-logo .logo.logo-normal {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.mini-sidebar .sidebar .sidebar-logo .logo-small,
+.mini-sidebar .sidebars .sidebar-logo .logo-small,
+.mini-sidebar #two-col-sidebar .sidebar .sidebar-logo .logo-small {
+  display: flex !important;
+  visibility: visible !important;
+  align-items: center !important;
+  max-height: 40px !important;
+}
+
+/* Hide all logo images in header - we only want logo in sidebar */
+.header .header-left a.logo,
+.header .header-left a.dark-logo,
+.header .header-left a.logo img,
+.header .header-left a.dark-logo img {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+}
+
+/* Fix header-left layout to prevent logo and text from clashing */
+.header .header-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: nowrap !important;
+}
+
+/* Ensure header-left is visible on desktop */
+@media (min-width: 992px) {
+  .header .header-left {
+    display: flex !important;
+  }
+}
+
+/* Style the logo image links (anchor tags) */
+.header .header-left a.logo {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  visibility: visible !important;
+}
+
+/* Hide dark-logo anchor in header */
+.header .header-left a.dark-logo {
+  display: none !important;
+  visibility: hidden !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Style the vendor name text div (div with class logo) */
+.header .header-left div.logo {
+  display: flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary, #1F2937) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex-shrink: 1 !important;
+}
+
+/* Hide hamburger menu button on desktop for vendor side - Always hide */
+@media (min-width: 992px) {
+.sidebar .sidebar-logo #toggle_btn,
+.sidebars .sidebar-logo #toggle_btn,
+#two-col-sidebar .sidebar .sidebar-logo #toggle_btn,
+.idebar-logo #toggle_btn,
+.header #toggle_btn,
+.header .header-left #toggle_btn {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+    position: absolute !important;
+    left: -9999px !important;
+  }
+}
+
+/* Hide mobile_btn (hamburger menu) on desktop screens */
+@media (min-width: 992px) {
+  .header .mobile_btn,
+  .header #mobile_btn {
+  display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+}
+
+/* Keep hamburger visible on mobile only */
+@media (max-width: 991.98px) {
+  .header #mobile_btn {
+    display: block !important;
+  }
+  
+  /* Show mobile_btn on mobile */
+  .header .mobile_btn {
+    display: block !important;
+  }
+  
+  /* Show toggle button on mobile if needed */
+  .sidebar .sidebar-logo #toggle_btn,
+  .sidebars .sidebar-logo #toggle_btn,
+  #two-col-sidebar .sidebar .sidebar-logo #toggle_btn {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: auto !important;
+    height: auto !important;
+    position: relative !important;
+    left: auto !important;
+  }
+}
+

@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Don't rewrite if file or directory exists
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Rewrite to index.php using query string format (works with both mod_php and FastCGI)
+    RewriteRule ^(.*)$ index.php?/$1 [QSA,L]
+</IfModule> 

@@ -1,0 +1,465 @@
+/* ============================================
+   Vendor Complete Theme System
+   Each sidebar color option changes the ENTIRE vendor dashboard theme
+   ============================================ */
+
+/* ============================================
+   Theme 1: Purple (sidebarbg1)
+   ============================================ */
+[data-sidebarbg=sidebarbg1] {
+  --vendor-primary: #7539ff;
+  --vendor-primary-dark: #5B2ECC;
+  --vendor-primary-light: #F3EFFF;
+  --vendor-sidebar-bg: #7539ff;
+  --vendor-sidebar-text: #ffffff;
+  --vendor-sidebar-hover: rgba(255, 255, 255, 0.1);
+  --vendor-sidebar-active: rgba(255, 255, 255, 0.15);
+}
+
+/* Remove background images and apply solid color */
+[data-sidebarbg=sidebarbg1] #two-col-sidebar {
+  background-image: none !important;
+  background-color: var(--vendor-sidebar-bg) !important;
+}
+
+[data-sidebarbg=sidebarbg1] #two-col-sidebar::before {
+  display: none !important;
+}
+
+[data-sidebarbg=sidebarbg1] #two-col-sidebar .twocol-mini,
+[data-sidebarbg=sidebarbg1] #two-col-sidebar .sidebar {
+  background: var(--vendor-sidebar-bg) !important;
+  background-image: none !important;
+}
+
+[data-sidebarbg=sidebarbg1] .sidebar .sidebar-menu > ul > li.menu-title {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg1] .sidebar .sidebar-menu > ul > li ul li a {
+  color: #f0f0f0 !important;
+}
+
+[data-sidebarbg=sidebarbg1] .sidebar .sidebar-menu > ul > li ul li a:hover,
+[data-sidebarbg=sidebarbg1] .sidebar .sidebar-menu > ul li .submenu > a.subdrop {
+  background: var(--vendor-sidebar-hover) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg1] .sidebar .sidebar-menu > ul > li ul > li.active a {
+  background: var(--vendor-sidebar-active) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg1] .sidebar .sidebar-menu > ul > li ul li a i,
+[data-sidebarbg=sidebarbg1] .sidebar .sidebar-menu > ul > li ul li a svg {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+/* Apply theme to buttons */
+[data-sidebarbg=sidebarbg1] .btn-primary {
+  background-color: var(--vendor-primary) !important;
+  border-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg1] .btn-primary:hover {
+  background-color: var(--vendor-primary-dark) !important;
+  border-color: var(--vendor-primary-dark) !important;
+}
+
+/* Apply theme to badges */
+[data-sidebarbg=sidebarbg1] .badge-primary,
+[data-sidebarbg=sidebarbg1] .badge-info {
+  background-color: var(--vendor-primary) !important;
+}
+
+/* Apply theme to cards with primary accents */
+[data-sidebarbg=sidebarbg1] .card-header {
+  border-bottom-color: var(--vendor-primary-light) !important;
+}
+
+/* Apply theme to welcome banner */
+[data-sidebarbg=sidebarbg1] .welcome-banner,
+[data-sidebarbg=sidebarbg1] [class*="banner"] {
+  background: linear-gradient(135deg, var(--vendor-primary) 0%, var(--vendor-primary-dark) 100%) !important;
+}
+
+/* ============================================
+   Theme 2: Blue (sidebarbg2)
+   ============================================ */
+[data-sidebarbg=sidebarbg2] {
+  --vendor-primary: #3550DC;
+  --vendor-primary-dark: #2E42B8;
+  --vendor-primary-light: #E8EAF6;
+  --vendor-sidebar-bg: #3550DC;
+  --vendor-sidebar-text: #ffffff;
+  --vendor-sidebar-hover: rgba(255, 255, 255, 0.1);
+  --vendor-sidebar-active: rgba(255, 255, 255, 0.15);
+}
+
+[data-sidebarbg=sidebarbg2] #two-col-sidebar {
+  background-image: none !important;
+  background-color: var(--vendor-sidebar-bg) !important;
+}
+
+[data-sidebarbg=sidebarbg2] #two-col-sidebar::before {
+  display: none !important;
+}
+
+[data-sidebarbg=sidebarbg2] #two-col-sidebar .twocol-mini,
+[data-sidebarbg=sidebarbg2] #two-col-sidebar .sidebar {
+  background: var(--vendor-sidebar-bg) !important;
+  background-image: none !important;
+}
+
+[data-sidebarbg=sidebarbg2] .sidebar .sidebar-menu > ul > li.menu-title {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .sidebar .sidebar-menu > ul > li ul li a {
+  color: #e8eaf6 !important;
+}
+
+[data-sidebarbg=sidebarbg2] .sidebar .sidebar-menu > ul > li ul li a:hover,
+[data-sidebarbg=sidebarbg2] .sidebar .sidebar-menu > ul li .submenu > a.subdrop {
+  background: var(--vendor-sidebar-hover) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .sidebar .sidebar-menu > ul > li ul > li.active a {
+  background: var(--vendor-sidebar-active) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .sidebar .sidebar-menu > ul > li ul li a i,
+[data-sidebarbg=sidebarbg2] .sidebar .sidebar-menu > ul > li ul li a svg {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .btn-primary {
+  background-color: var(--vendor-primary) !important;
+  border-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .btn-primary:hover {
+  background-color: var(--vendor-primary-dark) !important;
+  border-color: var(--vendor-primary-dark) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .badge-primary,
+[data-sidebarbg=sidebarbg2] .badge-info {
+  background-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .card-header {
+  border-bottom-color: var(--vendor-primary-light) !important;
+}
+
+[data-sidebarbg=sidebarbg2] .welcome-banner,
+[data-sidebarbg=sidebarbg2] [class*="banner"] {
+  background: linear-gradient(135deg, var(--vendor-primary) 0%, var(--vendor-primary-dark) 100%) !important;
+}
+
+/* ============================================
+   Theme 3: Green (sidebarbg3)
+   ============================================ */
+[data-sidebarbg=sidebarbg3] {
+  --vendor-primary: #22C55E;
+  --vendor-primary-dark: #16A34A;
+  --vendor-primary-light: #E8F5E9;
+  --vendor-sidebar-bg: #22C55E;
+  --vendor-sidebar-text: #ffffff;
+  --vendor-sidebar-hover: rgba(255, 255, 255, 0.1);
+  --vendor-sidebar-active: rgba(255, 255, 255, 0.15);
+}
+
+[data-sidebarbg=sidebarbg3] #two-col-sidebar {
+  background-image: none !important;
+  background-color: var(--vendor-sidebar-bg) !important;
+}
+
+[data-sidebarbg=sidebarbg3] #two-col-sidebar::before {
+  display: none !important;
+}
+
+[data-sidebarbg=sidebarbg3] #two-col-sidebar .twocol-mini,
+[data-sidebarbg=sidebarbg3] #two-col-sidebar .sidebar {
+  background: var(--vendor-sidebar-bg) !important;
+  background-image: none !important;
+}
+
+[data-sidebarbg=sidebarbg3] .sidebar .sidebar-menu > ul > li.menu-title {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .sidebar .sidebar-menu > ul > li ul li a {
+  color: #e8f5e9 !important;
+}
+
+[data-sidebarbg=sidebarbg3] .sidebar .sidebar-menu > ul > li ul li a:hover,
+[data-sidebarbg=sidebarbg3] .sidebar .sidebar-menu > ul li .submenu > a.subdrop {
+  background: var(--vendor-sidebar-hover) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .sidebar .sidebar-menu > ul > li ul > li.active a {
+  background: var(--vendor-sidebar-active) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .sidebar .sidebar-menu > ul > li ul li a i,
+[data-sidebarbg=sidebarbg3] .sidebar .sidebar-menu > ul > li ul li a svg {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .btn-primary {
+  background-color: var(--vendor-primary) !important;
+  border-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .btn-primary:hover {
+  background-color: var(--vendor-primary-dark) !important;
+  border-color: var(--vendor-primary-dark) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .badge-primary,
+[data-sidebarbg=sidebarbg3] .badge-info {
+  background-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .card-header {
+  border-bottom-color: var(--vendor-primary-light) !important;
+}
+
+[data-sidebarbg=sidebarbg3] .welcome-banner,
+[data-sidebarbg=sidebarbg3] [class*="banner"] {
+  background: linear-gradient(135deg, var(--vendor-primary) 0%, var(--vendor-primary-dark) 100%) !important;
+}
+
+/* ============================================
+   Theme 4: Orange (sidebarbg4)
+   ============================================ */
+[data-sidebarbg=sidebarbg4] {
+  --vendor-primary: #F59E0B;
+  --vendor-primary-dark: #D97706;
+  --vendor-primary-light: #FFF3E0;
+  --vendor-sidebar-bg: #F59E0B;
+  --vendor-sidebar-text: #ffffff;
+  --vendor-sidebar-hover: rgba(255, 255, 255, 0.1);
+  --vendor-sidebar-active: rgba(255, 255, 255, 0.15);
+}
+
+[data-sidebarbg=sidebarbg4] #two-col-sidebar {
+  background-image: none !important;
+  background-color: var(--vendor-sidebar-bg) !important;
+}
+
+[data-sidebarbg=sidebarbg4] #two-col-sidebar::before {
+  display: none !important;
+}
+
+[data-sidebarbg=sidebarbg4] #two-col-sidebar .twocol-mini,
+[data-sidebarbg=sidebarbg4] #two-col-sidebar .sidebar {
+  background: var(--vendor-sidebar-bg) !important;
+  background-image: none !important;
+}
+
+[data-sidebarbg=sidebarbg4] .sidebar .sidebar-menu > ul > li.menu-title {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .sidebar .sidebar-menu > ul > li ul li a {
+  color: #fff3e0 !important;
+}
+
+[data-sidebarbg=sidebarbg4] .sidebar .sidebar-menu > ul > li ul li a:hover,
+[data-sidebarbg=sidebarbg4] .sidebar .sidebar-menu > ul li .submenu > a.subdrop {
+  background: var(--vendor-sidebar-hover) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .sidebar .sidebar-menu > ul > li ul > li.active a {
+  background: var(--vendor-sidebar-active) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .sidebar .sidebar-menu > ul > li ul li a i,
+[data-sidebarbg=sidebarbg4] .sidebar .sidebar-menu > ul > li ul li a svg {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .btn-primary {
+  background-color: var(--vendor-primary) !important;
+  border-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .btn-primary:hover {
+  background-color: var(--vendor-primary-dark) !important;
+  border-color: var(--vendor-primary-dark) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .badge-primary,
+[data-sidebarbg=sidebarbg4] .badge-info {
+  background-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .card-header {
+  border-bottom-color: var(--vendor-primary-light) !important;
+}
+
+[data-sidebarbg=sidebarbg4] .welcome-banner,
+[data-sidebarbg=sidebarbg4] [class*="banner"] {
+  background: linear-gradient(135deg, var(--vendor-primary) 0%, var(--vendor-primary-dark) 100%) !important;
+}
+
+/* ============================================
+   Theme 5: Red (sidebarbg5)
+   ============================================ */
+[data-sidebarbg=sidebarbg5] {
+  --vendor-primary: #DC2626;
+  --vendor-primary-dark: #B91C1C;
+  --vendor-primary-light: #FFEBEE;
+  --vendor-sidebar-bg: #DC2626;
+  --vendor-sidebar-text: #ffffff;
+  --vendor-sidebar-hover: rgba(255, 255, 255, 0.1);
+  --vendor-sidebar-active: rgba(255, 255, 255, 0.15);
+}
+
+[data-sidebarbg=sidebarbg5] #two-col-sidebar {
+  background-image: none !important;
+  background-color: var(--vendor-sidebar-bg) !important;
+}
+
+[data-sidebarbg=sidebarbg5] #two-col-sidebar::before {
+  display: none !important;
+}
+
+[data-sidebarbg=sidebarbg5] #two-col-sidebar .twocol-mini,
+[data-sidebarbg=sidebarbg5] #two-col-sidebar .sidebar {
+  background: var(--vendor-sidebar-bg) !important;
+  background-image: none !important;
+}
+
+[data-sidebarbg=sidebarbg5] .sidebar .sidebar-menu > ul > li.menu-title {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .sidebar .sidebar-menu > ul > li ul li a {
+  color: #ffebee !important;
+}
+
+[data-sidebarbg=sidebarbg5] .sidebar .sidebar-menu > ul > li ul li a:hover,
+[data-sidebarbg=sidebarbg5] .sidebar .sidebar-menu > ul li .submenu > a.subdrop {
+  background: var(--vendor-sidebar-hover) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .sidebar .sidebar-menu > ul > li ul > li.active a {
+  background: var(--vendor-sidebar-active) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .sidebar .sidebar-menu > ul > li ul li a i,
+[data-sidebarbg=sidebarbg5] .sidebar .sidebar-menu > ul > li ul li a svg {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .btn-primary {
+  background-color: var(--vendor-primary) !important;
+  border-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .btn-primary:hover {
+  background-color: var(--vendor-primary-dark) !important;
+  border-color: var(--vendor-primary-dark) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .badge-primary,
+[data-sidebarbg=sidebarbg5] .badge-info {
+  background-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .card-header {
+  border-bottom-color: var(--vendor-primary-light) !important;
+}
+
+[data-sidebarbg=sidebarbg5] .welcome-banner,
+[data-sidebarbg=sidebarbg5] [class*="banner"] {
+  background: linear-gradient(135deg, var(--vendor-primary) 0%, var(--vendor-primary-dark) 100%) !important;
+}
+
+/* ============================================
+   Theme 6: Dark Gray (sidebarbg6)
+   ============================================ */
+[data-sidebarbg=sidebarbg6] {
+  --vendor-primary: #1F2937;
+  --vendor-primary-dark: #111827;
+  --vendor-primary-light: #F3F4F6;
+  --vendor-sidebar-bg: #1F2937;
+  --vendor-sidebar-text: #ffffff;
+  --vendor-sidebar-hover: rgba(255, 255, 255, 0.1);
+  --vendor-sidebar-active: rgba(255, 255, 255, 0.15);
+}
+
+[data-sidebarbg=sidebarbg6] #two-col-sidebar {
+  background-image: none !important;
+  background-color: var(--vendor-sidebar-bg) !important;
+}
+
+[data-sidebarbg=sidebarbg6] #two-col-sidebar::before {
+  display: none !important;
+}
+
+[data-sidebarbg=sidebarbg6] #two-col-sidebar .twocol-mini,
+[data-sidebarbg=sidebarbg6] #two-col-sidebar .sidebar {
+  background: var(--vendor-sidebar-bg) !important;
+  background-image: none !important;
+}
+
+[data-sidebarbg=sidebarbg6] .sidebar .sidebar-menu > ul > li.menu-title {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .sidebar .sidebar-menu > ul > li ul li a {
+  color: #d1d5db !important;
+}
+
+[data-sidebarbg=sidebarbg6] .sidebar .sidebar-menu > ul > li ul li a:hover,
+[data-sidebarbg=sidebarbg6] .sidebar .sidebar-menu > ul li .submenu > a.subdrop {
+  background: var(--vendor-sidebar-hover) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .sidebar .sidebar-menu > ul > li ul > li.active a {
+  background: var(--vendor-sidebar-active) !important;
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .sidebar .sidebar-menu > ul > li ul li a i,
+[data-sidebarbg=sidebarbg6] .sidebar .sidebar-menu > ul > li ul li a svg {
+  color: var(--vendor-sidebar-text) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .btn-primary {
+  background-color: var(--vendor-primary) !important;
+  border-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .btn-primary:hover {
+  background-color: var(--vendor-primary-dark) !important;
+  border-color: var(--vendor-primary-dark) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .badge-primary,
+[data-sidebarbg=sidebarbg6] .badge-info {
+  background-color: var(--vendor-primary) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .card-header {
+  border-bottom-color: var(--vendor-primary-light) !important;
+}
+
+[data-sidebarbg=sidebarbg6] .welcome-banner,
+[data-sidebarbg=sidebarbg6] [class*="banner"] {
+  background: linear-gradient(135deg, var(--vendor-primary) 0%, var(--vendor-primary-dark) 100%) !important;
+}
