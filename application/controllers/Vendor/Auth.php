@@ -36,7 +36,8 @@ class Auth extends CI_Controller
 		// Check if already logged in
 		if ($this->session->userdata('vendor_logged_in'))
 		{
-			redirect('vendor/dashboard');
+			// Redirect to dashboard (no vendor domain in URL)
+			redirect('dashboard');
 		}
 		
 		// Get vendor domain from URL (first segment)
@@ -86,7 +87,8 @@ class Auth extends CI_Controller
 				
 				$this->session->set_userdata($session_data);
 				
-				redirect($vendor_domain . '/dashboard', 'refresh');
+				// Redirect to dashboard (no vendor domain in URL)
+				redirect('dashboard', 'refresh');
 			}
 			else
 			{
@@ -115,14 +117,8 @@ class Auth extends CI_Controller
 		
 		$this->session->set_flashdata('success', 'You have been logged out successfully.');
 		
-		if ($vendor_domain)
-		{
-			redirect($vendor_domain . '/login', 'refresh');
-		}
-		else
-		{
-			redirect('/');
-		}
+		// Redirect to login page (no vendor domain in URL)
+		redirect('auth/login', 'refresh');
 	}
 }
 

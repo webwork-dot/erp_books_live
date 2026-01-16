@@ -181,10 +181,10 @@
 					$logo_fallback = base_url('assets/template/img/logo.svg');
 					$logo_white_fallback = base_url('assets/template/img/logo-white.svg');
 					?>
-					<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/dashboard' : 'dashboard'); ?>" class="logo">
+					<a href="<?php echo base_url('dashboard'); ?>" class="logo">
 						<img src="<?php echo $logo_url; ?>" alt="Logo" onerror="this.src='<?php echo $logo_fallback; ?>'">
 					</a>
-					<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/dashboard' : 'dashboard'); ?>" class="dark-logo">
+					<a href="<?php echo base_url('dashboard'); ?>" class="dark-logo">
 						<img src="<?php echo $logo_url; ?>" alt="Logo" onerror="this.src='<?php echo $logo_white_fallback; ?>'">
 					</a>
 				</div>
@@ -281,12 +281,12 @@
 											<img src="<?php echo $user_logo; ?>" alt="User" class="img-fluid rounded-circle" style="width: 40px; height: 40px; object-fit: contain;">
 										</span>
 									<?php else: ?>
-										<span class="avatar avatar-md online">
-											<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="img-fluid rounded-circle" style="color: #6c757d;">
-												<path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
-												<path d="M12.0002 14.5C6.99016 14.5 2.91016 17.86 2.91016 22C2.91016 22.28 3.13016 22.5 3.41016 22.5H20.5902C20.8702 22.5 21.0902 22.28 21.0902 22C21.0902 17.86 17.0102 14.5 12.0002 14.5Z" fill="currentColor"/>
-											</svg>
-										</span>
+									<span class="avatar avatar-md online">
+										<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="img-fluid rounded-circle" style="color: #6c757d;">
+											<path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
+											<path d="M12.0002 14.5C6.99016 14.5 2.91016 17.86 2.91016 22C2.91016 22.28 3.13016 22.5 3.41016 22.5H20.5902C20.8702 22.5 21.0902 22.28 21.0902 22C21.0902 17.86 17.0102 14.5 12.0002 14.5Z" fill="currentColor"/>
+										</svg>
+									</span>
 									<?php endif; ?>
 									<span class="ms-2 d-none d-md-block">
 										<span class="d-block fw-semibold"><?php echo isset($current_vendor['name']) ? htmlspecialchars($current_vendor['name']) : 'Vendor'; ?></span>

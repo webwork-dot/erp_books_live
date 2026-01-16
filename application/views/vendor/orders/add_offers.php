@@ -11,7 +11,7 @@
     <div class="content-header-right col-md-12 col-12 mb-2 card">
       <div class="row breadcrumbs-top">
         <div class="col-12">
-          <h4 class="card-title pull-left"><a class="back_arrow" href="<?php echo base_url((isset($vendor_domain) ? $vendor_domain : (isset($current_vendor['domain']) ? $current_vendor['domain'] : '')) . '/offers'); ?>"><i class="fa fa-arrow-circle-left"></i></a><?= isset($current_page) ? $current_page : 'Add New Offer' ?> </h4>
+          <h4 class="card-title pull-left"><a class="back_arrow" href="<?php echo base_url('offers'); ?>"><i class="fa fa-arrow-circle-left"></i></a><?= isset($current_page) ? $current_page : 'Add New Offer' ?> </h4>
           <div class="breadcrumb-wrapper">
             <ol class="breadcrumb pull-right">
               <li class="breadcrumb-item">Home</li>

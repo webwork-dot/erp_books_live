@@ -44,16 +44,8 @@ class Auth extends CI_Controller
 		
 		if ($this->session->userdata('vendor_logged_in'))
 		{
-			$vendor_domain = $this->session->userdata('vendor_domain');
-			if ($vendor_domain)
-			{
-				$this->load->helper('common');
-				redirect(vendor_url('dashboard', $vendor_domain), 'refresh');
-			}
-			else
-			{
-				redirect('erp-admin/dashboard', 'refresh');
-			}
+			// Redirect to dashboard (no vendor domain in URL)
+			redirect('dashboard', 'refresh');
 			return;
 		}
 		
@@ -193,13 +185,12 @@ class Auth extends CI_Controller
 						
 						$this->session->set_userdata($session_data);
 						
-						// Update last login
-						$this->Erp_user_model->updateLastLogin($user['id']);
-						
-						// Redirect to vendor dashboard using subdomain URL (master.domain.com/dashboard)
-						$this->load->helper('common');
-						redirect(vendor_url('dashboard', $base_domain), 'refresh');
-						return;
+					// Update last login
+					$this->Erp_user_model->updateLastLogin($user['id']);
+					
+					// Redirect to dashboard (no vendor domain in URL)
+					redirect('dashboard', 'refresh');
+					return;
 					}
 					else
 					{
@@ -295,9 +286,8 @@ class Auth extends CI_Controller
 					
 					$this->session->set_userdata($session_data);
 					
-					// Redirect to vendor dashboard using subdomain URL
-					$this->load->helper('common');
-					redirect(vendor_url('dashboard', $base_domain), 'refresh');
+					// Redirect to dashboard (no vendor domain in URL)
+					redirect('dashboard', 'refresh');
 					return;
 				}
 				else
@@ -324,18 +314,9 @@ class Auth extends CI_Controller
 		// Destroy all session data
 		$this->session->sess_destroy();
 		
-		// Redirect based on user type
-		if ($user_type === 'vendor' && $vendor_domain)
-		{
-			$this->load->helper('common');
-			$this->session->set_flashdata('success', 'You have been logged out successfully.');
-			redirect(vendor_url('login', $vendor_domain), 'refresh');
-		}
-		else
-		{
-			$this->session->set_flashdata('success', 'You have been logged out successfully.');
-			redirect('auth/login', 'refresh');
-		}
+		// Redirect to login page (no vendor domain in URL)
+		$this->session->set_flashdata('success', 'You have been logged out successfully.');
+		redirect('auth/login', 'refresh');
 	}
 	
 	/**
@@ -349,16 +330,8 @@ class Auth extends CI_Controller
 		
 		if ($user_type === 'vendor')
 		{
-			$vendor_domain = $this->session->userdata('vendor_domain');
-			if ($vendor_domain)
-			{
-				$this->load->helper('common');
-				redirect(vendor_url('dashboard', $vendor_domain), 'refresh');
-			}
-			else
-			{
-				redirect('erp-admin/dashboard', 'refresh');
-			}
+			// Redirect to dashboard (no vendor domain in URL)
+			redirect('dashboard', 'refresh');
 		}
 		else
 		{

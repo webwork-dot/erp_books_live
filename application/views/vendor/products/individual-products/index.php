@@ -4,7 +4,7 @@
 		<h6>Manage Individual Products</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products/add' : 'products/individual-products/add'); ?>" class="btn btn-primary">
+		<a href="<?php echo base_url('products/individual-products/add' : 'products/individual-products/add'); ?>" class="btn btn-primary">
 			<i class="isax isax-add"></i> Add New Product
 		</a>
 	</div>
@@ -14,7 +14,7 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
-		<form method="get" action="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products' : 'products/individual-products'); ?>">
+		<form method="get" action="<?php echo base_url('products/individual-products' : 'products/individual-products'); ?>">
 			<div class="row gx-3">
 				<div class="col-lg-4 col-md-6">
 					<div class="mb-3">
@@ -69,7 +69,7 @@
 						<label class="form-label">&nbsp;</label>
 						<div class="d-flex gap-2">
 							<button type="submit" class="btn btn-primary flex-fill">Filter</button>
-							<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products' : 'products/individual-products'); ?>" class="btn btn-outline-secondary">Clear</a>
+							<a href="<?php echo base_url('products/individual-products' : 'products/individual-products'); ?>" class="btn btn-outline-secondary">Clear</a>
 						</div>
 					</div>
 				</div>
@@ -199,19 +199,19 @@
                                     $edit_url = '';
                                     switch($product['product_type']) {
                                         case 'textbook':
-                                            $edit_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/textbook/edit/' . $product['id'] : 'products/textbook/edit/' . $product['id']);
+                                            $edit_url = base_url('products/textbook/edit/' . $product['id'] : 'products/textbook/edit/' . $product['id']);
                                             break;
                                         case 'notebook':
-                                            $edit_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/notebook/edit/' . $product['id'] : 'products/notebook/edit/' . $product['id']);
+                                            $edit_url = base_url('products/notebook/edit/' . $product['id'] : 'products/notebook/edit/' . $product['id']);
                                             break;
                                         case 'stationery':
-                                            $edit_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/stationery/edit/' . $product['id'] : 'products/stationery/edit/' . $product['id']);
+                                            $edit_url = base_url('products/stationery/edit/' . $product['id'] : 'products/stationery/edit/' . $product['id']);
                                             break;
                                         case 'uniform':
-                                            $edit_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/edit/' . $product['id'] : 'products/uniforms/edit/' . $product['id']);
+                                            $edit_url = base_url('products/uniforms/edit/' . $product['id'] : 'products/uniforms/edit/' . $product['id']);
                                             break;
                                         case 'individual':
-                                            $edit_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products/edit/' . $product['id'] : 'products/individual-products/edit/' . $product['id']);
+                                            $edit_url = base_url('products/individual-products/edit/' . $product['id'] : 'products/individual-products/edit/' . $product['id']);
                                             break;
                                     }
                                     ?>
@@ -224,19 +224,19 @@
                                     $delete_url = '';
                                     switch($product['product_type']) {
                                         case 'textbook':
-                                            $delete_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/textbook/delete/' . $product['id'] : 'products/textbook/delete/' . $product['id']);
+                                            $delete_url = base_url('products/textbook/delete/' . $product['id'] : 'products/textbook/delete/' . $product['id']);
                                             break;
                                         case 'notebook':
-                                            $delete_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/notebook/delete/' . $product['id'] : 'products/notebook/delete/' . $product['id']);
+                                            $delete_url = base_url('products/notebook/delete/' . $product['id'] : 'products/notebook/delete/' . $product['id']);
                                             break;
                                         case 'stationery':
-                                            $delete_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/stationery/delete/' . $product['id'] : 'products/stationery/delete/' . $product['id']);
+                                            $delete_url = base_url('products/stationery/delete/' . $product['id'] : 'products/stationery/delete/' . $product['id']);
                                             break;
                                         case 'uniform':
-                                            $delete_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/delete/' . $product['id'] : 'products/uniforms/delete/' . $product['id']);
+                                            $delete_url = base_url('products/uniforms/delete/' . $product['id'] : 'products/uniforms/delete/' . $product['id']);
                                             break;
                                         case 'individual':
-                                            $delete_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products/delete/' . $product['id'] : 'products/individual-products/delete/' . $product['id']);
+                                            $delete_url = base_url('products/individual-products/delete/' . $product['id'] : 'products/individual-products/delete/' . $product['id']);
                                             break;
                                     }
                                     ?>
@@ -264,7 +264,7 @@
                         <ul class="pagination pagination-sm mb-0">
                             <?php if ($current_page > 1): ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page - 1))) : 'products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page - 1)))); ?>">Previous</a>
+                                    <a class="page-link" href="<?php echo base_url('products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page - 1))) : 'products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page - 1)))); ?>">Previous</a>
                                 </li>
                             <?php else: ?>
                                 <li class="page-item disabled">
@@ -279,14 +279,14 @@
                                     </li>
                                 <?php else: ?>
                                     <li class="page-item">
-                                        <a class="page-link" href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $i))) : 'products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $i)))); ?>"><?php echo $i; ?></a>
+                                        <a class="page-link" href="<?php echo base_url('products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $i))) : 'products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $i)))); ?>"><?php echo $i; ?></a>
                                     </li>
                                 <?php endif; ?>
                             <?php endfor; ?>
                             
                             <?php if ($current_page < $total_pages): ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page + 1))) : 'products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page + 1)))); ?>">Next</a>
+                                    <a class="page-link" href="<?php echo base_url('products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page + 1))) : 'products/individual-products?' . http_build_query(array_merge((isset($filters) ? $filters : array()), array('page' => $current_page + 1)))); ?>">Next</a>
                                 </li>
                             <?php else: ?>
                                 <li class="page-item disabled">

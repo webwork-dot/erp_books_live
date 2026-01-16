@@ -779,3 +779,16 @@ a.btn:hover {
     -moz-osx-font-smoothing: grayscale !important;
     display: inline-block !important;
 }
+
+/* Active tabs styling with dynamic vendor primary color */
+.nav-tabs .nav-link.tab-navigation.active {
+    background-color: var(--vendor-primary, #7539ff) !important;
+    color: #ffffff !important;
+    border-color: var(--vendor-primary, #7539ff) !important;
+}
+
+.nav-tabs .nav-link.tab-navigation.active:hover {
+    background-color: var(--vendor-primary-dark, #5B2ECC) !important;
+    border-color: var(--vendor-primary-dark, #5B2ECC) !important;
+    color: #ffffff !important;
+}

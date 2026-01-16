@@ -1,7 +1,7 @@
 <!-- Start Breadcrumb -->
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
-		<h6><a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/bookset?tab=without_product' : 'products/bookset?tab=without_product'); ?>"><i class="isax isax-arrow-left me-2"></i>Add Bookset without Products</a></h6>
+		<h6><a href="<?php echo base_url('products/bookset?tab=without_product' : 'products/bookset?tab=without_product'); ?>"><i class="isax isax-arrow-left me-2"></i>Add Bookset without Products</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -226,7 +226,7 @@
 			}
 			
 			$.ajax({
-				url: '<?php echo base_url(isset($current_vendor["domain"]) ? $current_vendor["domain"] . "/products/bookset/package/get_boards" : "products/bookset/package/get_boards"); ?>',
+				url: '<?php echo base_url("products/bookset/package/get_boards" : "products/bookset/package/get_boards"); ?>',
 				type: 'GET',
 				data: {
 					school_id: schoolId

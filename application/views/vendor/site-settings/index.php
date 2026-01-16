@@ -885,7 +885,7 @@ function editBanner(bannerId) {
                 } else {
                     // Construct the proper image URL by using the window origin and removing vendor part
                     var fullPageUrl = window.location.href;
-                    var siteUrl = window.location.protocol + '//' + window.location.host + '/books_erp/';
+                    var siteUrl = window.location.protocol + '//' + window.location.host + '/';
                     $('#modal_banner_image').attr('src', siteUrl + bannerImagePath);
                 }
             } else {
@@ -988,7 +988,7 @@ function uploadBanner() {
     // Add banner ID if updating
     if (isUpdate) {
         formData.append('banner_id', bannerIdForEdit);
-    }
+    }  
     
     // Disable the upload button to prevent multiple clicks
     $('#upload-banner-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ' + (isUpdate ? 'Updating...' : 'Uploading...'));

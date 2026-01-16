@@ -27,6 +27,7 @@ $vendor_name = isset($current_vendor['name']) ? htmlspecialchars($current_vendor
 	</div>
 </div>
 
+<?php /* Hidden: Individual Orders Section
 <!-- Individual Orders Section -->
 <div style="border-bottom: 1px solid #e0e0e0;padding-bottom: 10px;">
 	<div class="card-header py-2">
@@ -114,7 +115,9 @@ $vendor_name = isset($current_vendor['name']) ? htmlspecialchars($current_vendor
 		</div>
 	</div>
 </div>
+*/ ?>
 
+<?php /* Hidden: Individual Products Section
 <!-- Individual Products Section -->
 <div style="border-bottom: 1px solid #e0e0e0;padding-bottom: 10px;">
 	<div class="card-header py-2">
@@ -172,6 +175,7 @@ $vendor_name = isset($current_vendor['name']) ? htmlspecialchars($current_vendor
 		</div>
 	</div>
 </div>
+*/ ?>
 
 <?php
 // Dynamic Feature-based Cards

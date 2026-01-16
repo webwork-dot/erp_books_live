@@ -77,8 +77,8 @@ p {
 				<a href="<?php echo base_url(); ?>" class="btn btn-primary">Go to Home</a>
 				<a href="<?php echo site_url('erp-admin/auth/login'); ?>" class="btn btn-secondary">Super Admin</a>
 			<?php else: ?>
-				<a href="/books_erp/" class="btn btn-primary">Go to Home</a>
-				<a href="/books_erp/erp-admin/auth/login" class="btn btn-secondary">Super Admin</a>
+				<a href="/" class="btn btn-primary">Go to Home</a>
+				<a href="/auth/login" class="btn btn-secondary">Super Admin</a>
 			<?php endif; ?>
 		</div>
 	</div>

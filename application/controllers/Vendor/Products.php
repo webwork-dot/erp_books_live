@@ -64,7 +64,8 @@ class Products extends Vendor_base
 		if (!$is_enabled)
 		{
 			$this->session->set_flashdata('error', 'This feature is not enabled for your account.');
-			redirect($this->current_vendor['domain'] . '/dashboard');
+			// Redirect to dashboard (no vendor domain in URL)
+			redirect('dashboard');
 		}
 		
 		// Prepare data

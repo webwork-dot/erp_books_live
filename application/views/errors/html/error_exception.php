@@ -92,8 +92,8 @@ p {
 	$logout_url = 'auth/logout';
 	if (isset($_SERVER['REQUEST_URI'])) {
 		$uri = $_SERVER['REQUEST_URI'];
-		// Extract vendor domain from URL (first segment after /books_erp/)
-		if (preg_match('#/books_erp/([a-zA-Z0-9_\-]+)/#', $uri, $matches)) {
+		// Extract vendor domain from URL (first segment after /)
+		if (preg_match('#/([a-zA-Z0-9_\-]+)/#', $uri, $matches)) {
 			$vendor_domain = $matches[1];
 			$reserved = array('erp-admin', 'api', 'frontend', 'vendor', 'Vendor', 'auth', 'client-admin', 'school-admin');
 			if (!in_array($vendor_domain, $reserved)) {
@@ -139,11 +139,11 @@ p {
 				<a href="<?php echo site_url('erp-admin/auth/login'); ?>" class="btn btn-secondary">Super Admin</a>
 			<?php else: ?>
 				<?php if ($is_db_error): ?>
-					<a href="/books_erp/<?php echo $logout_url; ?>" class="btn btn-primary">Go to Home (Logout)</a>
+					<a href="/<?php echo $logout_url; ?>" class="btn btn-primary">Go to Home (Logout)</a>
 				<?php else: ?>
-					<a href="/books_erp/" class="btn btn-primary">Go to Home</a>
+					<a href="/" class="btn btn-primary">Go to Home</a>
 				<?php endif; ?>
-				<a href="/books_erp/erp-admin/auth/login" class="btn btn-secondary">Super Admin</a>
+				<a href="/auth/login" class="btn btn-secondary">Super Admin</a>
 			<?php endif; ?>
 		</div>
 	</div>

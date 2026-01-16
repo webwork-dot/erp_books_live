@@ -74,17 +74,8 @@ class Vendor_base extends CI_Controller
 				}
 			}
 			
-			if ($vendor) {
-				// Use vendor_url helper which handles localhost vs production automatically
-				$base_domain = $this->Erp_client_model->extractBaseDomain($vendor['domain']);
-				if (empty($base_domain)) {
-					$base_domain = $vendor['domain'];
-				}
-				$this->load->helper('common');
-				redirect(vendor_url('login', $base_domain), 'refresh');
-			} else {
-				redirect('auth/login', 'refresh');
-			}
+			// Redirect to login page (no vendor domain in URL)
+			redirect('auth/login', 'refresh');
 		}
 	}
 	
@@ -138,12 +129,8 @@ class Vendor_base extends CI_Controller
 				$this->session->set_flashdata('error', 'Your vendor account is not active.');
 				$this->session->unset_userdata('vendor_logged_in');
 				$this->session->unset_userdata('vendor_id');
-				$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-				if (isset($this->current_vendor['domain'])) {
-					redirect($protocol . '://' . $this->current_vendor['domain'] . '/login', 'refresh');
-				} else {
-					redirect('auth/login', 'refresh');
-				}
+				// Redirect to login page (no vendor domain in URL)
+				redirect('auth/login', 'refresh');
 			}
 			
 			// Update session with current vendor info (in case it changed or was detected from HTTP_HOST)

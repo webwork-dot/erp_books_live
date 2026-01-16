@@ -22561,5 +22561,12 @@ table td a:hover {
   border-top-color: var(--primary);
   left: 60%;
 }
-
+.brtop0 {
+  padding-top: 2px !important;
+  border-top-left-radius: 0px !important;
+}
+.brbm0 {
+  border-bottom: 0px;
+  gap: 5px;
+}
 /*# sourceMappingURL=style.css.map */

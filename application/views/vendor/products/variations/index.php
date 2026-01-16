@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadValuesDisplay(typeId) {
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor["domain"] . "/products/variations/get_values" : "products/variations/get_values"); ?>?type_id=' + typeId)
+	fetch('<?php echo base_url("products/variations/get_values" : "products/variations/get_values"); ?>?type_id=' + typeId)
 		.then(response => response.json())
 		.then(data => {
 			if (data.status === 'success') {
@@ -345,7 +345,7 @@ function addVariationType() {
 		formData.append('image', imageInput.files[0]);
 	}
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor["domain"] . "/products/variations/add_type" : "products/variations/add_type"); ?>', {
+	fetch('<?php echo base_url("products/variations/add_type" : "products/variations/add_type"); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -400,7 +400,7 @@ function updateVariationType() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor["domain"] . "/products/variations/update_type/" : "products/variations/update_type/"); ?>' + id, {
+	fetch('<?php echo base_url("products/variations/update_type/" : "products/variations/update_type/"); ?>' + id, {
 		method: 'POST',
 		body: formData
 	})
@@ -439,7 +439,7 @@ function deleteType(id, name) {
 
 function deleteTypeConfirmed(id) {
 	
-	fetch('<?php echo base_url(isset($current_vendor["domain"]) ? $current_vendor["domain"] . "/products/variations/delete_type/" : "products/variations/delete_type/"); ?>' + id, {
+	fetch('<?php echo base_url("products/variations/delete_type/"); ?>' + id, {
 		method: 'POST'
 	})
 	.then(response => response.json())
@@ -486,7 +486,7 @@ function manageValues(typeId, typeName) {
 function loadValues(typeId) {
 	document.getElementById('valuesListContainer').innerHTML = '<p class="text-muted">Loading values...</p>';
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor["domain"] . "/products/variations/get_values" : "products/variations/get_values"); ?>?type_id=' + typeId)
+	fetch('<?php echo base_url("products/variations/get_values" : "products/variations/get_values"); ?>?type_id=' + typeId)
 		.then(response => response.json())
 		.then(data => {
 			if (data.status === 'success') {
@@ -605,7 +605,7 @@ function addVariationValues() {
 	addButton.disabled = true;
 	addButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor["domain"] . "/products/variations/add_value" : "products/variations/add_value"); ?>', {
+	fetch('<?php echo base_url("products/variations/add_value" : "products/variations/add_value"); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -670,7 +670,7 @@ function deleteValue(valueId, typeId) {
 
 function deleteValueConfirmed(valueId, typeId) {
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor["domain"] . "/products/variations/delete_value/" : "products/variations/delete_value/"); ?>' + valueId, {
+	fetch('<?php echo base_url("products/variations/delete_value/" : "products/variations/delete_value/"); ?>' + valueId, {
 		method: 'POST'
 	})
 	.then(response => response.json())

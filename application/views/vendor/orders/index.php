@@ -1,6 +1,6 @@
 <style type="text/css">
    .tab-navigation {
-      padding: 5px 12px;
+      padding: 8px 15px;
       background: white;
       border-top-left-radius: 8px;
       color: black;
@@ -84,29 +84,29 @@
    <!-- Order Tabs -->
    <div class="row">
       <div class="col-12">
-         <ul class="nav nav-tabs" role="tablist">
+         <ul class="nav nav-tabs brbm0" role="tablist">
             <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'pending' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url($vendor_domain . '/orders/pending'); ?>">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'pending' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders/pending'); ?>">
                   Pending
                </a>
             </li>
             <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'processing') ? 'active' : ''; ?>" href="<?php echo base_url($vendor_domain . '/orders/processing'); ?>">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'processing') ? 'active' : ''; ?>" href="<?php echo base_url('orders/processing'); ?>">
                   Processing
                </a>
             </li>
             <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url($vendor_domain . '/orders/out_for_delivery'); ?>">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url('orders/out_for_delivery'); ?>">
                   Out for Delivery
                </a>
             </li>
             <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'delivered') ? 'active' : ''; ?>" href="<?php echo base_url($vendor_domain . '/orders/delivered'); ?>">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'delivered') ? 'active' : ''; ?>" href="<?php echo base_url('orders/delivered'); ?>">
                   Delivered
                </a>
             </li>
             <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'return') ? 'active' : ''; ?>" href="<?php echo base_url($vendor_domain . '/orders/return'); ?>">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'return') ? 'active' : ''; ?>" href="<?php echo base_url('orders/return'); ?>">
                   Return
                </a>
             </li>
@@ -117,9 +117,9 @@
    <!-- Search Filter -->
    <div class="row mb-3">
       <div class="col-12">
-         <div class="card">
+         <div class="card brtop0">
             <div class="card-body">
-               <form method="get" action="<?php echo base_url($vendor_domain . '/orders/' . $order_status); ?>" class="row">
+               <form method="get" action="<?php echo base_url('orders/' . $order_status); ?>" class="row">
                   <div class="col-md-4">
                      <label>Keywords</label>
                      <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone, Invoice No...">
@@ -132,7 +132,7 @@
                      <label>&nbsp;</label>
                      <div>
                         <button type="submit" class="btn btn-primary">Search</button>
-                        <a href="<?php echo base_url($vendor_domain . '/orders/' . $order_status); ?>" class="btn btn-secondary">Clear</a>
+                        <a href="<?php echo base_url('orders/' . $order_status); ?>" class="btn btn-secondary">Clear</a>
                      </div>
                   </div>
                </form>
@@ -148,11 +148,11 @@
                <div class="card mrg_bottom">
 
                   <?php if ($order_status == 'pending' || $order_status == ''): ?>
-                     <?php echo form_open(base_url($vendor_domain . '/orders/move_to_processing'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
+                     <?php echo form_open(base_url('orders/move_to_processing'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'processing'): ?>
-                     <?php echo form_open(base_url($vendor_domain . '/orders/move_to_out_for_delivery'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
+                     <?php echo form_open(base_url('orders/move_to_out_for_delivery'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'out_for_delivery'): ?>
-                     <?php echo form_open(base_url($vendor_domain . '/orders/move_to_delivered'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
+                     <?php echo form_open(base_url('orders/move_to_delivered'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php endif; ?>
 
                   <div class="col-md-12" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">

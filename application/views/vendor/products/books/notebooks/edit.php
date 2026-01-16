@@ -1,7 +1,7 @@
 <!-- Start Breadcrumb -->
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
-		<h6><a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/notebooks' : 'products/notebooks'); ?>"><i class="isax isax-arrow-left me-2"></i>Edit Notebook</a></h6>
+		<h6><a href="<?php echo base_url('products/notebooks' : 'products/notebooks'); ?>"><i class="isax isax-arrow-left me-2"></i>Edit Notebook</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -369,7 +369,7 @@
 
 <div class="border-top my-3 pt-3">
 	<div class="d-flex align-items-center justify-content-end gap-2">
-		<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/notebooks' : 'products/notebooks'); ?>" class="btn btn-outline">Cancel</a>
+		<a href="<?php echo base_url('products/notebooks' : 'products/notebooks'); ?>" class="btn btn-outline">Cancel</a>
 		<button type="submit" form="notebook-form" class="btn btn-primary">Update Notebook</button>
 	</div>
 </div>
@@ -597,7 +597,7 @@ function addType() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/notebooks/add_type' : 'products/notebooks/add_type'); ?>', {
+	fetch('<?php echo base_url('products/notebooks/add_type' : 'products/notebooks/add_type'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -641,7 +641,7 @@ function addBrand() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/notebooks/add_brand' : 'products/notebooks/add_brand'); ?>', {
+	fetch('<?php echo base_url('products/notebooks/add_brand' : 'products/notebooks/add_brand'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -898,7 +898,7 @@ function deleteImage(imageId) {
 		return;
 	}
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/notebooks/delete_image/' : 'products/notebooks/delete_image/'); ?>' + imageId, {
+	fetch('<?php echo base_url('products/notebooks/delete_image/' : 'products/notebooks/delete_image/'); ?>' + imageId, {
 		method: 'POST',
 		headers: {
 			'X-Requested-With': 'XMLHttpRequest'

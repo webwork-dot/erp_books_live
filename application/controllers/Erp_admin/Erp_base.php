@@ -56,15 +56,8 @@ class Erp_base extends CI_Controller
 			// Check if it's a vendor trying to access admin area
 			if ($user_type === 'vendor')
 			{
-				$vendor_domain = $this->session->userdata('vendor_domain');
-				if ($vendor_domain)
-				{
-					redirect($vendor_domain . '/dashboard', 'refresh');
-				}
-				else
-				{
-					redirect('auth/login', 'refresh');
-				}
+				// Redirect to dashboard (no vendor domain in URL)
+				redirect('dashboard', 'refresh');
 			}
 			else
 			{

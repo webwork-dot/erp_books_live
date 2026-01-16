@@ -66,7 +66,7 @@
       <div class="col-12">
          <div class="card">
             <div class="card-body">
-               <form method="get" action="<?php echo base_url($vendor_domain . '/orders/rejected-orders'); ?>" class="row">
+               <form method="get" action="<?php echo base_url('orders/rejected-orders'); ?>" class="row">
                   <div class="col-md-4">
                      <label>Keywords</label>
                      <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone...">
@@ -79,7 +79,7 @@
                      <label>&nbsp;</label>
                      <div>
                         <button type="submit" class="btn btn-primary">Search</button>
-                        <a href="<?php echo base_url($vendor_domain . '/orders/rejected-orders'); ?>" class="btn btn-secondary">Clear</a>
+                        <a href="<?php echo base_url('orders/rejected-orders'); ?>" class="btn btn-secondary">Clear</a>
                      </div>
                   </div>
                </form>
