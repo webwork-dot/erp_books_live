@@ -90,11 +90,41 @@
 											</li>
 										</ul>
 									</li>
-									<li>
-										<a href="<?php echo base_url('orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders') !== false) ? 'active' : ''; ?>">
+
+									<li class="submenu">
+										<a href="javascript:void(0);" class="<?php echo (strpos(uri_string(), 'orders') !== false || strpos(uri_string(), 'orders/pending-orders') !== false || strpos(uri_string(), 'orders/cancelled-orders') !== false) ? 'active subdrop' : ''; ?>">
+											<i class="isax isax-building-4"></i><span>Orders</span>
+											<span class="menu-arrow"></span>
+										</a>
+										<ul>
+											<li>
+												<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/orders' : 'orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders') !== false) ? 'active' : ''; ?>">
+												All Orders
+												</a>
+											</li>
+											<li>
+												<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/orders/pending-orders' : 'orders/pending-orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders/pending-orders') !== false) ? 'active' : ''; ?>">
+												Pending Orders
+												</a>
+											</li>
+											<li>
+												<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/orders/cancelled-orders' : 'orders/cancelled-orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders/cancelled-orders') !== false) ? 'active' : ''; ?>">
+												Cancelled Orders
+												</a>
+											</li>
+										</ul>
+									</li>
+
+									<!-- <li>
+										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/orders' : 'orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-shopping-cart"></i><span>Orders</span>
 										</a>
-									</li>
+									</li> -->
+									<!-- <li>
+										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/offers' : 'offers'); ?>" class="<?php echo (strpos(uri_string(), 'offers') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-gift"></i><span>Offers</span>
+										</a>
+									</li> -->
 									<li>
 										<a href="<?php echo base_url('customers'); ?>" class="<?php echo (strpos(uri_string(), 'customers') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-profile-2user5"></i><span>Customers</span>

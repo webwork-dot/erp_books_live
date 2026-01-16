@@ -94,32 +94,52 @@ $route['school-admin/dashboard'] = 'School_admin/dashboard';
 $route['api'] = 'api';
 $route['api/auth'] = 'api/auth';
 
-// Vendor Routes (Subdomain-based routing)
-// These routes work for subdomain routing (master.domain.com/path)
-// The Vendor controllers will validate the domain exists from HTTP_HOST
-$route['login'] = 'auth/login'; // Unified login - will detect Vendor from domain
-$route['logout'] = 'auth/logout'; // Unified logout
-$route['dashboard'] = 'Vendor/dashboard/index';
-$route['dashboard/(:any)'] = 'Vendor/dashboard/$1';
-$route['schools'] = 'Vendor/schools/index';
-$route['schools/add'] = 'Vendor/schools/add';
-$route['schools/edit/(:num)'] = 'Vendor/schools/edit/$1';
-$route['schools/delete/(:num)'] = 'Vendor/schools/delete/$1';
-$route['schools/delete_image/(:num)'] = 'Vendor/schools/delete_image/$1';
-$route['schools/get_cities'] = 'Vendor/schools/get_cities';
-$route['schools/add_board'] = 'Vendor/schools/add_board';
-$route['schools/get_boards'] = 'Vendor/schools/get_boards';
-$route['schools/boards'] = 'Vendor/schools/boards';
-$route['schools/update_board'] = 'Vendor/schools/update_board';
-$route['schools/delete_board'] = 'Vendor/schools/delete_board';
-$route['schools/toggle_payment_block'] = 'Vendor/schools/toggle_payment_block';
-$route['schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block';
-$route['schools/toggle_status'] = 'Vendor/schools/toggle_status';
-$route['branches'] = 'Vendor/branches/index';
-$route['branches/add'] = 'Vendor/branches/add';
-$route['branches/edit/(:num)'] = 'Vendor/branches/edit/$1';
-$route['branches/delete/(:num)'] = 'Vendor/branches/delete/$1';
-$route['branches/get_cities'] = 'Vendor/branches/get_cities';
+// Vendor Routes (Dynamic - must be before default)
+// These routes will catch Vendor domain URLs
+// Format: /Vendor-domain/controller/method
+// Note: These routes will only work if the first segment is a valid Vendor domain
+// The Vendor controllers will validate the domain exists
+// Using :any to match domains with dots (e.g., varitty.in)
+$route['(:any)/login'] = 'auth/login'; // Unified login - will detect Vendor from domain
+$route['(:any)/logout'] = 'auth/logout'; // Unified logout
+$route['(:any)/dashboard'] = 'Vendor/dashboard/index';
+$route['(:any)/dashboard/(:any)'] = 'Vendor/dashboard/$2';
+	$route['(:any)/schools'] = 'Vendor/schools/index';
+	$route['(:any)/schools/add'] = 'Vendor/schools/add';
+	$route['(:any)/schools/edit/(:num)'] = 'Vendor/schools/edit/$2';
+	$route['(:any)/schools/delete/(:num)'] = 'Vendor/schools/delete/$2';
+	$route['(:any)/schools/delete_image/(:num)'] = 'Vendor/schools/delete_image/$2';
+	$route['(:any)/schools/get_cities'] = 'Vendor/schools/get_cities';
+	$route['(:any)/schools/add_board'] = 'Vendor/schools/add_board';
+	$route['(:any)/schools/get_boards'] = 'Vendor/schools/get_boards';
+	$route['(:any)/schools/boards'] = 'Vendor/schools/boards';
+	$route['(:any)/schools/update_board'] = 'Vendor/schools/update_board';
+	$route['(:any)/schools/delete_board'] = 'Vendor/schools/delete_board';
+	$route['(:any)/schools/toggle_payment_block'] = 'Vendor/schools/toggle_payment_block';
+	$route['(:any)/schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block';
+	$route['(:any)/schools/toggle_status'] = 'Vendor/schools/toggle_status';
+	$route['(:any)/branches'] = 'Vendor/branches/index';
+	$route['(:any)/branches/add'] = 'Vendor/branches/add';
+	$route['(:any)/branches/edit/(:num)'] = 'Vendor/branches/edit/$2';
+	$route['(:any)/branches/delete/(:num)'] = 'Vendor/branches/delete/$2';
+	$route['(:any)/branches/get_cities'] = 'Vendor/branches/get_cities';
+	
+	// Orders routes
+	$route['(:any)/offers/add'] = 'Vendor/orders/add_offers';
+	$route['(:any)/offers'] = 'Vendor/orders/offers';
+	$route['(:any)/orders'] = 'Vendor/orders/index';
+	$route['(:any)/orders/pending-orders'] = 'Vendor/orders/pending_orders';
+	$route['(:any)/orders/cancelled-orders'] = 'Vendor/orders/cancelled_orders';
+	$route['(:any)/orders/pending'] = 'Vendor/orders/index/pending';
+	$route['(:any)/orders/processing'] = 'Vendor/orders/index/processing';
+	$route['(:any)/orders/out_for_delivery'] = 'Vendor/orders/index/out_for_delivery';
+	$route['(:any)/orders/delivered'] = 'Vendor/orders/index/delivered';
+	$route['(:any)/orders/return'] = 'Vendor/orders/index/return';
+	$route['(:any)/orders/move_to_processing'] = 'Vendor/orders/move_to_processing';
+	$route['(:any)/orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_delivery';
+	$route['(:any)/orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';
+	$route['(:any)/orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$2';
+	$route['(:any)/orders/view/(:any)'] = 'Vendor/orders/view/$2';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';
