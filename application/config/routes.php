@@ -125,8 +125,21 @@ $route['(:any)/dashboard/(:any)'] = 'Vendor/dashboard/$2';
 	$route['(:any)/branches/get_cities'] = 'Vendor/branches/get_cities';
 	
 	// Orders routes
+	$route['(:any)/offers/add'] = 'Vendor/orders/add_offers';
+	$route['(:any)/offers'] = 'Vendor/orders/offers';
 	$route['(:any)/orders'] = 'Vendor/orders/index';
+	$route['(:any)/orders/pending-orders'] = 'Vendor/orders/pending_orders';
+	$route['(:any)/orders/cancelled-orders'] = 'Vendor/orders/cancelled_orders';
+	$route['(:any)/orders/pending'] = 'Vendor/orders/index/pending';
+	$route['(:any)/orders/processing'] = 'Vendor/orders/index/processing';
+	$route['(:any)/orders/out_for_delivery'] = 'Vendor/orders/index/out_for_delivery';
+	$route['(:any)/orders/delivered'] = 'Vendor/orders/index/delivered';
+	$route['(:any)/orders/return'] = 'Vendor/orders/index/return';
+	$route['(:any)/orders/move_to_processing'] = 'Vendor/orders/move_to_processing';
+	$route['(:any)/orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_delivery';
+	$route['(:any)/orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';
 	$route['(:any)/orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$2';
+	$route['(:any)/orders/view/(:any)'] = 'Vendor/orders/view/$2';
 
 	// Uniforms routes under products
 	$route['(:any)/products/uniforms'] = 'Vendor/uniforms/index';

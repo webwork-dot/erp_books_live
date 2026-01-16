@@ -421,5 +421,476 @@ class Order_model extends CI_Model
 		
 		return isset($result['count']) ? (int)$result['count'] : 0;
 	}
+	
+	/**
+	 * Get paginated orders count for vendor (using tbl_order_details structure)
+	 *
+	 * @param	int	$vendor_id	Vendor ID
+	 * @param	array	$filter_data	Filter data (order_status, keywords, date_range)
+	 * @return	int	Total count
+	 */
+	public function get_paginated_orders_count($vendor_id, $filter_data)
+	{
+		$resultdata = array();
+
+		$machine_filter = "";
+		$keyword_filter = "";
+		$order_date_filter = "";
+		$order_status_filter = "";
+		$vendor_filter = "";
+		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
+
+		if ($order_status == 'pending') {
+			$order_status_filter = " AND order_status='1'";
+		} elseif ($order_status == 'processing') {
+			$order_status_filter = " AND order_status='2'";
+		} elseif ($order_status == 'out_for_delivery') {
+			$order_status_filter = " AND order_status='3'";
+		} elseif ($order_status == 'delivered') {
+			$order_status_filter = " AND order_status='4'";
+		} elseif ($order_status == 'return') {
+			$order_status_filter = " AND order_status='7'";
+		} else {
+			$order_status_filter = " AND order_status='0'";
+		}
+
+		// Add vendor filter - check if vendor_id column exists in tbl_order_details
+		// If not, we'll filter through order items
+		if (!empty($vendor_id)) {
+			// Try to filter by vendor_id if column exists, otherwise filter through order items
+			// $vendor_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi WHERE oi.order_id = tbl_order_details.id AND oi.vendor_id = '" . (int)$vendor_id . "')";
+		}
+
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") :
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or invoice_no like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or coupon_code like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+		endif;
+
+		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
+			$order_date = explode(' - ', $filter_data['date_range']);
+			$from = date('Y-m-d', strtotime($order_date[0]));
+			$to = date('Y-m-d', strtotime($order_date[1]));
+			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		endif;
+
+		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE (id<>'') AND (payment_status='success' OR payment_status='cod' OR payment_method='cod') $keyword_filter $order_status_filter $order_date_filter $vendor_filter ORDER BY id asc");
+		return $query->num_rows();
+	}
+
+	/**
+	 * Get paginated orders for vendor (using tbl_order_details structure)
+	 *
+	 * @param	int	$vendor_id	Vendor ID
+	 * @param	array	$filter_data	Filter data (order_status, keywords, date_range)
+	 * @param	int	$per_page	Items per page
+	 * @param	int	$offset		Offset
+	 * @return	array	Array of orders
+	 */
+	public function get_paginated_orders($vendor_id, $filter_data, $per_page, $offset)
+	{
+		$resultdata = array();
+
+		$machine_filter = "";
+		$keyword_filter = "";
+		$order_date_filter = "";
+		$order_status_filter = "";
+		$vendor_filter = "";
+		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
+
+		if ($order_status == 'pending') {
+			$order_status_filter = " AND order_status='1'";
+		} elseif ($order_status == 'processing') {
+			$order_status_filter = " AND order_status='2'";
+		} elseif ($order_status == 'out_for_delivery') {
+			$order_status_filter = " AND order_status='3'";
+		} elseif ($order_status == 'delivered') {
+			$order_status_filter = " AND order_status='4'";
+		} elseif ($order_status == 'return') {
+			$order_status_filter = " AND order_status='7'";
+		} else {
+			$order_status_filter = " AND order_status='0'";
+		}
+
+		// Add vendor filter
+		// if (!empty($vendor_id)) {
+		// 	$vendor_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi WHERE oi.order_id = tbl_order_details.id AND oi.vendor_id = '" . (int)$vendor_id . "')";
+		// }
+
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") :
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or invoice_no like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or coupon_code like '%" . $this->db->escape_like_str($keyword) . "%'
+			  or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+		endif;
+
+		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
+			$order_date = explode(' - ', $filter_data['date_range']);
+			$from = date('Y-m-d', strtotime($order_date[0]));
+			$to = date('Y-m-d', strtotime($order_date[1]));
+			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		endif;
+
+		$resultdata = array();
+		$query = $this->db->query("SELECT id,checkout_type,payment_method,razorpay_order_id,payment_id,processing_date,shipment_date,delivery_date,return_date,tracking_id,shipping_label,track_url,courier,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_status,order_date,invoice_no,invoice_url,coupon_code,source FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter ORDER BY id desc LIMIT $offset,$per_page");
+		
+		if (!empty($query)) {
+			foreach ($query->result_array() as $item) {
+
+				if ($order_status == 'pending') {
+					$date = date("d M, Y H:i:s", strtotime($item['order_date']));
+				} elseif ($order_status == 'processing') {
+					$date = date("d M, Y H:i:s", strtotime($item['processing_date']));
+				} elseif ($order_status == 'out_for_delivery') {
+					$date = date("d M, Y H:i:s", strtotime($item['shipment_date']));
+				} elseif ($order_status == 'delivered') {
+					$date = date("d M, Y H:i:s", strtotime($item['delivery_date']));
+				} elseif ($order_status == 'return') {
+					$date = date("d M, Y H:i:s", strtotime($item['return_date']));
+				} else {
+					$date = date("d M, Y H:i:s", strtotime($item['order_date']));
+				}
+
+				$price = [];
+				$sku = [];
+				$hsn = [];
+
+				$table_item = $this->db->select('product_id,product_price,product_sku,hsn')->where('order_id', $item['id'])->get('tbl_order_items');
+				if ($table_item->num_rows() > 0) {
+					$table_item = $table_item->result_array();
+					foreach ($table_item as $t_item) {
+						if ($t_item['product_price'] != '' && $t_item['product_price'] != NULL) {
+							$price[] = $t_item['product_price'];
+						}
+
+						if ($t_item['product_sku'] != '' && $t_item['product_sku'] != NULL) {
+							$sku[] = $t_item['product_sku'];
+						}
+
+						if ($t_item['hsn'] != '' && $t_item['hsn'] != NULL) {
+							$hsn[] = $t_item['hsn'];
+						}
+					}
+				}
+
+				$price = (count($price) > 0) ? implode(', ', $price) : '-';
+				$sku = (count($sku) > 0) ? implode(', ', $sku) : '-';
+				$hsn = (count($hsn) > 0) ? implode(', ', $hsn) : '-';
+
+				$checkout_type = '';
+				if ($item['checkout_type'] == 'guest_checkout') {
+					$checkout_type = 'Guest Checkout';
+				} else {
+					$checkout_type = 'User Checkout';
+				}
+
+				$invoice_url_path = !empty($item['invoice_url']) ? $item['invoice_url'] : '';
+				$invoice_no = !empty($invoice_url_path) ? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
+				$resultdata[] = array(
+					"id"              => $item['id'],
+					"order_type"      => $item['order_type'],
+					"order_token"     => $item['order_token'],
+					"order_unique_id" => $item['order_unique_id'],
+					"user_name"       => $item['user_name'],
+					"user_phone"      => $item['user_phone'],
+					"coupon_code"     => ($item['coupon_code']) ? $item['coupon_code'] : '-',
+					"status"          => $item['order_status'],
+					"payment_status"  => $item['payment_status'],
+					"tracking_id"     => $item['tracking_id'],
+					"shipping_label"  => $item['shipping_label'],
+					"track_url"       => $item['track_url'],
+					"courier"         => $item['courier'],
+					"source"         => $item['source'],
+					"price"           => $price,
+					"sku"             => $sku,
+					"hsn"             => $hsn,
+					"razorpay_order_id" => $item['razorpay_order_id'],
+					"payment_id"      => $item['payment_id'],
+					"invoice_no"      => $invoice_no,
+					"payment_method"      => $item['payment_method'],
+					"checkout_type"      => $checkout_type,
+					"processing_date" => date("d M, Y H:i:s", strtotime($item['processing_date'])),
+					"shipment_date"   => date("d M, Y H:i:s", strtotime($item['shipment_date'])),
+					"delivery_date"   => date("d M, Y H:i:s", strtotime($item['delivery_date'])),
+					"date"            => $date,
+				);
+			}
+		}
+		return $resultdata;
+	}
+
+
+	public function get_order($order_no)
+	{
+		$this->db->select('*');
+		$this->db->from('tbl_order_details');
+		$this->db->where('order_unique_id', $order_no);
+		$this->db->limit(1);
+		$query = $this->db->get();
+		if ($query->num_rows() == 1) {
+				return $query->result();
+		} else {
+				return false;
+		}
+	}
+
+	/**
+	 * Get paginated pending order count
+	 *
+	 * @param	array	$filter_data	Filter data (keywords, date_range, machine)
+	 * @return	int	Total count of pending orders
+	 */
+	public function get_paginated_pending_order_count($filter_data)
+	{
+		$machine_filter = "";
+		$keyword_filter = "";
+		$order_date_filter = "";
+
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
+			or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+		}
+
+		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+			$order_date = explode(' - ', $filter_data['date_range']);
+			$from = date('Y-m-d', strtotime($order_date[0]));
+			$to = date('Y-m-d', strtotime($order_date[1]));
+			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		}
+
+		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE (id<>'') AND (payment_status='pending' or payment_status='failed') $keyword_filter $machine_filter $order_date_filter ORDER BY id asc");
+		return $query->num_rows();
+	}
+
+	/**
+	 * Get paginated pending orders
+	 *
+	 * @param	array	$filter_data	Filter data (keywords, date_range, machine)
+	 * @param	int	$per_page	Items per page
+	 * @param	int	$offset		Offset
+	 * @return	array	Array of pending orders
+	 */
+	public function get_paginated_pending_order($filter_data, $per_page, $offset)
+	{
+		$resultdata = array();
+
+		$machine_filter = "";
+		$keyword_filter = "";
+		$order_date_filter = "";
+
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
+			or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+		}
+
+		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+			$order_date = explode(' - ', $filter_data['date_range']);
+			$from = date('Y-m-d', strtotime($order_date[0]));
+			$to = date('Y-m-d', strtotime($order_date[1]));
+			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		}
+
+		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_method,payment_status,order_date FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') and payment_method<>'cod') $keyword_filter $machine_filter $order_date_filter ORDER BY id desc LIMIT $offset,$per_page");
+		
+		if (!empty($query)) {
+			foreach ($query->result_array() as $item) {
+				$resultdata[] = array(
+					"id"             => $item['id'],
+					"order_type"     => $item['order_type'],
+					"order_token"    => $item['order_token'],
+					"order_unique_id"    => $item['order_unique_id'],
+					"user_name"      => $item['user_name'],
+					"user_phone"     => $item['user_phone'],
+					"status"         => $item['order_status'],
+					"payment_status" => $item['payment_status'],
+					"payment_method" => $item['payment_method'],
+					"razorpay_order_id" => $item['razorpay_order_id'],
+					"payment_id"      => ($item['payment_id']) ? $item['payment_id'] : '-',
+					"date"            => date("d M, Y H:i:s", strtotime($item['order_date'])),
+				);
+			}
+		}
+		return $resultdata;
+	}
+
+	/**
+	 * Get paginated cancelled/rejected order count
+	 *
+	 * @param	array	$filter_data	Filter data (keywords, date_range, machine, is_refund, order_status)
+	 * @return	int	Total count of cancelled/rejected orders
+	 */
+	public function get_paginated_cancelled_order_count($filter_data)
+	{
+		$machine_filter = "";
+		$keyword_filter = "";
+		$order_date_filter = "";
+		$is_refund = isset($filter_data['is_refund']) ? $filter_data['is_refund'] : '0';
+		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
+
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
+			or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+		}
+
+		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+			$order_date = explode(' - ', $filter_data['date_range']);
+			$from = date('Y-m-d', strtotime($order_date[0]));
+			$to = date('Y-m-d', strtotime($order_date[1]));
+			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		}
+
+		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE is_refund='" . $this->db->escape_str($is_refund) . "' AND payment_status='success' AND order_status='" . $this->db->escape_str($order_status) . "' $keyword_filter $machine_filter $order_date_filter ORDER BY id asc");
+		return $query->num_rows();
+	}
+
+	/**
+	 * Get paginated cancelled/rejected orders
+	 *
+	 * @param	array	$filter_data	Filter data (keywords, date_range, machine, is_refund, order_status)
+	 * @param	int	$per_page	Items per page
+	 * @param	int	$offset		Offset
+	 * @return	array	Array of cancelled/rejected orders
+	 */
+	public function get_paginated_cancelled_order($filter_data, $per_page, $offset)
+	{
+		$resultdata = array();
+		$machine_filter = "";
+		$keyword_filter = "";
+		$order_date_filter = "";
+		$is_refund = isset($filter_data['is_refund']) ? $filter_data['is_refund'] : '0';
+		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
+
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
+			or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
+			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+		}
+
+		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+			$order_date = explode(' - ', $filter_data['date_range']);
+			$from = date('Y-m-d', strtotime($order_date[0]));
+			$to = date('Y-m-d', strtotime($order_date[1]));
+			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		}
+
+		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,remark,payable_amt,order_type,order_unique_id,user_id,order_status,payment_status,refund_amt,order_date,cancelled_date,invoice_no,cancel_invoice_url FROM tbl_order_details WHERE is_refund='" . $this->db->escape_str($is_refund) . "' AND (payment_status='success' OR payment_status='cod') AND order_status='" . $this->db->escape_str($order_status) . "' $keyword_filter $machine_filter $order_date_filter ORDER BY id desc LIMIT $offset,$per_page");
+		
+		if (!empty($query)) {
+			foreach ($query->result_array() as $item) {
+				$invoice_url = !empty($item['cancel_invoice_url']) ? base_url($item['cancel_invoice_url']) : '#';
+				$invoice_no = !empty($item['cancel_invoice_url']) ? '<a href="' . $invoice_url . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
+
+				$resultdata[] = array(
+					"id"              => $item['id'],
+					"order_type"      => $item['order_type'],
+					"order_unique_id" => $item['order_unique_id'],
+					"user_id"         => $item['user_id'],
+					"order_status"    => $item['order_status'],
+					"payment_status"  => $item['payment_status'],
+					"refund_amt"       => $item['refund_amt'],
+					"payable_amt"       => $item['payable_amt'],
+					"remark"           => $item['remark'],
+					"razorpay_order_id" => $item['razorpay_order_id'],
+					"payment_id"      => $item['payment_id'],
+					"order_date"      => date('d-m-Y h:i A', strtotime($item['order_date'])),
+					"cancelled_date"  => ($item['cancelled_date']) ? date('d-m-Y h:i A', strtotime($item['cancelled_date'])) : '-',
+					"invoice_no"       => $invoice_no,
+				);
+			}
+		}
+		return $resultdata;
+	}
+
+	/**
+	 * Get paginated cancelled/rejected order count
+	 *
+	 * @param	array	$filter_data	Filter data (keywords, date_range, machine, is_refund, order_status)
+	 * @return	int	Total count of cancelled/rejected orders
+	 */
+	public function get_paginated_offers_count($filter_data)
+	{
+
+		$keyword_filter = "";
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter .= " AND (offer_type like '%" . $this->db->escape_like_str($keyword) . "%')";
+		}
+
+		// if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+		// 	$order_date = explode(' - ', $filter_data['date_range']);
+		// 	$from = date('Y-m-d', strtotime($order_date[0]));
+		// 	$to = date('Y-m-d', strtotime($order_date[1]));
+		// 	$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		// }
+
+		$query = $this->db->query("SELECT id FROM offers WHERE (id<>'') $keyword_filter ORDER BY id asc");
+		return $query->num_rows();
+	}
+
+	/**
+	 * Get paginated cancelled/rejected orders
+	 *
+	 * @param	array	$filter_data	Filter data (keywords, date_range, machine, is_refund, order_status)
+	 * @param	int	$per_page	Items per page
+	 * @param	int	$offset		Offset
+	 * @return	array	Array of cancelled/rejected orders
+	 */
+	public function get_paginated_offers($filter_data, $per_page, $offset)
+	{
+		$resultdata = array();
+		
+
+		$keyword_filter = "";
+		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
+			$keyword = trim($filter_data['keywords']);
+			$keyword_filter .= " AND (offer_type like '%" . $this->db->escape_like_str($keyword) . "%')";
+		}
+
+		// if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+		// 	$order_date = explode(' - ', $filter_data['date_range']);
+		// 	$from = date('Y-m-d', strtotime($order_date[0]));
+		// 	$to = date('Y-m-d', strtotime($order_date[1]));
+		// 	$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		// }
+
+		$query = $this->db->query("SELECT * FROM offers WHERE (id<>'') $keyword_filter ORDER BY id DESC LIMIT $offset,$per_page");
+		
+		if (!empty($query)) {
+			foreach ($query->result_array() as $item) {
+				$resultdata[] = array(
+					"id"              	=> $item['id'],
+					"offer_type"      	=> $item['offer_type'],
+					"discount_code" 		=> $item['discount_code'],
+					"title"         		=> $item['title'],
+					"min_type"    			=> $item['min_type'],
+					"min_value"  				=> $item['min_value'],
+					"offer_value_type"	=> $item['offer_value_type'],
+					"offer_value"       => $item['offer_value'],
+					"free_quantity"			=> $item['free_quantity'],
+					"status"   				  => $item['status'],
+				);
+			}
+		}
+		return $resultdata;
+	}
+
 }
 
