@@ -5,7 +5,7 @@
 	</div>
 </div>
 <!-- End Breadcrumb -->
-<?php echo form_open_multipart(isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/stationery/edit/' . $stationery['id']) : base_url('products/stationery/edit/' . $stationery['id']), array('id' => 'stationery-form')); ?>
+<?php echo form_open_multipart(base_url('products/stationery/edit/' . $stationery['id']), array('id' => 'stationery-form')); ?>
 <div class="row mt-3">
 	<div class="col-12">
 		<div class="card mb-3">

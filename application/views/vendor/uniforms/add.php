@@ -1,11 +1,11 @@
 <!-- Start Breadcrumb -->
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-2 mb-2">
 	<div>
-		<h6 class="mb-0 fs-14"><a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms' : 'products/uniforms'); ?>"><i class="isax isax-arrow-left me-1"></i>Add New Uniform</a></h6>
+		<h6 class="mb-0 fs-14"><a href="<?php echo base_url('products/uniforms'); ?>"><i class="isax isax-arrow-left me-1"></i>Add New Uniform</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
-<?php echo form_open_multipart(isset($uniform) ? (isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/uniforms/edit/' . $uniform['id']) : base_url('products/uniforms/edit/' . $uniform['id'])) : (isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/uniforms/add') : base_url('products/uniforms/add')), array('id' => 'uniform-form')); ?>
+<?php echo form_open_multipart(isset($uniform) ? base_url('products/uniforms/edit/' . $uniform['id']) : base_url('products/uniforms/add'), array('id' => 'uniform-form')); ?>
 <!-- Images Card (Outside Main Card) -->
 <div class="row mt-2">
 	<div class="col-12">
@@ -468,7 +468,7 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 
 <div class="border-top my-3 pt-3">
 						<div class="d-flex align-items-center justify-content-end gap-2">
-							<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms' : 'products/uniforms'); ?>" class="btn btn-outline">Cancel</a>
+							<a href="<?php echo base_url('products/uniforms'); ?>" class="btn btn-outline">Cancel</a>
 							<button type="submit" form="uniform-form" class="btn btn-primary" onclick="return validateAllPrices();"><?php echo isset($uniform) ? 'Update Uniform' : 'Create Uniform'; ?></button>
 						</div>
 					</div>
@@ -827,7 +827,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadBranches(schoolId) {
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/get_branches' : 'products/uniforms/get_branches'); ?>?school_id=' + schoolId)
+	fetch('<?php echo base_url('products/uniforms/get_branches'); ?>?school_id=' + schoolId)
 		.then(response => response.json())
 		.then(data => {
 			var branchSelect = document.getElementById('branch_id');
@@ -863,7 +863,7 @@ function loadBoards(schoolId) {
 		return;
 	}
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/get_boards' : 'products/uniforms/get_boards'); ?>?school_id=' + schoolId)
+	fetch('<?php echo base_url('products/uniforms/get_boards'); ?>?school_id=' + schoolId)
 		.then(response => {
 			if (!response.ok) {
 				throw new Error('Network response was not ok');
@@ -931,7 +931,7 @@ function addUniformType() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/add_uniform_type' : 'products/uniforms/add_uniform_type'); ?>', {
+	fetch('<?php echo base_url('products/uniforms/add_uniform_type'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -990,7 +990,7 @@ function addMaterial() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/add_material' : 'products/uniforms/add_material'); ?>', {
+	fetch('<?php echo base_url('products/uniforms/add_material'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -1070,7 +1070,7 @@ function addSizeChart() {
 		formData.append('sizes[]', size);
 	});
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/add_size_chart' : 'products/uniforms/add_size_chart'); ?>', {
+	fetch('<?php echo base_url('products/uniforms/add_size_chart'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -1126,7 +1126,7 @@ function loadSizes(sizeChartId) {
 	}
 	
 	// Use GET request to avoid CSRF issues for read-only operation
-	var url = '<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/get_sizes' : 'products/uniforms/get_sizes'); ?>?size_chart_id=' + encodeURIComponent(sizeChartId);
+	var url = '<?php echo base_url('products/uniforms/get_sizes'); ?>?size_chart_id=' + encodeURIComponent(sizeChartId);
 	
 	fetch(url, {
 		method: 'GET',
@@ -1295,7 +1295,7 @@ function deleteImage(imageId) {
 		return;
 	}
 	
-	fetch('<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/uniforms/delete_image/' : 'uniforms/delete_image/'); ?>' + imageId, {
+	fetch('<?php echo base_url('products/uniforms/delete_image/'); ?>' + imageId, {
 		method: 'POST',
 		headers: {
 			'X-Requested-With': 'XMLHttpRequest'

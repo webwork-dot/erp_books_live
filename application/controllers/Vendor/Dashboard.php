@@ -47,7 +47,7 @@ class Dashboard extends Vendor_base
 		// Prepare dashboard data
 		$data['title'] = 'Dashboard - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		
 		// Calculate account age
 		if (isset($this->current_vendor['created_at']) && !empty($this->current_vendor['created_at'])) {

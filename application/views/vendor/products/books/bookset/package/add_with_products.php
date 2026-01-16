@@ -76,7 +76,7 @@
 	}
 </style>
 
-<?php echo form_open(isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/bookset/package/add_with_products') : base_url('products/bookset/package/add_with_products'), array('id' => 'bookset-with-products-form')); ?>
+<?php echo form_open(base_url('products/bookset/package/add_with_products'), array('id' => 'bookset-with-products-form')); ?>
 
 <div class="container-fluid px-0">
 <!-- Bookset Basic Information -->

@@ -12,7 +12,7 @@
         <div class="col">
             <h3 class="page-title"><?php echo $page_heading; ?></h3>
             <ul class="breadcrumb">
-                <li class="breadcrumb-item"><a href="<?php echo base_url($current_vendor['domain'] . '/dashboard'); ?>">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="<?php echo base_url('dashboard'); ?>">Dashboard</a></li>
                 <li class="breadcrumb-item active"><?php echo $page_heading; ?></li>
             </ul>
         </div>
@@ -27,7 +27,7 @@
                 <h4 class="card-title mb-0">Customize Your Live Site Appearance</h4>
             </div>
             <div class="card-body">
-                <?php echo form_open_multipart(base_url($current_vendor['domain'] . '/site-settings/save'), array('id' => 'site-settings-form', 'class' => 'custom-form')); ?>
+                <?php echo form_open_multipart('site-settings/save', array('id' => 'site-settings-form', 'class' => 'custom-form')); ?>
 
                 <!-- Tab Navigation -->
                 <div class="bookset-tabs-wrapper">
@@ -105,7 +105,7 @@
                                         <div class="mt-2 p-2 border rounded bg-light">
                                             <small class="text-muted d-block mb-1">Current Logo:</small>
                                             <img src="<?php echo base_url($settings['logo_path']); ?>" alt="Current Logo" style="max-width: 150px; max-height: 45px;" class="border">
-                                            <a href="<?php echo base_url($current_vendor['domain'] . '/site-settings/delete-logo'); ?>" class="btn btn-sm btn-outline-danger ms-2" onclick="return confirm('Are you sure you want to delete the logo?')">
+                                            <a href="<?php echo base_url('site-settings/delete-logo'); ?>" class="btn btn-sm btn-outline-danger ms-2" onclick="return confirm('Are you sure you want to delete the logo?')">
                                                 <i class="fas fa-trash"></i> Remove
                                             </a>
                                         </div>
@@ -132,7 +132,7 @@
                                         <div class="mt-2 p-2 border rounded bg-light">
                                             <small class="text-muted d-block mb-1">Current Favicon:</small>
                                             <img src="<?php echo base_url($settings['favicon_path']); ?>" alt="Current Favicon" style="width: 32px; height: 32px;" class="border rounded">
-                                            <a href="<?php echo base_url($current_vendor['domain'] . '/site-settings/delete-favicon'); ?>" class="btn btn-sm btn-outline-danger ms-2" onclick="return confirm('Are you sure you want to delete the favicon?')">
+                                            <a href="<?php echo base_url('site-settings/delete-favicon'); ?>" class="btn btn-sm btn-outline-danger ms-2" onclick="return confirm('Are you sure you want to delete the favicon?')">
                                                 <i class="fas fa-trash"></i> Remove
                                             </a>
                                         </div>
@@ -387,7 +387,7 @@
                         <button type="submit" class="btn btn-primary" id="save-settings-btn">
                             <i class="fas fa-save"></i> Save All Settings
                         </button>
-                        <a href="<?php echo base_url($current_vendor['domain'] . '/dashboard'); ?>" class="btn btn-secondary ml-2">
+                        <a href="<?php echo base_url('dashboard'); ?>" class="btn btn-secondary ml-2">
                             <i class="fas fa-times"></i> Cancel
                         </a>
                     </div>
@@ -620,7 +620,7 @@
 
 <script>
 // Define base URL for AJAX requests
-var base_url = '<?php echo base_url($current_vendor["domain"] . "/"); ?>';
+var base_url = '<?php echo rtrim(base_url(), "/") . "/"; ?>';
 
 // Wait for jQuery to be loaded
 function initSiteSettings() {

@@ -217,6 +217,11 @@
 <div class="card">
 	<div class="card-body">
 		<?php if (!empty($bookset_list)): ?>
+			<div class="mb-3">
+				<p class="text-muted mb-0">Total Booksets: <strong><?php echo $total_booksets; ?></strong></p>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($bookset_list)): ?>
 			<?php foreach ($bookset_list as $bookset): ?>
 				<?php 
 				$is_bookset = isset($bookset['type']) && $bookset['type'] == 'bookset';
@@ -424,7 +429,6 @@
 		
 		<?php if (!empty($bookset_list)): ?>
 			<div class="mt-3 d-flex justify-content-between align-items-center">
-				<p class="text-muted mb-0">Total Booksets: <strong><?php echo $total_booksets; ?></strong></p>
 				<?php if ($total_pages > 1): ?>
 					<nav aria-label="Page navigation">
 						<ul class="pagination pagination-sm mb-0">

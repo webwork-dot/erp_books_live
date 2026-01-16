@@ -9,7 +9,7 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
-		<?php echo form_open($vendor_domain . '/customers/list', array('method' => 'get')); ?>
+		<?php echo form_open(base_url('customers/list'), array('method' => 'get')); ?>
 		<div class="row g-3">
 			<div class="col-md-4">
 				<label class="form-label">Search</label>
@@ -27,7 +27,7 @@
 				<button type="submit" class="btn btn-primary me-2">
 					<i class="isax isax-search-normal me-1"></i>Filter
 				</button>
-				<a href="<?php echo base_url($vendor_domain . '/customers/list'); ?>" class="btn btn-outline-secondary">
+				<a href="<?php echo base_url('customers/list'); ?>" class="btn btn-outline-secondary">
 					<i class="isax isax-refresh me-1"></i>Reset
 				</a>
 			</div>
@@ -108,7 +108,7 @@
 				<ul class="pagination justify-content-center mt-4">
 					<?php if ($current_page > 1): ?>
 						<li class="page-item">
-							<a class="page-link" href="<?php echo base_url($vendor_domain . '/customers/list?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">
+							<a class="page-link" href="<?php echo base_url('customers/list?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">
 								<i class="isax isax-arrow-left-2"></i> Previous
 							</a>
 						</li>
@@ -125,7 +125,7 @@
 					for ($i = $start_page; $i <= $end_page; $i++):
 					?>
 						<li class="page-item <?php echo ($i == $current_page) ? 'active' : ''; ?>">
-							<a class="page-link" href="<?php echo base_url($vendor_domain . '/customers/list?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>">
+							<a class="page-link" href="<?php echo base_url('customers/list?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>">
 								<?php echo $i; ?>
 							</a>
 						</li>
@@ -133,7 +133,7 @@
 					
 					<?php if ($current_page < $total_pages): ?>
 						<li class="page-item">
-							<a class="page-link" href="<?php echo base_url($vendor_domain . '/customers/list?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">
+							<a class="page-link" href="<?php echo base_url('customers/list?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">
 								Next <i class="isax isax-arrow-right-2"></i>
 							</a>
 						</li>
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		modal.show();
 		
 		// Fetch customer details
-		fetch('<?php echo base_url($vendor_domain . "/customers/get_customer_details/"); ?>' + customerId)
+		fetch('<?php echo base_url("customers/get_customer_details/"); ?>' + customerId)
 			.then(response => response.json())
 			.then(data => {
 				if (data.success && data.customer) {

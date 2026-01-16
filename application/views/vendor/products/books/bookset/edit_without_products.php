@@ -60,7 +60,7 @@
 	}
 </style>
 
-<?php echo form_open(isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/bookset/edit/' . $bookset['id']) : base_url('products/bookset/edit/' . $bookset['id']), array('id' => 'bookset-without-products-form')); ?>
+<?php echo form_open(base_url('products/bookset/edit/' . $bookset['id']), array('id' => 'bookset-without-products-form')); ?>
 
 <div class="container-fluid px-0">
 <!-- Bookset Basic Information -->

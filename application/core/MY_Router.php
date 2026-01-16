@@ -67,9 +67,27 @@ class MY_Router extends CI_Router
 		// Get original segments
 		$segments = $this->uri->segments;
 		
-		// Reconstruct domain names with dots
-		// If we have segments like ['varitty', 'in', 'login'], combine first two as 'varitty.in'
-		if (count($segments) >= 2) {
+		// Check if we're using subdomain routing (master.domain.com)
+		// If so, skip domain reconstruction - segments should be used as-is
+		$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+		if (strpos($http_host, ':') !== false) {
+			$http_host = substr($http_host, 0, strpos($http_host, ':'));
+		}
+		
+		$is_subdomain_routing = false;
+		if (!empty($http_host) && 
+			strpos($http_host, 'localhost') === false && 
+			strpos($http_host, '127.0.0.1') === false &&
+			strpos($http_host, 'erp-admin') === false) {
+			// Check if HTTP_HOST contains a dot (subdomain.domain.com format)
+			if (strpos($http_host, '.') !== false) {
+				$is_subdomain_routing = true;
+			}
+		}
+		
+		// Only reconstruct domain names for path-based routing (localhost/domain.com/path)
+		// Skip domain reconstruction for subdomain routing (master.domain.com/path)
+		if (!$is_subdomain_routing && count($segments) >= 2) {
 			$reserved_routes = array('erp-admin', 'api', 'frontend', 'vendor', 'Vendor', 'auth', 'client-admin', 'school-admin');
 			$first_segment = $segments[0];
 			

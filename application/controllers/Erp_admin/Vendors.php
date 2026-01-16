@@ -526,7 +526,7 @@ class Vendors extends Erp_base
 			
 			// Update vendor user in erp_users table (non-critical, continue even if fails)
 			$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
-
+			
 			if ($vendor_role_id)
 			{
 				// Check if username has changed
@@ -545,7 +545,7 @@ class Vendors extends Erp_base
 
 				// Get existing user by old username
 				$existing_user = $this->Erp_user_model->getUserByUsername($vendor['username']);
-
+				
 				if ($existing_user)
 				{
 					// Update existing user
@@ -555,13 +555,13 @@ class Vendors extends Erp_base
 						'role_id' => $vendor_role_id,
 						'status' => ($vendor_data['status'] == 'active') ? 1 : 0
 					);
-
+					
 					// Update password if provided (already hashed)
 					if (!empty($password))
 					{
 						$user_data['password'] = $vendor_data['password']; // Already SHA1 hashed
 					}
-
+					
 					// Direct update to avoid double hashing
 					if (!empty($password))
 					{
@@ -1584,7 +1584,7 @@ class Vendors extends Erp_base
 		$this->db->where('username', $username);
 		if (!empty($vendor_id) && $vendor_id > 0)
 		{
-			$this->db->where('id !=', $vendor_id);
+		$this->db->where('id !=', $vendor_id);
 		}
 		$query = $this->db->get('erp_clients');
 
@@ -1609,13 +1609,13 @@ class Vendors extends Erp_base
 		// Check uniqueness in erp_users table (only for new usernames)
 		$this->db->where('username', $username);
 		$query = $this->db->get('erp_users');
-
+		
 		if ($query->num_rows() > 0)
 		{
 			$this->form_validation->set_message('check_username_unique', 'The {field} field must contain a unique value.');
 			return FALSE;
 		}
-
+		
 		return TRUE;
 	}
 	

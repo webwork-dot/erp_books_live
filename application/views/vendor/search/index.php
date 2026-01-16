@@ -43,7 +43,7 @@
 										</span>
 									</td>
 									<td class="text-end">
-										<a href="<?php echo vendor_url('products/individual-products', $vendor_domain); ?>" class="btn btn-sm btn-outline-primary">View</a>
+										<a href="<?php echo base_url('products/individual-products'); ?>" class="btn btn-sm btn-outline-primary">View</a>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -84,7 +84,7 @@
 										</span>
 									</td>
 									<td class="text-end">
-										<a href="<?php echo vendor_url('orders', $vendor_domain); ?>" class="btn btn-sm btn-outline-primary">View</a>
+										<a href="<?php echo base_url('orders'); ?>" class="btn btn-sm btn-outline-primary">View</a>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -125,7 +125,7 @@
 										</span>
 									</td>
 									<td class="text-end">
-										<a href="<?php echo vendor_url('schools', $vendor_domain); ?>" class="btn btn-sm btn-outline-primary">View</a>
+										<a href="<?php echo base_url('schools'); ?>" class="btn btn-sm btn-outline-primary">View</a>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -166,7 +166,7 @@
 										</span>
 									</td>
 									<td class="text-end">
-										<a href="<?php echo vendor_url('customers', $vendor_domain); ?>" class="btn btn-sm btn-outline-primary">View</a>
+										<a href="<?php echo base_url('customers/list'); ?>" class="btn btn-sm btn-outline-primary">View</a>
 									</td>
 								</tr>
 							<?php endforeach; ?>

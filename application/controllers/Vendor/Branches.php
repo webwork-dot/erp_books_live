@@ -78,7 +78,7 @@ class Branches extends Vendor_base
 		$data['title'] = 'Manage School Branches';
 		$data['current_vendor'] = $this->current_vendor;
 		$data['filters'] = $filters;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Branches', 'active' => true)
 		);
@@ -114,7 +114,7 @@ class Branches extends Vendor_base
 			
 			$data['title'] = 'Add New Branch';
 			$data['current_vendor'] = $this->current_vendor;
-			$data['vendor_domain'] = $this->current_vendor['domain'];
+			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
 				array('label' => 'Branches', 'url' => $this->current_vendor['domain'] . '/branches'),
 				array('label' => 'Add New', 'active' => true)
@@ -209,7 +209,7 @@ class Branches extends Vendor_base
 			
 			$data['title'] = 'Edit Branch';
 			$data['current_vendor'] = $this->current_vendor;
-			$data['vendor_domain'] = $this->current_vendor['domain'];
+			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
 				array('label' => 'Branches', 'url' => $this->current_vendor['domain'] . '/branches'),
 				array('label' => 'Edit', 'active' => true)

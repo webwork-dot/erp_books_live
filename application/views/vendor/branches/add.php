@@ -4,14 +4,14 @@
 		<h6>Add New Branch</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url($vendor_domain . '/branches'); ?>" class="btn btn-outline-secondary">
+		<a href="<?php echo base_url('branches'); ?>" class="btn btn-outline-secondary">
 			<i class="isax isax-arrow-left me-1"></i>Back to List
 		</a>
 	</div>
 </div>
 <!-- End Header -->
 
-<?php echo form_open($vendor_domain . '/branches/add', array('id' => 'branchForm')); ?>
+<?php echo form_open(base_url('branches/add'), array('id' => 'branchForm')); ?>
 
 <div class="row">
 	<!-- Branch Information -->
@@ -85,7 +85,7 @@
 
 <!-- Form Actions -->
 <div class="d-flex justify-content-end gap-2">
-	<a href="<?php echo base_url($vendor_domain . '/branches'); ?>" class="btn btn-outline-secondary">Cancel</a>
+	<a href="<?php echo base_url('branches'); ?>" class="btn btn-outline-secondary">Cancel</a>
 	<button type="submit" class="btn btn-primary">
 		<i class="isax isax-add me-1"></i>Create Branch
 	</button>
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			citySelect.disabled = true;
 			
 			// Fetch cities via AJAX (using GET to avoid CSRF issues)
-			fetch('<?php echo base_url($vendor_domain . '/branches/get_cities?state_id='); ?>' + stateId, {
+			fetch('<?php echo base_url('branches/get_cities?state_id='); ?>' + stateId, {
 				method: 'GET',
 				headers: {
 					'Content-Type': 'application/json',

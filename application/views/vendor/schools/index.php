@@ -4,7 +4,7 @@
 		<h6>Manage Schools</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url($vendor_domain . '/schools/add'); ?>" class="btn btn-primary">
+		<a href="<?php echo base_url('schools/add'); ?>" class="btn btn-primary">
 			<i class="isax isax-add me-1"></i>Add New School
 		</a>
 	</div>
@@ -14,7 +14,7 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
-		<?php echo form_open($vendor_domain . '/schools', array('method' => 'get')); ?>
+		<?php echo form_open(base_url('schools'), array('method' => 'get')); ?>
 		<div class="row g-3">
 			<div class="col-md-4">
 				<label class="form-label">Search</label>
@@ -33,7 +33,7 @@
 				<button type="submit" class="btn btn-primary me-2">
 					<i class="isax isax-search-normal me-1"></i>Filter
 				</button>
-				<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary">
+				<a href="<?php echo base_url('schools'); ?>" class="btn btn-outline-secondary">
 					<i class="isax isax-refresh me-1"></i>Reset
 				</a>
 			</div>
@@ -45,6 +45,11 @@
 <!-- Schools List -->
 <div class="card">
 	<div class="card-body">
+		<?php if (!empty($schools)): ?>
+			<div class="mb-3">
+				<p class="text-muted mb-0">Total Schools: <strong><?php echo $total_schools; ?></strong></p>
+			</div>
+		<?php endif; ?>
 		<div class="table-responsive">
 			<table class="table table-hover">
 				<thead>
@@ -53,8 +58,6 @@
 						<th>School Image</th>
 						<th>School Name</th>
 						<th>Board</th>
-						<th>Location</th>
-						<th>Admin</th>
 						<th>Payment Block?</th>
 						<th>National Delivery Block?</th>
 						<th>Status</th>
@@ -74,7 +77,7 @@
 										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
 											$image_url = $stored_path;
 										} else {
-											$image_url = base_url('uploads/schools/' . $stored_path);
+											$image_url = get_vendor_domain_url().'/' . $stored_path;
 										}
 										?>
 										<img src="<?php echo $image_url; ?>" alt="<?php echo htmlspecialchars($school['school_name']); ?>" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>'">
@@ -96,14 +99,6 @@
 									<?php else: ?>
 										<span class="text-muted">No boards assigned</span>
 									<?php endif; ?>
-								</td>
-								<td>
-									<?php echo htmlspecialchars($school['city_name']); ?>, <?php echo htmlspecialchars($school['state_name']); ?>
-									<br><small class="text-muted"><?php echo htmlspecialchars($school['pincode']); ?></small>
-								</td>
-								<td>
-									<?php echo htmlspecialchars($school['admin_name']); ?>
-									<br><small class="text-muted"><?php echo htmlspecialchars($school['admin_email']); ?></small>
 								</td>
 								<td>
 									<div class="form-check form-switch">
@@ -128,10 +123,10 @@
 								</td>
 								<td><?php echo date('d M Y', strtotime($school['created_at'])); ?></td>
 								<td class="text-end">
-									<a href="<?php echo base_url($vendor_domain . '/schools/edit/' . $school['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
+									<a href="<?php echo base_url('schools/edit/' . $school['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
-									<a href="<?php echo base_url($vendor_domain . '/schools/delete/' . $school['id']); ?>" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete" onclick="return confirm('Are you sure you want to delete this school?');">
+									<a href="<?php echo base_url('schools/delete/' . $school['id']); ?>" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete" onclick="return confirm('Are you sure you want to delete this school?');">
 										<i class="isax isax-trash"></i>
 									</a>
 								</td>
@@ -139,9 +134,9 @@
 						<?php endforeach; ?>
 					<?php else: ?>
 						<tr>
-							<td colspan="11" class="text-center text-muted py-4">
+							<td colspan="9" class="text-center text-muted py-4">
 								<i class="isax isax-school fs-48 mb-2"></i>
-								<p>No schools found. <a href="<?php echo base_url($vendor_domain . '/schools/add'); ?>">Add your first school</a></p>
+								<p>No schools found. <a href="<?php echo base_url('schools/add'); ?>">Add your first school</a></p>
 							</td>
 						</tr>
 					<?php endif; ?>
@@ -151,13 +146,12 @@
 		
 		<?php if (!empty($schools)): ?>
 			<div class="mt-3 d-flex justify-content-between align-items-center">
-				<p class="text-muted mb-0">Total Schools: <strong><?php echo $total_schools; ?></strong></p>
 				<?php if ($total_pages > 1): ?>
 					<nav aria-label="Page navigation">
 						<ul class="pagination pagination-sm mb-0">
 							<?php if ($current_page > 1): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url($vendor_domain . '/schools?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
+									<a class="page-link" href="<?php echo base_url('schools?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -172,14 +166,14 @@
 									</li>
 								<?php else: ?>
 									<li class="page-item">
-										<a class="page-link" href="<?php echo base_url($vendor_domain . '/schools?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
+										<a class="page-link" href="<?php echo base_url('schools?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
 									</li>
 								<?php endif; ?>
 							<?php endfor; ?>
 							
 							<?php if ($current_page < $total_pages): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url($vendor_domain . '/schools?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
+									<a class="page-link" href="<?php echo base_url('schools?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -202,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			const schoolId = this.getAttribute('data-school-id');
 			const isBlocked = this.checked ? 1 : 0;
 			
-			fetch('<?php echo base_url($vendor_domain . '/schools/toggle_payment_block'); ?>', {
+			fetch('<?php echo base_url('schools/toggle_payment_block'); ?>', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
@@ -234,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			const schoolId = this.getAttribute('data-school-id');
 			const isBlocked = this.checked ? 1 : 0;
 			
-			fetch('<?php echo base_url($vendor_domain . '/schools/toggle_national_block'); ?>', {
+			fetch('<?php echo base_url('schools/toggle_national_block'); ?>', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
@@ -266,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			const schoolId = this.getAttribute('data-school-id');
 			const status = this.checked ? 'active' : 'inactive';
 			
-			fetch('<?php echo base_url($vendor_domain . '/schools/toggle_status'); ?>', {
+			fetch('<?php echo base_url('schools/toggle_status'); ?>', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',

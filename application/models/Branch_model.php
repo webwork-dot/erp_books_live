@@ -21,8 +21,8 @@ class Branch_model extends CI_Model
 	public function __construct()
 	{
 		parent::__construct();
-		// Use master database
-		$this->load->database('default', TRUE);
+		// Use default database connection (will be switched to vendor database by Vendor_base)
+		// Do not load separate connection - use $this->db which is switched to vendor database
 	}
 	
 	/**

@@ -95,44 +95,69 @@ class Vendor_base extends CI_Controller
 	 */
 	protected function loadCurrentVendor()
 	{
-		$vendor_id = $this->session->userdata('vendor_id');
+		$vendor_id = NULL;
+		$vendor = NULL;
 		
-		// If no vendor_id in session, try to detect from HTTP_HOST
-		if (!$vendor_id) {
-			$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
-			if (strpos($http_host, ':') !== false) {
-				$http_host = substr($http_host, 0, strpos($http_host, ':'));
-			}
-			
-			if (!empty($http_host) && strpos($http_host, 'localhost') === false && strpos($http_host, '127.0.0.1') === false) {
-				// getClientByDomain now handles subdomain matching automatically
-				$vendor = $this->Erp_client_model->getClientByDomain($http_host);
-				if ($vendor) {
-					$vendor_id = $vendor['id'];
-					// Set session for future requests
-					// Store base domain (not subdomain) in session
-					$base_domain = $this->Erp_client_model->extractBaseDomain($vendor['domain']);
-					if (empty($base_domain)) {
-						$base_domain = $vendor['domain'];
-					}
-					$this->session->set_userdata('vendor_id', $vendor_id);
-					$this->session->set_userdata('vendor_logged_in', true);
-					$this->session->set_userdata('user_type', 'vendor');
-					$this->session->set_userdata('vendor_domain', $base_domain);
-				}
+		// Always check HTTP_HOST first (for subdomain-based routing)
+		// This ensures we use the correct vendor for the current domain
+		$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+		if (strpos($http_host, ':') !== false) {
+			$http_host = substr($http_host, 0, strpos($http_host, ':'));
+		}
+		
+		if (!empty($http_host) && strpos($http_host, 'localhost') === false && strpos($http_host, '127.0.0.1') === false) {
+			// getClientByDomain handles subdomain matching automatically
+			$vendor = $this->Erp_client_model->getClientByDomain($http_host);
+			if ($vendor) {
+				$vendor_id = $vendor['id'];
 			}
 		}
 		
+		// Fallback to session vendor_id if HTTP_HOST didn't match a vendor
+		// This handles cases where HTTP_HOST might not be a vendor domain
+		if (!$vendor_id) {
+			$session_vendor_id = $this->session->userdata('vendor_id');
+			if ($session_vendor_id) {
+				$vendor_id = $session_vendor_id;
+			}
+		}
+		
+		// If we found a vendor (from HTTP_HOST or session), load it
 		if ($vendor_id)
 		{
-			$this->current_vendor = $this->Erp_client_model->getClientById($vendor_id);
+			// If we already have vendor data from HTTP_HOST detection, use it
+			// Otherwise, load from database
+			if (!$vendor) {
+				$this->current_vendor = $this->Erp_client_model->getClientById($vendor_id);
+			} else {
+				$this->current_vendor = $vendor;
+			}
 			
 			if (!$this->current_vendor || $this->current_vendor['status'] !== 'active')
 			{
 				$this->session->set_flashdata('error', 'Your vendor account is not active.');
 				$this->session->unset_userdata('vendor_logged_in');
+				$this->session->unset_userdata('vendor_id');
 				$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-				redirect($protocol . '://' . $this->current_vendor['domain'] . '/login', 'refresh');
+				if (isset($this->current_vendor['domain'])) {
+					redirect($protocol . '://' . $this->current_vendor['domain'] . '/login', 'refresh');
+				} else {
+					redirect('auth/login', 'refresh');
+				}
+			}
+			
+			// Update session with current vendor info (in case it changed or was detected from HTTP_HOST)
+			$base_domain = $this->Erp_client_model->extractBaseDomain($this->current_vendor['domain']);
+			if (empty($base_domain)) {
+				$base_domain = $this->current_vendor['domain'];
+			}
+			$this->session->set_userdata('vendor_id', $vendor_id);
+			$this->session->set_userdata('vendor_logged_in', true);
+			$this->session->set_userdata('user_type', 'vendor');
+			$this->session->set_userdata('vendor_domain', $base_domain);
+			// Store domain in session as domain_url for easy access
+			if (isset($this->current_vendor['domain'])) {
+				$this->session->set_userdata('domain_url', $this->current_vendor['domain']);
 			}
 			
 			// Switch to vendor's database if database_name is set
@@ -142,11 +167,19 @@ class Vendor_base extends CI_Controller
 				if (!$this->tenant->switchDatabase($this->current_vendor))
 				{
 					log_message('error', 'Failed to switch to vendor database: ' . $this->current_vendor['database_name'] . ' for vendor ID: ' . $vendor_id);
-					// Don't block access, but log the error
+					show_error('Unable to connect to vendor database. Please contact support.', 500, 'Database Connection Error');
 				}
 				else
 				{
 					log_message('debug', 'Switched to vendor database: ' . $this->current_vendor['database_name'] . ' for vendor ID: ' . $vendor_id);
+					
+					// Verify database switch was successful by checking current database
+					$current_db = isset($this->db->database) ? $this->db->database : '';
+					if (!empty($current_db) && $current_db !== $this->current_vendor['database_name']) {
+						log_message('error', 'Database switch verification failed. Expected: ' . $this->current_vendor['database_name'] . ', Got: ' . $current_db);
+						// Try to switch again
+						$this->tenant->switchDatabase($this->current_vendor);
+					}
 					
 					// Check and fix foreign key constraints on first access (one-time fix)
 					$constraint_fixed_key = 'fk_constraints_fixed_' . $this->current_vendor['database_name'];
@@ -175,6 +208,83 @@ class Vendor_base extends CI_Controller
 				log_message('warning', 'Vendor database_name is empty for vendor ID: ' . $vendor_id . '. Using master database.');
 			}
 		}
+		else
+		{
+			// No vendor found - this should not happen if checkAuth passed
+			log_message('error', 'No vendor found in loadCurrentVendor() - HTTP_HOST: ' . $http_host);
+		}
+	}
+	
+	/**
+	 * Get vendor domain
+	 * Checks session first (domain_url), then falls back to database (erp_clients.domain)
+	 *
+	 * @return	string	Vendor domain
+	 */
+	protected function getVendorDomain()
+	{
+		// Check session first
+		$domain_url = $this->session->userdata('domain_url');
+		if (!empty($domain_url)) {
+			return $domain_url;
+		}
+		
+		// Fallback to database if not in session
+		if (isset($this->current_vendor['domain'])) {
+			// Store in session for future use
+			$this->session->set_userdata('domain_url', $this->current_vendor['domain']);
+			return $this->current_vendor['domain'];
+		}
+		
+		// If still not found, try to get from database using vendor_id
+		$vendor_id = $this->session->userdata('vendor_id');
+		if ($vendor_id) {
+			$vendor = $this->Erp_client_model->getClientById($vendor_id);
+			if ($vendor && isset($vendor['domain'])) {
+				// Store in session for future use
+				$this->session->set_userdata('domain_url', $vendor['domain']);
+				return $vendor['domain'];
+			}
+		}
+		
+		return '';
+	}
+	
+	/**
+	 * Get vendor domain for URL generation
+	 * Returns empty string for subdomain routing, domain for path-based routing
+	 *
+	 * @return	string	Vendor domain for URLs (empty if subdomain routing)
+	 */
+	protected function getVendorDomainForUrl()
+	{
+		// Check if we're using subdomain routing
+		$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+		if (strpos($http_host, ':') !== false) {
+			$http_host = substr($http_host, 0, strpos($http_host, ':'));
+		}
+		
+		// If HTTP_HOST is a subdomain (like master.varitty.in), return empty string
+		// This means URLs should not include domain in path
+		if (!empty($http_host) && 
+			strpos($http_host, 'localhost') === false && 
+			strpos($http_host, '127.0.0.1') === false &&
+			strpos($http_host, 'erp-admin') === false) {
+			// Check if HTTP_HOST matches vendor domain (subdomain routing)
+			$vendor = $this->Erp_client_model->getClientByDomain($http_host);
+			if ($vendor) {
+				// Using subdomain routing - don't include domain in URLs
+				return '';
+			}
+		}
+		
+		// Using path-based routing - return base domain for URLs
+		if (isset($this->current_vendor['domain'])) {
+			$base_domain = $this->Erp_client_model->extractBaseDomain($this->current_vendor['domain']);
+			return empty($base_domain) ? $this->current_vendor['domain'] : $base_domain;
+		}
+		
+		return '';
 	}
 	
 	/**

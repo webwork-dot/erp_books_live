@@ -1,4 +1,5 @@
 		<!-- Sidenav Menu Start -->
+		<?php $this->load->helper('common'); ?>
 		<div class="two-col-sidebar" id="two-col-sidebar">
 			<div class="sidebar" id="sidebar-two">
 
@@ -10,16 +11,16 @@
 					$logo_url = $has_logo ? base_url($current_vendor['logo']) : '';
 					?>
 					<?php if ($has_logo): ?>
-					<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/dashboard' : 'dashboard'); ?>" class="logo logo-normal">
+					<a href="<?php echo base_url('dashboard'); ?>" class="logo logo-normal">
 						<img src="<?php echo $logo_url; ?>" alt="Logo">
 					</a>
-					<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/dashboard' : 'dashboard'); ?>" class="logo-small">
+					<a href="<?php echo base_url('dashboard'); ?>" class="logo-small">
 						<img src="<?php echo $logo_url; ?>" alt="Logo">
 					</a>
-					<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/dashboard' : 'dashboard'); ?>" class="dark-logo">
+					<a href="<?php echo base_url('dashboard'); ?>" class="dark-logo">
 						<img src="<?php echo $logo_url; ?>" alt="Logo">
 					</a>
-					<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/dashboard' : 'dashboard'); ?>" class="dark-small">
+					<a href="<?php echo base_url('dashboard'); ?>" class="dark-small">
 						<img src="<?php echo $logo_url; ?>" alt="Logo">
 					</a>
 					<?php endif; ?>
@@ -50,25 +51,17 @@
 							<li>
 								<ul>
 									<li>
-										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/dashboard' : 'dashboard'); ?>" class="<?php echo (strpos(uri_string(), 'dashboard') !== false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('dashboard'); ?>" class="<?php echo (strpos(uri_string(), 'dashboard') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-element-45"></i><span>Dashboard</span>
 										</a>
 									</li>
+									<?php /* Hidden: Live Site Settings
 									<li>
-										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/profile' : 'profile'); ?>" class="<?php echo (strpos(uri_string(), 'profile') !== false) ? 'active' : ''; ?>">
-											<i class="isax isax-profile-2user5"></i><span>Profile</span>
-										</a>
-									</li>
-									<li>
-										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/settings' : 'settings'); ?>" class="<?php echo (strpos(uri_string(), 'settings') !== false) ? 'active' : ''; ?>">
-											<i class="isax isax-setting-2"></i><span>Settings</span>
-										</a>
-									</li>
-									<li>
-										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/site-settings' : 'site-settings'); ?>" class="<?php echo (strpos(uri_string(), 'site-settings') !== false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('site-settings'); ?>" class="<?php echo (strpos(uri_string(), 'site-settings') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-monitor"></i><span>Live Site Settings</span>
 										</a>
 									</li>
+									*/ ?>
 								</ul>
 							</li>
 							<li class="menu-title"><span>Management</span></li>
@@ -81,37 +74,39 @@
 										</a>
 										<ul>
 											<li>
-												<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/schools' : 'schools'); ?>" class="<?php echo (strpos(uri_string(), 'schools') !== false && strpos(uri_string(), 'boards') === false && strpos(uri_string(), 'branches') === false) ? 'active' : ''; ?>">
+												<a href="<?php echo base_url('schools'); ?>" class="<?php echo (strpos(uri_string(), 'schools') !== false && strpos(uri_string(), 'boards') === false && strpos(uri_string(), 'branches') === false) ? 'active' : ''; ?>">
 													All Schools
 												</a>
 											</li>
 											<li>
-												<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/branches' : 'branches'); ?>" class="<?php echo (strpos(uri_string(), 'branches') !== false) ? 'active' : ''; ?>">
+												<a href="<?php echo base_url('branches'); ?>" class="<?php echo (strpos(uri_string(), 'branches') !== false) ? 'active' : ''; ?>">
 													Branches
 												</a>
 											</li>
 											<li>
-												<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/schools/boards' : 'schools/boards'); ?>" class="<?php echo (strpos(uri_string(), 'boards') !== false) ? 'active' : ''; ?>">
+												<a href="<?php echo base_url('schools/boards'); ?>" class="<?php echo (strpos(uri_string(), 'boards') !== false) ? 'active' : ''; ?>">
 													Boards
 												</a>
 											</li>
 										</ul>
 									</li>
 									<li>
-										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/orders' : 'orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders') !== false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-shopping-cart"></i><span>Orders</span>
 										</a>
 									</li>
 									<li>
-										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/customers/list' : 'customers/list'); ?>" class="<?php echo (strpos(uri_string(), 'customers') !== false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('customers'); ?>" class="<?php echo (strpos(uri_string(), 'customers') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-profile-2user5"></i><span>Customers</span>
 										</a>
 									</li>
+									<?php /* Hidden: Feature Images
 									<li>
-										<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/features' : 'features'); ?>" class="<?php echo (strpos(uri_string(), 'features') !== false && strpos(uri_string(), 'products/') === false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('features'); ?>" class="<?php echo (strpos(uri_string(), 'features') !== false && strpos(uri_string(), 'products/') === false) ? 'active' : ''; ?>">
 											<i class="isax isax-image"></i><span>Feature Images</span>
 										</a>
 									</li>
+									*/ ?>
 								</ul>
 							</li>
 							<?php 
@@ -132,17 +127,25 @@
 									<?php if (isset($enabled_features) && !empty($enabled_features)): ?>
 									<?php foreach ($enabled_features as $feature): ?>
 										<?php 
+										// Skip Individual products - hidden but not removed
+										if (strtolower($feature['slug']) == 'individual-products' || 
+											strtolower($feature['slug']) == 'individual_products' ||
+											stripos($feature['name'], 'Individual products') !== false ||
+											stripos($feature['name'], 'Individual Products') !== false) {
+											continue;
+										}
+										
 										$has_subcategories = isset($enabled_subcategories[$feature['id']]) && !empty($enabled_subcategories[$feature['id']]);
 										$is_active_parent = (strpos(uri_string(), 'products/' . $feature['slug']) !== false);
 										
 										// For uniforms and stationery, use specific routes
 										$feature_url = '';
 										if ($feature['slug'] == 'uniforms') {
-											$feature_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms' : 'products/uniforms');
+											$feature_url = base_url('products/uniforms');
 										} elseif ($feature['slug'] == 'stationery') {
-											$feature_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/stationery' : 'products/stationery');
+											$feature_url = base_url('products/stationery');
 										} else {
-											$feature_url = base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/' . $feature['slug'] : 'products/' . $feature['slug']);
+											$feature_url = base_url('products/' . $feature['slug']);
 										}
 										?>
 										<?php if ($has_subcategories): ?>
@@ -154,7 +157,7 @@
 												<ul>
 													<?php foreach ($enabled_subcategories[$feature['id']] as $subcat): ?>
 														<li>
-															<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/' . $feature['slug'] . '/' . $subcat['slug'] : 'products/' . $feature['slug'] . '/' . $subcat['slug']); ?>" class="<?php echo (strpos(uri_string(), 'products/' . $feature['slug'] . '/' . $subcat['slug']) !== false) ? 'active' : ''; ?>">
+															<a href="<?php echo base_url('products/' . $feature['slug'] . '/' . $subcat['slug']); ?>" class="<?php echo (strpos(uri_string(), 'products/' . $feature['slug'] . '/' . $subcat['slug']) !== false) ? 'active' : ''; ?>">
 																<?php echo htmlspecialchars($subcat['name']); ?>
 															</a>
 														</li>
@@ -220,7 +223,7 @@
 					<div class="sidebar-footer" style="margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                         <ul class="menu-list">
                             <li>
-                                <a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/logout' : 'logout'); ?>" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Logout"><i class="isax isax-login-15"></i></a>
+                                <a href="<?php echo base_url('logout'); ?>" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Logout"><i class="isax isax-login-15"></i></a>
                             </li>
                         </ul>
 					</div>

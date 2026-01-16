@@ -4,7 +4,7 @@
 		<h6>Manage Uniforms</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/add' : 'products/uniforms/add'); ?>" class="btn btn-primary">
+		<a href="<?php echo base_url('products/uniforms/add'); ?>" class="btn btn-primary">
 			<i class="isax isax-add"></i> Add New Uniform
 		</a>
 	</div>
@@ -14,7 +14,7 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
-		<form method="get" action="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms' : 'products/uniforms'); ?>">
+		<form method="get" action="<?php echo base_url('products/uniforms'); ?>">
 			<!-- Search on Top -->
 			<div class="row gx-3 mb-3">
 				<div class="col-lg-8 col-md-8">
@@ -38,7 +38,7 @@
 						<label class="form-label">&nbsp;</label>
 						<div class="d-flex gap-2">
 							<button type="submit" class="btn btn-primary flex-fill">Filter</button>
-							<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms' : 'products/uniforms'); ?>" class="btn btn-outline-secondary">Clear</a>
+							<a href="<?php echo base_url('products/uniforms'); ?>" class="btn btn-outline-secondary">Clear</a>
 						</div>
 					</div>
 				</div>
@@ -153,6 +153,11 @@
 <!-- Uniforms List -->
 <div class="card">
 	<div class="card-body">
+		<?php if (!empty($uniforms)): ?>
+			<div class="mb-3">
+				<p class="text-muted mb-0">Total Uniforms: <strong><?php echo $total_uniforms; ?></strong></p>
+			</div>
+		<?php endif; ?>
 		<div class="table-responsive">
 			<table class="table">
 				<thead>
@@ -325,10 +330,10 @@
 								</td>
 
 								<td class="text-end">
-									<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/edit/' . $uniform['id'] : 'products/uniforms/edit/' . $uniform['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
+									<a href="<?php echo base_url('products/uniforms/edit/' . $uniform['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
-									<a href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms/delete/' . $uniform['id'] : 'products/uniforms/delete/' . $uniform['id']); ?>" onclick="return confirm('Are you sure you want to delete this uniform?');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
+									<a href="<?php echo base_url('products/uniforms/delete/' . $uniform['id']); ?>" onclick="return confirm('Are you sure you want to delete this uniform?');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
 										<i class="isax isax-trash"></i>
 									</a>
 								</td>
@@ -345,13 +350,12 @@
 		
 		<?php if (!empty($uniforms)): ?>
 			<div class="mt-3 d-flex justify-content-between align-items-center">
-				<p class="text-muted mb-0">Total Uniforms: <strong><?php echo $total_uniforms; ?></strong></p>
 				<?php if ($total_pages > 1): ?>
 					<nav aria-label="Page navigation">
 						<ul class="pagination pagination-sm mb-0">
 							<?php if ($current_page > 1): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms?' . http_build_query(array_merge($filters, array('page' => $current_page - 1))) : 'products/uniforms?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
+									<a class="page-link" href="<?php echo base_url('products/uniforms?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -365,15 +369,15 @@
 										<span class="page-link"><?php echo $i; ?></span>
 									</li>
 								<?php else: ?>
-									<li class="page-item">
-										<a class="page-link" href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms?' . http_build_query(array_merge($filters, array('page' => $i))) : 'products/uniforms?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
-									</li>
+								<li class="page-item">
+									<a class="page-link" href="<?php echo base_url('products/uniforms?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
+								</li>
 								<?php endif; ?>
 							<?php endfor; ?>
 							
 							<?php if ($current_page < $total_pages): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url(isset($current_vendor['domain']) ? $current_vendor['domain'] . '/products/uniforms?' . http_build_query(array_merge($filters, array('page' => $current_page + 1))) : 'products/uniforms?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
+									<a class="page-link" href="<?php echo base_url('products/uniforms?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -394,7 +398,7 @@ function toggleUniformStatus(uniformId, currentStatus)
 	const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
 
 	$.ajax({
-		url: "<?php echo base_url($current_vendor['domain'] . '/products/uniforms/toggle_status'); ?>/" + uniformId,
+		url: "<?php echo base_url('products/uniforms/toggle_status'); ?>/" + uniformId,
 		type: "POST",
 		dataType: "json",
 		data: {

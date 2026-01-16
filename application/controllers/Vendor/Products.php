@@ -70,7 +70,7 @@ class Products extends Vendor_base
 		// Prepare data
 		$data['title'] = $feature['name'] . ' - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['feature'] = $feature;
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
@@ -135,7 +135,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Manage Stationery';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['filters'] = $filters;
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
@@ -694,7 +694,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Manage Individual Products';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -729,7 +729,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Add Individual Product';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -1109,7 +1109,7 @@ class Products extends Vendor_base
 		$data['product'] = $product;
 		$data['title'] = 'Edit Individual Product';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -1815,7 +1815,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Manage Variations';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -2214,7 +2214,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Add Stationery - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -2298,7 +2298,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Edit Stationery - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -2703,7 +2703,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Manage Textbooks';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['filters'] = $filters;
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
@@ -3015,7 +3015,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Add Textbook - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -3380,7 +3380,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Edit Textbook - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -3866,7 +3866,7 @@ class Products extends Vendor_base
 		$data['filters'] = $filters;
 		$data['title'] = 'Manage Notebooks';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Notebooks', 'active' => true)
@@ -3898,7 +3898,7 @@ class Products extends Vendor_base
 			$data['filters'] = array();
 			$data['title'] = 'Manage Booksets';
 			$data['current_vendor'] = $this->current_vendor;
-			$data['vendor_domain'] = $this->current_vendor['domain'];
+			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
 				array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 				array('label' => 'Products', 'url' => '#'),
@@ -4218,7 +4218,7 @@ class Products extends Vendor_base
 		$data['filters'] = $filters;
 		$data['title'] = 'Manage Booksets';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -4851,7 +4851,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Add Bookset with Products';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -5060,7 +5060,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Add Bookset without Products';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -5589,7 +5589,7 @@ class Products extends Vendor_base
 		$data['has_products'] = $has_products;
 		$data['title'] = 'Edit Bookset';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
@@ -5784,7 +5784,7 @@ class Products extends Vendor_base
 		
 		$data['title'] = 'Add New Notebook';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Notebooks', 'url' => base_url($this->current_vendor['domain'] . '/products/notebooks')),
@@ -5926,7 +5926,7 @@ class Products extends Vendor_base
 		$data['notebook'] = $notebook;
 		$data['title'] = 'Edit Notebook';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
 			array('label' => 'Notebooks', 'url' => base_url($this->current_vendor['domain'] . '/products/notebooks')),

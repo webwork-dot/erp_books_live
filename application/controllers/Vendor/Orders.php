@@ -73,7 +73,7 @@ class Orders extends Vendor_base
 		// Prepare data
 		$data['title'] = 'Orders - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['orders'] = $orders;
 		$data['statistics'] = $statistics;
 		$data['filters'] = $filters;

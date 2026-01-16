@@ -142,6 +142,11 @@
 <!-- Textbook List -->
 <div class="card">
 	<div class="card-body">
+		<?php if (!empty($textbooks)): ?>
+			<div class="mb-3">
+				<p class="text-muted mb-0">Total Textbooks: <strong><?php echo $total_textbooks; ?></strong></p>
+			</div>
+		<?php endif; ?>
 		<div class="table-responsive">
 			<table class="table">
 				<thead>
@@ -267,7 +272,6 @@
 		
 		<?php if (!empty($textbook_list)): ?>
 			<div class="mt-3 d-flex justify-content-between align-items-center">
-				<p class="text-muted mb-0">Total Textbooks: <strong><?php echo $total_textbooks; ?></strong></p>
 				<?php if ($total_pages > 1): ?>
 					<nav aria-label="Page navigation">
 						<ul class="pagination pagination-sm mb-0">

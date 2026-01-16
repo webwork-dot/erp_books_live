@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			
 			errorDiv.style.display = 'none';
 			
-			fetch('<?php echo base_url($vendor_domain . "/features/upload_image"); ?>', {
+			fetch('<?php echo base_url("features/upload_image"); ?>', {
 				method: 'POST',
 				body: formData
 			})
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		const formData = new FormData();
 		formData.append('feature_id', featureId);
 		
-		fetch('<?php echo base_url($vendor_domain . "/features/delete_image"); ?>', {
+		fetch('<?php echo base_url("features/delete_image"); ?>', {
 			method: 'POST',
 			body: formData
 		})

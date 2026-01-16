@@ -41,6 +41,7 @@ class SiteSettings extends Vendor_base
 		$data['page_title'] = 'Live Site Settings';
 		$data['page_heading'] = 'Customize Your Live Site';
 		$data['current_vendor'] = $this->current_vendor;
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 
 		// Get current settings for this vendor
 		$vendor_id = $this->current_vendor['id'];
@@ -156,7 +157,7 @@ class SiteSettings extends Vendor_base
 			$this->session->set_flashdata('error', 'Failed to save site settings. Please try again.');
 		}
 
-		redirect(base_url($this->current_vendor['domain'] . '/site-settings'));
+		redirect('site-settings');
 	}
 
 	/**
@@ -208,7 +209,7 @@ class SiteSettings extends Vendor_base
 		}
 
 		$this->session->set_flashdata('success', 'Logo deleted successfully!');
-		redirect(base_url($this->current_vendor['domain'] . '/site-settings'));
+		redirect('site-settings');
 	}
 
 	/**
@@ -260,7 +261,7 @@ class SiteSettings extends Vendor_base
 		}
 
 		$this->session->set_flashdata('success', 'Favicon deleted successfully!');
-		redirect(base_url($this->current_vendor['domain'] . '/site-settings'));
+		redirect('site-settings');
 	}
 
 	/**
@@ -312,7 +313,7 @@ class SiteSettings extends Vendor_base
 		}
 
 		$this->session->set_flashdata('success', 'Legacy banner deleted successfully!');
-		redirect(base_url($this->current_vendor['domain'] . '/site-settings'));
+		redirect('site-settings');
 	}
 
 	/**
@@ -1041,7 +1042,7 @@ class SiteSettings extends Vendor_base
 		$synced_count = $this->_sync_all_vendor_banners_to_frontend($vendor_id);
 		
 		$this->session->set_flashdata('success', $synced_count . ' banner(s) synced to frontend directory successfully!');
-		redirect(base_url($this->current_vendor['domain'] . '/site-settings'));
+		redirect('site-settings');
 	}
 
 	/**

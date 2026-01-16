@@ -4,14 +4,14 @@
 		<h6 class="mb-0 fs-14">Add New School</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary btn-sm">
+		<a href="<?php echo base_url('schools'); ?>" class="btn btn-outline-secondary btn-sm">
 			<i class="isax isax-arrow-left me-1"></i>Back
 		</a>
 	</div>
 </div>
 <!-- End Header -->
 
-<?php echo form_open_multipart($vendor_domain . '/schools/add', array('id' => 'schoolForm')); ?>
+<?php echo form_open_multipart(base_url('schools/add'), array('id' => 'schoolForm')); ?>
 
 <div class="row">
 	<!-- School Information -->
@@ -196,7 +196,7 @@
 			<button type="submit" class="btn btn-primary btn-sm">
 				<i class="isax isax-tick-circle me-1"></i>Create School
 			</button>
-			<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary btn-sm">
+			<a href="<?php echo base_url('schools'); ?>" class="btn btn-outline-secondary btn-sm">
 				<i class="isax isax-close-circle me-1"></i>Cancel
 			</a>
 		</div>
@@ -321,7 +321,7 @@ $(document).ready(function () {
 			citySelect.html('<option value="">Loading cities...</option>').prop('disabled', true);
 			
 			// Fetch cities via AJAX (using GET to avoid CSRF issues)
-			var url = '<?php echo base_url($vendor_domain . '/schools/get_cities?state_id='); ?>' + stateId;
+			var url = '<?php echo base_url('schools/get_cities?state_id='); ?>' + stateId;
 			console.log('Fetching cities from:', url);
 			
 			$.ajax({
@@ -369,7 +369,7 @@ function loadCities(stateId) {
 	citySelect.html('<option value="">Loading cities...</option>').prop('disabled', true);
 	
 	// Fetch cities via AJAX
-	var url = '<?php echo base_url($vendor_domain . '/schools/get_cities?state_id='); ?>' + stateId;
+	var url = '<?php echo base_url('schools/get_cities?state_id='); ?>' + stateId;
 	console.log('Fetching cities from:', url);
 	
 	$.ajax({
@@ -430,7 +430,7 @@ function saveBoard() {
 	}
 	
 	// AJAX call to add board
-	fetch('<?php echo base_url($vendor_domain . '/schools/add_board'); ?>', {
+	fetch('<?php echo base_url('schools/add_board'); ?>', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',

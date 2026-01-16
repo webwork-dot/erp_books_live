@@ -29,6 +29,16 @@ class Customers extends Vendor_base
 	}
 	
 	/**
+	 * Index - Default method, redirects to list
+	 *
+	 * @return	void
+	 */
+	public function index()
+	{
+		$this->list();
+	}
+	
+	/**
 	 * List - List all customers with filters
 	 *
 	 * @return	void
@@ -64,7 +74,7 @@ class Customers extends Vendor_base
 		// Prepare data
 		$data['title'] = 'Customers - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['customers'] = $customers;
 		$data['filters'] = $filters;
 		$data['current_page'] = $page;

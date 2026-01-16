@@ -18,13 +18,16 @@
 				<h5 class="card-title mb-0">School Boards</h5>
 			</div>
 			<div class="card-body">
+				<?php if (!empty($boards)): ?>
+					<div class="mb-3">
+						<p class="text-muted mb-0">Total Boards: <strong><?php echo isset($total_boards) ? $total_boards : count($boards); ?></strong></p>
+					</div>
+				<?php endif; ?>
 				<div class="table-responsive">
 					<table class="table table-hover">
 						<thead>
 							<tr>
 								<th>Board Name</th>
-								<th>Description</th>
-								<th>Type</th>
 								<th>Status</th>
 								<th>Created</th>
 								<th class="text-end">Actions</th>
@@ -36,16 +39,6 @@
 									<tr>
 										<td>
 											<strong><?php echo htmlspecialchars($board['board_name']); ?></strong>
-										</td>
-										<td>
-											<?php echo htmlspecialchars($board['description'] ? $board['description'] : '-'); ?>
-										</td>
-										<td>
-											<?php if ($board['vendor_id'] === NULL): ?>
-												<span class="badge bg-info">System Board</span>
-											<?php else: ?>
-												<span class="badge bg-primary">Custom Board</span>
-											<?php endif; ?>
 										</td>
 										<td>
 											<?php if ($board['status'] == 'active'): ?>
@@ -73,7 +66,7 @@
 								<?php endforeach; ?>
 							<?php else: ?>
 								<tr>
-									<td colspan="6" class="text-center">No boards found.</td>
+									<td colspan="4" class="text-center">No boards found.</td>
 								</tr>
 							<?php endif; ?>
 						</tbody>
@@ -173,7 +166,7 @@ function saveBoard() {
 	}
 	
 	// AJAX call to add board
-	fetch('<?php echo base_url($vendor_domain . '/schools/add_board'); ?>', {
+	fetch('<?php echo base_url('schools/add_board'); ?>', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
@@ -225,7 +218,7 @@ function updateBoard() {
 	}
 	
 	// AJAX call to update board
-	fetch('<?php echo base_url($vendor_domain . '/schools/update_board'); ?>', {
+	fetch('<?php echo base_url('schools/update_board'); ?>', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
@@ -253,7 +246,7 @@ function updateBoard() {
 function deleteBoard(boardId, boardName) {
 	if (confirm('Are you sure you want to delete the board "' + boardName + '"? This action cannot be undone.')) {
 		// AJAX call to delete board
-		fetch('<?php echo base_url($vendor_domain . '/schools/delete_board'); ?>', {
+		fetch('<?php echo base_url('schools/delete_board'); ?>', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',

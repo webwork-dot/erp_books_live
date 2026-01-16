@@ -107,7 +107,7 @@ class Schools extends Vendor_base
 		$data['title'] = 'Manage Schools';
 		$data['current_vendor'] = $this->current_vendor;
 		$data['filters'] = $filters;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Schools', 'active' => true)
 		);
@@ -154,7 +154,7 @@ class Schools extends Vendor_base
 			
 			$data['title'] = 'Add New School';
 			$data['current_vendor'] = $this->current_vendor;
-			$data['vendor_domain'] = $this->current_vendor['domain'];
+			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
 				array('label' => 'Schools', 'url' => $this->current_vendor['domain'] . '/schools'),
 				array('label' => 'Add New', 'active' => true)
@@ -178,7 +178,9 @@ class Schools extends Vendor_base
 				if (empty($parent_school_id))
 				{
 					$this->session->set_flashdata('error', 'Please select a parent school for the branch.');
-					redirect(base_url($this->current_vendor['domain'] . '/schools/add'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools/add', $vendor_domain));
 				}
 				
 				// Create branch
@@ -198,12 +200,16 @@ class Schools extends Vendor_base
 				if ($branch_id)
 				{
 					$this->session->set_flashdata('success', 'Branch created successfully.');
-					redirect(base_url($this->current_vendor['domain'] . '/branches'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('branches', $vendor_domain));
 				}
 				else
 				{
 					$this->session->set_flashdata('error', 'Failed to create branch.');
-					redirect(base_url($this->current_vendor['domain'] . '/schools/add'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools/add', $vendor_domain));
 				}
 			}
 			else
@@ -213,7 +219,9 @@ class Schools extends Vendor_base
 				if (empty($selected_boards) || !is_array($selected_boards))
 				{
 					$this->session->set_flashdata('error', 'Please select at least one board.');
-					redirect(base_url($this->current_vendor['domain'] . '/schools/add'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools/add', $vendor_domain));
 				}
 				
 				// Filter out empty values and ensure we have valid integers
@@ -222,7 +230,9 @@ class Schools extends Vendor_base
 				if (empty($selected_boards))
 				{
 					$this->session->set_flashdata('error', 'Please select at least one valid board.');
-					redirect(base_url($this->current_vendor['domain'] . '/schools/add'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools/add', $vendor_domain));
 				}
 				
 				// Create school (store comma-separated board IDs)
@@ -262,12 +272,16 @@ class Schools extends Vendor_base
 					$this->handleImageUploads($school_id);
 					
 					$this->session->set_flashdata('success', 'School created successfully.');
-					redirect(base_url($this->current_vendor['domain'] . '/schools'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools', $vendor_domain));
 				}
 				else
 				{
 					$this->session->set_flashdata('error', 'Failed to create school.');
-					redirect(base_url($this->current_vendor['domain'] . '/schools/add'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools/add', $vendor_domain));
 				}
 			}
 		}
@@ -323,7 +337,7 @@ class Schools extends Vendor_base
 			
 			$data['title'] = 'Edit School';
 			$data['current_vendor'] = $this->current_vendor;
-			$data['vendor_domain'] = $this->current_vendor['domain'];
+			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
 				array('label' => 'Schools', 'url' => $this->current_vendor['domain'] . '/schools'),
 				array('label' => 'Edit', 'active' => true)
@@ -350,9 +364,11 @@ class Schools extends Vendor_base
 			// Ensure we have at least one board (validation should have caught this, but double-check)
 			if (empty($selected_boards))
 			{
-				$this->session->set_flashdata('error', 'Please select at least one board.');
-				redirect(base_url($this->current_vendor['domain'] . '/schools/edit/' . $school_id));
-				return;
+			$this->session->set_flashdata('error', 'Please select at least one board.');
+			$this->load->helper('common');
+			$vendor_domain = $this->getVendorDomainForUrl();
+			redirect(vendor_url('schools/edit/' . $school_id, $vendor_domain));
+			return;
 			}
 			
 			// Update school (store comma-separated board IDs)
@@ -395,7 +411,9 @@ class Schools extends Vendor_base
 			if ($update_result || $boards_updated)
 			{
 				$this->session->set_flashdata('success', 'School updated successfully.');
-				redirect(base_url($this->current_vendor['domain'] . '/schools'));
+				$this->load->helper('common');
+			$vendor_domain = $this->getVendorDomainForUrl();
+			redirect(vendor_url('schools', $vendor_domain));
 			}
 			else
 			{
@@ -404,7 +422,9 @@ class Schools extends Vendor_base
 				if (!empty($db_error['message']) && $db_error['code'] != 0)
 				{
 					$this->session->set_flashdata('error', 'Failed to update school: ' . $db_error['message']);
-					redirect(base_url($this->current_vendor['domain'] . '/schools/edit/' . $school_id));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools/edit/' . $school_id, $vendor_domain));
 				}
 				else
 				{
@@ -412,7 +432,9 @@ class Schools extends Vendor_base
 					// This can happen if data hasn't changed, but boards were updated
 					// So we should still show success
 					$this->session->set_flashdata('success', 'School updated successfully.');
-					redirect(base_url($this->current_vendor['domain'] . '/schools'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_url('schools', $vendor_domain));
 				}
 			}
 		}
@@ -454,7 +476,9 @@ class Schools extends Vendor_base
 			$this->session->set_flashdata('error', 'Failed to delete school.');
 		}
 		
-		redirect(base_url($this->current_vendor['domain'] . '/schools'));
+		$this->load->helper('common');
+		$vendor_domain = $this->getVendorDomainForUrl();
+		redirect(vendor_url('schools', $vendor_domain));
 	}
 	
 	/**
@@ -492,7 +516,9 @@ class Schools extends Vendor_base
 			}
 		}
 		
-		redirect(base_url($this->current_vendor['domain'] . '/schools/edit/' . $image['school_id']));
+		$this->load->helper('common');
+		$vendor_domain = $this->getVendorDomainForUrl();
+		redirect(vendor_url('schools/edit/' . $image['school_id'], $vendor_domain));
 	}
 	
 	/**
@@ -607,6 +633,9 @@ class Schools extends Vendor_base
 		// Get all boards for this vendor (including system boards)
 		$data['boards'] = $this->School_board_model->getBoardsByVendor($this->current_vendor['id']);
 		
+		// Calculate total boards count
+		$data['total_boards'] = count($data['boards']);
+		
 		// Get vendor's custom boards only
 		$this->db->where('vendor_id', $this->current_vendor['id']);
 		$this->db->order_by('board_name', 'ASC');
@@ -616,9 +645,9 @@ class Schools extends Vendor_base
 		// Prepare view data
 		$data['title'] = 'Manage Boards - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Schools', 'url' => base_url($this->current_vendor['domain'] . '/schools')),
+			array('label' => 'Schools', 'url' => base_url((!empty($data['vendor_domain']) ? $data['vendor_domain'] . '/' : '') . 'schools')),
 			array('label' => 'Boards', 'active' => true)
 		);
 		

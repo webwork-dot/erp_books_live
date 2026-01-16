@@ -1449,6 +1449,85 @@ if (!function_exists('vendor_url')) {
 }
 
 /**
+ * Generate vendor URL (handles both subdomain and path-based routing)
+ * 
+ * @param string $path URL path (e.g., 'schools/boards')
+ * @param string|null $vendor_domain Vendor domain (empty for subdomain routing)
+ * @return string Full URL
+ */
+if (!function_exists('vendor_base_url')) {
+    function vendor_base_url($path = '', $vendor_domain = null) {
+        $path = ltrim($path, '/');
+        
+        // If vendor_domain is empty or null, use path directly (subdomain routing)
+        if (empty($vendor_domain)) {
+            return base_url($path);
+        }
+        
+        // Otherwise, use path-based routing (localhost/domain/path)
+        return base_url($vendor_domain . ($path ? '/' . $path : ''));
+    }
+}
+
+/**
+ * Get vendor domain URL
+ * Checks session first (domain_url), then falls back to database (erp_clients.domain)
+ * 
+ * @return string Vendor domain URL, empty string if not found
+ */
+if (!function_exists('get_vendor_domain_url')) {
+    function get_vendor_domain_url() {
+        $CI =& get_instance();
+
+        $domain_url = '';
+
+        // 1️⃣ Check session first
+        if (property_exists($CI, 'session') && is_object($CI->session)) {
+            $domain_url = $CI->session->userdata('domain_url');
+        }
+
+        // 2️⃣ Fallback to database
+        if (empty($domain_url)) {
+            $vendor_id = null;
+
+            if (property_exists($CI, 'session') && is_object($CI->session)) {
+                $vendor_id = $CI->session->userdata('vendor_id');
+            }
+
+            if ($vendor_id) {
+                if (!property_exists($CI, 'Erp_client_model')) {
+                    $CI->load->model('Erp_client_model');
+                }
+
+                $vendor = $CI->Erp_client_model->getClientById($vendor_id);
+                if ($vendor && !empty($vendor['domain'])) {
+                    $domain_url = $vendor['domain'];
+
+                    // cache in session
+                    $CI->session->set_userdata('domain_url', $domain_url);
+                }
+            }
+        }
+
+        // 3️⃣ Normalize domain → ALWAYS return full URL
+        if (!empty($domain_url)) {
+            // remove trailing slash
+            $domain_url = rtrim($domain_url, '/');
+
+            // add https if missing
+            if (!preg_match('#^https?://#', $domain_url)) {
+                $domain_url = 'https://' . $domain_url;
+            }
+
+            return $domain_url;
+        }
+
+        return '';
+    }
+}
+
+
+/**
  * Generate dynamic CSS for vendor colors
  *
  * @param array $settings Vendor settings array

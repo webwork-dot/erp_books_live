@@ -155,7 +155,7 @@ class Uniforms extends Vendor_base
 		
 		$data['title'] = 'Manage Uniforms';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['filters'] = $filters;
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
@@ -198,7 +198,7 @@ class Uniforms extends Vendor_base
 			
 			$data['title'] = 'Add New Uniform';
 			$data['current_vendor'] = $this->current_vendor;
-			$data['vendor_domain'] = $this->current_vendor['domain'];
+			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
 				array('label' => 'Uniforms', 'url' => base_url($this->current_vendor['domain'] . '/products/uniforms')),
 				array('label' => 'Add', 'active' => true)
@@ -373,7 +373,7 @@ class Uniforms extends Vendor_base
 			$data['uniform'] = $uniform;
 			$data['title'] = 'Edit Uniform';
 			$data['current_vendor'] = $this->current_vendor;
-			$data['vendor_domain'] = $this->current_vendor['domain'];
+			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
 				array('label' => 'Uniforms', 'url' => base_url($this->current_vendor['domain'] . '/products/uniforms')),
 				array('label' => 'Edit', 'active' => true)

@@ -127,14 +127,9 @@ class Search extends Vendor_base
 		}
 		
 		// Extract base domain for URL generation
-		$base_domain = $this->Erp_client_model->extractBaseDomain($this->current_vendor['domain']);
-		if (empty($base_domain)) {
-			$base_domain = $this->current_vendor['domain'];
-		}
-		
 		$data['title'] = 'Search Results';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $base_domain; // Pass base domain for URL generation
+		$data['vendor_domain'] = $this->getVendorDomainForUrl(); // Pass vendor domain for URL generation (empty for subdomain routing)
 		$data['query'] = $query;
 		$data['results'] = $results;
 		$this->load->helper('common');

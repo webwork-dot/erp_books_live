@@ -216,7 +216,7 @@
 										}
 									}
 									$this->load->helper('common');
-									$home_url = !empty($vendor_domain) ? vendor_url('dashboard', $vendor_domain) : base_url('dashboard');
+									$home_url = base_url('dashboard');
 									?>
 									<li class="breadcrumb-item d-flex align-items-center"><a href="<?php echo $home_url; ?>"><i class="isax isax-home-2 me-1"></i>Home</a></li>
 									<?php if (isset($breadcrumb) && is_array($breadcrumb)): ?>
@@ -232,12 +232,8 @@
 														if (strpos($item['url'], 'http') === 0) {
 															$item_url = $item['url'];
 														} else {
-															// Use vendor_url helper for subdomain-based URLs
-															if (!empty($vendor_domain)) {
-																$item_url = vendor_url($item['url'], $vendor_domain);
-															} else {
-																$item_url = base_url($item['url']);
-															}
+															// Use base_url for all URLs
+															$item_url = base_url($item['url']);
 														}
 													}
 													?>
@@ -259,7 +255,7 @@
 							<div class="input-icon-end position-relative me-2">
 								<?php 
 								$this->load->helper('common');
-								$search_url = !empty($vendor_domain) ? vendor_url('search', $vendor_domain) : base_url('search');
+								$search_url = base_url('search');
 								?>
 								<form method="get" action="<?php echo $search_url; ?>" class="d-flex">
 									<input type="text" name="q" class="form-control" placeholder="Search..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" style="min-width: 200px;">
@@ -273,20 +269,33 @@
 							<!-- User Dropdown -->
 							<div class="dropdown profile-dropdown">
 								<a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-									<span class="avatar avatar-md online">
-										<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="img-fluid rounded-circle" style="color: #6c757d;">
-											<path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
-											<path d="M12.0002 14.5C6.99016 14.5 2.91016 17.86 2.91016 22C2.91016 22.28 3.13016 22.5 3.41016 22.5H20.5902C20.8702 22.5 21.0902 22.28 21.0902 22C21.0902 17.86 17.0102 14.5 12.0002 14.5Z" fill="currentColor"/>
-										</svg>
-									</span>
+									<?php 
+									// Get vendor logo or use default user icon
+									$user_logo = '';
+									if (isset($current_vendor['logo']) && !empty($current_vendor['logo']) && file_exists(FCPATH . $current_vendor['logo'])) {
+										$user_logo = base_url($current_vendor['logo']);
+									}
+									?>
+									<?php if (!empty($user_logo)): ?>
+										<span class="avatar avatar-md online">
+											<img src="<?php echo $user_logo; ?>" alt="User" class="img-fluid rounded-circle" style="width: 40px; height: 40px; object-fit: contain;">
+										</span>
+									<?php else: ?>
+										<span class="avatar avatar-md online">
+											<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="img-fluid rounded-circle" style="color: #6c757d;">
+												<path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
+												<path d="M12.0002 14.5C6.99016 14.5 2.91016 17.86 2.91016 22C2.91016 22.28 3.13016 22.5 3.41016 22.5H20.5902C20.8702 22.5 21.0902 22.28 21.0902 22C21.0902 17.86 17.0102 14.5 12.0002 14.5Z" fill="currentColor"/>
+											</svg>
+										</span>
+									<?php endif; ?>
 									<span class="ms-2 d-none d-md-block">
-										<span class="d-block fw-semibold"><?php echo isset($current_vendor['username']) ? htmlspecialchars($current_vendor['username']) : 'Vendor'; ?></span>
-										<span class="d-block text-gray-9 fs-13"><?php echo isset($current_vendor['name']) ? htmlspecialchars($current_vendor['name']) : 'Vendor'; ?></span>
+										<span class="d-block fw-semibold"><?php echo isset($current_vendor['name']) ? htmlspecialchars($current_vendor['name']) : 'Vendor'; ?></span>
+										<span class="d-block text-gray-9 fs-13"><?php echo isset($current_vendor['email']) ? htmlspecialchars($current_vendor['email']) : ''; ?></span>
 									</span>
 								</a>
 								<div class="dropdown-menu dropdown-menu-end p-2">
 									<?php 
-									$logout_url = !empty($vendor_domain) ? vendor_url('logout', $vendor_domain) : base_url('logout');
+									$logout_url = base_url('logout');
 									?>
 									<a class="dropdown-item d-flex align-items-center" href="<?php echo $logout_url; ?>">
 										<i class="isax isax-logout me-2"></i>Sign Out

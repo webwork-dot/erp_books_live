@@ -5,7 +5,7 @@
 	</div>
 </div>
 <!-- End Breadcrumb -->
-<?php echo form_open_multipart(isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/individual-products/update/' . (isset($product['id']) ? $product['id'] : '')) : base_url('products/individual-products/update/' . (isset($product['id']) ? $product['id'] : '')), array('id' => 'individual-product-form')); ?>
+<?php echo form_open_multipart(base_url('products/individual-products/update/' . (isset($product['id']) ? $product['id'] : '')), array('id' => 'individual-product-form')); ?>
 <!-- Images Card (Outside Main Card) -->
 <div class="row mt-3">
 	<div class="col-12">

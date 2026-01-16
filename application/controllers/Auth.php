@@ -85,6 +85,7 @@ class Auth extends CI_Controller
 		}
 		
 		// Fallback to URI segment (path-based routing) - for backward compatibility
+		$vendor_domain_from_url = null;
 		if (!$is_vendor_domain) {
 			$vendor_domain_from_url = $this->uri->segment(1);
 			$reserved_routes = array('erp-admin', 'api', 'frontend', 'vendor', 'Vendor', 'auth', 'client-admin', 'school-admin');
@@ -114,7 +115,8 @@ class Auth extends CI_Controller
 		{
 			// Show login form
 			$data['title'] = 'Login';
-			$data['vendor_domain'] = $is_vendor_domain ? $vendor_domain_from_url : null;
+			// Use vendor_base_domain if found via HTTP_HOST, otherwise use vendor_domain_from_url
+			$data['vendor_domain'] = $is_vendor_domain ? ($vendor_base_domain ?? $vendor_domain_from_url) : null;
 			$this->load->view('auth/login', $data);
 		}
 		else
@@ -138,10 +140,43 @@ class Auth extends CI_Controller
 					
 					if ($vendor && $vendor['status'] === 'active')
 					{
-						// Extract base domain for session storage
-						$base_domain = $this->Erp_client_model->extractBaseDomain($vendor['domain']);
-						if (empty($base_domain)) {
-							$base_domain = $vendor['domain'];
+						// Get current HTTP_HOST to determine base domain
+						$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+						if (strpos($http_host, ':') !== false) {
+							$http_host = substr($http_host, 0, strpos($http_host, ':'));
+						}
+						
+						// Extract base domain from HTTP_HOST if it's a subdomain
+						$base_domain = $vendor['domain'];
+						if (!empty($http_host) && 
+							strpos($http_host, 'localhost') === false && 
+							strpos($http_host, '127.0.0.1') === false &&
+							strpos($http_host, 'erp-admin') === false) {
+							// Extract base domain from subdomain (e.g., master.varitty.in -> varitty.in)
+							if (strpos($http_host, '.') !== false) {
+								$parts = explode('.', $http_host);
+								if (count($parts) >= 2) {
+									// Remove subdomain (first part) to get base domain
+									array_shift($parts);
+									$base_domain = implode('.', $parts);
+								}
+							}
+						} else {
+							// For localhost or if HTTP_HOST extraction fails, use vendor domain
+							// If vendor domain has subdomain, extract base domain
+							if (strpos($vendor['domain'], '.') !== false) {
+								$parts = explode('.', $vendor['domain']);
+								if (count($parts) >= 2 && $parts[0] !== 'www') {
+									// Check if first part is a common subdomain
+									$common_subdomains = array('master', 'www', 'admin', 'app');
+									if (in_array($parts[0], $common_subdomains)) {
+										array_shift($parts);
+										$base_domain = implode('.', $parts);
+									} else {
+										$base_domain = $vendor['domain'];
+									}
+								}
+							}
 						}
 						
 						// Set vendor session (store base domain, not subdomain)
@@ -209,16 +244,50 @@ class Auth extends CI_Controller
 				if ($vendor && $vendor['status'] === 'active' && $this->Erp_client_model->verifyPassword($password, $vendor['password']))
 				{
 					// Legacy vendor login - set vendor session
-					// Extract base domain for session storage
-					$base_domain = $this->Erp_client_model->extractBaseDomain($vendor['domain']);
-					if (empty($base_domain)) {
-						$base_domain = $vendor['domain'];
+					// Get current HTTP_HOST to determine base domain
+					$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+					if (strpos($http_host, ':') !== false) {
+						$http_host = substr($http_host, 0, strpos($http_host, ':'));
+					}
+					
+					// Extract base domain from HTTP_HOST if it's a subdomain
+					$base_domain = $vendor['domain'];
+					if (!empty($http_host) && 
+						strpos($http_host, 'localhost') === false && 
+						strpos($http_host, '127.0.0.1') === false &&
+						strpos($http_host, 'erp-admin') === false) {
+						// Extract base domain from subdomain (e.g., master.varitty.in -> varitty.in)
+						if (strpos($http_host, '.') !== false) {
+							$parts = explode('.', $http_host);
+							if (count($parts) >= 2) {
+								// Remove subdomain (first part) to get base domain
+								array_shift($parts);
+								$base_domain = implode('.', $parts);
+							}
+						}
+					} else {
+						// For localhost or if HTTP_HOST extraction fails, use vendor domain
+						// If vendor domain has subdomain, extract base domain
+						if (strpos($vendor['domain'], '.') !== false) {
+							$parts = explode('.', $vendor['domain']);
+							if (count($parts) >= 2 && $parts[0] !== 'www') {
+								// Check if first part is a common subdomain
+								$common_subdomains = array('master', 'www', 'admin', 'app');
+								if (in_array($parts[0], $common_subdomains)) {
+									array_shift($parts);
+									$base_domain = implode('.', $parts);
+								} else {
+									$base_domain = $vendor['domain'];
+								}
+							}
+						}
 					}
 					
 					$session_data = array(
 						'vendor_id' => $vendor['id'],
 						'vendor_name' => $vendor['name'],
 						'vendor_domain' => $base_domain, // Store base domain
+						'domain_url' => $vendor['domain'], // Store full domain URL
 						'vendor_username' => $vendor['username'],
 						'vendor_logged_in' => TRUE,
 						'user_type' => 'vendor'

@@ -50,7 +50,7 @@ class Features extends Vendor_base
 		$data['features'] = $features;
 		$data['title'] = 'Manage Feature Images';
 		$data['current_vendor'] = $this->current_vendor;
-		$data['vendor_domain'] = $this->current_vendor['domain'];
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
 			array('label' => 'Features', 'active' => true)
 		);

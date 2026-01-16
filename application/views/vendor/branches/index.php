@@ -4,7 +4,7 @@
 		<h6>Manage School Branches</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url($vendor_domain . '/branches/add'); ?>" class="btn btn-primary">
+		<a href="<?php echo base_url('branches/add'); ?>" class="btn btn-primary">
 			<i class="isax isax-add me-1"></i>Add New Branch
 		</a>
 	</div>
@@ -14,7 +14,7 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
-		<?php echo form_open($vendor_domain . '/branches', array('method' => 'get')); ?>
+		<?php echo form_open(base_url('branches'), array('method' => 'get')); ?>
 		<div class="row g-3">
 			<div class="col-md-3">
 				<label class="form-label">Search</label>
@@ -45,7 +45,7 @@
 				<button type="submit" class="btn btn-primary me-2">
 					<i class="isax isax-search-normal me-1"></i>Filter
 				</button>
-				<a href="<?php echo base_url($vendor_domain . '/branches'); ?>" class="btn btn-outline-secondary">
+				<a href="<?php echo base_url('branches'); ?>" class="btn btn-outline-secondary">
 					<i class="isax isax-refresh me-1"></i>Reset
 				</a>
 			</div>
@@ -57,6 +57,11 @@
 <!-- Branches List -->
 <div class="card">
 	<div class="card-body">
+		<?php if (!empty($branches)): ?>
+			<div class="mb-3">
+				<p class="text-muted mb-0">Total Branches: <strong><?php echo $total_branches; ?></strong></p>
+			</div>
+		<?php endif; ?>
 		<div class="table-responsive">
 			<table class="table table-hover">
 				<thead>
@@ -96,10 +101,10 @@
 								</td>
 								<td><?php echo date('d M Y', strtotime($branch['created_at'])); ?></td>
 								<td class="text-end">
-									<a href="<?php echo base_url($vendor_domain . '/branches/edit/' . $branch['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
+									<a href="<?php echo base_url('branches/edit/' . $branch['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
-									<a href="<?php echo base_url($vendor_domain . '/branches/delete/' . $branch['id']); ?>" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete" onclick="return confirm('Are you sure you want to delete this branch?');">
+									<a href="<?php echo base_url('branches/delete/' . $branch['id']); ?>" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete" onclick="return confirm('Are you sure you want to delete this branch?');">
 										<i class="isax isax-trash"></i>
 									</a>
 								</td>
@@ -109,7 +114,7 @@
 						<tr>
 							<td colspan="8" class="text-center text-muted py-4">
 								<i class="isax isax-building fs-48 mb-2"></i>
-								<p>No branches found. <a href="<?php echo base_url($vendor_domain . '/branches/add'); ?>">Add your first branch</a></p>
+								<p>No branches found. <a href="<?php echo base_url('branches/add'); ?>">Add your first branch</a></p>
 							</td>
 						</tr>
 					<?php endif; ?>
@@ -119,13 +124,12 @@
 		
 		<?php if (!empty($branches)): ?>
 			<div class="mt-3 d-flex justify-content-between align-items-center">
-				<p class="text-muted mb-0">Total Branches: <strong><?php echo $total_branches; ?></strong></p>
 				<?php if ($total_pages > 1): ?>
 					<nav aria-label="Page navigation">
 						<ul class="pagination pagination-sm mb-0">
 							<?php if ($current_page > 1): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url($vendor_domain . '/branches?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
+									<a class="page-link" href="<?php echo base_url('branches?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -140,14 +144,14 @@
 									</li>
 								<?php else: ?>
 									<li class="page-item">
-										<a class="page-link" href="<?php echo base_url($vendor_domain . '/branches?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
+										<a class="page-link" href="<?php echo base_url('branches?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
 									</li>
 								<?php endif; ?>
 							<?php endfor; ?>
 							
 							<?php if ($current_page < $total_pages): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url($vendor_domain . '/branches?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
+									<a class="page-link" href="<?php echo base_url('branches?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">

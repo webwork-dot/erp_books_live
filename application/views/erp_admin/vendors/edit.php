@@ -126,11 +126,11 @@
 <div class="tab-content" id="vendorEditTabContent">
 	<!-- Basic Information Tab -->
 	<div class="tab-pane fade show active" id="basic-info" role="tabpanel" aria-labelledby="basic-info-tab">
-		<div class="row">
-			<div class="col-12">
-				<div class="card">
-					<div class="card-body">
-						<h6 class="mb-3">Basic Details</h6>
+<div class="row">
+	<div class="col-12">
+		<div class="card">
+			<div class="card-body">
+				<h6 class="mb-3">Basic Details</h6>
 				
 				<?php if (validation_errors()): ?>
 					<div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -231,7 +231,7 @@
 														</div>
 													</div>
 												<?php else: ?>
-													<div class="mb-3">
+							<div class="mb-3">
 														<label class="form-label fw-medium">Current Logo</label>
 														<div class="text-center py-4 border rounded bg-white">
 															<i class="isax isax-gallery text-muted" style="font-size: 32px;"></i>
@@ -253,38 +253,38 @@
 											<i class="isax isax-color-swatch me-2 text-primary"></i>
 											Sidebar Theme
 										</h6>
-										<?php
-										// Get current color value - if it's a predefined theme, convert to hex, otherwise use as-is
-										$current_color = isset($vendor['sidebar_color']) ? $vendor['sidebar_color'] : '#7539ff';
-										$theme_to_hex = array(
-											'sidebarbg1' => '#7539ff',
-											'sidebarbg2' => '#3550DC',
-											'sidebarbg3' => '#22C55E',
-											'sidebarbg4' => '#F59E0B',
-											'sidebarbg5' => '#DC2626',
-											'sidebarbg6' => '#1F2937'
-										);
-										if (isset($theme_to_hex[$current_color])) {
-											$current_color = $theme_to_hex[$current_color];
-										}
-										// If it's not a hex code, default to purple
-										if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $current_color)) {
-											$current_color = '#7539ff';
-										}
-										$display_color = set_value('sidebar_color', $current_color);
-										?>
+								<?php 
+								// Get current color value - if it's a predefined theme, convert to hex, otherwise use as-is
+								$current_color = isset($vendor['sidebar_color']) ? $vendor['sidebar_color'] : '#7539ff';
+								$theme_to_hex = array(
+									'sidebarbg1' => '#7539ff',
+									'sidebarbg2' => '#3550DC',
+									'sidebarbg3' => '#22C55E',
+									'sidebarbg4' => '#F59E0B',
+									'sidebarbg5' => '#DC2626',
+									'sidebarbg6' => '#1F2937'
+								);
+								if (isset($theme_to_hex[$current_color])) {
+									$current_color = $theme_to_hex[$current_color];
+								}
+								// If it's not a hex code, default to purple
+								if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $current_color)) {
+									$current_color = '#7539ff';
+								}
+								$display_color = set_value('sidebar_color', $current_color);
+								?>
 										<div class="mb-3">
 											<label class="form-label fw-medium">Sidebar Color</label>
 											<div class="d-flex align-items-center gap-3 mb-2">
 												<div class="d-flex align-items-center gap-2 flex-grow-1">
 													<input type="color" id="sidebar_color_picker" class="form-control form-control-color border-0 p-1" value="<?php echo htmlspecialchars($display_color); ?>" style="width: 50px; height: 40px; cursor: pointer; border-radius: 6px;">
 													<input type="text" name="sidebar_color" id="sidebar_color" class="form-control" value="<?php echo htmlspecialchars($display_color); ?>" placeholder="#7539ff" pattern="^#[0-9A-Fa-f]{6}$" maxlength="7" style="font-family: monospace;">
-												</div>
-											</div>
+							</div>
+						</div>
 											<small class="text-muted fs-13">Choose a hex color for the sidebar theme</small>
 											<?php echo form_error('sidebar_color', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
-										</div>
-
+					</div>
+					
 										<!-- Color Preview -->
 										<div class="mt-3">
 											<label class="form-label fw-medium mb-2">Preview</label>
@@ -292,11 +292,11 @@
 												<div class="sidebar-preview border rounded" style="width: 40px; height: 60px; background: <?php echo htmlspecialchars($display_color); ?>; border-radius: 4px 0 0 4px;"></div>
 												<div class="flex-grow-1">
 													<small class="text-muted">Sidebar appearance</small>
-												</div>
+							</div>
 											</div>
 										</div>
 									</div>
-								</div>
+									</div>
 							</div>
 						</div>
 					</div>
@@ -312,11 +312,11 @@
 				<div class="card">
 					<div class="card-body">
 						<h6 class="mb-3">Features & Permissions</h6>
-
-						<!-- Features Section -->
+					
+					<!-- Features Section -->
 						<div class="row g-2">
 							<?php if (!empty($all_features)): ?>
-								<?php
+								<?php 
 								// Get enabled feature IDs (ensure integers for consistent comparison)
 								$enabled_feature_ids = array();
 								if (!empty($vendor_features)) {
@@ -328,7 +328,7 @@
 								}
 								?>
 								<?php foreach ($all_features as $feature): ?>
-									<?php
+									<?php 
 									$feature_id = (int)$feature['id'];
 									$has_subcategories = isset($all_subcategories[$feature_id]) && !empty($all_subcategories[$feature_id]);
 									$is_enabled = in_array($feature_id, $enabled_feature_ids, true);
@@ -337,25 +337,25 @@
 									<div class="col-lg-4 col-md-6 mb-2">
 										<div class="border rounded p-2 bg-light">
 											<div class="form-check mb-1">
-												<input type="checkbox" name="features[<?php echo $feature_id; ?>]" value="1" id="feature_<?php echo $feature_id; ?>" class="form-check-input feature-checkbox" data-feature-id="<?php echo $feature_id; ?>" <?php echo $is_enabled ? 'checked' : ''; ?>>
+											<input type="checkbox" name="features[<?php echo $feature_id; ?>]" value="1" id="feature_<?php echo $feature_id; ?>" class="form-check-input feature-checkbox" data-feature-id="<?php echo $feature_id; ?>" <?php echo $is_enabled ? 'checked' : ''; ?>>
 												<label class="form-check-label fw-medium small" for="feature_<?php echo $feature_id; ?>">
 													<?php echo htmlspecialchars($feature['name']); ?>
-												</label>
-											</div>
-
-											<?php if ($has_subcategories): ?>
+											</label>
+										</div>
+										
+										<?php if ($has_subcategories): ?>
 												<div class="subcategories-container ms-3 mt-2" id="subcategories_<?php echo $feature_id; ?>" style="display: <?php echo $is_enabled ? 'block' : 'none'; ?>;">
 													<small class="text-muted d-block mb-1 fw-medium" style="font-size: 11px;">Sub-features:</small>
-													<?php foreach ($all_subcategories[$feature_id] as $subcat): ?>
+												<?php foreach ($all_subcategories[$feature_id] as $subcat): ?>
 														<div class="form-check form-check-sm mb-1">
-															<input type="checkbox" name="subcategories[<?php echo $feature_id; ?>][]" value="<?php echo $subcat['id']; ?>" id="subcat_<?php echo $feature_id; ?>_<?php echo $subcat['id']; ?>" class="form-check-input" <?php echo in_array((int)$subcat['id'], $enabled_subcat_ids, true) ? 'checked' : ''; ?>>
+														<input type="checkbox" name="subcategories[<?php echo $feature_id; ?>][]" value="<?php echo $subcat['id']; ?>" id="subcat_<?php echo $feature_id; ?>_<?php echo $subcat['id']; ?>" class="form-check-input" <?php echo in_array((int)$subcat['id'], $enabled_subcat_ids, true) ? 'checked' : ''; ?>>
 															<label class="form-check-label" for="subcat_<?php echo $feature_id; ?>_<?php echo $subcat['id']; ?>" style="font-size: 11px;">
 																<?php echo htmlspecialchars($subcat['name']); ?>
-															</label>
-														</div>
-													<?php endforeach; ?>
-												</div>
-											<?php endif; ?>
+														</label>
+													</div>
+												<?php endforeach; ?>
+											</div>
+										<?php endif; ?>
 										</div>
 									</div>
 								<?php endforeach; ?>
@@ -503,9 +503,9 @@
 										<?php echo form_error('zepto_mail_from_name', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 									</div>
 								</div>
-							</div>
 						</div>
-
+					</div>
+					
 						<!-- Firebase Configuration -->
 						<div class="border-top pt-3 mt-3">
 							<h6 class="mb-3">Firebase Configuration</h6>
@@ -613,14 +613,14 @@ document.addEventListener('DOMContentLoaded', function() {
 			sidebarPreview.style.background = color;
 		}
 	}
-
+	
 	if (colorPicker && colorInput) {
 		colorPicker.addEventListener('input', function() {
 			var color = this.value.toUpperCase();
 			colorInput.value = color;
 			updateSidebarPreview(color);
 		});
-
+		
 		colorInput.addEventListener('input', function() {
 			var hex = this.value.trim();
 			// Ensure it starts with #
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		// Initialize preview with current color
 		updateSidebarPreview(colorPicker.value);
-
+		
 		var form = colorInput.closest('form');
 		if (form) {
 			form.addEventListener('submit', function(e) {

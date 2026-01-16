@@ -81,6 +81,11 @@
 <!-- Individual Products List -->
 <div class="card">
     <div class="card-body">
+        <?php if (!empty($products)): ?>
+            <div class="mb-3">
+                <p class="text-muted mb-0">Total Individual Products: <strong><?php echo $total_products; ?></strong></p>
+            </div>
+        <?php endif; ?>
         <div class="table-responsive">
             <table class="table">
                 <thead>
@@ -254,7 +259,6 @@
         
         <?php if (!empty($products_list)): ?>
             <div class="mt-3 d-flex justify-content-between align-items-center">
-                <p class="text-muted mb-0">Total Individual Products: <strong><?php echo $total_products; ?></strong></p>
                 <?php if ($total_pages > 1): ?>
                     <nav aria-label="Page navigation">
                         <ul class="pagination pagination-sm mb-0">

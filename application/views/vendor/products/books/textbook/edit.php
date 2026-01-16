@@ -5,7 +5,7 @@
 	</div>
 </div>
 <!-- End Breadcrumb -->
-<?php echo form_open_multipart(isset($current_vendor['domain']) ? base_url($current_vendor['domain'] . '/products/textbook/edit/' . $textbook['id']) : base_url('products/textbook/edit/' . $textbook['id']), array('id' => 'textbook-form')); ?>
+<?php echo form_open_multipart(base_url('products/textbook/edit/' . $textbook['id']), array('id' => 'textbook-form')); ?>
 <div class="row mt-3">
 	<div class="col-12">
 		<div class="card mb-3">

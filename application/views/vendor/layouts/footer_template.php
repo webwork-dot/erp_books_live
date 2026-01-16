@@ -9,7 +9,7 @@
 		/* Apply margin-left only on large screens (desktop) */
 		@media (min-width: 992px) {
 			.footer-responsive {
-				margin-left: 250px;
+				margin-left: 200px;
 			}
 		}
 	</style>

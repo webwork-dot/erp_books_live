@@ -94,148 +94,149 @@ $route['school-admin/dashboard'] = 'School_admin/dashboard';
 $route['api'] = 'api';
 $route['api/auth'] = 'api/auth';
 
-// Vendor Routes (Dynamic - must be before default)
-// These routes will catch Vendor domain URLs
-// Format: /Vendor-domain/controller/method
-// Note: These routes will only work if the first segment is a valid Vendor domain
-// The Vendor controllers will validate the domain exists
-// Using :any to match domains with dots (e.g., varitty.in)
-$route['(:any)/login'] = 'auth/login'; // Unified login - will detect Vendor from domain
-$route['(:any)/logout'] = 'auth/logout'; // Unified logout
-$route['(:any)/dashboard'] = 'Vendor/dashboard/index';
-$route['(:any)/dashboard/(:any)'] = 'Vendor/dashboard/$2';
-	$route['(:any)/schools'] = 'Vendor/schools/index';
-	$route['(:any)/schools/add'] = 'Vendor/schools/add';
-	$route['(:any)/schools/edit/(:num)'] = 'Vendor/schools/edit/$2';
-	$route['(:any)/schools/delete/(:num)'] = 'Vendor/schools/delete/$2';
-	$route['(:any)/schools/delete_image/(:num)'] = 'Vendor/schools/delete_image/$2';
-	$route['(:any)/schools/get_cities'] = 'Vendor/schools/get_cities';
-	$route['(:any)/schools/add_board'] = 'Vendor/schools/add_board';
-	$route['(:any)/schools/get_boards'] = 'Vendor/schools/get_boards';
-	$route['(:any)/schools/boards'] = 'Vendor/schools/boards';
-	$route['(:any)/schools/update_board'] = 'Vendor/schools/update_board';
-	$route['(:any)/schools/delete_board'] = 'Vendor/schools/delete_board';
-	$route['(:any)/schools/toggle_payment_block'] = 'Vendor/schools/toggle_payment_block';
-	$route['(:any)/schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block';
-	$route['(:any)/schools/toggle_status'] = 'Vendor/schools/toggle_status';
-	$route['(:any)/branches'] = 'Vendor/branches/index';
-	$route['(:any)/branches/add'] = 'Vendor/branches/add';
-	$route['(:any)/branches/edit/(:num)'] = 'Vendor/branches/edit/$2';
-	$route['(:any)/branches/delete/(:num)'] = 'Vendor/branches/delete/$2';
-	$route['(:any)/branches/get_cities'] = 'Vendor/branches/get_cities';
-	
-	// Orders routes
-	$route['(:any)/orders'] = 'Vendor/orders/index';
-	$route['(:any)/orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$2';
+// Vendor Routes (Subdomain-based routing)
+// These routes work for subdomain routing (master.domain.com/path)
+// The Vendor controllers will validate the domain exists from HTTP_HOST
+$route['login'] = 'auth/login'; // Unified login - will detect Vendor from domain
+$route['logout'] = 'auth/logout'; // Unified logout
+$route['dashboard'] = 'Vendor/dashboard/index';
+$route['dashboard/(:any)'] = 'Vendor/dashboard/$1';
+$route['schools'] = 'Vendor/schools/index';
+$route['schools/add'] = 'Vendor/schools/add';
+$route['schools/edit/(:num)'] = 'Vendor/schools/edit/$1';
+$route['schools/delete/(:num)'] = 'Vendor/schools/delete/$1';
+$route['schools/delete_image/(:num)'] = 'Vendor/schools/delete_image/$1';
+$route['schools/get_cities'] = 'Vendor/schools/get_cities';
+$route['schools/add_board'] = 'Vendor/schools/add_board';
+$route['schools/get_boards'] = 'Vendor/schools/get_boards';
+$route['schools/boards'] = 'Vendor/schools/boards';
+$route['schools/update_board'] = 'Vendor/schools/update_board';
+$route['schools/delete_board'] = 'Vendor/schools/delete_board';
+$route['schools/toggle_payment_block'] = 'Vendor/schools/toggle_payment_block';
+$route['schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block';
+$route['schools/toggle_status'] = 'Vendor/schools/toggle_status';
+$route['branches'] = 'Vendor/branches/index';
+$route['branches/add'] = 'Vendor/branches/add';
+$route['branches/edit/(:num)'] = 'Vendor/branches/edit/$1';
+$route['branches/delete/(:num)'] = 'Vendor/branches/delete/$1';
+$route['branches/get_cities'] = 'Vendor/branches/get_cities';
 
-	// Uniforms routes under products
-	$route['(:any)/products/uniforms'] = 'Vendor/uniforms/index';
-	$route['(:any)/products/uniforms/add'] = 'Vendor/uniforms/add';
-	$route['(:any)/products/uniforms/edit/(:num)'] = 'Vendor/uniforms/edit/$2';
-	$route['(:any)/products/uniforms/delete/(:num)'] = 'Vendor/uniforms/delete/$2';
-	$route['(:any)/products/uniforms/get_branches'] = 'Vendor/uniforms/get_branches';
-	$route['(:any)/products/uniforms/get_boards'] = 'Vendor/uniforms/get_boards';
-	$route['(:any)/products/uniforms/add_uniform_type'] = 'Vendor/uniforms/add_uniform_type';
-	$route['(:any)/products/uniforms/add_material'] = 'Vendor/uniforms/add_material';
-	$route['(:any)/products/uniforms/add_size_chart'] = 'Vendor/uniforms/add_size_chart';
-	$route['(:any)/products/uniforms/get_sizes'] = 'Vendor/uniforms/get_sizes';
-	$route['(:any)/products/uniforms/delete_image/(:num)'] = 'Vendor/uniforms/delete_image/$2';
-	$route['(:any)/products/uniforms/toggle_status/(:num)'] = 'Vendor/uniforms/toggle_status/$2';
-	$route['(:any)/products/uniforms/toggle_status'] = 'Vendor/uniforms/toggle_status';
+// Orders routes
+$route['orders'] = 'Vendor/orders/index';
+$route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$1';
 
-	
-	// Stationery routes under products
-	$route['(:any)/products/stationery'] = 'Vendor/products/stationery_index';
-	$route['(:any)/products/stationery/add'] = 'Vendor/products/stationery_add';
-	$route['(:any)/products/stationery/edit/(:num)'] = 'Vendor/products/stationery_edit/$2';
-	$route['(:any)/products/stationery/delete/(:num)'] = 'Vendor/products/stationery_delete/$2';
-	$route['(:any)/products/stationery/add_category'] = 'Vendor/products/stationery_add_category';
-	$route['(:any)/products/stationery/add_brand'] = 'Vendor/products/stationery_add_brand';
-	$route['(:any)/products/stationery/add_colour'] = 'Vendor/products/stationery_add_colour';
-	$route['(:any)/products/stationery/delete_image/(:num)'] = 'Vendor/products/stationery_delete_image/$2';
-	
-	// Textbook routes under products
-	$route['(:any)/products/textbook'] = 'Vendor/products/textbook_index';
-	$route['(:any)/products/textbook/add'] = 'Vendor/products/textbook_add';
-	$route['(:any)/products/textbook/edit/(:num)'] = 'Vendor/products/textbook_edit/$2';
-	$route['(:any)/products/textbook/delete/(:num)'] = 'Vendor/products/textbook_delete/$2';
-	$route['(:any)/products/textbook/add_type'] = 'Vendor/products/textbook_add_type';
-	$route['(:any)/products/textbook/add_publisher'] = 'Vendor/products/textbook_add_publisher';
-	$route['(:any)/products/textbook/add_grade'] = 'Vendor/products/textbook_add_grade';
-	$route['(:any)/products/textbook/add_age'] = 'Vendor/products/textbook_add_age';
-	$route['(:any)/products/textbook/add_subject'] = 'Vendor/products/textbook_add_subject';
-	$route['(:any)/products/textbook/delete_image/(:num)'] = 'Vendor/products/textbook_delete_image/$2';
-	
-	// Notebook routes under products
-	$route['(:any)/products/notebooks'] = 'Vendor/products/notebook_index';
-	$route['(:any)/products/notebooks/add'] = 'Vendor/products/notebook_add';
-	$route['(:any)/products/notebooks/edit/(:num)'] = 'Vendor/products/notebook_edit/$2';
-	$route['(:any)/products/notebooks/delete/(:num)'] = 'Vendor/products/notebook_delete/$2';
-	$route['(:any)/products/notebooks/add_type'] = 'Vendor/products/notebook_add_type';
-	$route['(:any)/products/notebooks/add_brand'] = 'Vendor/products/notebook_add_brand';
-	$route['(:any)/products/notebooks/delete_image/(:num)'] = 'Vendor/products/notebook_delete_image/$2';
-	
-	// Bookset routes under products/books
-	$route['(:any)/products/books/bookset'] = 'Vendor/products/bookset_index';
-	$route['(:any)/products/bookset'] = 'Vendor/products/bookset_index';
-	$route['(:any)/products/bookset/edit/(:num)'] = 'Vendor/products/bookset_edit/$2';
-	$route['(:any)/products/bookset/delete/(:num)'] = 'Vendor/products/bookset_delete/$2';
-	$route['(:any)/products/bookset/package/add_with_products'] = 'Vendor/products/bookset_package_add_with_products';
-	$route['(:any)/products/bookset/package/add_without_products'] = 'Vendor/products/bookset_package_add_without_products';
-	$route['(:any)/products/bookset/package/delete/(:num)'] = 'Vendor/products/bookset_package_delete/$2';
-	$route['(:any)/products/bookset/package/add_category'] = 'Vendor/products/bookset_package_add_category';
-	$route['(:any)/products/bookset/package/get_products'] = 'Vendor/products/bookset_package_get_products';
-	$route['(:any)/products/bookset/package/get_products_by_type'] = 'Vendor/products/bookset_package_get_products_by_type';
-	$route['(:any)/products/bookset/package/get_boards'] = 'Vendor/products/bookset_package_get_boards';
+// Uniforms routes under products
+$route['products/uniforms'] = 'Vendor/uniforms/index';
+$route['products/uniforms/add'] = 'Vendor/uniforms/add';
+$route['products/uniforms/edit/(:num)'] = 'Vendor/uniforms/edit/$1';
+$route['products/uniforms/delete/(:num)'] = 'Vendor/uniforms/delete/$1';
+$route['products/uniforms/get_branches'] = 'Vendor/uniforms/get_branches';
+$route['products/uniforms/get_boards'] = 'Vendor/uniforms/get_boards';
+$route['products/uniforms/add_uniform_type'] = 'Vendor/uniforms/add_uniform_type';
+$route['products/uniforms/add_material'] = 'Vendor/uniforms/add_material';
+$route['products/uniforms/add_size_chart'] = 'Vendor/uniforms/add_size_chart';
+$route['products/uniforms/get_sizes'] = 'Vendor/uniforms/get_sizes';
+$route['products/uniforms/delete_image/(:num)'] = 'Vendor/uniforms/delete_image/$1';
+$route['products/uniforms/toggle_status/(:num)'] = 'Vendor/uniforms/toggle_status/$1';
+$route['products/uniforms/toggle_status'] = 'Vendor/uniforms/toggle_status';
 
-	// Vendor Features routes
-	$route['(:any)/features'] = 'Vendor/features/index';
-	$route['(:any)/features/upload_image'] = 'Vendor/features/upload_image';
-	$route['(:any)/features/delete_image'] = 'Vendor/features/delete_image';
-	
-	// Site Settings routes
-	$route['(:any)/site-settings'] = 'Vendor/sitesettings/index';
-	$route['(:any)/site-settings/save'] = 'Vendor/sitesettings/save';
-	$route['(:any)/site-settings/delete-logo'] = 'Vendor/sitesettings/delete_logo';
-	$route['(:any)/site-settings/delete-favicon'] = 'Vendor/sitesettings/delete_favicon';
-	$route['(:any)/site-settings/delete-banner'] = 'Vendor/sitesettings/delete_banner';
-	$route['(:any)/site-settings/delete-banner-ajax/(:num)'] = 'Vendor/sitesettings/delete_banner_ajax/$2';
-	$route['(:any)/site-settings/add-banner-ajax'] = 'Vendor/sitesettings/add_banner_ajax';
-	$route['(:any)/site-settings/update-banner-ajax'] = 'Vendor/sitesettings/update_banner_ajax';
-	$route['(:any)/site-settings/get-banner-data/(:num)'] = 'Vendor/sitesettings/get_banner_data/$2';
-	$route['(:any)/site-settings/preview'] = 'Vendor/sitesettings/preview';
+// Stationery routes under products
+$route['products/stationery'] = 'Vendor/products/stationery_index';
+$route['products/stationery/add'] = 'Vendor/products/stationery_add';
+$route['products/stationery/edit/(:num)'] = 'Vendor/products/stationery_edit/$1';
+$route['products/stationery/delete/(:num)'] = 'Vendor/products/stationery_delete/$1';
+$route['products/stationery/add_category'] = 'Vendor/products/stationery_add_category';
+$route['products/stationery/add_brand'] = 'Vendor/products/stationery_add_brand';
+$route['products/stationery/add_colour'] = 'Vendor/products/stationery_add_colour';
+$route['products/stationery/delete_image/(:num)'] = 'Vendor/products/stationery_delete_image/$1';
 
-	// Individual products routes
-	$route['(:any)/products/individual-products'] = 'Vendor/products/individual_products';
-	$route['(:any)/products/individual-products/add'] = 'Vendor/products/individual_products_add';
-	$route['(:any)/products/individual-products/edit/(:num)'] = 'Vendor/products/individual_products_edit/$2';
-	$route['(:any)/products/individual-products/update/(:num)'] = 'Vendor/products/individual_products_update/$2';
-	$route['(:any)/products/individual-products/save'] = 'Vendor/products/individual_products_save';
-	$route['(:any)/products/individual-products/add_category'] = 'Vendor/products/individual_products_add_category';
-	$route['(:any)/products/individual-products/get_subcategories'] = 'Vendor/products/individual_products_get_subcategories';
-	$route['(:any)/products/individual-products/add_color'] = 'Vendor/products/individual_products_add_color';
-	$route['(:any)/products/individual-products/get_sizes'] = 'Vendor/products/individual_products_get_sizes';
-	$route['(:any)/products/individual-products/delete/(:num)'] = 'Vendor/products/individual_products_delete/$2';
-	
-	// Variation management routes
-	$route['(:any)/products/variations'] = 'Vendor/products/variations';
-	$route['(:any)/products/variations/add_type'] = 'Vendor/products/add_variation_type';
-	$route['(:any)/products/variations/update_type/(:num)'] = 'Vendor/products/update_variation_type/$2';
-	$route['(:any)/products/variations/delete_type/(:num)'] = 'Vendor/products/delete_variation_type/$2';
-	$route['(:any)/products/variations/get_values'] = 'Vendor/products/get_variation_values';
-	$route['(:any)/products/variations/add_value'] = 'Vendor/products/add_variation_value';
-	$route['(:any)/products/variations/delete_value/(:num)'] = 'Vendor/products/delete_variation_value/$2';
-	$route['(:any)/products/variations/generate_combinations'] = 'Vendor/products/generate_combinations';
-	$route['(:any)/products/individual-products/(:any)'] = 'Vendor/products/individual_products/$2';
+// Textbook routes under products
+$route['products/textbook'] = 'Vendor/products/textbook_index';
+$route['products/textbook/add'] = 'Vendor/products/textbook_add';
+$route['products/textbook/edit/(:num)'] = 'Vendor/products/textbook_edit/$1';
+$route['products/textbook/delete/(:num)'] = 'Vendor/products/textbook_delete/$1';
+$route['products/textbook/add_type'] = 'Vendor/products/textbook_add_type';
+$route['products/textbook/add_publisher'] = 'Vendor/products/textbook_add_publisher';
+$route['products/textbook/add_grade'] = 'Vendor/products/textbook_add_grade';
+$route['products/textbook/add_age'] = 'Vendor/products/textbook_add_age';
+$route['products/textbook/add_subject'] = 'Vendor/products/textbook_add_subject';
+$route['products/textbook/delete_image/(:num)'] = 'Vendor/products/textbook_delete_image/$1';
 
-	$route['(:any)/customers'] = 'Vendor/customers/list';
-	$route['(:any)/customers/get_customer_details/(:num)'] = 'Vendor/customers/get_customer_details/$2';
-	
-	$route['(:any)/products/(:any)/(:any)'] = 'Vendor/products/$2/$3'; // Products feature method routes (e.g., /products/books/add)
-	$route['(:any)/products/(:any)'] = 'Vendor/products/index/$2'; // Products feature routes (e.g., /products/books)
-	$route['(:any)/(:any)/(:any)'] = 'Vendor/$2/$3'; // Vendor controller/method routes (domain/controller/method -> Vendor/controller/method)
-	$route['(:any)/(:any)'] = 'Vendor/$2'; // Vendor controller routes (domain/controller -> Vendor/controller)
-	$route['(:any)'] = 'Vendor/dashboard'; // Default Vendor route redirects to dashboard
+// Notebook routes under products
+$route['products/notebooks'] = 'Vendor/products/notebook_index';
+$route['products/notebooks/add'] = 'Vendor/products/notebook_add';
+$route['products/notebooks/edit/(:num)'] = 'Vendor/products/notebook_edit/$1';
+$route['products/notebooks/delete/(:num)'] = 'Vendor/products/notebook_delete/$1';
+$route['products/notebooks/add_type'] = 'Vendor/products/notebook_add_type';
+$route['products/notebooks/add_brand'] = 'Vendor/products/notebook_add_brand';
+$route['products/notebooks/delete_image/(:num)'] = 'Vendor/products/notebook_delete_image/$1';
+
+// Bookset routes under products/books
+$route['products/books/bookset'] = 'Vendor/products/bookset_index';
+$route['products/bookset'] = 'Vendor/products/bookset_index';
+$route['products/bookset/edit/(:num)'] = 'Vendor/products/bookset_edit/$1';
+$route['products/bookset/delete/(:num)'] = 'Vendor/products/bookset_delete/$1';
+$route['products/bookset/package/add_with_products'] = 'Vendor/products/bookset_package_add_with_products';
+$route['products/bookset/package/add_without_products'] = 'Vendor/products/bookset_package_add_without_products';
+$route['products/bookset/package/delete/(:num)'] = 'Vendor/products/bookset_package_delete/$1';
+$route['products/bookset/package/add_category'] = 'Vendor/products/bookset_package_add_category';
+$route['products/bookset/package/get_products'] = 'Vendor/products/bookset_package_get_products';
+$route['products/bookset/package/get_products_by_type'] = 'Vendor/products/bookset_package_get_products_by_type';
+$route['products/bookset/package/get_boards'] = 'Vendor/products/bookset_package_get_boards';
+
+// Vendor Features routes
+$route['features'] = 'Vendor/features/index';
+$route['features/upload_image'] = 'Vendor/features/upload_image';
+$route['features/delete_image'] = 'Vendor/features/delete_image';
+
+// Site Settings routes
+$route['site-settings'] = 'Vendor/SiteSettings/index';
+$route['site-settings/save'] = 'Vendor/SiteSettings/save';
+$route['site-settings/delete-logo'] = 'Vendor/SiteSettings/delete_logo';
+$route['site-settings/delete-favicon'] = 'Vendor/SiteSettings/delete_favicon';
+$route['site-settings/delete-banner'] = 'Vendor/SiteSettings/delete_banner';
+$route['site-settings/delete-banner-ajax/(:num)'] = 'Vendor/SiteSettings/delete_banner_ajax/$1';
+$route['site-settings/add-banner-ajax'] = 'Vendor/SiteSettings/add_banner_ajax';
+$route['site-settings/update-banner-ajax'] = 'Vendor/SiteSettings/update_banner_ajax';
+$route['site-settings/get-banner-data/(:num)'] = 'Vendor/SiteSettings/get_banner_data/$1';
+$route['site-settings/preview'] = 'Vendor/SiteSettings/preview';
+
+// Individual products routes
+$route['products/individual-products'] = 'Vendor/products/individual_products';
+$route['products/individual-products/add'] = 'Vendor/products/individual_products_add';
+$route['products/individual-products/edit/(:num)'] = 'Vendor/products/individual_products_edit/$1';
+$route['products/individual-products/update/(:num)'] = 'Vendor/products/individual_products_update/$1';
+$route['products/individual-products/save'] = 'Vendor/products/individual_products_save';
+$route['products/individual-products/add_category'] = 'Vendor/products/individual_products_add_category';
+$route['products/individual-products/get_subcategories'] = 'Vendor/products/individual_products_get_subcategories';
+$route['products/individual-products/add_color'] = 'Vendor/products/individual_products_add_color';
+$route['products/individual-products/get_sizes'] = 'Vendor/products/individual_products_get_sizes';
+$route['products/individual-products/delete/(:num)'] = 'Vendor/products/individual_products_delete/$1';
+
+// Variation management routes
+$route['products/variations'] = 'Vendor/products/variations';
+$route['products/variations/add_type'] = 'Vendor/products/add_variation_type';
+$route['products/variations/update_type/(:num)'] = 'Vendor/products/update_variation_type/$1';
+$route['products/variations/delete_type/(:num)'] = 'Vendor/products/delete_variation_type/$1';
+$route['products/variations/get_values'] = 'Vendor/products/get_variation_values';
+$route['products/variations/add_value'] = 'Vendor/products/add_variation_value';
+$route['products/variations/delete_value/(:num)'] = 'Vendor/products/delete_variation_value/$1';
+$route['products/variations/generate_combinations'] = 'Vendor/products/generate_combinations';
+$route['products/individual-products/(:any)'] = 'Vendor/products/individual_products/$1';
+
+// Customers routes
+$route['customers'] = 'Vendor/customers/index';
+$route['customers/list'] = 'Vendor/customers/list';
+$route['customers/index'] = 'Vendor/customers/index';
+$route['customers/get_customer_details/(:num)'] = 'Vendor/customers/get_customer_details/$1';
+
+// Generic product routes (must be after specific product routes)
+$route['products/(:any)/(:any)'] = 'Vendor/products/$1/$2'; // Products feature method routes (e.g., /products/books/add)
+$route['products/(:any)'] = 'Vendor/products/index/$1'; // Products feature routes (e.g., /products/books)
+
+// Generic vendor routes (must be last)
+$route['(:any)/(:any)/(:any)'] = 'Vendor/$2/$3'; // Vendor controller/method routes (controller/method -> Vendor/controller/method)
+$route['(:any)/(:any)'] = 'Vendor/$2'; // Vendor controller routes (controller -> Vendor/controller)
 
 // Default route
 $route['default_controller'] = 'Welcome';

@@ -4,14 +4,14 @@
 		<h6 class="mb-0 fs-14">Edit School</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary btn-sm">
+		<a href="<?php echo base_url('schools'); ?>" class="btn btn-outline-secondary btn-sm">
 			<i class="isax isax-arrow-left me-1"></i>Back
 		</a>
 	</div>
 </div>
 <!-- End Header -->
 
-<?php echo form_open_multipart($vendor_domain . '/schools/edit/' . $school['id'], array('id' => 'schoolForm')); ?>
+<?php echo form_open_multipart(base_url('schools/edit/' . $school['id']), array('id' => 'schoolForm')); ?>
 
 <div class="row">
 	<!-- School Information -->
@@ -193,11 +193,11 @@
 						<?php foreach ($school_images as $image): ?>
 							<div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-2">
 								<div class="position-relative">
-									<img src="<?php echo base_url('uploads/schools/' . $image['image_path']); ?>" class="img-thumbnail" style="width: 100%; height: 150px; object-fit: cover;">
+									<img src="<?php echo get_vendor_domain_url().'/'.$image['image_path']; ?>" class="img-thumbnail" style="width: 100%; height: 150px; object-fit: cover;">
 									<?php if ($image['is_primary']): ?>
 										<span class="badge badge-success position-absolute top-0 start-0 m-1 fs-12">Primary</span>
 									<?php endif; ?>
-									<a href="<?php echo base_url($vendor_domain . '/schools/delete_image/' . $image['id']); ?>" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onclick="return confirm('Are you sure you want to delete this image?');">
+									<a href="<?php echo base_url('schools/delete_image/' . $image['id']); ?>" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onclick="return confirm('Are you sure you want to delete this image?');">
 										<i class="isax isax-trash fs-14"></i>
 									</a>
 								</div>
@@ -216,12 +216,12 @@
 	</div>
 	
 	<!-- Submit Buttons -->
-	<div class="col-md-12">
+	<div class="col-md-12 mb-4 mt-2">
 		<div class="d-flex gap-2">
 			<button type="submit" class="btn btn-primary btn-sm">
 				<i class="isax isax-tick-circle me-1"></i>Update School
 			</button>
-			<a href="<?php echo base_url($vendor_domain . '/schools'); ?>" class="btn btn-outline-secondary btn-sm">
+			<a href="<?php echo base_url('schools'); ?>" class="btn btn-outline-secondary btn-sm">
 				<i class="isax isax-close-circle me-1"></i>Cancel
 			</a>
 		</div>
@@ -288,7 +288,7 @@ function loadCities(stateId) {
 	citySelect.html('<option value="">Loading cities...</option>').prop('disabled', true);
 	
 	// Fetch cities via AJAX
-	var url = '<?php echo base_url($vendor_domain . '/schools/get_cities?state_id='); ?>' + stateId;
+	var url = '<?php echo base_url('schools/get_cities?state_id='); ?>' + stateId;
 	console.log('Fetching cities from:', url);
 	
 	$.ajax({
@@ -361,7 +361,7 @@ function saveBoard() {
 	}
 	
 	// AJAX call to add board
-	fetch('<?php echo base_url($vendor_domain . '/schools/add_board'); ?>', {
+	fetch('<?php echo base_url('schools/add_board'); ?>', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',

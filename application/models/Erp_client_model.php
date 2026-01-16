@@ -476,13 +476,16 @@ class Erp_client_model extends CI_Model
 		}
 		
 		$parts = explode('.', $domain);
-		if (count($parts) >= 2)
+		// Only extract base domain if there are 3+ parts (subdomain.domain.tld)
+		// For 2 parts (domain.tld), return as-is since it's already a base domain
+		if (count($parts) >= 3)
 		{
 			// Remove first part (subdomain) and return rest
 			array_shift($parts);
 			return implode('.', $parts);
 		}
 		
+		// For 2 parts (domain.tld), it's already a base domain
 		return $domain;
 	}
 	
