@@ -103,12 +103,12 @@ $route['api/auth'] = 'api/auth';
 $route['login'] = 'auth/login'; // Unified login - will detect Vendor from domain
 $route['logout'] = 'auth/logout'; // Unified logout
 $route['dashboard'] = 'Vendor/dashboard/index';
-$route['dashboard/(:any)'] = 'Vendor/dashboard/$2';
+$route['dashboard/(:any)'] = 'Vendor/dashboard/$1';
 $route['schools'] = 'Vendor/schools/index';
 $route['schools/add'] = 'Vendor/schools/add';
-$route['schools/edit/(:num)'] = 'Vendor/schools/edit/$2';
-$route['schools/delete/(:num)'] = 'Vendor/schools/delete/$2';
-$route['schools/delete_image/(:num)'] = 'Vendor/schools/delete_image/$2';
+$route['schools/edit/(:num)'] = 'Vendor/schools/edit/$1';
+$route['schools/delete/(:num)'] = 'Vendor/schools/delete/$1';
+$route['schools/delete_image/(:num)'] = 'Vendor/schools/delete_image/$1';
 $route['schools/get_cities'] = 'Vendor/schools/get_cities';
 $route['schools/add_board'] = 'Vendor/schools/add_board';
 $route['schools/get_boards'] = 'Vendor/schools/get_boards';
@@ -120,8 +120,8 @@ $route['schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block'
 $route['schools/toggle_status'] = 'Vendor/schools/toggle_status';
 $route['branches'] = 'Vendor/branches/index';
 $route['branches/add'] = 'Vendor/branches/add';
-$route['branches/edit/(:num)'] = 'Vendor/branches/edit/$2';
-$route['branches/delete/(:num)'] = 'Vendor/branches/delete/$2';
+$route['branches/edit/(:num)'] = 'Vendor/branches/edit/$1';
+$route['branches/delete/(:num)'] = 'Vendor/branches/delete/$1';
 $route['branches/get_cities'] = 'Vendor/branches/get_cities';
 
 // Orders routes
@@ -138,8 +138,8 @@ $route['orders/return'] = 'Vendor/orders/index/return';
 $route['orders/move_to_processing'] = 'Vendor/orders/move_to_processing';
 $route['orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_delivery';
 $route['orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';
-$route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$2';
-$route['orders/view/(:any)'] = 'Vendor/orders/view/$2';
+$route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$1';
+$route['orders/view/(:any)'] = 'Vendor/orders/view/$1';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';

@@ -544,7 +544,7 @@
 }
 </style>
 
-<script src="https://cdn.ckeditor.com/4.19.1/standard/ckeditor.js"></script>
+<script src="<?php echo base_url('assets/ckeditor/ckeditor.js'); ?>"></script>
 <script src="<?php echo base_url('assets/js/image-sortable.js'); ?>"></script>
 <script>
 // Initialize CKEditor after page loads

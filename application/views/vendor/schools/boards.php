@@ -244,29 +244,69 @@ function updateBoard() {
 
 // Delete board
 function deleteBoard(boardId, boardName) {
-	if (confirm('Are you sure you want to delete the board "' + boardName + '"? This action cannot be undone.')) {
-		// AJAX call to delete board
-		fetch('<?php echo base_url('schools/delete_board'); ?>', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
-			body: 'board_id=' + encodeURIComponent(boardId) + '&<?php echo $this->security->get_csrf_token_name(); ?>=<?php echo $this->security->get_csrf_hash(); ?>'
-		})
-		.then(response => response.json())
-		.then(data => {
-			if (data.status === 'success') {
-				// Reload page to show updated list
-				window.location.reload();
-			} else {
-				alert(data.message || 'Failed to delete board.');
-			}
-		})
-		.catch(error => {
-			console.error('Error:', error);
-			alert('An error occurred. Please try again.');
-		});
-	}
+	Swal.fire({
+		title: 'Are you sure?',
+		text: 'You want to delete the board "' + boardName + '"? This action cannot be undone.',
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#d33',
+		cancelButtonColor: '#3085d6',
+		confirmButtonText: 'Yes, delete it!',
+		cancelButtonText: 'Cancel'
+	}).then((result) => {
+		if (result.isConfirmed) {
+			// Show loading
+			Swal.fire({
+				title: 'Deleting...',
+				text: 'Please wait while we delete the board.',
+				allowOutsideClick: false,
+				showConfirmButton: false,
+				willOpen: () => {
+					Swal.showLoading();
+				}
+			});
+
+			// AJAX call to delete board
+			fetch('<?php echo base_url('schools/delete_board'); ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'board_id=' + encodeURIComponent(boardId) + '&<?php echo $this->security->get_csrf_token_name(); ?>=<?php echo $this->security->get_csrf_hash(); ?>'
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.status === 'success') {
+					Swal.fire({
+						title: 'Deleted!',
+						text: 'Board has been deleted successfully.',
+						icon: 'success',
+						timer: 2000,
+						showConfirmButton: false
+					}).then(() => {
+						// Reload page to show updated list
+						window.location.reload();
+					});
+				} else {
+					Swal.fire({
+						title: 'Error!',
+						text: data.message || 'Failed to delete board.',
+						icon: 'error',
+						confirmButtonText: 'OK'
+					});
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				Swal.fire({
+					title: 'Error!',
+					text: 'An error occurred. Please try again.',
+					icon: 'error',
+					confirmButtonText: 'OK'
+				});
+			});
+		}
+	});
 }
 </script>
 

@@ -1,27 +1,31 @@
 <!-- Start Breadcrumb -->
-<div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
+<div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-2 mb-2">
 	<div>
-		<h6><a href="<?php echo base_url('products/uniforms'); ?>"><i class="isax isax-arrow-left me-2"></i>Edit Uniform</a></h6>
+		<h6 class="mb-0 fs-14"><a href="<?php echo base_url('products/uniforms'); ?>"><i class="isax isax-arrow-left me-1"></i>Edit Uniform</a></h6>
 	</div>
 </div>
+<script src="<?=base_url();?>assets/ckeditor/ckeditor.js"></script>
 <!-- End Breadcrumb -->
 <?php echo form_open_multipart(base_url('products/uniforms/edit/' . $uniform['id']), array('id' => 'uniform-form')); ?>
-<div class="row mt-3">
+<!-- Images Card (Outside Main Card) -->
+<div class="row mt-2">
 	<div class="col-12">
-		<div class="card mb-3">
-			<div class="card-body">
-				<h2 class=" border-bottom pb-3 mb-3">Images</h2>
-				<div class="row gx-3">
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Images</h6>
+			</div>
+			<div class="card-body p-2">
+				<div class="row g-2">
 					<div class="col-12">
-						<div class="mb-3">
-							<label class="form-label">Images (Size: 440px * 530px)</label>
-							<input type="file" name="images[]" id="images" class="form-control" form="uniform-form" accept="image/*" multiple>
-							<small class="text-muted fs-13">You can select multiple images. Recommended size: 440px × 530px. Drag images to reorder. Click "Set as Main" to choose the main image. Leave empty to keep existing images.</small>
+						<div class="mb-2">
+							<label class="form-label fs-13 mb-1">Images (Size: 440px * 530px)</label>
+							<input type="file" name="images[]" id="images" class="form-control form-control-sm" form="uniform-form" accept="image/*" multiple>
+							<small class="text-muted fs-12">You can select multiple images. Recommended size: 440px × 530px. Drag images to reorder. Click "Set as Main" to choose the main image. Leave empty to keep existing images.</small>
 							<div id="image-preview" class="mt-3 image-sortable-container">
 								<?php if (isset($uniform_images) && !empty($uniform_images)): ?>
-									<?php 
+									<?php
 									$main_image_id = null;
-									foreach ($uniform_images as $img): 
+									foreach ($uniform_images as $img):
 										if (isset($img['is_main']) && $img['is_main'] == 1) {
 											$main_image_id = $img['id'];
 										}
@@ -52,12 +56,51 @@
 		</div>
 	</div>
 </div>
+
+<!-- Product Type Card (Outside Main Card) -->
 <div class="row">
 	<div class="col-12">
-		<div class="card">
-			<div class="card-body">
-				<h2 class=" border-bottom pb-3 mb-3">Uniform Details</h2>
-				
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Product Type</h6>
+			</div>
+			<div class="card-body p-2">
+				<div class="row gx-3">
+					<div class="col-lg-6 col-md-6">
+						<div class="mb-3">
+							<div class="form-check form-switch">
+								<input class="form-check-input" type="checkbox" name="is_individual" id="is_individual" value="1" form="uniform-form" <?php echo (isset($uniform['is_individual']) && $uniform['is_individual'] == 1) ? 'checked' : ''; ?>>
+								<label class="form-check-label" for="is_individual">
+									Is Individual Product
+								</label>
+							</div>
+							<small class="text-muted">Check this if this is an individual product that can be sold separately</small>
+						</div>
+					</div>
+					<div class="col-lg-6 col-md-6">
+						<div class="mb-3">
+							<div class="form-check form-switch">
+								<input class="form-check-input" type="checkbox" name="is_set" id="is_set" value="1" form="uniform-form" <?php echo (isset($uniform['is_set']) && $uniform['is_set'] == 1) ? 'checked' : ''; ?>>
+								<label class="form-check-label" for="is_set">
+									Is Set Product
+								</label>
+							</div>
+							<small class="text-muted">Check this if this is a uniform set (collection of uniforms sold together)</small>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col-12">
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Uniform Details</h6>
+			</div>
+			<div class="card-body p-2">
 				<?php if (validation_errors()): ?>
 					<div class="alert alert-danger alert-dismissible fade show" role="alert">
 						<strong>Please fix the following errors:</strong>
@@ -67,14 +110,14 @@
 						<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 					</div>
 				<?php endif; ?>
-				
+
 					<!-- Basic Information -->
-					<div class="row gx-3">
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Uniform Type <span class="text-danger">*</span></label>
+					<div class="row g-2">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Uniform Type <span class="text-danger">*</span></label>
 								<div class="input-group">
-									<select name="uniform_type_id" id="uniform_type_id" class="select2" required>
+									<select name="uniform_type_id" id="uniform_type_id" class="form-select form-select-sm" required>
 										<option value="">Select Uniform Type</option>
 										<?php if (!empty($uniform_types)): ?>
 											<?php foreach ($uniform_types as $type): ?>
@@ -82,17 +125,17 @@
 											<?php endforeach; ?>
 										<?php endif; ?>
 									</select>
-									<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addUniformTypeModal" style="padding: 0.4rem 1rem;">
-										<i class="isax isax-add"></i> Add
+									<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUniformTypeModal" style="padding: 4px 8px;">
+										<i class="isax isax-add"></i>
 									</button>
 								</div>
-								<?php echo form_error('uniform_type_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('uniform_type_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">School <span class="text-danger">*</span></label>
-								<select name="school_id" id="school_id" class="select2" required>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">School <span class="text-danger">*</span></label>
+								<select name="school_id" id="school_id" class="form-select form-select-sm" required>
 									<option value="">Select School</option>
 									<?php if (!empty($schools)): ?>
 										<?php foreach ($schools as $school): ?>
@@ -100,13 +143,13 @@
 										<?php endforeach; ?>
 									<?php endif; ?>
 								</select>
-								<?php echo form_error('school_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('school_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6" id="branch_container" style="display: <?php echo (!empty($branches)) ? 'block' : 'none'; ?>;">
-							<div class="mb-3">
-								<label class="form-label">Branch</label>
-								<select name="branch_id" id="branch_id" class="select">
+						<div class="col-xl-3 col-lg-4 col-md-6" id="branch_container" style="display: <?php echo (!empty($branches)) ? 'block' : 'none'; ?>;">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Branch</label>
+								<select name="branch_id" id="branch_id" class="form-select form-select-sm">
 									<option value="">Select Branch</option>
 									<?php if (!empty($branches)): ?>
 										<?php foreach ($branches as $branch): ?>
@@ -116,10 +159,10 @@
 								</select>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Board <span class="text-danger">*</span></label>
-								<select name="board_id" id="board_id" class="select" required>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Board <span class="text-danger">*</span></label>
+								<select name="board_id" id="board_id" class="form-select form-select-sm" required>
 									<option value="">Select Board</option>
 									<?php if (!empty($school_boards)): ?>
 										<?php foreach ($school_boards as $board): ?>
@@ -127,13 +170,13 @@
 										<?php endforeach; ?>
 									<?php endif; ?>
 								</select>
-								<?php echo form_error('board_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('board_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Gender <span class="text-danger">*</span></label>
-								<select name="gender" id="gender" class="select" required>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Gender <span class="text-danger">*</span></label>
+								<select name="gender" id="gender" class="form-select form-select-sm" required>
 									<option value="">Select Gender</option>
 									<option value="male" <?php echo ($uniform['gender'] == 'male') ? 'selected' : ''; ?>>Male</option>
 									<option value="female" <?php echo ($uniform['gender'] == 'female') ? 'selected' : ''; ?>>Female</option>
@@ -142,43 +185,43 @@
 								<?php echo form_error('gender', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Color</label>
-								<input type="text" name="color" id="color" class="form-control" value="<?php echo set_value('color', $uniform['color']); ?>">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Color</label>
+								<input type="text" name="color" id="color" class="form-control form-control-sm" value="<?php echo set_value('color', $uniform['color']); ?>">
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Product Name/Display Name <span class="text-danger">*</span></label>
-								<input type="text" name="product_name" id="product_name" class="form-control" value="<?php echo set_value('product_name', $uniform['product_name']); ?>" required>
-								<?php echo form_error('product_name', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Product Name <span class="text-danger">*</span></label>
+								<input type="text" name="product_name" id="product_name" class="form-control form-control-sm" value="<?php echo set_value('product_name', $uniform['product_name']); ?>" required>
+								<?php echo form_error('product_name', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">ISBN / Bar Code No./SKU No.</label>
-								<input type="text" name="isbn" id="isbn" class="form-control" value="<?php echo set_value('isbn', $uniform['isbn']); ?>">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">ISBN/SKU</label>
+								<input type="text" name="isbn" id="isbn" class="form-control form-control-sm" value="<?php echo set_value('isbn', $uniform['isbn']); ?>">
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Min Quantity <span class="text-danger">*</span></label>
-								<input type="number" name="min_quantity" id="min_quantity" class="form-control" value="<?php echo set_value('min_quantity', $uniform['min_quantity']); ?>" min="1" required>
-								<?php echo form_error('min_quantity', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Min Quantity <span class="text-danger">*</span></label>
+								<input type="number" name="min_quantity" id="min_quantity" class="form-control form-control-sm" value="<?php echo set_value('min_quantity', $uniform['min_quantity']); ?>" min="1" required>
+								<?php echo form_error('min_quantity', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Days To Exchange</label>
-								<input type="number" name="days_to_exchange" id="days_to_exchange" class="form-control" value="<?php echo set_value('days_to_exchange', $uniform['days_to_exchange']); ?>" min="0">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Days To Exchange</label>
+								<input type="number" name="days_to_exchange" id="days_to_exchange" class="form-control form-control-sm" value="<?php echo set_value('days_to_exchange', $uniform['days_to_exchange']); ?>" min="0">
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Select Material <span class="text-danger">*</span></label>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Material <span class="text-danger">*</span></label>
 								<div class="input-group">
-									<select name="material_id" id="material_id" class="select" required>
+									<select name="material_id" id="material_id" class="form-select form-select-sm" required>
 										<option value="">Select Material</option>
 										<?php if (!empty($materials)): ?>
 											<?php foreach ($materials as $material): ?>
@@ -186,21 +229,21 @@
 											<?php endforeach; ?>
 										<?php endif; ?>
 									</select>
-									<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMaterialModal" style="padding: 0.4rem 1rem;">
-										<i class="isax isax-add"></i> Add
+									<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMaterialModal" style="padding: 4px 8px;">
+										<i class="isax isax-add"></i>
 									</button>
 								</div>
-								<?php echo form_error('material_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+								<?php echo form_error('material_id', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Product Origin</label>
-								<input type="text" name="product_origin" id="product_origin" class="form-control" value="<?php echo set_value('product_origin', $uniform['product_origin'] ? $uniform['product_origin'] : 'India'); ?>">
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Product Origin</label>
+								<input type="text" name="product_origin" id="product_origin" class="form-control form-control-sm" value="<?php echo set_value('product_origin', $uniform['product_origin'] ? $uniform['product_origin'] : 'India'); ?>">
 							</div>
 						</div>
 					</div>
-					
+
 					<!-- Description Fields -->
 					<div class="row gx-3">
 						<div class="col-12">
@@ -210,33 +253,12 @@
 								<?php echo form_error('product_description', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 							</div>
 						</div>
-						<div class="col-12">
-							<div class="mb-3">
-								<label class="form-label">Manufacturer's Details</label>
-								<textarea name="manufacturer_details" id="manufacturer_details" class="form-control ckeditor" rows="5"><?php echo set_value('manufacturer_details', $uniform['manufacturer_details']); ?></textarea>
-							</div>
-						</div>
-						<div class="col-12">
-							<div class="mb-3">
-								<label class="form-label">Packer's Details</label>
-								<textarea name="packer_details" id="packer_details" class="form-control ckeditor" rows="5"><?php echo set_value('packer_details', $uniform['packer_details']); ?></textarea>
-							</div>
-						</div>
-						<div class="col-12">
-							<div class="mb-3">
-								<label class="form-label">Customer Details</label>
-								<textarea name="customer_details" id="customer_details" class="form-control ckeditor" rows="5"><?php echo set_value('customer_details', $uniform['customer_details']); ?></textarea>
-							</div>
-						</div>
 					</div>
-				
+
 			</div>
 		</div>
 	</div>
 </div>
-
-<!-- Images Card (Outside Main Card) -->
-
 
 <!-- Price and Size Card (Outside Main Card) -->
 <div class="row">
@@ -455,6 +477,37 @@ $commissionValue = set_value(
 	</div>
 </div>
 
+<!-- Manufacturer, Packer & Customer Details Card -->
+<div class="row">
+	<div class="col-12">
+		<div class="card mb-3">
+			<div class="card-body">
+				<h2 class=" border-bottom pb-3 mb-3">Additional Details</h2>
+				<div class="row gx-3">
+					<div class="col-12">
+						<div class="mb-3">
+							<label class="form-label">Manufacturer's Details</label>
+							<textarea name="manufacturer_details" id="manufacturer_details" class="form-control ckeditor" rows="5"><?php echo set_value('manufacturer_details', $uniform['manufacturer_details']); ?></textarea>
+						</div>
+					</div>
+					<div class="col-12">
+						<div class="mb-3">
+							<label class="form-label">Packer's Details</label>
+							<textarea name="packer_details" id="packer_details" class="form-control ckeditor" rows="5"><?php echo set_value('packer_details', $uniform['packer_details']); ?></textarea>
+						</div>
+					</div>
+					<div class="col-12">
+						<div class="mb-3">
+							<label class="form-label">Customer Details</label>
+							<textarea name="customer_details" id="customer_details" class="form-control ckeditor" rows="5"><?php echo set_value('customer_details', $uniform['customer_details']); ?></textarea>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
 <!-- Meta Details and Status Card (Outside Main Card) -->
 <div class="row">
 	<div class="col-12">
@@ -487,40 +540,6 @@ $commissionValue = set_value(
 								<option value="active" <?php echo ($uniform['status'] == 'active') ? 'selected' : ''; ?>>Active</option>
 								<option value="inactive" <?php echo ($uniform['status'] == 'inactive') ? 'selected' : ''; ?>>Inactive</option>
 							</select>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
-<!-- Product Type Card (Outside Main Card) -->
-<div class="row">
-	<div class="col-12">
-		<div class="card mb-3">
-			<div class="card-body">
-				<h2 class=" border-bottom pb-3 mb-3">Product Type</h2>
-				<div class="row gx-3">
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<div class="form-check form-switch">
-								<input class="form-check-input" type="checkbox" name="is_individual" id="is_individual" value="1" form="uniform-form" <?php echo (isset($uniform['is_individual']) && $uniform['is_individual'] == 1) ? 'checked' : ''; ?>>
-								<label class="form-check-label" for="is_individual">
-									Is Individual Product
-								</label>
-							</div>
-							<small class="text-muted">Check this if this is an individual product that can be sold separately</small>
-						</div>
-					</div>
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<div class="form-check form-switch">
-								<input class="form-check-input" type="checkbox" name="is_set" id="is_set" value="1" form="uniform-form" <?php echo (isset($uniform['is_set']) && $uniform['is_set'] == 1) ? 'checked' : ''; ?>>
-								<label class="form-check-label" for="is_set">
-									Is Set Product
-								</label>
-							</div>
-							<small class="text-muted">Check this if this is a uniform set (collection of uniforms sold together)</small>
 						</div>
 					</div>
 				</div>
@@ -682,9 +701,8 @@ $commissionValue = set_value(
 }
 
 .card .card-body {
-    padding: 0 !important;
+    padding: 1rem !important;
 }
-
 </style>
 
 
@@ -735,17 +753,22 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="https://cdn.ckeditor.com/4.19.1/standard/ckeditor.js"></script>
+
 <script src="<?php echo base_url('assets/js/image-sortable.js'); ?>"></script>
+<script src="<?php echo base_url('assets/ckeditor/ckeditor.js'); ?>"></script>
 <script>
+
+CKEDITOR.replace('product_description', {
+    removePlugins: 'link,about',
+    removeButtons: 'Subscript,Superscript,Image',
+    allowedContent: true
+  });
 // Initialize CKEditor after page loads
 window.addEventListener('load', function() {
 	function initCKEditor() {
 		if (typeof CKEDITOR !== 'undefined') {
 			// Destroy existing instances if any
-			if (CKEDITOR.instances['product_description']) {
-				CKEDITOR.instances['product_description'].destroy();
-			}
+			
 			if (CKEDITOR.instances['manufacturer_details']) {
 				CKEDITOR.instances['manufacturer_details'].destroy();
 			}
@@ -757,14 +780,11 @@ window.addEventListener('load', function() {
 			}
 			
 			// Initialize CKEditor instances
-			var productDesc = document.getElementById('product_description');
 			var manufacturerDetails = document.getElementById('manufacturer_details');
 			var packerDetails = document.getElementById('packer_details');
 			var customerDetails = document.getElementById('customer_details');
 			
-			if (productDesc) {
-				CKEDITOR.replace('product_description');
-			}
+			
 			if (manufacturerDetails) {
 				CKEDITOR.replace('manufacturer_details');
 			}

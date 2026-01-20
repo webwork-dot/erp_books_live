@@ -31,6 +31,43 @@
 	</div>
 </div>
 
+<!-- Product Type Card (Outside Main Card) -->
+<div class="row">
+	<div class="col-12">
+		<div class="card mb-2">
+			<div class="card-header py-2">
+				<h6 class="mb-0 fs-14">Product Type</h6>
+			</div>
+			<div class="card-body p-2">
+				<div class="row gx-3">
+					<div class="col-lg-6 col-md-6">
+						<div class="mb-3">
+							<div class="form-check form-switch">
+								<input class="form-check-input" type="checkbox" name="is_individual" id="is_individual" value="1" form="uniform-form">
+								<label class="form-check-label" for="is_individual">
+									Is Individual Product
+								</label>
+							</div>
+							<small class="text-muted">Check this if this is an individual product that can be sold separately</small>
+						</div>
+					</div>
+					<div class="col-lg-6 col-md-6">
+						<div class="mb-3">
+							<div class="form-check form-switch">
+								<input class="form-check-input" type="checkbox" name="is_set" id="is_set" value="1" form="uniform-form">
+								<label class="form-check-label" for="is_set">
+									Is Set Product
+								</label>
+							</div>
+							<small class="text-muted">Check this if this is a uniform set (collection of uniforms sold together)</small>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
 <div class="row">
 	<div class="col-12">
 		<div class="card mb-2">
@@ -178,24 +215,6 @@
 								<label class="form-label">Product Description <span class="text-danger">*</span></label>
 								<textarea name="product_description" id="product_description" class="form-control ckeditor" rows="5" required><?php echo set_value('product_description', isset($uniform) ? $uniform['product_description'] : ''); ?></textarea>
 								<?php echo form_error('product_description', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
-							</div>
-						</div>
-						<div class="col-12">
-							<div class="mb-3">
-								<label class="form-label">Manufacturer's Details</label>
-								<textarea name="manufacturer_details" id="manufacturer_details" class="form-control ckeditor" rows="5"><?php echo set_value('manufacturer_details', isset($uniform) ? $uniform['manufacturer_details'] : ''); ?></textarea>
-							</div>
-						</div>
-						<div class="col-12">
-							<div class="mb-3">
-								<label class="form-label">Packer's Details</label>
-								<textarea name="packer_details" id="packer_details" class="form-control ckeditor" rows="5"><?php echo set_value('packer_details', isset($uniform) ? $uniform['packer_details'] : ''); ?></textarea>
-							</div>
-						</div>
-						<div class="col-12">
-							<div class="mb-3">
-								<label class="form-label">Customer Details</label>
-								<textarea name="customer_details" id="customer_details" class="form-control ckeditor" rows="5"><?php echo set_value('customer_details', isset($uniform) ? $uniform['customer_details'] : ''); ?></textarea>
 							</div>
 						</div>
 					</div>
@@ -389,6 +408,37 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 	</div>
 </div>
 
+<!-- Manufacturer, Packer & Customer Details Card -->
+<div class="row">
+	<div class="col-12">
+		<div class="card mb-3">
+			<div class="card-body">
+				<h2 class=" border-bottom pb-3 mb-3">Additional Details</h2>
+				<div class="row gx-3">
+					<div class="col-12">
+						<div class="mb-3">
+							<label class="form-label">Manufacturer's Details</label>
+							<textarea name="manufacturer_details" id="manufacturer_details" class="form-control ckeditor" rows="5"><?php echo set_value('manufacturer_details', isset($uniform) ? $uniform['manufacturer_details'] : ''); ?></textarea>
+						</div>
+					</div>
+					<div class="col-12">
+						<div class="mb-3">
+							<label class="form-label">Packer's Details</label>
+							<textarea name="packer_details" id="packer_details" class="form-control ckeditor" rows="5"><?php echo set_value('packer_details', isset($uniform) ? $uniform['packer_details'] : ''); ?></textarea>
+						</div>
+					</div>
+					<div class="col-12">
+						<div class="mb-3">
+							<label class="form-label">Customer Details</label>
+							<textarea name="customer_details" id="customer_details" class="form-control ckeditor" rows="5"><?php echo set_value('customer_details', isset($uniform) ? $uniform['customer_details'] : ''); ?></textarea>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
 <!-- Meta Details and Status Card (Outside Main Card) -->
 <div class="row">
 	<div class="col-12">
@@ -429,42 +479,6 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 		</div>
 	</div>
 </div>
-
-<!-- Product Type Card (Outside Main Card) -->
-<div class="row">
-	<div class="col-12">
-		<div class="card mb-3">
-			<div class="card-body">
-				<h2 class=" border-bottom pb-3 mb-3">Product Type</h2>
-				<div class="row gx-3">
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<div class="form-check form-switch">
-								<input class="form-check-input" type="checkbox" name="is_individual" id="is_individual" value="1" form="uniform-form">
-								<label class="form-check-label" for="is_individual">
-									Is Individual Product
-								</label>
-							</div>
-							<small class="text-muted">Check this if this is an individual product that can be sold separately</small>
-						</div>
-					</div>
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<div class="form-check form-switch">
-								<input class="form-check-input" type="checkbox" name="is_set" id="is_set" value="1" form="uniform-form">
-								<label class="form-check-label" for="is_set">
-									Is Set Product
-								</label>
-							</div>
-							<small class="text-muted">Check this if this is a uniform set (collection of uniforms sold together)</small>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
-
 
 <div class="border-top my-3 pt-3">
 						<div class="d-flex align-items-center justify-content-end gap-2">
@@ -671,7 +685,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="https://cdn.ckeditor.com/4.19.1/standard/ckeditor.js"></script>
+<script src="<?php echo base_url('assets/ckeditor/ckeditor.js'); ?>"></script>
 <script src="<?php echo base_url('assets/js/image-sortable.js'); ?>"></script>
 <script>
 // Initialize CKEditor after page loads

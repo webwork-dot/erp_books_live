@@ -14,7 +14,15 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
+		
 		<form method="get" action="<?php echo base_url('products/uniforms'); ?>">
+			<?php if (!empty($uniforms)): ?>
+				<div class="mb-3">
+					<p class="text-muted mb-0">Total Uniforms: <strong><?php echo $total_uniforms; ?></strong></p>
+				</div>
+			<?php endif; ?>
+
+
 			<!-- Search on Top -->
 			<div class="row gx-3 mb-3">
 				<div class="col-lg-8 col-md-8">

@@ -503,6 +503,7 @@ $config['csrf_exclude_uris'] = array(
 	'products/variations/delete_value/.*',
 	'products/variations/generate_combinations',
 	'products/uniforms/delete_image/.*',
+	'products/uniforms/toggle_status/.*',
 	'products/uniforms/get_boards',
 	'products/uniforms/get_branches',
 	'products/uniforms/get_sizes',
