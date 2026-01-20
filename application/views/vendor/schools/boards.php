@@ -266,17 +266,17 @@ function deleteBoard(boardId, boardName) {
 				}
 			});
 
-			// AJAX call to delete board
-			fetch('<?php echo base_url('schools/delete_board'); ?>', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
-				body: 'board_id=' + encodeURIComponent(boardId) + '&<?php echo $this->security->get_csrf_token_name(); ?>=<?php echo $this->security->get_csrf_hash(); ?>'
-			})
-			.then(response => response.json())
-			.then(data => {
-				if (data.status === 'success') {
+		// AJAX call to delete board
+		fetch('<?php echo base_url('schools/delete_board'); ?>', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+			body: 'board_id=' + encodeURIComponent(boardId) + '&<?php echo $this->security->get_csrf_token_name(); ?>=<?php echo $this->security->get_csrf_hash(); ?>'
+		})
+		.then(response => response.json())
+		.then(data => {
+			if (data.status === 'success') {
 					Swal.fire({
 						title: 'Deleted!',
 						text: 'Board has been deleted successfully.',
@@ -284,28 +284,28 @@ function deleteBoard(boardId, boardName) {
 						timer: 2000,
 						showConfirmButton: false
 					}).then(() => {
-						// Reload page to show updated list
-						window.location.reload();
+				// Reload page to show updated list
+				window.location.reload();
 					});
-				} else {
+			} else {
 					Swal.fire({
 						title: 'Error!',
 						text: data.message || 'Failed to delete board.',
 						icon: 'error',
 						confirmButtonText: 'OK'
 					});
-				}
-			})
-			.catch(error => {
-				console.error('Error:', error);
+			}
+		})
+		.catch(error => {
+			console.error('Error:', error);
 				Swal.fire({
 					title: 'Error!',
 					text: 'An error occurred. Please try again.',
 					icon: 'error',
 					confirmButtonText: 'OK'
 				});
-			});
-		}
+		});
+	}
 	});
 }
 </script>

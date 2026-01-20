@@ -789,7 +789,9 @@ class Products extends Vendor_base
 		if (!$has_variations && !empty($mrp) && !empty($selling_price) && $selling_price >= $mrp)
 		{
 			$this->session->set_flashdata('error', 'Selling price must be less than MRP.');
-			redirect($this->current_vendor['domain'] . '/products/individual-products/add');
+			$this->load->helper('common');
+			$vendor_domain = $this->getVendorDomainForUrl();
+			redirect(vendor_url('products/individual-products/add', $vendor_domain));
 			return;
 		}
 		
@@ -800,7 +802,9 @@ class Products extends Vendor_base
 			if ($this->Individual_product_model->checkSkuExists($sku, $this->current_vendor['id']))
 			{
 				$this->session->set_flashdata('error', 'SKU already exists. Please use a different SKU.');
-				redirect($this->current_vendor['domain'] . '/products/individual-products/add');
+				$this->load->helper('common');
+				$vendor_domain = $this->getVendorDomainForUrl();
+				redirect(vendor_url('products/individual-products/add', $vendor_domain));
 				return;
 			}
 		}
@@ -902,12 +906,12 @@ class Products extends Vendor_base
 			$this->handleIndividualProductImageUploads($product_id);
 			
 			$this->session->set_flashdata('success', 'Product added successfully.');
-			redirect($this->current_vendor['domain'] . '/products/individual-products');
+			redirect(base_url('products/individual-products'));
 		}
 		else
 		{
 			$this->session->set_flashdata('error', 'Failed to add product. Please try again.');
-			redirect($this->current_vendor['domain'] . '/products/individual-products/add');
+			redirect(base_url('products/individual-products/add'));
 		}
 	}
 	
@@ -1192,7 +1196,7 @@ class Products extends Vendor_base
 			if ($this->Individual_product_model->checkSkuExists($sku, $this->current_vendor['id'], $id))
 			{
 				$this->session->set_flashdata('error', 'SKU already exists. Please use a different SKU.');
-				redirect($this->current_vendor['domain'] . '/products/individual-products/edit/' . $id);
+				redirect(base_url('products/individual-products/edit/' . $id));
 				return;
 			}
 		}
@@ -1308,12 +1312,12 @@ class Products extends Vendor_base
 			$this->handleIndividualProductImageUploads($id);
 			
 			$this->session->set_flashdata('success', 'Product updated successfully.');
-			redirect($this->current_vendor['domain'] . '/products/individual-products');
+			redirect(base_url('products/individual-products'));
 		}
 		else
 		{
 			$this->session->set_flashdata('error', 'Failed to update product. Please try again.');
-			redirect($this->current_vendor['domain'] . '/products/individual-products/edit/' . $id);
+			redirect(base_url('products/individual-products/edit/' . $id));
 		}
 	}
 	
@@ -1680,7 +1684,7 @@ class Products extends Vendor_base
 		if (!$product_type || !$product)
 		{
 			$this->session->set_flashdata('error', 'Product not found.');
-			redirect($this->current_vendor['domain'] . '/products/individual-products');
+			redirect(base_url('products/individual-products'));
 			return;
 		}
 		
@@ -1708,7 +1712,7 @@ class Products extends Vendor_base
 				{
 					$this->session->set_flashdata('error', 'Delete functionality not available for uniforms.');
 				}
-				redirect($this->current_vendor['domain'] . '/products/individual-products');
+				redirect(base_url('products/individual-products'));
 				break;
 			case 'individual':
 				// Delete individual product
@@ -1731,11 +1735,11 @@ class Products extends Vendor_base
 				$this->db->delete('erp_individual_products');
 				
 				$this->session->set_flashdata('success', 'Product deleted successfully.');
-				redirect($this->current_vendor['domain'] . '/products/individual-products');
+				redirect(base_url('products/individual-products'));
 				break;
 			default:
 				$this->session->set_flashdata('error', 'Invalid product type.');
-				redirect($this->current_vendor['domain'] . '/products/individual-products');
+				redirect(base_url('products/individual-products'));
 		}
 	}
 	

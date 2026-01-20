@@ -450,20 +450,20 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 						<div class="mb-3">
 							<label class="form-label">Meta Title</label>
 							<input type="text" name="meta_title" id="meta_title" class="form-control" form="uniform-form" value="<?php echo set_value('meta_title', isset($uniform) ? $uniform['meta_title'] : ''); ?>">
+							</div>
 						</div>
-					</div>
 					<div class="col-12">
 						<div class="mb-3">
 							<label class="form-label">Meta Keywords</label>
 							<textarea name="meta_keywords" id="meta_keywords" class="form-control" form="uniform-form" rows="3"><?php echo set_value('meta_keywords', isset($uniform) ? $uniform['meta_keywords'] : ''); ?></textarea>
-						</div>
+					</div>
 					</div>
 					<div class="col-12">
 						<div class="mb-3">
 							<label class="form-label">Meta Description</label>
 							<textarea name="meta_description" id="meta_description" class="form-control" form="uniform-form" rows="3"><?php echo set_value('meta_description', isset($uniform) ? $uniform['meta_description'] : ''); ?></textarea>
+							</div>
 						</div>
-					</div>
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
 							<label class="form-label">Status</label>
@@ -471,7 +471,7 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 								<option value="active" <?php echo set_select('status', 'active', (isset($uniform) && $uniform['status'] == 'active') ? TRUE : FALSE); ?>>Active</option>
 								<option value="inactive" <?php echo set_select('status', 'inactive', (isset($uniform) && $uniform['status'] == 'inactive') ? TRUE : FALSE); ?>>Inactive</option>
 							</select>
-						</div>
+					</div>
 					</div>
 					
 				</div>

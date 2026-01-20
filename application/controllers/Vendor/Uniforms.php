@@ -278,12 +278,14 @@ class Uniforms extends Vendor_base
 				}
 				
 				$this->session->set_flashdata('success', 'Uniform created successfully.');
-				redirect(base_url($this->current_vendor['domain'] . '/products/uniforms'));
+				$this->load->helper('common');
+				redirect(base_url('products/uniforms'));
 			}
 			else
 			{
 				$this->session->set_flashdata('error', 'Failed to create uniform.');
-				redirect(base_url($this->current_vendor['domain'] . '/products/uniforms/add'));
+				$this->load->helper('common');
+				redirect(base_url('products/uniforms/add'));
 			}
 		}
 	}
@@ -463,13 +465,15 @@ class Uniforms extends Vendor_base
 			if ($update_result || $has_image_updates || $has_new_images)
 			{
 				$this->session->set_flashdata('success', 'Uniform updated successfully.');
-				redirect(base_url($this->current_vendor['domain'] . '/products/uniforms'));
+				$this->load->helper('common');
+				redirect(base_url('products/uniforms'));
 			}
 			else
 			{
 				// Only show error if no updates of any kind were detected
 				$this->session->set_flashdata('error', 'No changes detected.');
-				redirect(base_url($this->current_vendor['domain'] . '/products/uniforms/edit/' . $uniform_id));
+				$this->load->helper('common');
+				redirect(base_url('products/uniforms/edit/' . $uniform_id));
 			}
 		}
 	}
@@ -498,7 +502,7 @@ class Uniforms extends Vendor_base
 			$this->session->set_flashdata('error', 'Failed to delete uniform.');
 		}
 		
-		redirect(base_url($this->current_vendor['domain'] . '/products/uniforms'));
+		redirect(base_url('products/uniforms'));
 	}
 	
 	/**

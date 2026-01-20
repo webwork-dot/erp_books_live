@@ -23,9 +23,9 @@
 							<small class="text-muted fs-12">You can select multiple images. Recommended size: 440px × 530px. Drag images to reorder. Click "Set as Main" to choose the main image. Leave empty to keep existing images.</small>
 							<div id="image-preview" class="mt-3 image-sortable-container">
 								<?php if (isset($uniform_images) && !empty($uniform_images)): ?>
-									<?php
+									<?php 
 									$main_image_id = null;
-									foreach ($uniform_images as $img):
+									foreach ($uniform_images as $img): 
 										if (isset($img['is_main']) && $img['is_main'] == 1) {
 											$main_image_id = $img['id'];
 										}
@@ -110,7 +110,7 @@
 						<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 					</div>
 				<?php endif; ?>
-
+				
 					<!-- Basic Information -->
 					<div class="row g-2">
 						<div class="col-xl-3 col-lg-4 col-md-6">
@@ -243,7 +243,7 @@
 							</div>
 						</div>
 					</div>
-
+					
 					<!-- Description Fields -->
 					<div class="row gx-3">
 						<div class="col-12">
@@ -254,7 +254,7 @@
 							</div>
 						</div>
 					</div>
-
+				
 			</div>
 		</div>
 	</div>
@@ -502,11 +502,11 @@ $commissionValue = set_value(
 							<textarea name="customer_details" id="customer_details" class="form-control ckeditor" rows="5"><?php echo set_value('customer_details', $uniform['customer_details']); ?></textarea>
 						</div>
 					</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
-</div>
 
 <!-- Meta Details and Status Card (Outside Main Card) -->
 <div class="row">
@@ -519,19 +519,19 @@ $commissionValue = set_value(
 						<div class="mb-3">
 							<label class="form-label">Meta Title</label>
 							<input type="text" name="meta_title" id="meta_title" class="form-control" form="uniform-form" value="<?php echo set_value('meta_title', $uniform['meta_title']); ?>">
+							</div>
 						</div>
-					</div>
 					<div class="col-12">
 						<div class="mb-3">
 							<label class="form-label">Meta Keywords</label>
 							<textarea name="meta_keywords" id="meta_keywords" class="form-control" form="uniform-form" rows="3"><?php echo set_value('meta_keywords', $uniform['meta_keywords']); ?></textarea>
-						</div>
+					</div>
 					</div>
 					<div class="col-12">
 						<div class="mb-3">
 							<label class="form-label">Meta Description</label>
 							<textarea name="meta_description" id="meta_description" class="form-control" form="uniform-form" rows="3"><?php echo set_value('meta_description', $uniform['meta_description']); ?></textarea>
-						</div>
+							</div>
 					</div>
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
