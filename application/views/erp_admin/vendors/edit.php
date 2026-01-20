@@ -136,6 +136,13 @@
         <span>Payment Gateway</span>
       </a>
     </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" id="seo-tab" data-bs-toggle="tab" href="#seo" role="tab" aria-controls="seo"
+        aria-selected="false">
+        <i class="isax isax-search-normal"></i>
+        <span>SEO & Meta</span>
+      </a>
+    </li>
   </ul>
 </div>
 
@@ -640,6 +647,102 @@
       </div>
     </div>
   </div>
+
+  <!-- SEO & Meta Tab -->
+  <div class="tab-pane fade" id="seo" role="tabpanel" aria-labelledby="seo-tab">
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="mb-4">SEO & Meta Information</h6>
+
+            <?php
+            $site_title = isset($vendor['site_title']) ? $vendor['site_title'] : '';
+            $meta_description = isset($vendor['meta_description']) ? $vendor['meta_description'] : '';
+            $meta_keywords = isset($vendor['meta_keywords']) ? $vendor['meta_keywords'] : '';
+            ?>
+
+            <!-- Site Title -->
+            <div class="mb-4">
+              <label class="form-label fw-medium">Site Title</label>
+              <input type="text" name="site_title" id="site_title" class="form-control"
+                value="<?php echo set_value('site_title', $site_title); ?>"
+                placeholder="Enter site title (e.g., Vendor Name - Online Store)">
+              <small class="text-muted fs-13">This will be used as the page title in browser tabs and search results</small>
+              <?php echo form_error('site_title', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+            </div>
+
+            <!-- Meta Description -->
+            <div class="mb-4">
+              <label class="form-label fw-medium">Meta Description</label>
+              <textarea name="meta_description" id="meta_description" class="form-control" rows="3"
+                placeholder="Enter meta description (recommended: 150-160 characters)"><?php echo set_value('meta_description', $meta_description); ?></textarea>
+              <small class="text-muted fs-13">Brief description of your site for search engines (recommended: 150-160 characters)</small>
+              <div class="mt-1">
+                <span class="badge badge-sm" id="meta_desc_count">0</span> characters
+              </div>
+              <?php echo form_error('meta_description', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+            </div>
+
+            <!-- Meta Keywords -->
+            <div class="mb-4">
+              <label class="form-label fw-medium">Meta Keywords</label>
+              <textarea name="meta_keywords" id="meta_keywords" class="form-control" rows="2"
+                placeholder="Enter keywords separated by commas (e.g., books, stationery, uniforms)"><?php echo set_value('meta_keywords', $meta_keywords); ?></textarea>
+              <small class="text-muted fs-13">Comma-separated keywords relevant to your site</small>
+              <?php echo form_error('meta_keywords', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+            </div>
+
+            <!-- Favicon Upload -->
+            <div class="border-top pt-4 mt-4">
+              <h6 class="mb-3">
+                <i class="isax isax-gallery me-2 text-primary"></i>
+                Favicon
+              </h6>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label fw-medium">Upload Favicon</label>
+                    <input type="file" name="favicon" id="favicon" class="form-control" accept="image/*">
+                    <small class="text-muted fs-13">Recommended: ICO, PNG (16x16 or 32x32). Max size: 500KB</small>
+                    <?php echo form_error('favicon', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <?php if (isset($vendor['favicon']) && !empty($vendor['favicon']) && file_exists(FCPATH . $vendor['favicon'])): ?>
+                  <div class="mb-3">
+                    <label class="form-label fw-medium">Current Favicon</label>
+                    <div class="d-flex align-items-start gap-3">
+                      <div class="border rounded p-2 bg-white">
+                        <img src="<?php echo base_url($vendor['favicon']); ?>" alt="Favicon"
+                          style="max-width: 32px; max-height: 32px; object-fit: contain;">
+                      </div>
+                      <div class="flex-grow-1">
+                        <small class="text-muted d-block">Current favicon</small>
+                        <label class="form-check mt-2">
+                          <input type="checkbox" name="remove_favicon" value="1" class="form-check-input">
+                          <span class="form-check-label fs-13">Remove current favicon</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <?php else: ?>
+                  <div class="mb-3">
+                    <label class="form-label fw-medium">Current Favicon</label>
+                    <div class="text-center py-4 border rounded bg-white">
+                      <i class="isax isax-gallery text-muted" style="font-size: 24px;"></i>
+                      <p class="text-muted fs-13 mt-2 mb-0">No favicon uploaded<br><small>Default favicon will be used</small></p>
+                    </div>
+                  </div>
+                  <?php endif; ?>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Form Actions -->
@@ -756,5 +859,27 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // Meta Description Character Counter
+  var metaDescTextarea = document.getElementById('meta_description');
+  var metaDescCount = document.getElementById('meta_desc_count');
+  if (metaDescTextarea && metaDescCount) {
+    function updateMetaDescCount() {
+      var length = metaDescTextarea.value.length;
+      metaDescCount.textContent = length;
+      if (length > 160) {
+        metaDescCount.classList.remove('badge-primary');
+        metaDescCount.classList.add('badge-warning');
+      } else if (length >= 150) {
+        metaDescCount.classList.remove('badge-warning');
+        metaDescCount.classList.add('badge-success');
+      } else {
+        metaDescCount.classList.remove('badge-warning', 'badge-success');
+        metaDescCount.classList.add('badge-primary');
+      }
+    }
+    metaDescTextarea.addEventListener('input', updateMetaDescCount);
+    updateMetaDescCount(); // Initialize count
+  }
 });
 </script>

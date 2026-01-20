@@ -176,7 +176,6 @@
 						<th>School</th>
 						<th>Branch</th>
 						<th>Board</th>
-						<th>Product Type</th>
 						<th>Gender</th>
 						<th>MRP</th>
 						<th>Selling Price</th>
@@ -275,21 +274,7 @@
 								<td><?php echo htmlspecialchars($uniform['school_name'] ? $uniform['school_name'] : '-'); ?></td>
 								<td><?php echo htmlspecialchars($uniform['branch_name'] ? $uniform['branch_name'] : '-'); ?></td>
 								<td><?php echo htmlspecialchars($uniform['board_name'] ? $uniform['board_name'] : '-'); ?></td>
-								<td>
-									<?php
-										$types = [];
-
-										if (!empty($uniform['is_individual']) && $uniform['is_individual'] == 1) {
-											$types[] = 'Individual';
-										}
-
-										if (!empty($uniform['is_set']) && $uniform['is_set'] == 1) {
-											$types[] = 'Set';
-										}
-
-										echo !empty($types) ? implode(', ', $types) : '-';
-									?>
-								</td>
+								
 								<td>
 									<span class="badge badge-info"><?php echo ucfirst($uniform['gender']); ?></span>
 								</td>

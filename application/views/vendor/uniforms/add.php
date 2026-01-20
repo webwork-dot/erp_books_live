@@ -31,42 +31,7 @@
 	</div>
 </div>
 
-<!-- Product Type Card (Outside Main Card) -->
-<div class="row">
-	<div class="col-12">
-		<div class="card mb-2">
-			<div class="card-header py-2">
-				<h6 class="mb-0 fs-14">Product Type</h6>
-			</div>
-			<div class="card-body p-2">
-				<div class="row gx-3">
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<div class="form-check form-switch">
-								<input class="form-check-input" type="checkbox" name="is_individual" id="is_individual" value="1" form="uniform-form">
-								<label class="form-check-label" for="is_individual">
-									Is Individual Product
-								</label>
-							</div>
-							<small class="text-muted">Check this if this is an individual product that can be sold separately</small>
-						</div>
-					</div>
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<div class="form-check form-switch">
-								<input class="form-check-input" type="checkbox" name="is_set" id="is_set" value="1" form="uniform-form">
-								<label class="form-check-label" for="is_set">
-									Is Set Product
-								</label>
-							</div>
-							<small class="text-muted">Check this if this is a uniform set (collection of uniforms sold together)</small>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
+
 
 <div class="row">
 	<div class="col-12">
@@ -326,7 +291,26 @@
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
 							<label class="form-label">GST (%) <span class="text-danger">*</span></label>
-							<input type="number" name="gst_percentage" id="gst_percentage" class="form-control" form="uniform-form" value="<?php echo set_value('gst_percentage', isset($uniform) ? $uniform['gst_percentage'] : 0); ?>" step="0.01" min="0" max="100" required>
+							<select name="gst_percentage" id="gst_percentage" class="form-control" form="uniform-form" required>
+								<option value="">Select GST %</option>
+								<?php 
+								$current_gst = set_value('gst_percentage', isset($uniform) ? floatval($uniform['gst_percentage']) : '');
+								$gst_options = [0, 5, 12, 18, 28];
+								foreach ($gst_options as $gst_val): 
+									$selected = ($current_gst != '' && floatval($current_gst) == $gst_val) ? 'selected' : '';
+									if (empty($selected) && !empty(set_value('gst_percentage'))) {
+										$selected = (set_value('gst_percentage') == $gst_val) ? 'selected' : '';
+									}
+								?>
+								<option value="<?php echo $gst_val; ?>" <?php echo $selected; ?>><?php echo $gst_val; ?>%</option>
+								<?php endforeach; ?>
+								<?php 
+								// If custom GST value exists (not in standard list), add it as an option
+								if (!empty($current_gst) && !in_array(floatval($current_gst), $gst_options)): 
+								?>
+								<option value="<?php echo htmlspecialchars($current_gst); ?>" selected><?php echo htmlspecialchars($current_gst); ?>%</option>
+								<?php endif; ?>
+							</select>
 							<?php echo form_error('gst_percentage', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
@@ -955,9 +939,8 @@ function addUniformType() {
 			var select = document.getElementById('uniform_type_id');
 			var $select = $('#uniform_type_id');
 			
-			// Check if Select2 is initialized
+			// Check if Select2 is initialized and destroy it
 			if ($select.length && $select.hasClass('select2-hidden-accessible')) {
-				// Destroy Select2, add option, then reinitialize
 				$select.select2('destroy');
 			}
 			
@@ -967,9 +950,14 @@ function addUniformType() {
 			option.selected = true;
 			select.appendChild(option);
 			
-			// Reinitialize Select2 if needed
-			if ($select.hasClass('select')) {
-				$select.select2();
+			// Reinitialize Select2 with search
+			if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+				$select.select2({
+					theme: 'bootstrap-5',
+					placeholder: 'Select Uniform Type',
+					allowClear: true,
+					width: '100%'
+				});
 			}
 			
 			// Reset form but keep modal open for multiple additions
@@ -1328,5 +1316,18 @@ function deleteImage(imageId) {
 		alert('An error occurred');
 	});
 }
+
+// Initialize Select2 for uniform type dropdown with search
+document.addEventListener('DOMContentLoaded', function() {
+	if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+		// Initialize Select2 on uniform_type_id dropdown
+		$('#uniform_type_id').select2({
+			theme: 'bootstrap-5',
+			placeholder: 'Select Uniform Type',
+			allowClear: true,
+			width: '100%'
+		});
+	}
+});
 </script>
 

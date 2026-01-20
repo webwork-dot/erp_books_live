@@ -72,6 +72,7 @@ $route['erp-admin/vendors/debug_database/(:num)'] = 'Erp_admin/vendors/debug_dat
 $route['erp-admin/vendors/create_database/(:num)'] = 'Erp_admin/vendors/create_database/$1';
 $route['erp-admin/vendors/fix_foreign_keys/(:num)'] = 'Erp_admin/vendors/fix_foreign_keys/$1';
 $route['erp-admin/vendors/sync_features/(:num)'] = 'Erp_admin/vendors/sync_features/$1';
+$route['erp-admin/vendors/sync_vendor_data/(:num)'] = 'Erp_admin/vendors/sync_vendor_data/$1';
 $route['erp-admin/features'] = 'Erp_admin/features';
 $route['erp-admin/features/add'] = 'Erp_admin/features/add';
 $route['erp-admin/features/edit/(:num)'] = 'Erp_admin/features/edit/$1';

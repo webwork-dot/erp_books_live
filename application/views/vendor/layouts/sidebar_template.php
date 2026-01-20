@@ -6,11 +6,16 @@
 				<!-- Start Logo -->
 				<div class="sidebar-logo" style="background-color: #ffffff;">
 					<?php 
-					// Only show logo if vendor has a logo, otherwise leave empty
-					$has_logo = (isset($current_vendor['logo']) && !empty($current_vendor['logo']) && file_exists(FCPATH . $current_vendor['logo']));
-					$logo_url = $has_logo ? base_url($current_vendor['logo']) : '';
+					// Get logo from vendor database (erp_clients.logo field)
+					$logo_url = '';
+					if (isset($current_vendor['logo']) && !empty($current_vendor['logo'])) {
+						// Check if file exists before using it
+						if (file_exists(FCPATH . $current_vendor['logo'])) {
+							$logo_url = base_url($current_vendor['logo']);
+						}
+					}
 					?>
-					<?php if ($has_logo): ?>
+					<?php if (!empty($logo_url)): ?>
 					<a href="<?php echo base_url('dashboard'); ?>" class="logo logo-normal">
 						<img src="<?php echo $logo_url; ?>" alt="Logo">
 					</a>
