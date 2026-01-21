@@ -79,12 +79,26 @@
 		$light_g = min(255, floor($g + (255 - $g) * 0.85));
 		$light_b = min(255, floor($b + (255 - $b) * 0.85));
 		$light_color = sprintf('#%02x%02x%02x', $light_r, $light_g, $light_b);
-		
+
+		// Calculate hover color (slightly darker than primary)
+		$hover_r = max(0, floor($r * 0.9));
+		$hover_g = max(0, floor($g * 0.9));
+		$hover_b = max(0, floor($b * 0.9));
+		$hover_color = sprintf('#%02x%02x%02x', $hover_r, $hover_g, $hover_b);
+
+		// Calculate transparent color (light tint of the primary color)
+		$transparent_r = min(255, floor($r + (255 - $r) * 0.95));
+		$transparent_g = min(255, floor($g + (255 - $g) * 0.95));
+		$transparent_b = min(255, floor($b + (255 - $b) * 0.95));
+		$transparent_color = sprintf('#%02x%02x%02x', $transparent_r, $transparent_g, $transparent_b);
+
 		$inline_style = '<style>
 [data-sidebarbg="custom"] {
 	--vendor-primary: ' . htmlspecialchars($sidebar_color) . ';
 	--vendor-primary-dark: ' . htmlspecialchars($dark_color) . ';
 	--vendor-primary-light: ' . htmlspecialchars($light_color) . ';
+	--vendor-primary-hover: ' . htmlspecialchars($hover_color) . ';
+	--vendor-primary-transparent: ' . htmlspecialchars($transparent_color) . ';
 	--vendor-sidebar-bg: ' . htmlspecialchars($sidebar_color) . ';
 	--vendor-sidebar-text: #ffffff;
 	--vendor-sidebar-hover: rgba(255, 255, 255, 0.1);

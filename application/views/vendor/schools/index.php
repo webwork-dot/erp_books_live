@@ -71,6 +71,7 @@
 							<tr>
 								<td><?php echo $sr_no++; ?></td>
 								<td>
+									
 									<?php if (!empty($school['thumbnail'])): ?>
 										<?php
 										$stored_path = trim($school['thumbnail']);
@@ -123,6 +124,9 @@
 								</td>
 								<td><?php echo date('d M Y', strtotime($school['created_at'])); ?></td>
 								<td class="text-end">
+									<button type="button" class="btn btn-sm btn-outline-info view-school-btn" data-school-id="<?php echo $school['id']; ?>" data-bs-toggle="tooltip" title="View Details">
+										<i class="isax isax-eye"></i>
+									</button>
 									<a href="<?php echo base_url('schools/edit/' . $school['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
@@ -187,6 +191,36 @@
 		<?php endif; ?>
 	</div>
 </div>
+
+<!-- School Details Modal -->
+<div class="modal fade" id="schoolDetailsModal" tabindex="-1" aria-labelledby="schoolDetailsModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header py-2">
+				<h6 class="modal-title mb-0" id="schoolDetailsModalLabel">School Details</h6>
+				<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body py-2" id="schoolDetailsContent" style="max-height: 70vh; overflow-y: auto;">
+				<div class="text-center py-4">
+					<div class="spinner-border spinner-border-sm text-primary" role="status">
+						<span class="visually-hidden">Loading...</span>
+					</div>
+					<p class="mt-2 text-muted small">Loading school details...</p>
+				</div>
+			</div>
+			<div class="modal-footer py-2">
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+.badge-sm {
+	font-size: 0.7rem;
+	padding: 0.25em 0.5em;
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -285,6 +319,152 @@ document.addEventListener('DOMContentLoaded', function() {
 			});
 		});
 	});
+
+	// School Details Modal
+	const schoolDetailsModal = new bootstrap.Modal(document.getElementById('schoolDetailsModal'));
+	
+	document.querySelectorAll('.view-school-btn').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			const schoolId = this.getAttribute('data-school-id');
+			loadSchoolDetails(schoolId);
+		});
+	});
+
+	function loadSchoolDetails(schoolId) {
+		const modalContent = document.getElementById('schoolDetailsContent');
+		modalContent.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading school details...</p></div>';
+		
+		schoolDetailsModal.show();
+		
+		fetch('<?php echo base_url('schools/get_school_details/'); ?>' + schoolId)
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					displaySchoolDetails(data.school, data.branches);
+				} else {
+					modalContent.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Failed to load school details') + '</div>';
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				modalContent.innerHTML = '<div class="alert alert-danger">An error occurred while loading school details. Please try again.</div>';
+			});
+	}
+
+	function displaySchoolDetails(school, branches) {
+		const modalContent = document.getElementById('schoolDetailsContent');
+		const modalTitle = document.getElementById('schoolDetailsModalLabel');
+		
+		modalTitle.textContent = school.school_name || 'School Details';
+		
+		let html = '<div class="row g-2">';
+		
+		// School Image (compact)
+		if (school.images && school.images.length > 0) {
+			const primaryImage = school.images.find(img => img.is_primary == 1) || school.images[0];
+			const imageUrl = primaryImage.image_path.startsWith('http') ? primaryImage.image_path : '<?php echo get_vendor_domain_url(); ?>/' + primaryImage.image_path;
+			html += '<div class="col-md-12 mb-2 text-center">';
+			html += '<img src="' + imageUrl + '" alt="' + (school.school_name || 'School') + '" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;" onerror="this.onerror=null; this.src=\'<?php echo base_url('assets/template/img/placeholder-image.png'); ?>\'">';
+			html += '</div>';
+		}
+		
+		// School Basic Information (compact)
+		html += '<div class="col-md-6 mb-2">';
+		html += '<h6 class="text-primary mb-2 small"><i class="isax isax-building me-1"></i>Basic Info</h6>';
+		html += '<table class="table table-sm table-borderless mb-0" style="font-size: 0.875rem;">';
+		html += '<tr><td class="fw-bold p-1" style="width: 35%;">Name:</td><td class="p-1">' + (school.school_name || '-') + '</td></tr>';
+		html += '<tr><td class="fw-bold p-1">Affiliation:</td><td class="p-1">' + (school.affiliation_no || '-') + '</td></tr>';
+		html += '<tr><td class="fw-bold p-1">Strength:</td><td class="p-1">' + (school.total_strength || '-') + '</td></tr>';
+		html += '<tr><td class="fw-bold p-1">Status:</td><td class="p-1"><span class="badge bg-' + (school.status == 'active' ? 'success' : 'secondary') + ' badge-sm">' + (school.status ? school.status.charAt(0).toUpperCase() + school.status.slice(1) : '-') + '</span></td></tr>';
+		html += '<tr><td class="fw-bold p-1">Payment:</td><td class="p-1"><span class="badge bg-' + (school.is_block_payment == 1 ? 'danger' : 'success') + ' badge-sm">' + (school.is_block_payment == 1 ? 'Blocked' : 'Allowed') + '</span></td></tr>';
+		html += '<tr><td class="fw-bold p-1">National:</td><td class="p-1"><span class="badge bg-' + (school.is_national_block == 1 ? 'danger' : 'success') + ' badge-sm">' + (school.is_national_block == 1 ? 'Blocked' : 'Allowed') + '</span></td></tr>';
+		html += '</table>';
+		html += '</div>';
+		
+		// School Address & Contact (compact)
+		html += '<div class="col-md-6 mb-2">';
+		html += '<h6 class="text-primary mb-2 small"><i class="isax isax-location me-1"></i>Contact</h6>';
+		html += '<table class="table table-sm table-borderless mb-0" style="font-size: 0.875rem;">';
+		html += '<tr><td class="fw-bold p-1" style="width: 35%;">Address:</td><td class="p-1">' + (school.address || '-') + '</td></tr>';
+		html += '<tr><td class="fw-bold p-1">Location:</td><td class="p-1">' + (school.city_name || '-') + ', ' + (school.state_name || '-') + ' ' + (school.pincode || '') + '</td></tr>';
+		html += '<tr><td class="fw-bold p-1">Admin:</td><td class="p-1">' + (school.admin_name || '-') + '</td></tr>';
+		html += '<tr><td class="fw-bold p-1">Phone:</td><td class="p-1">' + (school.admin_phone || '-') + '</td></tr>';
+		html += '<tr><td class="fw-bold p-1">Email:</td><td class="p-1">' + (school.admin_email || '-') + '</td></tr>';
+		html += '</table>';
+		html += '</div>';
+		
+		// School Boards (compact)
+		if (school.boards && school.boards.length > 0) {
+			html += '<div class="col-md-12 mb-2">';
+			html += '<h6 class="text-primary mb-1 small"><i class="isax isax-book me-1"></i>Boards</h6>';
+			html += '<div class="d-flex flex-wrap gap-1">';
+			school.boards.forEach(function(board) {
+				html += '<span class="badge bg-info badge-sm">' + (board.board_name || '') + '</span>';
+			});
+			html += '</div>';
+			html += '</div>';
+		}
+		
+		// School Description (compact, only if exists)
+		if (school.school_description) {
+			html += '<div class="col-md-12 mb-2">';
+			html += '<h6 class="text-primary mb-1 small"><i class="isax isax-document-text me-1"></i>Description</h6>';
+			html += '<p class="text-muted small mb-0">' + school.school_description + '</p>';
+			html += '</div>';
+		}
+		
+		// Branches Section (compact with boards)
+		html += '<div class="col-md-12 mb-2">';
+		html += '<h6 class="text-primary mb-2 small"><i class="isax isax-building-3 me-1"></i>Branches (' + (branches ? branches.length : 0) + ')</h6>';
+		
+		if (branches && branches.length > 0) {
+			html += '<div class="table-responsive">';
+			html += '<table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">';
+			html += '<thead class="table-light">';
+			html += '<tr>';
+			html += '<th style="padding: 0.4rem;">Branch</th>';
+			html += '<th style="padding: 0.4rem;">Location</th>';
+			html += '<th style="padding: 0.4rem;">Boards</th>';
+			html += '<th style="padding: 0.4rem;">Status</th>';
+			html += '</tr>';
+			html += '</thead>';
+			html += '<tbody>';
+			branches.forEach(function(branch) {
+				html += '<tr>';
+				html += '<td style="padding: 0.4rem;"><strong>' + (branch.branch_name || '-') + '</strong>';
+				if (branch.address) {
+					html += '<br><small class="text-muted">' + branch.address + '</small>';
+				}
+				html += '</td>';
+				html += '<td style="padding: 0.4rem;">' + (branch.city_name || '-') + ', ' + (branch.state_name || '-');
+				if (branch.pincode) {
+					html += '<br><small class="text-muted">' + branch.pincode + '</small>';
+				}
+				html += '</td>';
+				html += '<td style="padding: 0.4rem;">';
+				if (branch.boards && branch.boards.length > 0) {
+					branch.boards.forEach(function(board) {
+						html += '<span class="badge bg-info badge-sm me-1 mb-1" style="font-size: 0.7rem;">' + (board.board_name || '') + '</span>';
+					});
+				} else {
+					html += '<span class="text-muted small">-</span>';
+				}
+				html += '</td>';
+				html += '<td style="padding: 0.4rem;"><span class="badge bg-' + (branch.status == 'active' ? 'success' : 'secondary') + ' badge-sm">' + (branch.status ? branch.status.charAt(0).toUpperCase() + branch.status.slice(1) : '-') + '</span></td>';
+				html += '</tr>';
+			});
+			html += '</tbody>';
+			html += '</table>';
+			html += '</div>';
+		} else {
+			html += '<div class="alert alert-info mb-0 py-2" style="font-size: 0.875rem;">No branches found for this school.</div>';
+		}
+		html += '</div>';
+		
+		html += '</div>';
+		
+		modalContent.innerHTML = html;
+	}
 });
 </script>
 

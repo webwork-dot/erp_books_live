@@ -116,6 +116,7 @@ $route['schools/get_boards'] = 'Vendor/schools/get_boards';
 $route['schools/boards'] = 'Vendor/schools/boards';
 $route['schools/update_board'] = 'Vendor/schools/update_board';
 $route['schools/delete_board'] = 'Vendor/schools/delete_board';
+$route['schools/get_school_details/(:num)'] = 'Vendor/schools/get_school_details/$1';
 $route['schools/toggle_payment_block'] = 'Vendor/schools/toggle_payment_block';
 $route['schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block';
 $route['schools/toggle_status'] = 'Vendor/schools/toggle_status';
@@ -141,6 +142,7 @@ $route['orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_deliv
 $route['orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';
 $route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$1';
 $route['orders/view/(:any)'] = 'Vendor/orders/view/$1';
+$route['orders/download_invoice/(:any)'] = 'Vendor/orders/download_invoice/$1';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';

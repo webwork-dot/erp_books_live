@@ -122,7 +122,7 @@
                <form method="get" action="<?php echo base_url('orders/' . $order_status); ?>" class="row">
                   <div class="col-md-4">
                      <label>Keywords</label>
-                     <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone, Invoice No...">
+                     <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone, Invoice Number...">
                   </div>
                   <!-- <div class="col-md-4">
                      <label>Date Range</label>
@@ -219,7 +219,7 @@
                               <th>Payment Method</th>
                               <th>Payment Id</th>
                               <th>Coupon Code</th>
-                              <th>Invoice No</th>
+                              <th>Invoice Number</th>
                               <th class="cat_action_list">Action</th>
                            </tr>
                         </thead>
@@ -238,7 +238,7 @@
                                           </div>
                                        </td>
                                     <?php endif; ?>
-                                    <td><a href="<?php echo site_url($vendor_domain . "/orders/view/" . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
+                                    <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
                                     <td><?php echo $item['source']; ?></td>
                                     <td><?php echo $item['user_name']; ?></td>
                                     <td><?php echo $item['user_phone']; ?></td>
@@ -249,7 +249,7 @@
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
-                                       <a href="<?php echo site_url($vendor_domain . "/orders/view/" . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                       <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                                     </td>
                                  </tr>
                               <?php endforeach; 

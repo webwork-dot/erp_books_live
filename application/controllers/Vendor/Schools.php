@@ -441,6 +441,124 @@ class Schools extends Vendor_base
 	}
 	
 	/**
+	 * View school details
+	 *
+	 * @param	int	$school_id	School ID
+	 * @return	void
+	 */
+	/**
+	 * Get school details for modal (AJAX)
+	 *
+	 * @param	int	$school_id	School ID
+	 * @return	void
+	 */
+	public function get_school_details($school_id)
+	{
+		// Get school
+		$school = $this->School_model->getSchoolById($school_id, $this->current_vendor['id']);
+		
+		if (!$school)
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode(array(
+					'success' => false,
+					'message' => 'School not found'
+				)));
+			return;
+		}
+		
+		// Get school boards
+		$board_ids = $this->School_model->getSchoolBoardIds($school_id);
+		$boards = array();
+		if (!empty($board_ids))
+		{
+			foreach ($board_ids as $board_id)
+			{
+				$board = $this->School_board_model->getBoardById($board_id, $this->current_vendor['id']);
+				if ($board)
+				{
+					$boards[] = $board;
+				}
+			}
+		}
+		$school['boards'] = $boards;
+		
+		// Get school images
+		$school['images'] = $this->School_model->getSchoolImages($school_id);
+		
+		// Get all branches for this school
+		$branches = $this->Branch_model->getBranchesBySchool($school_id, $this->current_vendor['id']);
+		
+		// Get boards for each branch (branches inherit boards from parent school)
+		foreach ($branches as &$branch)
+		{
+			$branch['boards'] = $boards; // Branches use the same boards as parent school
+		}
+		unset($branch);
+		
+		// Format response
+		$response = array(
+			'success' => true,
+			'school' => $school,
+			'branches' => $branches
+		);
+		
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode($response));
+	}
+	
+	public function view($school_id)
+	{
+		// Get school
+		$school = $this->School_model->getSchoolById($school_id, $this->current_vendor['id']);
+		
+		if (!$school)
+		{
+			show_404();
+		}
+		
+		// Get school boards
+		$board_ids = $this->School_model->getSchoolBoardIds($school_id);
+		$boards = array();
+		if (!empty($board_ids))
+		{
+			foreach ($board_ids as $board_id)
+			{
+				$board = $this->School_board_model->getBoardById($board_id, $this->current_vendor['id']);
+				if ($board)
+				{
+					$boards[] = $board;
+				}
+			}
+		}
+		$school['boards'] = $boards;
+		
+		// Get school images
+		$school['images'] = $this->School_model->getSchoolImages($school_id);
+		
+		// Get all branches for this school
+		$branches = $this->Branch_model->getBranchesBySchool($school_id, $this->current_vendor['id']);
+		
+		$data['school'] = $school;
+		$data['branches'] = $branches;
+		$data['title'] = 'School Details - ' . $school['school_name'];
+		$data['current_vendor'] = $this->current_vendor;
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
+		$data['breadcrumb'] = array(
+			array('label' => 'Schools', 'url' => $this->current_vendor['domain'] . '/schools'),
+			array('label' => 'View Details', 'active' => true)
+		);
+		
+		// Load content view
+		$data['content'] = $this->load->view('vendor/schools/view', $data, TRUE);
+		
+		// Load main layout
+		$this->load->view('vendor/layouts/index_template', $data);
+	}
+	
+	/**
 	 * Delete school
 	 *
 	 * @param	int	$school_id	School ID

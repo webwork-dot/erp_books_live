@@ -808,6 +808,188 @@ class Orders extends Vendor_base
 		}
 	}
 
+	/**
+	 * Download invoice for an order
+	 *
+	 * @param	string	$order_no	Order unique ID
+	 * @return	void
+	 */
+	public function download_invoice($order_no)
+	{
+		// Get order details
+		$order_data = $this->Order_model->get_order($order_no);
+		
+		if (!$order_data || empty($order_data))
+		{
+			show_error('Order not found', 404);
+			return;
+		}
+		
+		$order = $order_data[0];
+		$order_id = $order->id;
+		
+		// Check if invoice already exists
+		if (!empty($order->invoice_url) && file_exists($order->invoice_url))
+		{
+			// Download existing invoice
+			$this->load->helper('download');
+			$data = file_get_contents($order->invoice_url);
+			$name = 'invoice_' . $order->order_unique_id . '.pdf';
+			force_download($name, $data);
+			return;
+		}
+		
+		// Generate invoice on the fly - get order details from tbl_order_details
+		$this->db->select('*');
+		$this->db->from('tbl_order_details');
+		$this->db->where('id', $order_id);
+		$this->db->where('(payment_status="success" OR payment_status="cod" OR payment_method="cod")');
+		$query = $this->db->get();
+		
+		if ($query->num_rows() == 0)
+		{
+			show_error('Order details not found', 404);
+			return;
+		}
+		
+		$order_row = $query->row_array();
+		$order_address_id = $order_row['order_address'];
+		
+		// Get order address
+		$shipping = array();
+		if (!empty($order_address_id))
+		{
+			$this->db->select('*');
+			$this->db->from('tbl_order_address');
+			$this->db->where('order_id', $order_id);
+			$this->db->limit(1);
+			$address_query = $this->db->get();
+			if ($address_query->num_rows() > 0)
+			{
+				$shipping = $address_query->row_array();
+			}
+		}
+		
+		// Get order items
+		$this->db->select('id,product_id,product_title,product_sku,product_qty,variation_name,product_mrp,product_price,product_gst,total_gst_amt,total_price,discount_amt,hsn,excl_price,excl_price_total');
+		$this->db->from('tbl_order_items');
+		$this->db->where('order_id', $order_id);
+		$items_query = $this->db->get();
+		$products = $items_query->result_array();
+		
+		// Calculate totals
+		$gst_total = 0;
+		$total_product_discount = 0;
+		foreach ($products as $product)
+		{
+			$gst_total += isset($product['total_gst_amt']) ? $product['total_gst_amt'] : 0;
+			$total_product_discount += isset($product['discount_amt']) ? $product['discount_amt'] : 0;
+		}
+		
+		// Format order details for invoice view
+		$order_details = array(
+			'id' => $order_row['id'],
+			'order_unique_id' => $order_row['order_unique_id'],
+			'user_name' => $order_row['user_name'],
+			'user_email' => $order_row['user_email'],
+			'user_phone' => $order_row['user_phone'],
+			'order_date' => date("d M Y | h:i A", strtotime($order_row['order_date'])),
+			'invoice_date' => !empty($order_row['invoice_date']) ? date("d M Y", strtotime($order_row['invoice_date'])) : date("d M Y"),
+			'invoice_no' => !empty($order_row['invoice_no']) ? $order_row['invoice_no'] : '',
+			'payable_amt' => $order_row['payable_amt'],
+			'discount_amt' => $order_row['discount_amt'],
+			'delivery_charge' => isset($order_row['delivery_charge']) ? $order_row['delivery_charge'] : 0,
+			'payment_method' => $order_row['payment_method'],
+			'currency' => isset($order_row['currency']) ? $order_row['currency'] : 'INR',
+			'currency_code' => isset($order_row['currency_code']) ? $order_row['currency_code'] : '₹',
+			'shipping' => $shipping,
+			'products' => $products,
+			'gst_total' => $gst_total,
+			'total_product_discount' => $total_product_discount,
+			'freight_charges' => isset($order_row['freight_charges']) ? $order_row['freight_charges'] : 0,
+			'freight_gst' => isset($order_row['freight_gst']) ? $order_row['freight_gst'] : 0,
+			'freight_charges_excl' => isset($order_row['freight_charges_excl']) ? $order_row['freight_charges_excl'] : 0,
+			'freight_gst_per' => isset($order_row['freight_gst_per']) ? $order_row['freight_gst_per'] : 0,
+		);
+		
+		// Generate invoice number if not exists
+		if (empty($order_details['invoice_no']))
+		{
+			$invoice_no = 'INV' . date('Ymd') . str_pad($order_id, 6, '0', STR_PAD_LEFT);
+			$this->db->where('id', $order_id);
+			$this->db->update('tbl_order_details', array('invoice_no' => $invoice_no));
+			$order_details['invoice_no'] = $invoice_no;
+		}
+		
+		// Load PDF library
+		$this->load->library('pdf');
+
+		// Suppress deprecation warnings from dompdf HTML5 parser
+		error_reporting(E_ALL & ~E_DEPRECATED);
+
+		// Prepare data for invoice view
+		$page_data['data'] = $order_details;
+		
+		// Try to load invoice view from frontend
+		$frontend_view_path = FCPATH . 'book_erp_frontend/application/views/invoice/invoice_bill.php';
+		if (file_exists($frontend_view_path))
+		{
+			// Load view from frontend
+			ob_start();
+			extract($page_data);
+			include($frontend_view_path);
+			$html_content = ob_get_clean();
+		}
+		else
+		{
+			// Fallback: try application views
+			$invoice_view_path = APPPATH . 'views/invoice/invoice_bill.php';
+			if (file_exists($invoice_view_path))
+			{
+				$html_content = $this->load->view('invoice/invoice_bill', $page_data, TRUE);
+			}
+			else
+			{
+				show_error('Invoice template not found', 500);
+				return;
+			}
+		}
+		
+		// Generate PDF
+		$this->pdf->set_paper("A4", "portrait");
+
+		// Suppress deprecation warnings during PDF generation
+		$old_error_reporting = error_reporting();
+		error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
+		try {
+			$this->pdf->set_option('isHtml5ParserEnabled', TRUE);
+			$this->pdf->load_html($html_content);
+			$this->pdf->render();
+
+			// Stream PDF for download
+			$pdfname = 'invoice_' . $order->order_unique_id . '.pdf';
+			$this->pdf->stream($pdfname, array("Attachment" => 1));
+			exit();
+		} catch (Exception $e) {
+			// If HTML5 parser fails, try without it
+			error_reporting($old_error_reporting);
+			$this->pdf = new Pdf(); // Reinitialize PDF object
+			$this->pdf->set_paper("A4", "portrait");
+			$this->pdf->set_option('isHtml5ParserEnabled', FALSE);
+			$this->pdf->load_html($html_content);
+			$this->pdf->render();
+
+			// Stream PDF for download
+			$pdfname = 'invoice_' . $order->order_unique_id . '.pdf';
+			$this->pdf->stream($pdfname, array("Attachment" => 1));
+			exit();
+		}
+
+		// Restore original error reporting
+		error_reporting($old_error_reporting);
+	}
+
 
 }
 

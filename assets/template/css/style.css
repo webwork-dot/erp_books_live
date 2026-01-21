@@ -77,13 +77,13 @@
   --topbar-breadcrumb-hover-color: var(--primary);
   --menu-title: var(--gray-900);
   --menu-bg: var(--light);
-  --menu-item-color: var(--gray-500);
+  --menu-item-color: #ffffff;
   --menu-item-hover-color: var(--primary);
   --menu-item-heading: var(--gray-900);
   --menu-item-active-color: var(--primary);
   --menu-item-active-bg:var(--white);
   --menu-active-color: var(--primary);
-  --primary: #7539FF;
+  --primary: var(--vendor-primary, #7539FF);
   --secondary: #2E3B48;
   --light: #F7F8F9;
   --dark: #262626;
@@ -141,7 +141,7 @@
   --light-transparent: #FDFDFE;
   --orange-transparent: #FDF6F3;
   --pink-transparent: #FDF4F9;
-  --primary-transparent: #F8F5FF;
+  --primary-transparent: var(--vendor-primary-transparent, #F8F5FF);
   --purple-transparent: #F9F2F9;
   --secondary-transparent: #E0E2E4;
   --success-transparent: #F4FBF7;

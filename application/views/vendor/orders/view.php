@@ -51,11 +51,21 @@ $ci = &get_instance();
           <div class="col-3 col-md-2">
             <div class="search_list">
               <div class="add_btn_primary">
-                <a href="<?php echo ($order_data[0]->order_status != 5 && !empty($order_data[0]->invoice_url)) ? base_url($order_data[0]->invoice_url) : 'javascript:void(0)';?>"
-                  class="btn btn-success"
-                  <?php echo ($order_data[0]->order_status != 5 && !empty($order_data[0]->invoice_url)) ? 'target="_blank"' : '' ?>>
-                  <i class="fa fa-download"></i> Invoice
-                </a>
+                <?php if ($order_data[0]->order_status != 5): ?>
+                  <?php if (!empty($order_data[0]->invoice_url)): ?>
+                    <a href="<?php echo base_url($order_data[0]->invoice_url); ?>" class="btn btn-success" target="_blank">
+                      <i class="fa fa-download"></i> Invoice
+                    </a>
+                  <?php else: ?>
+                    <a href="<?php echo base_url('orders/download_invoice/' . $order_data[0]->order_unique_id); ?>" class="btn btn-success" target="_blank">
+                      <i class="fa fa-download"></i> Invoice
+                    </a>
+                  <?php endif; ?>
+                <?php else: ?>
+                  <a href="javascript:void(0);" class="btn btn-success disabled" title="Invoice not available for cancelled orders">
+                    <i class="fa fa-download"></i> Invoice
+                  </a>
+                <?php endif; ?>
               </div>
             </div>
           </div>
@@ -74,7 +84,7 @@ $ci = &get_instance();
                 </div>
 
                 <div style="font-size: 14px;margin-top: 5px">
-                  <strong style="font-weight: 500;color: #575757">Invoice No</strong>:&nbsp;&nbsp;&nbsp;<?= ($order_data[0]->invoice_no != '' ? $order_data[0]->invoice_no : '-') ;?>
+                  <strong style="font-weight: 500;color: #575757">Invoice Number</strong>:&nbsp;&nbsp;&nbsp;<?= ($order_data[0]->invoice_no != '' ? $order_data[0]->invoice_no : '-') ;?>
                 </div>
 
                 <div style="font-size: 14px;margin-top: 5px">
@@ -243,8 +253,10 @@ $ci = &get_instance();
 
                             if ($img_query->num_rows() > 0) {
                               $image_path = $img_query->row()->image_path;
-                              // Handle path format
-                              if (strpos($image_path, 'assets/uploads/') === 0) {
+                              // Handle path format - ensure assets/uploads/ prefix is always present
+                              if (strpos($image_path, 'http://') === 0 || strpos($image_path, 'https://') === 0) {
+                                $product_image = $image_path;
+                              } elseif (strpos($image_path, 'assets/uploads/') === 0) {
                                 $product_image = $image_path;
                               } elseif (strpos($image_path, 'vendors/') === 0) {
                                 $product_image = 'assets/uploads/' . $image_path;
@@ -257,9 +269,14 @@ $ci = &get_instance();
                         <tr>
                           <td class="thick-line bdr_left" style="width: 100px;">
                             <?php if (!empty($product_image)): 
-                              $img_url = (strpos($product_image, 'http') === 0) ? $product_image : base_url($product_image);
+                              // Always use base_url() to construct the full URL
+                              if (strpos($product_image, 'http://') === 0 || strpos($product_image, 'https://') === 0) {
+                                $img_url = $product_image;
+                              } else {
+                                $img_url = base_url($product_image);
+                              }
                             ?>
-                              <img src="<?= $img_url ?>" style="height: 115px;width: auto;border: 1px solid #ddd;border-radius:2px;max-width: 100px;" />
+                              <img src="<?= $img_url ?>" style="height: 115px;width: auto;border: 1px solid #ddd;border-radius:2px;max-width: 100px;" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />
                             <?php else: ?>
                               <div style="height: 115px;width: 100px;border: 1px solid #ddd;border-radius:2px;display: flex;align-items: center;justify-content: center;background: #f5f5f5;">
                                 <i class="fa fa-image" style="font-size: 24px;color: #ccc;"></i>

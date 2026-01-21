@@ -4,7 +4,7 @@
 			<div class="sidebar" id="sidebar-two">
 
 				<!-- Start Logo -->
-				<div class="sidebar-logo" style="background-color: #ffffff;">
+				<div class="sidebar-logo" style="background-color: #ffffff;width: 200px;">
 					<?php 
 					// Get logo from vendor database (erp_clients.logo field)
 					$logo_url = '';
@@ -72,24 +72,52 @@
 							<li class="menu-title"><span>Management</span></li>
 							<li>
 								<ul>
+									<?php
+									// Helper variables for better submenu logic
+									$current_uri = uri_string();
+									$is_schools_section = (
+										strpos($current_uri, 'schools') !== false ||
+										strpos($current_uri, 'branches') !== false ||
+										strpos($current_uri, 'boards') !== false
+									);
+									$is_orders_section = (
+										strpos($current_uri, 'orders') !== false ||
+										(isset($current_page) && in_array($current_page, ['Orders', 'Order Details']))
+									);
+
+									// Schools submenu states
+									$schools_parent_active = $is_schools_section ? 'active subdrop' : '';
+									$schools_all_active = ($current_uri === 'schools' || $current_uri === 'schools/index') ? 'active' : '';
+									$schools_branches_active = strpos($current_uri, 'branches') !== false ? 'active' : '';
+									$schools_boards_active = strpos($current_uri, 'schools/boards') !== false ? 'active' : '';
+
+									// Orders submenu states
+									$orders_parent_active = $is_orders_section ? 'active subdrop' : '';
+									$orders_all_active = ($current_uri === 'orders' || $current_uri === 'orders/index') ? 'active' : '';
+									$orders_pending_active = strpos($current_uri, 'orders/pending-orders') !== false ? 'active' : '';
+									$orders_cancelled_active = strpos($current_uri, 'orders/cancelled-orders') !== false ? 'active' : '';
+									$orders_processing_active = strpos($current_uri, 'orders/processing') !== false ? 'active' : '';
+									$orders_delivered_active = strpos($current_uri, 'orders/delivered') !== false ? 'active' : '';
+									$orders_return_active = strpos($current_uri, 'orders/return') !== false ? 'active' : '';
+									?>
 									<li class="submenu">
-										<a href="javascript:void(0);" class="<?php echo (strpos(uri_string(), 'schools') !== false || strpos(uri_string(), 'boards') !== false || strpos(uri_string(), 'branches') !== false) ? 'active subdrop' : ''; ?>">
+										<a href="javascript:void(0);" class="<?php echo $schools_parent_active; ?>">
 											<i class="isax isax-building-4"></i><span>Schools</span>
 											<span class="menu-arrow"></span>
 										</a>
 										<ul>
 											<li>
-												<a href="<?php echo base_url('schools'); ?>" class="<?php echo (strpos(uri_string(), 'schools') !== false && strpos(uri_string(), 'boards') === false && strpos(uri_string(), 'branches') === false) ? 'active' : ''; ?>">
+												<a href="<?php echo base_url('schools'); ?>" class="<?php echo $schools_all_active; ?>">
 													All Schools
 												</a>
 											</li>
 											<li>
-												<a href="<?php echo base_url('branches'); ?>" class="<?php echo (strpos(uri_string(), 'branches') !== false) ? 'active' : ''; ?>">
+												<a href="<?php echo base_url('branches'); ?>" class="<?php echo $schools_branches_active; ?>">
 													Branches
 												</a>
 											</li>
 											<li>
-												<a href="<?php echo base_url('schools/boards'); ?>" class="<?php echo (strpos(uri_string(), 'boards') !== false) ? 'active' : ''; ?>">
+												<a href="<?php echo base_url('schools/boards'); ?>" class="<?php echo $schools_boards_active; ?>">
 													Boards
 												</a>
 											</li>
@@ -97,24 +125,44 @@
 									</li>
 
 									<li class="submenu">
-										<a href="javascript:void(0);" class="<?php echo (strpos(uri_string(), 'orders') !== false || strpos(uri_string(), 'orders/pending-orders') !== false || strpos(uri_string(), 'orders/cancelled-orders') !== false) ? 'active subdrop' : ''; ?>">
-											<i class="isax isax-building-4"></i><span>Orders</span>
+										<a href="javascript:void(0);" class="<?php echo $orders_parent_active; ?>">
+											<i class="isax isax-shopping-cart"></i><span>Orders</span>
 											<span class="menu-arrow"></span>
 										</a>
 										<ul>
 											<li>
-												<a href="<?php echo base_url('orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders') !== false) ? 'active' : ''; ?>">
-												All Orders
+												<a href="<?php echo base_url('orders'); ?>" class="<?php echo $orders_all_active; ?>">
+													All Orders
 												</a>
 											</li>
 											<li>
-												<a href="<?php echo base_url('orders/pending-orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders/pending-orders') !== false) ? 'active' : ''; ?>">
-												Pending Orders
+												<a href="<?php echo base_url('orders/pending-orders'); ?>" class="<?php echo $orders_pending_active; ?>">
+													Pending Orders
 												</a>
 											</li>
 											<li>
-												<a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders/cancelled-orders') !== false) ? 'active' : ''; ?>">
-												Cancelled Orders
+												<a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="<?php echo $orders_cancelled_active; ?>">
+													Cancelled Orders
+												</a>
+											</li>
+											<li>
+												<a href="<?php echo base_url('orders/processing'); ?>" class="<?php echo $orders_processing_active; ?>">
+													Processing
+												</a>
+											</li>
+											<li>
+												<a href="<?php echo base_url('orders/out_for_delivery'); ?>" class="<?php echo $orders_delivered_active; ?>">
+													Out for Delivery
+												</a>
+											</li>
+											<li>
+												<a href="<?php echo base_url('orders/delivered'); ?>" class="<?php echo $orders_delivered_active; ?>">
+													Delivered
+												</a>
+											</li>
+											<li>
+												<a href="<?php echo base_url('orders/return'); ?>" class="<?php echo $orders_return_active; ?>">
+													Return/Refund
 												</a>
 											</li>
 										</ul>

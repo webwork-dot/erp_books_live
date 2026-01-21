@@ -189,80 +189,17 @@
 						<?php $sr_no = (($current_page - 1) * $per_page) + 1; foreach ($uniforms as $uniform): ?>
 							<tr>
 								<td>
-									<?php if (!empty($uniform['thumbnail'])): ?>
-										<?php 
-										// Handle both old and new image path formats
+									<?php
 										$stored_path = trim($uniform['thumbnail']);
-										
-										// Build array of possible paths to try
-										$possible_paths = array();
-										
-										// If path already includes assets/uploads/, use as is
-										if (strpos($stored_path, 'assets/uploads/') !== false) {
-											$possible_paths[] = $stored_path;
+										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+											$image_url = $stored_path;
+										} else {
+											$image_url = get_vendor_domain_url().'/' . $stored_path;
 										}
-										// New format: vendors/{vendor_id}/uniforms/images/{filename}
-										elseif (strpos($stored_path, 'vendors/') === 0) {
-											$possible_paths[] = 'assets/uploads/' . $stored_path;
-										}
-										// Old format 1: uploads/uniforms/{vendor_id}/{filename}
-										elseif (strpos($stored_path, 'uploads/uniforms/') === 0) {
-											$possible_paths[] = 'assets/' . $stored_path;
-											$possible_paths[] = $stored_path; // Also try root level
-										}
-										// Old format 2: uniforms/{vendor_id}/{filename} (without uploads/ prefix)
-										elseif (strpos($stored_path, 'uniforms/') === 0 && strpos($stored_path, 'uploads/') === false) {
-											// Try root level uploads/ first (where old files likely are)
-											$possible_paths[] = 'uploads/' . $stored_path;
-											// Then try assets/uploads/
-											$possible_paths[] = 'assets/uploads/' . $stored_path;
-										}
-										// Old format: uploads/... (any other uploads path)
-										elseif (strpos($stored_path, 'uploads/') === 0) {
-											$possible_paths[] = $stored_path; // Root level
-											$possible_paths[] = 'assets/' . $stored_path; // Assets level
-										}
-										// If path doesn't start with any known prefix
-										else {
-											$possible_paths[] = 'uploads/' . ltrim($stored_path, '/');
-											$possible_paths[] = 'assets/uploads/' . ltrim($stored_path, '/');
-										}
-										
-										// Use first path as primary, others as fallbacks
-										$image_url = base_url($possible_paths[0]);
-										$fallback_urls = array_slice($possible_paths, 1);
-										?>
-										<img src="<?php echo $image_url; ?>" 
-											<?php if (!empty($fallback_urls)): ?>data-fallbacks="<?php echo htmlspecialchars(json_encode(array_map(function($p) { return base_url($p); }, $fallback_urls))); ?>"<?php endif; ?>
-											alt="Uniform" 
-											style="width: 50px; height: 60px; object-fit: cover; border-radius: 4px;" 
-											onerror="(function(img) {
-												var fallbacks = img.getAttribute('data-fallbacks');
-												if (fallbacks) {
-													try {
-														var urls = JSON.parse(fallbacks);
-														var currentIndex = parseInt(img.getAttribute('data-fallback-index') || '0');
-														if (currentIndex < urls.length) {
-															img.setAttribute('data-fallback-index', currentIndex + 1);
-															img.src = urls[currentIndex];
-															return;
-														}
-													} catch(e) {}
-												}
-												img.style.display = 'none';
-												var placeholder = document.createElement('div');
-												placeholder.style.cssText = 'width: 50px; height: 60px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;';
-												var icon = document.createElement('i');
-												icon.className = 'isax isax-image';
-												icon.style.cssText = 'font-size: 20px; color: #999;';
-												placeholder.appendChild(icon);
-												img.parentNode.appendChild(placeholder);
-											})(this)">
-									<?php else: ?>
-										<div style="width: 50px; height: 60px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-											<i class="isax isax-image" style="font-size: 20px; color: #999;"></i>
-										</div>
-									<?php endif; ?>
+									?>
+									<img src="<?php echo $image_url; ?>" alt="Uniform" style="width: 50px; height: 60px; object-fit: cover; border-radius: 4px;">
+
+								
 								</td>
 								<td>
 									<strong><?php echo htmlspecialchars($uniform['product_name']); ?></strong>

@@ -1585,6 +1585,87 @@ if (!function_exists('generate_vendor_css')) {
     }
 }
 
+if (!function_exists('build_uniform_image_url')) {
+    function build_uniform_image_url($stored_path, $width = 120, $height = 120, $with_fallbacks = true) {
+        if (empty($stored_path)) {
+            return '';
+        }
+
+        $stored_path = trim($stored_path);
+
+        // Build array of possible paths to try
+        $possible_paths = array();
+
+        // If path already includes assets/uploads/, use as is
+        if (strpos($stored_path, 'assets/uploads/') !== false) {
+            $possible_paths[] = $stored_path;
+        }
+        // New format: vendors/{vendor_id}/uniforms/images/{filename}
+        elseif (strpos($stored_path, 'vendors/') === 0) {
+            $possible_paths[] = 'assets/uploads/' . $stored_path;
+        }
+        // Old format 1: uploads/uniforms/{vendor_id}/{filename}
+        elseif (strpos($stored_path, 'uploads/uniforms/') === 0) {
+            $possible_paths[] = 'assets/' . $stored_path;
+            $possible_paths[] = $stored_path; // Also try root level
+        }
+        // Old format 2: uniforms/{vendor_id}/{filename} (without uploads/ prefix)
+        elseif (strpos($stored_path, 'uniforms/') === 0 && strpos($stored_path, 'uploads/') === false) {
+            // Try root level uploads/ first (where old files likely are)
+            $possible_paths[] = 'uploads/' . $stored_path;
+            // Then try assets/uploads/
+            $possible_paths[] = 'assets/uploads/' . $stored_path;
+        }
+        // Old format: uploads/... (any other uploads path)
+        elseif (strpos($stored_path, 'uploads/') === 0) {
+            $possible_paths[] = $stored_path; // Root level
+            $possible_paths[] = 'assets/' . $stored_path; // Assets level
+        }
+        // If path doesn't start with any known prefix
+        else {
+            $possible_paths[] = 'uploads/' . ltrim($stored_path, '/');
+            $possible_paths[] = 'assets/uploads/' . ltrim($stored_path, '/');
+        }
+
+        // Use first path as primary, others as fallbacks
+        $image_url = base_url($possible_paths[0]);
+        $fallback_urls = array_slice($possible_paths, 1);
+
+        $style = "width: {$width}px; height: {$height}px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px; display: block;";
+
+        $html = "<img src=\"{$image_url}\" alt=\"Uniform Image\" style=\"{$style}\"";
+
+        if ($with_fallbacks && !empty($fallback_urls)) {
+            $html .= " data-fallbacks=\"" . htmlspecialchars(json_encode(array_map(function($p) { return base_url($p); }, $fallback_urls))) . "\"";
+        }
+
+        $html .= " onerror=\"(function(img) {
+            var fallbacks = img.getAttribute('data-fallbacks');
+            if (fallbacks) {
+                try {
+                    var urls = JSON.parse(fallbacks);
+                    var currentIndex = parseInt(img.getAttribute('data-fallback-index') || '0');
+                    if (currentIndex < urls.length) {
+                        img.setAttribute('data-fallback-index', currentIndex + 1);
+                        img.src = urls[currentIndex];
+                        return;
+                    }
+                } catch(e) {}
+            }
+            img.style.display = 'none';
+            var placeholder = document.createElement('div');
+            placeholder.style.cssText = 'width: {$width}px; height: {$height}px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;';
+            var icon = document.createElement('i');
+            icon.className = 'isax isax-image';
+            icon.style.cssText = 'font-size: 20px; color: #999;';
+            placeholder.appendChild(icon);
+            img.parentNode.appendChild(placeholder);
+        })(this)\">";
+
+        return $html;
+    }
+}
+
 // ------------------------------------------------------------------------
 /* End of file common_helper.php */
 /* Location: ./system/helpers/common.php */

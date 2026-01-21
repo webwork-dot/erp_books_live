@@ -31,9 +31,19 @@
 										}
 									endforeach;
 									?>
+									<?php
+										$stored_path = trim($img['image_path']);
+										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+											$image_url = $stored_path;
+										} else {
+											$image_url = get_vendor_domain_url().'/' . $stored_path;
+										}
+										?>
+
+
 									<?php foreach ($uniform_images as $img): ?>
 										<div class="image-preview-item existing-image" data-image-id="<?php echo $img['id']; ?>" style="position: relative; display: inline-block; margin: 3px; cursor: move; vertical-align: top;">
-											<img src="<?php echo base_url('assets/uploads/' . ltrim($img['image_path'], '/')); ?>" alt="Uniform Image" style="width: 120px; height: 120px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px 4px 0 0; display: block;">
+											<img src="<?php echo $image_url; ?>" alt="Uniform Image" style="width: 120px; height: 120px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px 4px 0 0; display: block;">
 											<div class="image-buttons" style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.75); display: flex; gap: 2px; padding: 3px; border-radius: 0 0 4px 4px;">
 												<button type="button" class="btn btn-sm set-main-existing-btn" data-image-id="<?php echo $img['id']; ?>" style="font-size: 10px; padding: 3px 6px; flex: 1; line-height: 1.2; border: none; white-space: nowrap; <?php echo ($img['id'] == $main_image_id) ? 'background: #28a745; color: #fff;' : 'background: #007bff; color: #fff;'; ?>">
 													<?php echo ($img['id'] == $main_image_id) ? 'Main' : 'Set Main'; ?>

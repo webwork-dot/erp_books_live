@@ -11,11 +11,11 @@
     --bg-header: #FFFFFF;
     --bg-card: #f7f8f9;
     
-    /* Primary (Purple) */
-    --primary: #7539ff;
-    --primary-soft: #F3EFFF;
-    --primary-dark: #5B2ECC;
-    --primary-color: #7539ff;
+    /* Primary (Dynamic - matches admin-assigned sidebar color) */
+    --primary: var(--vendor-primary, #7539ff);
+    --primary-soft: var(--vendor-primary-light, #F3EFFF);
+    --primary-dark: var(--vendor-primary-dark, #5B2ECC);
+    --primary-color: var(--vendor-primary, #7539ff);
     
     /* Secondary (Education Green) */
     --secondary: #22C55E;
@@ -32,7 +32,7 @@
     /* Success/Info/Warning/Danger */
     --success-color: #22C55E;
     --success: #22C55E;
-    --info-color: #7539ff;
+    --info-color: var(--vendor-primary, #7539ff);
     --warning-color: #FACC15;
     --danger-color: #DC2626;
     --danger: #DC2626;

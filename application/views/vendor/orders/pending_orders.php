@@ -120,7 +120,7 @@
                      if (!empty($order_list)):
                         foreach ($order_list as $key => $item): ?>
                            <tr class="item_holder">
-                              <td><a href="<?php echo site_url($vendor_domain . "/orders/view/" . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
+                              <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
                               <td><?php echo isset($item['order_type']) ? $item['order_type'] : '-'; ?></td>
                               <td><?php echo $item['user_name']; ?></td>
                               <td><?php echo $item['user_phone']; ?></td>
@@ -134,7 +134,7 @@
                               <td><?php echo $item['payment_id']; ?></td>
                               <td><?php echo isset($item['razorpay_order_id']) ? $item['razorpay_order_id'] : '-'; ?></td>
                               <td nowrap="">
-                                 <a href="<?php echo site_url($vendor_domain . "/orders/view/" . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                 <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                               </td>
                            </tr>
                         <?php endforeach; 

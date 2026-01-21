@@ -113,7 +113,7 @@
                         <th>Payment Status</th>
                         <th>Payment ID</th>
                         <th>Razorpay Order ID</th>
-                        <th>Invoice No</th>
+                        <th>Invoice Number</th>
                         <th>Remark</th>
                         <th class="cat_action_list">Action</th>
                      </tr>
@@ -123,7 +123,7 @@
                      if (!empty($order_list)):
                         foreach ($order_list as $key => $item): ?>
                            <tr class="item_holder">
-                              <td><a href="<?php echo site_url($vendor_domain . "/orders/view/" . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
+                              <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
                               <td><?php echo isset($item['order_type']) ? $item['order_type'] : '-'; ?></td>
                               <td><?php echo isset($item['user_id']) ? $item['user_id'] : '-'; ?></td>
                               <td><?php echo $item['order_date']; ?></td>
@@ -140,7 +140,7 @@
                               <td><?php echo isset($item['invoice_no']) ? $item['invoice_no'] : '-'; ?></td>
                               <td><?php echo isset($item['remark']) && !empty($item['remark']) ? htmlspecialchars($item['remark']) : '-'; ?></td>
                               <td nowrap="">
-                                 <a href="<?php echo site_url($vendor_domain . "/orders/view/" . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                 <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                               </td>
                            </tr>
                         <?php endforeach; 
