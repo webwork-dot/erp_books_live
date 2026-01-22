@@ -28,6 +28,7 @@ class Vendors extends Erp_base
 		$this->load->model('Erp_client_model');
 		$this->load->model('Erp_feature_model');
 		$this->load->model('Erp_user_model');
+		$this->load->model('Vendor_sync_model');
 		$this->load->library('form_validation');
 		$this->load->library('Tenant');
 	}
@@ -294,6 +295,19 @@ class Vendors extends Erp_base
 		$this->Erp_client_model->updateClient($vendor_id, [
 			'db_username' => $db_user
 		]);
+
+		// --------------------------------------------------
+		// 10. SYNC VENDOR DATA TO VENDOR DATABASE
+		// --------------------------------------------------
+		// Sync all vendor data from master database to vendor database
+		try {
+			$sync_result = $this->Vendor_sync_model->syncVendorData($vendor_id);
+			if (!$sync_result) {
+				log_message('warning', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was created but sync to vendor database failed.');
+			}
+		} catch (Exception $e) {
+			log_message('error', 'Exception during vendor data sync: ' . $e->getMessage());
+		}
 
 		// --------------------------------------------------
 		// DONE
@@ -703,6 +717,16 @@ class Vendors extends Erp_base
 					log_message('error', 'Failed to sync features after vendor update: ' . $e->getMessage());
 					// Don't block update if sync fails
 				}
+			}
+			
+			// Sync vendor data to vendor database after update
+			try {
+				$sync_result = $this->Vendor_sync_model->syncVendorData($vendor_id);
+				if (!$sync_result) {
+					log_message('warning', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
+				}
+			} catch (Exception $e) {
+				log_message('error', 'Exception during vendor data sync after update: ' . $e->getMessage());
 			}
 			
 			// Consider update successful if:
