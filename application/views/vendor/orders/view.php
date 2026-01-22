@@ -296,6 +296,15 @@ $ci = &get_instance();
                               }
                             }
                             ?>
+                            <?php if (!empty($val->size_name)): ?>
+                            <p class="mb-1"><small>Size: <?= $val->size_name; ?></small></p>
+                            <?php endif; ?>
+                            <?php if (!empty($val->school_name)): ?>
+                            <p class="mb-1"><small>School: <?= $val->school_name; ?></small></p>
+                            <?php endif; ?>
+                            <?php if (!empty($val->branch_name)): ?>
+                            <p class="mb-1"><small>Branch: <?= $val->branch_name; ?></small></p>
+                            <?php endif; ?>
                           </td>
                           <td class="thick-line text-center bdr_left"><?= isset($val->product_sku) ? $val->product_sku : '-' ?></td>
                           <td class="thick-line text-center bdr_left"><?= isset($val->product_qty) ? $val->product_qty : '1' ?></td>

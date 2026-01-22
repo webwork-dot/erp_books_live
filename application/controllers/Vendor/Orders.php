@@ -204,6 +204,58 @@ class Orders extends Vendor_base
 			->get()
 			->result();
 		
+		// Add school and branch information for each item from erp_uniforms
+		foreach ($items_arr as $item) {
+			$item->school_name = '';
+			$item->branch_name = '';
+			$item->size_name = '';
+			
+			if (!empty($item->product_id)) {
+				// Check if it's a uniform (has erp_uniforms table with school_id and branch_id)
+				$uniform_query = $this->db->query("SELECT u.school_id, u.branch_id, usp.size_id FROM erp_uniforms u LEFT JOIN erp_uniform_size_prices usp ON u.id = usp.uniform_id WHERE u.id = '" . (int)$item->product_id . "' LIMIT 1");
+				if ($uniform_query->num_rows() > 0) {
+					$uniform = $uniform_query->row();
+					
+					// Get school name if school_id exists
+					if (!empty($uniform->school_id)) {
+						$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . (int)$uniform->school_id . "' LIMIT 1");
+						if ($school_query->num_rows() > 0) {
+							$item->school_name = $school_query->row()->school_name;
+						}
+					}
+					
+					// Get branch name if branch_id exists
+					if (!empty($uniform->branch_id)) {
+						$branch_query = $this->db->query("SELECT branch_name FROM erp_school_branches WHERE id = '" . (int)$uniform->branch_id . "' LIMIT 1");
+						if ($branch_query->num_rows() > 0) {
+							$item->branch_name = $branch_query->row()->branch_name;
+						}
+					}
+					
+					// Get size name if size_id exists
+					if (!empty($uniform->size_id)) {
+						$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . (int)$uniform->size_id . "' LIMIT 1");
+						if ($size_query->num_rows() > 0) {
+							$item->size_name = $size_query->row()->name;
+						}
+					}
+				} else {
+					// Check if it's a regular product (has product_variations table)
+					$variation_query = $this->db->query("SELECT pvar.size FROM products p INNER JOIN product_variations pvar ON p.id = pvar.product_id WHERE p.id = '" . (int)$item->product_id . "' LIMIT 1");
+					if ($variation_query->num_rows() > 0) {
+						$variation = $variation_query->row();
+						if (!empty($variation->size)) {
+							// Get size name from oc_attribute_values
+							$size_query = $this->db->query("SELECT name FROM oc_attribute_values WHERE attribute_id = '" . (int)$variation->size . "' LIMIT 1");
+							if ($size_query->num_rows() > 0) {
+								$item->size_name = $size_query->row()->name;
+							}
+						}
+					}
+				}
+			}
+		}
+		
 		// Get order addresses (billing and shipping)
 		$address_arr = $this->db->select('*')
 			->from('tbl_order_address')
