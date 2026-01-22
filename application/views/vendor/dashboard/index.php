@@ -1,5 +1,19 @@
 <div class="vendor-dashboard">
 
+<style>
+.order-counter-card {
+	transition: all 0.3s ease;
+}
+.order-counter-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.order-counter-card a {
+	text-decoration: none;
+	color: inherit;
+}
+</style>
+
 <!-- Welcome Section -->
 <?php
 // Set timezone to IST
@@ -198,79 +212,72 @@ if (isset($feature_stats) && !empty($feature_stats)):
 	<div class="card-body">
 		<div class="row g-2">
 			<div class="col-xl" style="flex: 0 0 calc(20% - 0.4rem); max-width: calc(20% - 0.4rem);">
-				<div class="card border-primary">
-					<div class="card-body">
-						<div class="d-flex align-items-center justify-content-between">
-							<div class="flex-grow-1">
-								<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">New Order</p>
-								<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['new_order']) ? number_format($feature_orders['new_order']) : 0; ?></h6>
+				<a href="<?php echo base_url('orders/pending'); ?>" class="text-decoration-none">
+					<div class="card border-primary order-counter-card" style="cursor: pointer; transition: all 0.3s ease;">
+						<div class="card-body">
+							<div class="d-flex align-items-center justify-content-between">
+								<div class="flex-grow-1">
+									<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">New Order</p>
+									<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['new_order']) ? number_format($feature_orders['new_order']) : 0; ?></h6>
+								</div>
+								<span class="avatar avatar-32 avatar-rounded bg-primary-subtle text-primary flex-shrink-0 ms-2">
+									<i class="isax isax-add-circle fs-16"></i>
+								</span>
 							</div>
-							<span class="avatar avatar-32 avatar-rounded bg-primary-subtle text-primary flex-shrink-0 ms-2">
-								<i class="isax isax-add-circle fs-16"></i>
-							</span>
 						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 			<div class="col-xl" style="flex: 0 0 calc(20% - 0.4rem); max-width: calc(20% - 0.4rem); width: calc(20% - 0.4rem);">
-				<div class="card border-info">
-					<div class="card-body">
-						<div class="d-flex align-items-center justify-content-between">
-							<div class="flex-grow-1">
-								<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">Processing</p>
-								<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['processing']) ? number_format($feature_orders['processing']) : 0; ?></h6>
+				<a href="<?php echo base_url('orders/processing'); ?>" class="text-decoration-none">
+					<div class="card border-info order-counter-card" style="cursor: pointer; transition: all 0.3s ease;">
+						<div class="card-body">
+							<div class="d-flex align-items-center justify-content-between">
+								<div class="flex-grow-1">
+									<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">Processing</p>
+									<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['processing']) ? number_format($feature_orders['processing']) : 0; ?></h6>
+								</div>
+								<span class="avatar avatar-32 avatar-rounded bg-info-subtle text-info-emphasis flex-shrink-0 ms-2">
+									<i class="isax isax-refresh-2 fs-16"></i>
+								</span>
 							</div>
-							<span class="avatar avatar-32 avatar-rounded bg-info-subtle text-info-emphasis flex-shrink-0 ms-2">
-								<i class="isax isax-refresh-2 fs-16"></i>
-							</span>
 						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 			<div class="col-xl" style="flex: 0 0 calc(20% - 0.4rem); max-width: calc(20% - 0.4rem); width: calc(20% - 0.4rem);">
-				<div class="card border-warning">
-					<div class="card-body">
-						<div class="d-flex align-items-center justify-content-between">
-							<div class="flex-grow-1">
-								<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">Ready For Ship</p>
-								<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['ready_for_ship']) ? number_format($feature_orders['ready_for_ship']) : 0; ?></h6>
+				<a href="<?php echo base_url('orders/out_for_delivery'); ?>" class="text-decoration-none">
+					<div class="card border-secondary order-counter-card" style="cursor: pointer; transition: all 0.3s ease;">
+						<div class="card-body">
+							<div class="d-flex align-items-center justify-content-between">
+								<div class="flex-grow-1">
+									<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">Out For Delivery</p>
+									<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['out_for_delivery']) ? number_format($feature_orders['out_for_delivery']) : 0; ?></h6>
+								</div>
+								<span class="avatar avatar-32 avatar-rounded bg-secondary-subtle text-secondary-emphasis flex-shrink-0 ms-2">
+									<i class="isax isax-truck-fast fs-16"></i>
+								</span>
 							</div>
-							<span class="avatar avatar-32 avatar-rounded bg-warning-subtle text-warning-emphasis flex-shrink-0 ms-2">
-								<i class="isax isax-box-tick fs-16"></i>
-							</span>
 						</div>
 					</div>
-				</div>
+				</a>
 			</div>
 			<div class="col-xl" style="flex: 0 0 calc(20% - 0.4rem); max-width: calc(20% - 0.4rem); width: calc(20% - 0.4rem);">
-				<div class="card border-secondary">
-					<div class="card-body">
-						<div class="d-flex align-items-center justify-content-between">
-							<div class="flex-grow-1">
-								<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">Out For Delivery</p>
-								<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['out_for_delivery']) ? number_format($feature_orders['out_for_delivery']) : 0; ?></h6>
+				<a href="<?php echo base_url('orders/delivered'); ?>" class="text-decoration-none">
+					<div class="card border-success order-counter-card" style="cursor: pointer; transition: all 0.3s ease;">
+						<div class="card-body">
+							<div class="d-flex align-items-center justify-content-between">
+								<div class="flex-grow-1">
+									<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">Delivered</p>
+									<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['delivered']) ? number_format($feature_orders['delivered']) : 0; ?></h6>
+								</div>
+								<span class="avatar avatar-32 avatar-rounded bg-success-subtle text-success-emphasis flex-shrink-0 ms-2">
+									<i class="isax isax-tick-circle fs-16"></i>
+								</span>
 							</div>
-							<span class="avatar avatar-32 avatar-rounded bg-secondary-subtle text-secondary-emphasis flex-shrink-0 ms-2">
-								<i class="isax isax-truck-fast fs-16"></i>
-							</span>
 						</div>
 					</div>
-				</div>
-			</div>
-			<div class="col-xl" style="flex: 0 0 calc(20% - 0.4rem); max-width: calc(20% - 0.4rem); width: calc(20% - 0.4rem);">
-				<div class="card border-success">
-					<div class="card-body">
-						<div class="d-flex align-items-center justify-content-between">
-							<div class="flex-grow-1">
-								<p class="mb-0 text-truncate text-gray-9 fs-12" style="font-size: 0.875rem !important; line-height: 1.2 !important; margin-bottom: 4px !important;">Delivered</p>
-								<h6 class="fs-16 fw-semibold mb-0" style="font-size: 1.5rem !important; line-height: 1.2 !important; margin-bottom: 0px !important;"><?php echo isset($feature_orders['delivered']) ? number_format($feature_orders['delivered']) : 0; ?></h6>
-							</div>
-							<span class="avatar avatar-32 avatar-rounded bg-success-subtle text-success-emphasis flex-shrink-0 ms-2">
-								<i class="isax isax-tick-circle fs-16"></i>
-							</span>
-						</div>
-					</div>
-				</div>
+				</a>
 			</div>
 		</div>
 	</div>

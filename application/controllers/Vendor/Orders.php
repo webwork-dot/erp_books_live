@@ -88,12 +88,15 @@ class Orders extends Vendor_base
 		$filter_data['date_range'] = $this->input->get('date_range');
 		$filter_data['machine']   = $this->input->get('machine');
 		$filter_data['keywords']  = $this->input->get('keywords');
-		$filter_data['order_status']  = ($param1 != "" ? $param1 : 'pending');
+		$filter_data['order_status']  = ($param1 != "" ? $param1 : 'all');
 		$page_data['order_status']  = $filter_data['order_status'];
 
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_orders_count($vendor_id, $filter_data);
 		$page_data['total_count'] = $total_count;
+		
+		// Get order counts for each status (for tabs)
+		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
 		
 		// Pagination setup
 		$per_page = 10;

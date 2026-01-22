@@ -66,14 +66,23 @@ class Dashboard extends Vendor_base
 			$data['account_age_months'] = 0;
 		}
 		
-		// Individual Orders Statistics
+		// Get order counts using the same method as orders page (tbl_order_details)
+		$order_counts = $this->Order_model->get_order_status_counts($vendor_id);
+		
+		// Individual Orders Statistics - using tbl_order_details structure
 		$data['individual_orders'] = array(
-			'new_order' => $this->Order_model->getOrderCountByTypeAndStatus($vendor_id, 'individual', 'pending'),
-			'processing' => $this->Order_model->getOrderCountByTypeAndStatus($vendor_id, 'individual', 'processing'),
-			'ready_for_ship' => $this->Order_model->getOrderCountByTypeAndStatus($vendor_id, 'individual', 'shipment'),
-			'out_for_delivery' => $this->Order_model->getOrderCountByTypeAndStatus($vendor_id, 'individual', 'out_for_delivery'),
-			'delivered' => $this->Order_model->getOrderCountByTypeAndStatus($vendor_id, 'individual', 'delivered')
+			'new_order' => isset($order_counts['pending']) ? $order_counts['pending'] : 0,
+			'processing' => isset($order_counts['processing']) ? $order_counts['processing'] : 0,
+			'ready_for_ship' => 0, // Not used in current system
+			'out_for_delivery' => isset($order_counts['out_for_delivery']) ? $order_counts['out_for_delivery'] : 0,
+			'delivered' => 0 // Will be calculated separately
 		);
+		
+		// Get delivered and return counts
+		$filter_delivered = array('order_status' => 'delivered');
+		$filter_return = array('order_status' => 'return');
+		$data['individual_orders']['delivered'] = $this->Order_model->get_paginated_orders_count($vendor_id, $filter_delivered);
+		$data['individual_orders']['return'] = $this->Order_model->get_paginated_orders_count($vendor_id, $filter_return);
 		
 		// Feature-based statistics (dynamic based on enabled features)
 		$data['feature_stats'] = array();
@@ -110,13 +119,14 @@ class Dashboard extends Vendor_base
 				$config = $feature_config[$feature_slug];
 				$product_type = $config['product_type'];
 				
-				// Get order statistics
+				// Get order statistics using tbl_order_details (same as orders page)
+				// For now, use the same counts for all features since we're using tbl_order_details
 				$orders = array(
-					'new_order' => $this->getOrderCountByProductType($vendor_id, $product_type, 'pending'),
-					'processing' => $this->getOrderCountByProductType($vendor_id, $product_type, 'processing'),
-					'ready_for_ship' => $this->getOrderCountByProductType($vendor_id, $product_type, 'shipment'),
-					'out_for_delivery' => $this->getOrderCountByProductType($vendor_id, $product_type, 'out_for_delivery'),
-					'delivered' => $this->getOrderCountByProductType($vendor_id, $product_type, 'delivered')
+					'new_order' => isset($order_counts['pending']) ? $order_counts['pending'] : 0,
+					'processing' => isset($order_counts['processing']) ? $order_counts['processing'] : 0,
+					'ready_for_ship' => 0, // Not used in current system
+					'out_for_delivery' => isset($order_counts['out_for_delivery']) ? $order_counts['out_for_delivery'] : 0,
+					'delivered' => $this->Order_model->get_paginated_orders_count($vendor_id, array('order_status' => 'delivered'))
 				);
 				
 				// Get product statistics

@@ -70,6 +70,57 @@
       border-color: #dee2e6;
       opacity: 0.6;
    }
+   
+   /* Order count badges on tabs */
+   .tab-navigation .badge {
+      font-size: 0.75rem;
+      padding: 0.25em 0.5em;
+      border-radius: 10px;
+      font-weight: 600;
+   }
+   
+   .tab-navigation.active .badge {
+      background-color: rgba(255, 255, 255, 0.3) !important;
+      color: white !important;
+   }
+   
+   /* Status labels */
+   .label {
+      display: inline-block;
+      padding: 0.25em 0.6em;
+      font-size: 0.875rem;
+      font-weight: 600;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: baseline;
+      border-radius: 0.25rem;
+   }
+   
+   .label-default {
+      background-color: #6c757d;
+      color: #fff;
+   }
+   
+   .label-warning {
+      background-color: #ffc107;
+      color: #000;
+   }
+   
+   .label-info {
+      background-color: #17a2b8;
+      color: #fff;
+   }
+   
+   .label-success {
+      background-color: #28a745;
+      color: #fff;
+   }
+   
+   .label-danger {
+      background-color: #dc3545;
+      color: #fff;
+   }
 </style>
 
 <div class="mobile_view home">
@@ -86,18 +137,23 @@
       <div class="col-12">
          <ul class="nav nav-tabs brbm0" role="tablist">
             <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'pending' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders/pending'); ?>">
-                  Pending
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'all' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders/all'); ?>">
+                  All Orders
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'pending') ? 'active' : ''; ?>" href="<?php echo base_url('orders/pending'); ?>">
+                  New Order <?php if(isset($order_counts['pending']) && $order_counts['pending'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['pending']; ?></span><?php endif; ?>
                </a>
             </li>
             <li class="nav-item">
                <a class="nav-link tab-navigation <?php echo ($order_status == 'processing') ? 'active' : ''; ?>" href="<?php echo base_url('orders/processing'); ?>">
-                  Processing
+                  Processing <?php if(isset($order_counts['processing']) && $order_counts['processing'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['processing']; ?></span><?php endif; ?>
                </a>
             </li>
             <li class="nav-item">
                <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url('orders/out_for_delivery'); ?>">
-                  Out for Delivery
+                  Out for Delivery <?php if(isset($order_counts['out_for_delivery']) && $order_counts['out_for_delivery'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['out_for_delivery']; ?></span><?php endif; ?>
                </a>
             </li>
             <li class="nav-item">
@@ -147,7 +203,9 @@
             <div class="card-body py-1 my-0"> -->
                <div class="card mrg_bottom">
 
-                  <?php if ($order_status == 'pending' || $order_status == ''): ?>
+                  <?php if ($order_status == 'all' || $order_status == ''): ?>
+                     <!-- No form for "All Orders" view -->
+                  <?php elseif ($order_status == 'pending'): ?>
                      <?php echo form_open(base_url('orders/move_to_processing'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'processing'): ?>
                      <?php echo form_open(base_url('orders/move_to_out_for_delivery'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
@@ -158,11 +216,29 @@
                   <div class="col-md-12" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                      <div class="d-block left">
                         <div class="page_title" style="font-size: 20px;font-weight: 500;color:#000;">
-                           <?= ucfirst($order_status ? $order_status : 'Pending'); ?> Orders (<?= $total_count; ?>)
+                           <?php 
+                           if ($order_status == 'all' || $order_status == '') {
+                              echo 'All Orders';
+                           } elseif ($order_status == 'pending') {
+                              echo 'New Order';
+                           } elseif ($order_status == 'processing') {
+                              echo 'Processing';
+                           } elseif ($order_status == 'out_for_delivery') {
+                              echo 'Out for Delivery';
+                           } elseif ($order_status == 'delivered') {
+                              echo 'Delivered';
+                           } elseif ($order_status == 'return') {
+                              echo 'Return';
+                           } else {
+                              echo ucfirst($order_status);
+                           }
+                           ?> Orders (<?= $total_count; ?>)
                         </div>
                      </div>
 
-                     <?php if ($order_status == 'pending' || $order_status == ''): ?>
+                     <?php if ($order_status == 'all' || $order_status == ''): ?>
+                        <!-- No action buttons for "All Orders" view -->
+                     <?php elseif ($order_status == 'pending'): ?>
                         <div class="pull-right">
                            <button type="button" name="button" id="btn_process" value="update" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
                               Move to Processing (<span class="total_orders">0</span>)
@@ -187,7 +263,7 @@
                      <table class="table table-striped table-bordered table-hover">
                         <thead>
                            <tr>
-                              <?php if ($order_status == 'pending' || $order_status == '' || $order_status == 'processing' || $order_status == 'out_for_delivery'): ?>
+                              <?php if ($order_status == 'all' || $order_status == 'pending' || $order_status == '' || $order_status == 'processing' || $order_status == 'out_for_delivery'): ?>
                                  <th class="flex-center center">
                                     <div class="checkbox checkbox-primary">
                                        <input type="checkbox" class="package_change" id="checkAll_order" value="1">
@@ -196,12 +272,17 @@
                                  </th>
                               <?php endif; ?>
                               <th>Order ID</th>
+                              <?php if ($order_status == 'all' || $order_status == ''): ?>
+                                 <th>Status</th>
+                              <?php endif; ?>
                               <th>Source</th>
                               <th>User Name</th>
                               <th>User Phone</th>
                               <th nowrap="">
                                  <?php
-                                 if ($order_status == 'pending' || $order_status == '') {
+                                 if ($order_status == 'all' || $order_status == '') {
+                                    echo 'Order Date';
+                                 } elseif ($order_status == 'pending') {
                                     echo 'Order Date';
                                  } elseif ($order_status == 'processing') {
                                     echo 'Processing Date';
@@ -228,17 +309,60 @@
                            $i = 1;
                            $ci = &get_instance();
                            if (!empty($order_list)):
-                              foreach ($order_list as $key => $item): ?>
+                              foreach ($order_list as $key => $item): 
+                                 // Determine if order is actionable (can be moved to next status)
+                                 $is_actionable = false;
+                                 if ($order_status == 'all' || $order_status == '') {
+                                    $is_actionable = ($item['status'] == '1' || $item['status'] == '2' || $item['status'] == '3');
+                                 } else {
+                                    $is_actionable = ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'out_for_delivery');
+                                 }
+                                 
+                                 // Get status label and class
+                                 $status_label = '';
+                                 $status_class = '';
+                                 switch ($item['status']) {
+                                    case '1':
+                                       $status_label = 'New Order';
+                                       $status_class = 'label-default';
+                                       break;
+                                    case '2':
+                                       $status_label = 'Processing';
+                                       $status_class = 'label-warning';
+                                       break;
+                                    case '3':
+                                       $status_label = 'Out for Delivery';
+                                       $status_class = 'label-info';
+                                       break;
+                                    case '4':
+                                       $status_label = 'Delivered';
+                                       $status_class = 'label-success';
+                                       break;
+                                    case '7':
+                                       $status_label = 'Return';
+                                       $status_class = 'label-danger';
+                                       break;
+                                    default:
+                                       $status_label = 'Unknown';
+                                       $status_class = 'label-default';
+                                       break;
+                                 }
+                              ?>
                                  <tr class="item_holder">
-                                    <?php if ($order_status == 'pending' || $order_status == '' || $order_status == 'processing' || $order_status == 'out_for_delivery'): ?>
+                                    <?php if ($is_actionable): ?>
                                        <td>
                                           <div class="checkbox checkbox-primary">
                                              <input type="checkbox" class="package_change order_id" id="order_<?php echo $item['id']; ?>" name="order_id[]" value="<?php echo $item['id']; ?>" onclick="getCount()">
                                              <label for="order_<?php echo $item['id']; ?>">&nbsp;</label>
                                           </div>
                                        </td>
+                                    <?php elseif ($order_status == 'all' || $order_status == ''): ?>
+                                       <td></td>
                                     <?php endif; ?>
                                     <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
+                                    <?php if ($order_status == 'all' || $order_status == ''): ?>
+                                       <td><span class="label <?php echo $status_class; ?>"><?php echo $status_label; ?></span></td>
+                                    <?php endif; ?>
                                     <td><?php echo $item['source']; ?></td>
                                     <td><?php echo $item['user_name']; ?></td>
                                     <td><?php echo $item['user_phone']; ?></td>
@@ -255,7 +379,15 @@
                               <?php endforeach; 
                            else: ?>
                               <tr>
-                                 <td colspan="<?php echo ($order_status == 'pending' || $order_status == '' || $order_status == 'processing' || $order_status == 'out_for_delivery') ? '11' : '10'; ?>">
+                                 <td colspan="<?php 
+                                    $colspan = 10;
+                                    if ($order_status == 'all' || $order_status == '') {
+                                       $colspan = 12; // checkbox + status column
+                                    } elseif ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'out_for_delivery') {
+                                       $colspan = 11; // checkbox column
+                                    }
+                                    echo $colspan;
+                                 ?>">
                                     <p class="notf">Data not found</p>
                                  </td>
                               </tr>
@@ -274,7 +406,13 @@
                      </div>
                   </div>
 
-                  <?php if ($order_status == 'pending' || $order_status == '' || $order_status == 'processing' || $order_status == 'out_for_delivery'): ?>
+                  <?php if ($order_status == 'pending'): ?>
+                     <input type="submit" name="submit_orderc" class="submit_orderc" value="1" style="display:none;">
+                     <?php echo form_close(); ?>
+                  <?php elseif ($order_status == 'processing'): ?>
+                     <input type="submit" name="submit_orderc" class="submit_orderc" value="1" style="display:none;">
+                     <?php echo form_close(); ?>
+                  <?php elseif ($order_status == 'out_for_delivery'): ?>
                      <input type="submit" name="submit_orderc" class="submit_orderc" value="1" style="display:none;">
                      <?php echo form_close(); ?>
                   <?php endif; ?>

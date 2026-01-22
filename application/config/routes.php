@@ -129,7 +129,7 @@ $route['branches/get_cities'] = 'Vendor/branches/get_cities';
 // Orders routes
 $route['offers/add'] = 'Vendor/orders/add_offers';
 $route['offers'] = 'Vendor/orders/offers';
-$route['orders'] = 'Vendor/orders/index';
+$route['orders/all'] = 'Vendor/orders/index/all';
 $route['orders/pending-orders'] = 'Vendor/orders/pending_orders';
 $route['orders/cancelled-orders'] = 'Vendor/orders/cancelled_orders';
 $route['orders/pending'] = 'Vendor/orders/index/pending';
@@ -137,6 +137,7 @@ $route['orders/processing'] = 'Vendor/orders/index/processing';
 $route['orders/out_for_delivery'] = 'Vendor/orders/index/out_for_delivery';
 $route['orders/delivered'] = 'Vendor/orders/index/delivered';
 $route['orders/return'] = 'Vendor/orders/index/return';
+$route['orders'] = 'Vendor/orders/index';
 $route['orders/move_to_processing'] = 'Vendor/orders/move_to_processing';
 $route['orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_delivery';
 $route['orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';

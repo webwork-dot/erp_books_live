@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($title) ? $title : 'Home'; ?> - <?php echo isset($tenant['name']) ? htmlspecialchars($tenant['name']) : 'ERP'; ?></title>
+    
+    <?php 
+    // Load common helper for dynamic logo and favicon
+    $this->load->helper('common');
+    
+    // Get vendor site settings for favicon
+    $vendor_settings = get_vendor_site_settings();
+    $favicon_url = !empty($vendor_settings['favicon_path']) && file_exists(FCPATH . $vendor_settings['favicon_path']) 
+        ? base_url($vendor_settings['favicon_path']) 
+        : base_url('assets/template/img/favicon.png');
+    ?>
+    
+    <!-- Favicon -->
+    <link rel="shortcut icon" type="image/x-icon" href="<?php echo $favicon_url; ?>">
+    <link rel="icon" type="image/x-icon" href="<?php echo $favicon_url; ?>">
+    
     <link rel="stylesheet" href="<?php echo base_url('assets/css/theme.css'); ?>">
     <style>
         body {
@@ -69,7 +85,11 @@
 <body>
     <div class="header">
         <div class="header-content">
-            <img src="<?php echo base_url('assets/images/logo.png'); ?>" alt="Logo" class="logo-img">
+            <?php 
+            // Get dynamic logo from vendor site settings
+            $logo_url = get_dynamic_logo('header');
+            ?>
+            <img src="<?php echo $logo_url; ?>" alt="Logo" class="logo-img" onerror="this.src='<?php echo base_url('assets/template/img/logo.svg'); ?>';">
             <h1><?php echo isset($tenant['name']) ? htmlspecialchars($tenant['name']) : 'Multi-Tenant ERP System'; ?></h1>
         </div>
     </div>

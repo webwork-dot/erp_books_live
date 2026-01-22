@@ -440,7 +440,9 @@ class Order_model extends CI_Model
 		$vendor_filter = "";
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
-		if ($order_status == 'pending') {
+		if ($order_status == 'all') {
+			$order_status_filter = ""; // No status filter for "all"
+		} elseif ($order_status == 'pending') {
 			$order_status_filter = " AND order_status='1'";
 		} elseif ($order_status == 'processing') {
 			$order_status_filter = " AND order_status='2'";
@@ -502,7 +504,9 @@ class Order_model extends CI_Model
 		$vendor_filter = "";
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
-		if ($order_status == 'pending') {
+		if ($order_status == 'all') {
+			$order_status_filter = ""; // No status filter for "all"
+		} elseif ($order_status == 'pending') {
 			$order_status_filter = " AND order_status='1'";
 		} elseif ($order_status == 'processing') {
 			$order_status_filter = " AND order_status='2'";
@@ -626,6 +630,38 @@ class Order_model extends CI_Model
 		return $resultdata;
 	}
 
+	/**
+	 * Get order counts for each status (pending, processing, out_for_delivery)
+	 * Excludes delivered and return counts
+	 *
+	 * @param	int	$vendor_id	Vendor ID
+	 * @return	array	Array with counts for each status
+	 */
+	public function get_order_status_counts($vendor_id)
+	{
+		$counts = array(
+			'pending' => 0,
+			'processing' => 0,
+			'out_for_delivery' => 0
+		);
+
+		// Get pending orders count (status = 1)
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status='1' AND order_status!='5'");
+		$result = $query->row();
+		$counts['pending'] = isset($result->count) ? (int)$result->count : 0;
+
+		// Get processing orders count (status = 2)
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status='2' AND order_status!='5'");
+		$result = $query->row();
+		$counts['processing'] = isset($result->count) ? (int)$result->count : 0;
+
+		// Get out for delivery orders count (status = 3)
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status='3' AND order_status!='5'");
+		$result = $query->row();
+		$counts['out_for_delivery'] = isset($result->count) ? (int)$result->count : 0;
+
+		return $counts;
+	}
 
 	public function get_order($order_no)
 	{
