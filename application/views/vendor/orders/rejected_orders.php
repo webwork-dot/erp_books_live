@@ -1,6 +1,16 @@
 <style type="text/css">
    .swal2-title{ font-size: 1.5rem!important; }
    
+   .tab-navigation {
+    padding: 8px 15px;
+    background: white;
+    border-top-left-radius: 8px;
+    color: black;
+    margin-right: 2px;
+    border-top-right-radius: 8px;
+    box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.1);
+   }
+   
    /* Pagination Styles */
    .pagination_item_block {
       margin-top: 20px;
@@ -61,10 +71,53 @@
    <link rel="stylesheet" href="<?php echo base_url(); ?>assets/dist/css/bootstrap-select.css">
    <script src="<?php echo base_url(); ?>assets/dist/js/bootstrap-select.js"></script>
 
+   <!-- Order Tabs -->
+   <div class="row">
+      <div class="col-12">
+         <ul class="nav nav-tabs brbm0" role="tablist">
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'all' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders/all'); ?>">
+                  All Orders
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'pending') ? 'active' : ''; ?>" href="<?php echo base_url('orders/pending'); ?>">
+                  New Order <?php if(isset($order_counts['pending']) && $order_counts['pending'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['pending']; ?></span><?php endif; ?>
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'processing') ? 'active' : ''; ?>" href="<?php echo base_url('orders/processing'); ?>">
+                  Processing <?php if(isset($order_counts['processing']) && $order_counts['processing'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['processing']; ?></span><?php endif; ?>
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url('orders/out_for_delivery'); ?>">
+                  Out for Delivery <?php if(isset($order_counts['out_for_delivery']) && $order_counts['out_for_delivery'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['out_for_delivery']; ?></span><?php endif; ?>
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'delivered') ? 'active' : ''; ?>" href="<?php echo base_url('orders/delivered'); ?>">
+                  Delivered
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'return') ? 'active' : ''; ?>" href="<?php echo base_url('orders/return'); ?>">
+                  Return
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'cancelled') ? 'active' : ''; ?>" href="<?php echo base_url('orders/cancelled-orders'); ?>">
+                  Cancelled
+               </a>
+            </li>
+         </ul>
+      </div>
+   </div>
+
    <!-- Search Filter -->
    <div class="row mb-3">
       <div class="col-12">
-         <div class="card">
+         <div class="card brtop0">
             <div class="card-body">
                <form method="get" action="<?php echo base_url('orders/rejected-orders'); ?>" class="row">
                   <div class="col-md-4">

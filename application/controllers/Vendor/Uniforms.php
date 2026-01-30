@@ -802,6 +802,120 @@ class Uniforms extends Vendor_base
 	 * @param	int	$uniform_id	Uniform ID
 	 * @return	void
 	 */
+
+		
+	private function handleImageUploads($uniform_id)
+	{
+		if (!empty($_FILES['images']['name'][0]))
+		{
+			// Load upload config
+			$this->config->load('upload');
+			$uploadCfg = $this->config->item('uniform_upload');
+
+			$date_folder = date('Y_m_d');
+
+			// Build upload path from config
+			$upload_path = rtrim($uploadCfg['root_path'], '/')
+						. '/'
+						. $uploadCfg['relative_dir']
+						. $date_folder
+						. '/';
+
+			if (!is_dir($upload_path)) {
+				mkdir($upload_path, 0755, true);
+			}
+
+			$files = $_FILES['images'];
+			$image_order_json = $this->input->post('image_order');
+			$image_order = json_decode($image_order_json, TRUE);
+			$main_image_index = (int)$this->input->post('main_image_index');
+
+			$this->db->select_max('image_order');
+			$this->db->where('uniform_id', $uniform_id);
+			$max_order_result = $this->db->get('erp_uniform_images')->row_array();
+			$start_order = $max_order_result['image_order'] !== NULL ? ($max_order_result['image_order'] + 1) : 0;
+
+			if (!is_array($image_order)) {
+				$image_order = array();
+				for ($i = 0; $i < count($files['name']); $i++) {
+					$image_order[] = $i;
+				}
+			}
+
+			$upload_errors = [];
+			$uploaded_count = 0;
+			$uploaded_image_ids = [];
+
+			foreach ($image_order as $order => $original_index)
+			{
+				if (isset($files['name'][$original_index]) && $files['error'][$original_index] == 0)
+				{
+					$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
+
+					// ✅ secure allowed types from config
+					if (!in_array($file_ext, $uploadCfg['allowed_types'], true)) {
+						$upload_errors[] = $files['name'][$original_index] . ': Invalid file type';
+						continue;
+					}
+
+					$_FILES['image']['name']     = $files['name'][$original_index];
+					$_FILES['image']['type']     = $files['type'][$original_index];
+					$_FILES['image']['tmp_name'] = $files['tmp_name'][$original_index];
+					$_FILES['image']['error']    = $files['error'][$original_index];
+					$_FILES['image']['size']     = $files['size'][$original_index];
+
+					$config['upload_path']   = $upload_path;
+					$config['allowed_types'] = implode('|', $uploadCfg['allowed_types']);
+					$config['max_size']      = $uploadCfg['max_size'];
+					$config['file_name'] = 'uniform_' . $uniform_id . '_' . uniqid() . '_' . $original_index . '.' . $file_ext;
+
+					$config['overwrite']     = FALSE;
+
+					$this->upload->initialize($config);
+
+					if ($this->upload->do_upload('image'))
+					{
+						$upload_data = $this->upload->data();
+						$final_order = $start_order + $uploaded_count;
+
+						$image_id = $this->Uniform_model->addUniformImage([
+							'uniform_id' => $uniform_id,
+							'image_path' => 'uploads/' . $uploadCfg['relative_dir'] . $date_folder . '/' . $upload_data['file_name'],
+							'image_order'=> $final_order,
+							'is_main'    => ($start_order == 0 && $order == $main_image_index) ? 1 : 0
+						]);
+
+						if ($image_id) {
+							$uploaded_image_ids[$order] = $image_id;
+							$uploaded_count++;
+						}
+					}
+					else
+					{
+						$error = $this->upload->display_errors('', '');
+						$upload_errors[] = $files['name'][$original_index] . ': ' . $error;
+						log_message('error', 'Image upload failed: ' . $error);
+					}
+				}
+			}
+
+			if ($start_order === 0 && empty($max_order_result['image_order']) && isset($uploaded_image_ids[$main_image_index]))
+			{
+				$this->db->where_in('id', array_values($uploaded_image_ids))
+         				->update('erp_uniform_images', ['is_main' => 0]);
+
+				$this->db->where('id', $uploaded_image_ids[$main_image_index])
+						->update('erp_uniform_images', ['is_main' => 1]);
+			}
+
+			if (!empty($upload_errors)) {
+				$this->session->set_flashdata(
+					'error',
+					'Some images failed to upload: ' . implode(', ', $upload_errors)
+				);
+			}
+		}
+	}
 	/**
 	 * Handle existing uniform image updates (order, main image, deletions)
 	 *
@@ -817,6 +931,7 @@ class Uniforms extends Vendor_base
 		// Handle deleted images
 		if (!empty($deleted_image_ids))
 		{
+			
 			$deleted_ids = explode(',', $deleted_image_ids);
 			$deleted_ids = array_filter(array_map('trim', $deleted_ids));
 			
@@ -826,10 +941,13 @@ class Uniforms extends Vendor_base
 				$this->db->where('uniform_id', $uniform_id);
 				$this->db->where_in('id', $deleted_ids);
 				$images_to_delete = $this->db->get('erp_uniform_images')->result_array();
+
+				$this->config->load('upload');
+				$uploadCfg = $this->config->item('uniform_upload');	
 				
 				foreach ($images_to_delete as $img)
 				{
-					$image_path = FCPATH . 'assets/uploads/' . ltrim($img['image_path'], '/');
+					$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . ltrim($img['image_path'], '/');
 					if (file_exists($image_path))
 					{
 						@unlink($image_path);
@@ -844,17 +962,22 @@ class Uniforms extends Vendor_base
 		}
 		
 		// Handle main image change (do this first to ensure only one main image)
-		if (!empty($main_image_id))
+		if (!empty($main_image_id) && is_numeric($main_image_id))
 		{
-			// First, set all images to not main
-			$this->db->where('uniform_id', $uniform_id);
-			$this->db->update('erp_uniform_images', array('is_main' => 0));
-			
-			// Then set the specified image as main
+			// Ensure this image belongs to this uniform
 			$this->db->where('id', $main_image_id);
 			$this->db->where('uniform_id', $uniform_id);
-			$this->db->update('erp_uniform_images', array('is_main' => 1));
+			if ($this->db->count_all_results('erp_uniform_images') == 1)
+			{
+				$this->db->where('uniform_id', $uniform_id)
+						->update('erp_uniform_images', ['is_main' => 0]);
+
+				$this->db->where('id', $main_image_id)
+						->where('uniform_id', $uniform_id)
+						->update('erp_uniform_images', ['is_main' => 1]);
+			}
 		}
+
 		
 		// Handle image order
 		if (!empty($image_order))
@@ -885,137 +1008,8 @@ class Uniforms extends Vendor_base
 			}
 		}
 	}
-	
-	private function handleImageUploads($uniform_id)
-	{
-		if (!empty($_FILES['images']['name'][0]))
-		{
-			$upload_path = './assets/uploads/vendors/' . $this->current_vendor['id'] . '/uniforms/images/';
-			if (!is_dir($upload_path))
-			{
-				mkdir($upload_path, 0755, TRUE);
-			}
-			
-			$files = $_FILES['images'];
-			$image_order_json = $this->input->post('image_order');
-			$image_order = json_decode($image_order_json, TRUE);
-			$main_image_index = (int)$this->input->post('main_image_index');
-			
-			// Get max existing image_order for edit forms (to append new images after existing ones)
-			$this->db->select_max('image_order');
-			$this->db->where('uniform_id', $uniform_id);
-			$max_order_result = $this->db->get('erp_uniform_images')->row_array();
-			$start_order = $max_order_result['image_order'] !== NULL ? ($max_order_result['image_order'] + 1) : 0;
-			
-			// If image_order is not a valid array, use sequential order
-			if (!is_array($image_order))
-			{
-				$image_order = array();
-				for ($i = 0; $i < count($files['name']); $i++)
-				{
-					$image_order[] = $i;
-				}
-			}
-			
-			$upload_errors = array();
-			$uploaded_count = 0;
-			$uploaded_image_ids = array();
-			
-			foreach ($image_order as $order => $original_index)
-			{
-				if (isset($files['name'][$original_index]) && $files['error'][$original_index] == 0 && !empty($files['name'][$original_index]))
-				{
-					// Validate MIME type to ensure it's an image
-					$allowed_mimes = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml', 'image/x-icon', 'image/tiff', 'image/tif', 'image/avif');
-					$allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif');
-					$file_mime = $files['type'][$original_index];
-					
-					// Get file extension as fallback
-					$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
-					
-					// Check both MIME type and file extension (some browsers send incorrect MIME types for AVIF)
-					// Accept file if EITHER MIME type OR extension is valid (extension takes precedence for AVIF)
-					$mime_valid = in_array($file_mime, $allowed_mimes);
-					$ext_valid = in_array($file_ext, $allowed_extensions);
-					$is_valid = $mime_valid || $ext_valid;
-					
-					if (!$is_valid)
-					{
-						$upload_errors[] = $files['name'][$original_index] . ': Invalid file type. Only image files are allowed.';
-						continue;
-					}
-					
-					// Reset $_FILES array for this iteration
-					$_FILES['image']['name'] = $files['name'][$original_index];
-					$_FILES['image']['type'] = $files['type'][$original_index];
-					$_FILES['image']['tmp_name'] = $files['tmp_name'][$original_index];
-					$_FILES['image']['error'] = $files['error'][$original_index];
-					$_FILES['image']['size'] = $files['size'][$original_index];
-					
-					$config['upload_path'] = $upload_path;
-					$config['allowed_types'] = '*'; // Allow all types - we validate MIME type above
-					$config['max_size'] = 5120; // 5MB
-					$config['file_name'] = 'uniform_' . $uniform_id . '_' . time() . '_' . $original_index . '.' . $file_ext;
-					$config['overwrite'] = FALSE;
-					
-					$this->upload->initialize($config);
-					
-					if ($this->upload->do_upload('image'))
-					{
-						$upload_data = $this->upload->data();
-						
-						// Calculate final order (for edit forms, append after existing; for add forms, use order from array)
-						$final_order = $start_order + $uploaded_count;
-						
-						// For add forms (start_order == 0), set is_main based on main_image_index
-						// For edit forms (start_order > 0), new uploads should not be set as main (handled by handleUniformImageUpdates)
-						$is_main = ($start_order == 0 && $order == $main_image_index) ? 1 : 0;
-						
-						$image_id = $this->Uniform_model->addUniformImage(array(
-							'uniform_id' => $uniform_id,
-							'image_path' => 'vendors/' . $this->current_vendor['id'] . '/uniforms/images/' . $upload_data['file_name'],
-							'image_order' => $final_order,
-							'is_main' => $is_main
-						));
-						
-						if ($image_id)
-						{
-							$uploaded_image_ids[$order] = $image_id;
-							$uploaded_count++;
-						}
-					}
-					else
-					{
-						$error = $this->upload->display_errors('', '');
-						$upload_errors[] = $files['name'][$original_index] . ': ' . $error;
-						log_message('error', 'Image upload failed: ' . $error);
-					}
-				}
-			}
-			
-			// For add forms, ensure only the image at main_image_index is marked as main
-			if ($start_order == 0 && !empty($uploaded_image_ids) && isset($uploaded_image_ids[$main_image_index]))
-			{
-				// Set all uploaded images to not main first
-				if (!empty($uploaded_image_ids))
-				{
-					$this->db->where('uniform_id', $uniform_id);
-					$this->db->where_in('id', array_values($uploaded_image_ids));
-					$this->db->update('erp_uniform_images', array('is_main' => 0));
-				}
-				
-				// Then set the main image
-				$this->db->where('id', $uploaded_image_ids[$main_image_index]);
-				$this->db->update('erp_uniform_images', array('is_main' => 1));
-			}
-			
-			// Show upload errors if any
-			if (!empty($upload_errors))
-			{
-				$this->session->set_flashdata('error', 'Some images failed to upload: ' . implode(', ', $upload_errors));
-			}
-		}
-	}
+
+
 	
 	/**
 	 * Toggle uniform status (AJAX)
@@ -1064,4 +1058,3 @@ class Uniforms extends Vendor_base
 		}
 	}
 }
-

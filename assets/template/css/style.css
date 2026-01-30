@@ -13083,6 +13083,7 @@ p:last-child {
 }
 .sidebar .sidebar-menu > ul > li ul li a.active, .sidebars .sidebar-menu > ul > li ul li a.active {
   color: var(--primary);
+      background: #00000024;
 }
 .sidebar .sidebar-menu > ul > li ul li a.active::before, .sidebars .sidebar-menu > ul > li ul li a.active::before {
   opacity: 1;

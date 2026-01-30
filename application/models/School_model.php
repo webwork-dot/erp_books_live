@@ -245,6 +245,19 @@ class School_model extends CI_Model
 		
 		return $this->db->affected_rows() > 0;
 	}
+	/**
+	 * Delete all images for a school
+	 *
+	 * @param int $school_id
+	 * @return bool
+	 */
+	public function deleteSchoolImagesBySchool($school_id)
+	{
+		$this->db->where('school_id', $school_id)
+				->delete('erp_school_images');
+
+		return $this->db->affected_rows() > 0;
+	}
 	
 	/**
 	 * Set primary image

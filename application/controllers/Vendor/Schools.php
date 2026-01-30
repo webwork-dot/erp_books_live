@@ -893,62 +893,109 @@ class Schools extends Vendor_base
 	}
 	
 	/**
-	 * Handle image uploads
+	 * Handle school image upload (single image only)
 	 *
-	 * @param	int	$school_id	School ID
-	 * @return	void
+	 * @param int $school_id
+	 * @return void
 	 */
 	private function handleImageUploads($school_id)
 	{
-		// Create upload directory if it doesn't exist
-		$upload_path = FCPATH . 'uploads/schools/';
-		if (!is_dir($upload_path))
-		{
-			mkdir($upload_path, 0755, TRUE);
+		if (empty($_FILES['school_image']['name'])) {
+			return;
 		}
-		
-		// Handle multiple file uploads
-		if (!empty($_FILES['school_images']['name'][0]))
-		{
-			$files = $_FILES['school_images'];
-			$file_count = count($files['name']);
-			
-			for ($i = 0; $i < $file_count; $i++)
-			{
-				if ($files['error'][$i] == 0)
-				{
-					$config['upload_path'] = $upload_path;
-					$config['allowed_types'] = 'gif|jpg|jpeg|png|webp';
-					$config['max_size'] = 5120; // 5MB
-					$config['file_name'] = 'school_' . $school_id . '_' . time() . '_' . $i;
-					
-					$_FILES['file']['name'] = $files['name'][$i];
-					$_FILES['file']['type'] = $files['type'][$i];
-					$_FILES['file']['tmp_name'] = $files['tmp_name'][$i];
-					$_FILES['file']['error'] = $files['error'][$i];
-					$_FILES['file']['size'] = $files['size'][$i];
-					
-					$this->load->library('upload', $config);
-					
-					if ($this->upload->do_upload('file'))
-					{
-						$upload_data = $this->upload->data();
-						
-						// Save to database
-						$image_data = array(
-							'school_id' => $school_id,
-							'image_path' => $upload_data['file_name'],
-							'image_name' => $files['name'][$i],
-							'display_order' => $i,
-							'is_primary' => ($i == 0) ? 1 : 0 // First image is primary
-						);
-						
-						$this->School_model->addSchoolImage($image_data);
-					}
+
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('school_upload');
+
+		if (!$uploadCfg) {
+			log_message('error', 'school_upload config missing');
+			return;
+		}
+
+		$vendor_folder = get_vendor_domain_folder(); // filesystem only
+		$date_folder   = date('Y_m_d');
+
+		// ✅ REAL upload path (filesystem)
+		$upload_path =
+			rtrim($uploadCfg['base_root'], '/') . '/'
+			. $vendor_folder . '/'
+			. trim($uploadCfg['relative_dir'], '/') . '/'
+			. $date_folder . '/';
+
+		if (!is_dir($upload_path) && !mkdir($upload_path, 0755, true)) {
+			log_message('error', 'Upload directory not writable: ' . $upload_path);
+			return;
+		}
+
+		/**
+		 * 🔥 DELETE OLD IMAGES (FILES + DB)
+		 */
+		$old_images = $this->School_model->getSchoolImages($school_id);
+
+		foreach ($old_images as $img) {
+			if (!empty($img['image_path'])) {
+				$old_file =
+					rtrim($uploadCfg['base_root'], '/') . '/'
+					. $vendor_folder . '/'
+					. ltrim($img['image_path'], '/');
+
+				if (file_exists($old_file)) {
+					@unlink($old_file);
 				}
 			}
 		}
+
+		$this->School_model->deleteSchoolImagesBySchool($school_id);
+
+		/**
+		 * ✅ Upload new image
+		 */
+		$file_ext = strtolower(pathinfo($_FILES['school_image']['name'], PATHINFO_EXTENSION));
+
+		if (!in_array($file_ext, $uploadCfg['allowed_types'], true)) {
+			$this->session->set_flashdata('error', 'Invalid image type');
+			return;
+		}
+
+		$_FILES['image']['name']     = $_FILES['school_image']['name'];
+		$_FILES['image']['type']     = $_FILES['school_image']['type'];
+		$_FILES['image']['tmp_name'] = $_FILES['school_image']['tmp_name'];
+		$_FILES['image']['error']    = $_FILES['school_image']['error'];
+		$_FILES['image']['size']     = $_FILES['school_image']['size'];
+
+
+		$config = [
+			'upload_path'   => $upload_path,
+			'allowed_types' => implode('|', $uploadCfg['allowed_types']),
+			'max_size'      => $uploadCfg['max_size'],
+			'file_name'     => 'school_' . $school_id . '_' . uniqid(),
+			'overwrite'     => false
+		];
+
+		$this->load->library('upload');
+		$this->upload->initialize($config);
+
+		if (!$this->upload->do_upload('image')) {
+			log_message('error', 'School image upload failed: ' . $this->upload->display_errors('', ''));
+			return;
+		}
+
+		$upload_data = $this->upload->data();
+
+		/**
+		 * ✅ SAVE ONLY RELATIVE PATH (NO DOMAIN, NO VENDOR)
+		 */
+		$this->School_model->addSchoolImage([
+			'school_id'     => $school_id,
+			'image_path'    => 'uploads/schools/images/' . $date_folder . '/' . $upload_data['file_name'],
+			'image_name'    => $_FILES['school_image']['name'],
+			'is_primary'    => 1,
+			'display_order' => 0
+		]);
 	}
+
+
+
 	
 	/**
 	 * Custom validation callback for school_board array
@@ -1150,4 +1197,3 @@ class Schools extends Vendor_base
 		echo json_encode($response);
 	}
 }
-

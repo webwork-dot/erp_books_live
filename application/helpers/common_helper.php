@@ -1469,62 +1469,87 @@ if (!function_exists('vendor_base_url')) {
     }
 }
 
+
 /**
- * Get vendor domain URL
- * Checks session first (domain_url), then falls back to database (erp_clients.domain)
- * 
- * @return string Vendor domain URL, empty string if not found
+ * Get vendor domain URL directly from erp_clients table
+ *
+ * @return string
  */
 if (!function_exists('get_vendor_domain_url')) {
-    function get_vendor_domain_url() {
+    function get_vendor_domain_url()
+    {
         $CI =& get_instance();
 
-        $domain_url = '';
-
-        // 1️⃣ Check session first
-        if (property_exists($CI, 'session') && is_object($CI->session)) {
-            $domain_url = $CI->session->userdata('domain_url');
+        // Load DB if not loaded
+        if (!isset($CI->db)) {
+            $CI->load->database();
         }
 
-        // 2️⃣ Fallback to database
-        if (empty($domain_url)) {
-            $vendor_id = null;
+        // Fetch domain (adjust WHERE if needed)
+        $row = $CI->db
+                  ->select('domain')
+                  ->limit(1)
+                  ->get('erp_clients')
+                  ->row_array();
 
-            if (property_exists($CI, 'session') && is_object($CI->session)) {
-                $vendor_id = $CI->session->userdata('vendor_id');
-            }
-
-            if ($vendor_id) {
-                if (!property_exists($CI, 'Erp_client_model')) {
-                    $CI->load->model('Erp_client_model');
-                }
-
-                $vendor = $CI->Erp_client_model->getClientById($vendor_id);
-                if ($vendor && !empty($vendor['domain'])) {
-                    $domain_url = $vendor['domain'];
-
-                    // cache in session
-                    $CI->session->set_userdata('domain_url', $domain_url);
-                }
-            }
+        if (empty($row['domain'])) {
+            return '';
         }
 
-        // 3️⃣ Normalize domain → ALWAYS return full URL
-        if (!empty($domain_url)) {
-            // remove trailing slash
-            $domain_url = rtrim($domain_url, '/');
+        $domain = rtrim($row['domain'], '/');
 
-            // add https if missing
-            if (!preg_match('#^https?://#', $domain_url)) {
-                $domain_url = 'https://' . $domain_url;
-            }
-
-            return $domain_url;
+        // Ensure protocol
+        if (!preg_match('#^https?://#', $domain)) {
+            $domain = 'https://' . $domain;
         }
 
-        return '';
+        return $domain;
     }
 }
+
+
+/**
+ * Get vendor domain folder name (filesystem-safe)
+ *
+ * @return string
+ */
+if (!function_exists('get_vendor_domain_folder')) {
+    function get_vendor_domain_folder()
+    {
+        $CI =& get_instance();
+
+        // Load DB if not loaded
+        if (!isset($CI->db)) {
+            $CI->load->database();
+        }
+
+        // Fetch domain
+        $row = $CI->db
+                  ->select('domain')
+                  ->limit(1)
+                  ->get('erp_clients')
+                  ->row_array();
+
+        if (empty($row['domain'])) {
+            return 'default'; // fallback safety
+        }
+
+        $domain = strtolower(trim($row['domain']));
+
+        // Remove protocol
+        $domain = preg_replace('#^https?://#', '', $domain);
+
+        // Remove trailing slash
+        $domain = rtrim($domain, '/');
+
+        // Extra safety (filesystem friendly)
+        $domain = preg_replace('/[^a-z0-9\.\-]/', '', $domain);
+
+        return $domain ?: 'default';
+    }
+}
+
+
 
 
 /**

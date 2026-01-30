@@ -5,13 +5,13 @@
 	</div>
 	<?php if (isset($active_tab) && $active_tab == 'with_product'): ?>
 		<div>
-			<a href="<?php echo base_url('products/bookset/package/add_with_products' : 'products/bookset/package/add_with_products'); ?>" class="btn btn-primary">
+			<a href="<?php echo base_url('products/bookset/package/add_with_products'); ?>" class="btn btn-primary">
 				<i class="isax isax-add"></i> Add Bookset with Products
 			</a>
 		</div>
 	<?php elseif (isset($active_tab) && $active_tab == 'without_product'): ?>
 		<div>
-			<a href="<?php echo base_url('products/bookset/package/add_without_products' : 'products/bookset/package/add_without_products'); ?>" class="btn btn-primary">
+			<a href="<?php echo base_url('products/bookset/package/add_without_products'); ?>" class="btn btn-primary">
 				<i class="isax isax-add"></i> Add Bookset without Products
 			</a>
 		</div>
@@ -58,7 +58,7 @@
 	}
 	.bookset-tabs .nav-link.active {
 		color:rgb(255, 255, 255);
-		background: #3550dc;
+		background: var(--vendor-primary) !important;
 		border-color: #dee2e6 #dee2e6 #ffffff;
 		font-weight: 600;
 		z-index: 1;
@@ -85,13 +85,13 @@
 <div class="bookset-tabs-wrapper">
 	<ul class="nav nav-tabs bookset-tabs" role="tablist">
 		<li class="nav-item" role="presentation">
-			<a class="nav-link <?php echo (isset($active_tab) && $active_tab == 'with_product') ? 'active' : ''; ?>" href="<?php echo base_url('products/bookset?tab=with_product' : 'products/bookset?tab=with_product'); ?>">
+			<a class="nav-link <?php echo (isset($active_tab) && $active_tab == 'with_product') ? 'active' : ''; ?>" href="<?php echo base_url('products/bookset?tab=with_product'); ?>">
 				<i class="isax isax-box-1"></i>
 				<span>Bookset with Product</span>
 			</a>
 		</li>
 		<li class="nav-item" role="presentation">
-			<a class="nav-link <?php echo (isset($active_tab) && $active_tab == 'without_product') ? 'active' : ''; ?>" href="<?php echo base_url('products/bookset?tab=without_product' : 'products/bookset?tab=without_product'); ?>">
+			<a class="nav-link <?php echo (isset($active_tab) && $active_tab == 'without_product') ? 'active' : ''; ?>" href="<?php echo base_url('products/bookset?tab=without_product'); ?>">
 				<i class="isax isax-box"></i>
 				<span>Bookset without Product</span>
 			</a>
@@ -102,7 +102,7 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
-		<form method="get" action="<?php echo base_url('products/bookset' : 'products/bookset'); ?>">
+		<form method="get" action="<?php echo base_url('products/bookset'); ?>">
 			<input type="hidden" name="tab" value="<?php echo isset($active_tab) ? htmlspecialchars($active_tab) : 'with_product'; ?>">
 			<!-- Search on Top -->
 			<div class="row gx-3 mb-3">
@@ -127,7 +127,7 @@
 						<label class="form-label">&nbsp;</label>
 						<div class="d-flex gap-2">
 							<button type="submit" class="btn btn-primary flex-fill">Filter</button>
-							<a href="<?php echo base_url('products/bookset?tab=' . (isset($active_tab) ? $active_tab : 'with_product') : 'products/bookset?tab=' . (isset($active_tab) ? $active_tab : 'with_product')); ?>" class="btn btn-outline-secondary">Clear</a>
+							<a href="<?php echo base_url('products/bookset?tab=' . (isset($active_tab) ? $active_tab : 'with_product')); ?>" class="btn btn-outline-secondary">Clear</a>
 						</div>
 					</div>
 				</div>
@@ -285,14 +285,14 @@
 								<div class="d-flex align-items-center justify-content-end gap-2">
 									<i class="isax isax-arrow-down-2" id="icon_<?php echo $bookset_id; ?>"></i>
 									<?php if ($is_bookset): ?>
-										<a href="<?php echo base_url('products/bookset/edit/' . $bookset_id : 'products/bookset/edit/' . $bookset_id); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit" onclick="event.stopPropagation();">
+										<a href="<?php echo base_url('products/bookset/edit/' . $bookset_id); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit" onclick="event.stopPropagation();">
 											<i class="isax isax-edit"></i>
 										</a>
-										<a href="<?php echo base_url('products/bookset/delete/' . $bookset_id : 'products/bookset/delete/' . $bookset_id); ?>" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this bookset? This will also delete all associated packages and products.');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
+										<a href="<?php echo base_url('products/bookset/delete/' . $bookset_id); ?>" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this bookset? This will also delete all associated packages and products.');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
 											<i class="isax isax-trash"></i>
 										</a>
 									<?php else: ?>
-										<a href="<?php echo base_url('products/bookset/package/delete/' . $bookset['id'] : 'products/bookset/package/delete/' . $bookset['id']); ?>" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this package?');" class="btn btn-sm btn-outline-danger ms-2" data-bs-toggle="tooltip" title="Delete">
+										<a href="<?php echo base_url('products/bookset/package/delete/' . $bookset['id']); ?>" onclick="event.stopPropagation(); return confirm('Are you sure you want to delete this package?');" class="btn btn-sm btn-outline-danger ms-2" data-bs-toggle="tooltip" title="Delete">
 											<i class="isax isax-trash"></i>
 										</a>
 									<?php endif; ?>
@@ -434,7 +434,7 @@
 						<ul class="pagination pagination-sm mb-0">
 							<?php if ($current_page > 1): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url('products/bookset?' . http_build_query(array_merge($filters, array('page' => $current_page - 1, 'tab' => isset($active_tab) ? $active_tab : 'with_product'))) : 'products/bookset?' . http_build_query(array_merge($filters, array('page' => $current_page - 1, 'tab' => isset($active_tab) ? $active_tab : 'with_product')))); ?>">Previous</a>
+									<a class="page-link" href="<?php echo base_url('products/bookset?' . http_build_query(array_merge($filters, array('page' => $current_page - 1, 'tab' => isset($active_tab) ? $active_tab : 'with_product')))); ?>">Previous</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -449,14 +449,14 @@
 									</li>
 								<?php else: ?>
 									<li class="page-item">
-										<a class="page-link" href="<?php echo base_url('products/bookset?' . http_build_query(array_merge($filters, array('page' => $i, 'tab' => isset($active_tab) ? $active_tab : 'with_product'))) : 'products/bookset?' . http_build_query(array_merge($filters, array('page' => $i, 'tab' => isset($active_tab) ? $active_tab : 'with_product')))); ?>"><?php echo $i; ?></a>
+										<a class="page-link" href="<?php echo base_url('products/bookset?' . http_build_query(array_merge($filters, array('page' => $i, 'tab' => isset($active_tab) ? $active_tab : 'with_product')))); ?>"><?php echo $i; ?></a>
 									</li>
 								<?php endif; ?>
 							<?php endfor; ?>
 							
 							<?php if ($current_page < $total_pages): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url('products/bookset?' . http_build_query(array_merge($filters, array('page' => $current_page + 1, 'tab' => isset($active_tab) ? $active_tab : 'with_product'))) : 'products/bookset?' . http_build_query(array_merge($filters, array('page' => $current_page + 1, 'tab' => isset($active_tab) ? $active_tab : 'with_product')))); ?>">Next</a>
+									<a class="page-link" href="<?php echo base_url('products/bookset?' . http_build_query(array_merge($filters, array('page' => $current_page + 1, 'tab' => isset($active_tab) ? $active_tab : 'with_product')))); ?>">Next</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">

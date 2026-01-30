@@ -1,7 +1,7 @@
 <!-- Start Breadcrumb -->
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
-		<h6><a href="<?php echo base_url('products/stationery' : 'products/stationery'); ?>"><i class="isax isax-arrow-left me-2"></i>Add New Stationery</a></h6>
+		<h6><a href="<?php echo base_url('products/stationery'); ?>"><i class="isax isax-arrow-left me-2"></i>Add New Stationery</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -313,7 +313,7 @@
 </div>
 <div class="border-top my-3 pt-3">
 	<div class="d-flex align-items-center justify-content-end gap-2">
-		<a href="<?php echo base_url('products/stationery' : 'products/stationery'); ?>" class="btn btn-outline">Cancel</a>
+		<a href="<?php echo base_url('products/stationery'); ?>" class="btn btn-outline">Cancel</a>
 		<button type="submit" form="stationery-form" class="btn btn-primary">Create Stationery</button>
 	</div>
 </div>
@@ -488,7 +488,7 @@ function addCategory() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/stationery/add_category' : 'products/stationery/add_category'); ?>', {
+	fetch('<?php echo base_url('products/stationery/add_category'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -546,7 +546,7 @@ function addBrand() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/stationery/add_brand' : 'products/stationery/add_brand'); ?>', {
+	fetch('<?php echo base_url('products/stationery/add_brand'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -605,7 +605,7 @@ function addColour() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/stationery/add_colour' : 'products/stationery/add_colour'); ?>', {
+	fetch('<?php echo base_url('products/stationery/add_colour'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -651,4 +651,3 @@ function addColour() {
 	});
 }
 </script>
-

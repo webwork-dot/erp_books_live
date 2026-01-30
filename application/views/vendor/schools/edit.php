@@ -208,7 +208,7 @@
 				
 				<div class="mb-2">
 					<label class="form-label fs-13 mb-1">Upload More Images</label>
-					<input type="file" name="school_images[]" class="form-control form-control-sm" multiple accept="image/*">
+					<input type="file" name="school_image" class="form-control form-control-sm" accept="image/*">
 					<small class="text-muted fs-12">Multiple images: JPG, PNG, GIF, WEBP (Max 5MB each)</small>
 				</div>
 			</div>

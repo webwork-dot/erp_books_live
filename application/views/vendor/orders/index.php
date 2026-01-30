@@ -1,12 +1,12 @@
 <style type="text/css">
    .tab-navigation {
-      padding: 8px 15px;
-      background: white;
-      border-top-left-radius: 8px;
-      color: black;
-      margin-right: 2px;
-      border-top-right-radius: 8px;
-      box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.1);
+    padding: 8px 15px;
+    background: white;
+    border-top-left-radius: 8px;
+    color: black;
+    margin-right: 2px;
+    border-top-right-radius: 8px;
+    box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.1);
    }
 
    .tab-navigation.active {
@@ -164,6 +164,11 @@
             <li class="nav-item">
                <a class="nav-link tab-navigation <?php echo ($order_status == 'return') ? 'active' : ''; ?>" href="<?php echo base_url('orders/return'); ?>">
                   Return
+               </a>
+            </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'cancelled') ? 'active' : ''; ?>" href="<?php echo base_url('orders/cancelled-orders'); ?>">
+                  Cancelled
                </a>
             </li>
          </ul>

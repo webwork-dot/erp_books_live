@@ -94,7 +94,7 @@
 									// Orders submenu states
 									$orders_parent_active = $is_orders_section ? 'active subdrop' : '';
 									$orders_all_active = ($current_uri === 'orders' || $current_uri === 'orders/index') ? 'active' : '';
-									$orders_pending_active = strpos($current_uri, 'orders/pending-orders') !== false ? 'active' : '';
+									$orders_pending_active = strpos($current_uri, 'orders/pending') !== false ? 'active' : '';
 									$orders_cancelled_active = strpos($current_uri, 'orders/cancelled-orders') !== false ? 'active' : '';
 									$orders_processing_active = strpos($current_uri, 'orders/processing') !== false ? 'active' : '';
 									$orders_delivered_active = strpos($current_uri, 'orders/delivered') !== false ? 'active' : '';
@@ -136,13 +136,8 @@
 												</a>
 											</li>
 											<li>
-												<a href="<?php echo base_url('orders/pending-orders'); ?>" class="<?php echo $orders_pending_active; ?>">
+												<a href="<?php echo base_url('orders/pending'); ?>" class="<?php echo $orders_pending_active; ?>">
 													Pending Orders
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="<?php echo $orders_cancelled_active; ?>">
-													Cancelled Orders
 												</a>
 											</li>
 											<li>
@@ -163,6 +158,11 @@
 											<li>
 												<a href="<?php echo base_url('orders/return'); ?>" class="<?php echo $orders_return_active; ?>">
 													Return/Refund
+												</a>
+											</li>
+											<li>
+												<a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="<?php echo $orders_cancelled_active; ?>">
+													Cancelled Orders
 												</a>
 											</li>
 										</ul>

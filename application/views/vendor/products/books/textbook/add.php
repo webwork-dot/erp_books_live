@@ -1,7 +1,7 @@
 <!-- Start Breadcrumb -->
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
-		<h6><a href="<?php echo base_url('products/textbook' : 'products/textbook'); ?>"><i class="isax isax-arrow-left me-2"></i>Add New Textbook</a></h6>
+		<h6><a href="<?php echo base_url('products/textbook'); ?>"><i class="isax isax-arrow-left me-2"></i>Add New Textbook</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -388,7 +388,7 @@
 
 <div class="border-top my-3 pt-3">
 	<div class="d-flex align-items-center justify-content-end gap-2">
-		<a href="<?php echo base_url('products/textbook' : 'products/textbook'); ?>" class="btn btn-outline">Cancel</a>
+		<a href="<?php echo base_url('products/textbook'); ?>" class="btn btn-outline">Cancel</a>
 		<button type="submit" form="textbook-form" class="btn btn-primary" onclick="return validatePrice();">Create Textbook</button>
 	</div>
 </div>
@@ -708,7 +708,7 @@ function addType() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/textbook/add_type' : 'products/textbook/add_type'); ?>', {
+	fetch('<?php echo base_url('products/textbook/add_type'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -752,7 +752,7 @@ function addPublisher() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/textbook/add_publisher' : 'products/textbook/add_publisher'); ?>', {
+	fetch('<?php echo base_url('products/textbook/add_publisher'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -810,7 +810,7 @@ function addGrade() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/textbook/add_grade' : 'products/textbook/add_grade'); ?>', {
+	fetch('<?php echo base_url('products/textbook/add_grade'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -854,7 +854,7 @@ function addAge() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/textbook/add_age' : 'products/textbook/add_age'); ?>', {
+	fetch('<?php echo base_url('products/textbook/add_age'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -898,7 +898,7 @@ function addSubject() {
 	formData.append('name', name);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url('products/textbook/add_subject' : 'products/textbook/add_subject'); ?>', {
+	fetch('<?php echo base_url('products/textbook/add_subject'); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -972,4 +972,3 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 });
 </script>
-

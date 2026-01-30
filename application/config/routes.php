@@ -130,7 +130,6 @@ $route['branches/get_cities'] = 'Vendor/branches/get_cities';
 $route['offers/add'] = 'Vendor/orders/add_offers';
 $route['offers'] = 'Vendor/orders/offers';
 $route['orders/all'] = 'Vendor/orders/index/all';
-$route['orders/pending-orders'] = 'Vendor/orders/pending_orders';
 $route['orders/cancelled-orders'] = 'Vendor/orders/cancelled_orders';
 $route['orders/pending'] = 'Vendor/orders/index/pending';
 $route['orders/processing'] = 'Vendor/orders/index/processing';

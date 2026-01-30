@@ -274,6 +274,17 @@ class Vendor_base extends CI_Controller
 		return '';
 	}
 	
+	protected function buildVendorUploadPath($relative)
+	{
+		$base_domain = isset($this->current_vendor['domain']) ? $this->Erp_client_model->extractBaseDomain($this->current_vendor['domain']) : '';
+		$root = $this->config->item('webwork_root_path');
+		if (empty($root)) { $root = '/webwork'; }
+		$root = rtrim($root, '/\\');
+		$relative = ltrim($relative, '/\\');
+		$path = $root . DIRECTORY_SEPARATOR . $base_domain . DIRECTORY_SEPARATOR . $relative . DIRECTORY_SEPARATOR;
+		return $path;
+	}
+	
 	/**
 	 * Get enabled features for current vendor
 	 *
@@ -360,4 +371,3 @@ class Vendor_base extends CI_Controller
 		return FALSE;
 	}
 }
-

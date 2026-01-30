@@ -31,17 +31,16 @@
 										}
 									endforeach;
 									?>
-									<?php
-										$stored_path = trim($img['image_path']);
-										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
-											$image_url = $stored_path;
-										} else {
-											$image_url = get_vendor_domain_url().'/' . $stored_path;
-										}
-										?>
-
 
 									<?php foreach ($uniform_images as $img): ?>
+										<?php
+											$stored_path = trim($img['image_path']);
+											if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+												$image_url = $stored_path;
+											} else {
+												$image_url = get_vendor_domain_url() . '/' . $stored_path;
+											}
+										?>
 										<div class="image-preview-item existing-image" data-image-id="<?php echo $img['id']; ?>" style="position: relative; display: inline-block; margin: 3px; cursor: move; vertical-align: top;">
 											<img src="<?php echo $image_url; ?>" alt="Uniform Image" style="width: 120px; height: 120px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px 4px 0 0; display: block;">
 											<div class="image-buttons" style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.75); display: flex; gap: 2px; padding: 3px; border-radius: 0 0 4px 4px;">
@@ -54,6 +53,7 @@
 											</div>
 										</div>
 									<?php endforeach; ?>
+
 								<?php endif; ?>
 							</div>
 							<input type="hidden" name="image_order" id="image_order" value="">

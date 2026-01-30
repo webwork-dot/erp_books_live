@@ -1,7 +1,7 @@
 <!-- Start Breadcrumb -->
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
-		<h6><a href="<?php echo base_url('products/bookset?tab=with_product' : 'products/bookset?tab=with_product'); ?>"><i class="isax isax-arrow-left me-2"></i>Edit Bookset</a></h6>
+		<h6><a href="<?php echo base_url('products/bookset?tab=with_product'); ?>"><i class="isax isax-arrow-left me-2"></i>Edit Bookset</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -276,7 +276,7 @@
 			}
 			
 			$.ajax({
-				url: '<?php echo base_url("products/bookset/package/get_boards" : "products/bookset/package/get_boards"); ?>',
+				url: '<?php echo base_url("products/bookset/package/get_boards"); ?>',
 				type: 'GET',
 				data: {
 					school_id: schoolId
@@ -717,7 +717,7 @@
 			$select.empty().append('<option value="">Loading...</option>');
 			
 			$.ajax({
-				url: '<?php echo base_url("products/bookset/package/get_products_by_type" : "products/bookset/package/get_products_by_type"); ?>',
+				url: '<?php echo base_url("products/bookset/package/get_products_by_type"); ?>',
 				type: 'GET',
 				data: {
 					category: category
@@ -1165,4 +1165,3 @@
 	initScript();
 })();
 </script>
-

@@ -3905,9 +3905,9 @@ class Products extends Vendor_base
 			$data['current_vendor'] = $this->current_vendor;
 			$data['vendor_domain'] = $this->getVendorDomainForUrl();
 			$data['breadcrumb'] = array(
-				array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
-				array('label' => 'Products', 'url' => '#'),
-				array('label' => 'Books', 'url' => '#'),
+				array('label' => 'Dashboard', 'url' => base_url('dashboard')),
+				array('label' => 'Products', 'url' => 'products/bookset?tab=with_product'),
+				array('label' => 'Books', 'url' => 'products/bookset?tab=with_product'),
 				array('label' => 'Booksets', 'active' => true)
 			);
 			$data['content'] = $this->load->view('vendor/products/books/bookset/index', $data, TRUE);
@@ -4225,9 +4225,9 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
-			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Books', 'url' => '#'),
+			array('label' => 'Dashboard', 'url' => base_url('dashboard')),
+			array('label' => 'Products', 'url' => 'products/bookset?tab=' . $active_tab),
+			array('label' => 'Books', 'url' => 'products/bookset?tab=' . $active_tab),
 			array('label' => 'Booksets', 'active' => true)
 		);
 		
@@ -4794,7 +4794,7 @@ class Products extends Vendor_base
 							else
 							{
 								$this->session->set_flashdata('success', 'Bookset with products added successfully.');
-								redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+								redirect(base_url('products/bookset?tab=with_product'));
 								return;
 							}
 						}
@@ -4858,10 +4858,10 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
-			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Books', 'url' => '#'),
-			array('label' => 'Booksets', 'url' => base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product')),
+			array('label' => 'Dashboard', 'url' => base_url('dashboard')),
+			array('label' => 'Products', 'url' => 'products/bookset?tab=with_product'),
+			array('label' => 'Books', 'url' => 'products/bookset?tab=with_product'),
+			array('label' => 'Booksets', 'url' => base_url('products/bookset?tab=with_product')),
 			array('label' => 'Add Bookset with Products', 'active' => true)
 		);
 		
@@ -5067,10 +5067,10 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
-			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Books', 'url' => '#'),
-			array('label' => 'Booksets', 'url' => base_url($this->current_vendor['domain'] . '/products/bookset?tab=without_product')),
+			array('label' => 'Dashboard', 'url' => base_url('dashboard')),
+			array('label' => 'Products', 'url' => 'products/bookset?tab=without_product'),
+			array('label' => 'Books', 'url' => 'products/bookset?tab=without_product'),
+			array('label' => 'Booksets', 'url' => base_url('products/bookset?tab=without_product')),
 			array('label' => 'Add Bookset without Products', 'active' => true)
 		);
 		
@@ -5158,7 +5158,7 @@ class Products extends Vendor_base
 		if (!$package_id)
 		{
 			$this->session->set_flashdata('error', 'Invalid package ID.');
-			redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+			redirect(base_url('products/bookset?tab=with_product'));
 			return;
 		}
 		
@@ -5170,7 +5170,7 @@ class Products extends Vendor_base
 		if (!$package)
 		{
 			$this->session->set_flashdata('error', 'Package not found.');
-			redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+			redirect(base_url('products/bookset?tab=with_product'));
 			return;
 		}
 		
@@ -5197,7 +5197,7 @@ class Products extends Vendor_base
 			$this->session->set_flashdata('success', 'Bookset package deleted successfully.');
 		}
 		
-		redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+		redirect(base_url('products/bookset?tab=with_product'));
 	}
 	
 	/**
@@ -5208,7 +5208,7 @@ class Products extends Vendor_base
 		if (!$bookset_id)
 		{
 			$this->session->set_flashdata('error', 'Invalid bookset ID.');
-			redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+			redirect(base_url('products/bookset?tab=with_product'));
 			return;
 		}
 		
@@ -5223,7 +5223,7 @@ class Products extends Vendor_base
 		if (!$bookset)
 		{
 			$this->session->set_flashdata('error', 'Bookset not found.');
-			redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+			redirect(base_url('products/bookset?tab=with_product'));
 			return;
 		}
 		
@@ -5596,10 +5596,10 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
-			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Books', 'url' => '#'),
-			array('label' => 'Booksets', 'url' => base_url($this->current_vendor['domain'] . '/products/bookset?tab=' . $redirect_tab)),
+			array('label' => 'Dashboard', 'url' => base_url('dashboard')),
+			array('label' => 'Products', 'url' => 'products/bookset?tab=' . $redirect_tab),
+			array('label' => 'Books', 'url' => 'products/bookset?tab=' . $redirect_tab),
+			array('label' => 'Booksets', 'url' => base_url('products/bookset?tab=' . $redirect_tab)),
 			array('label' => 'Edit Bookset', 'active' => true)
 		);
 		
@@ -5683,7 +5683,7 @@ class Products extends Vendor_base
 			$this->session->set_flashdata('success', 'Bookset deleted successfully.');
 		}
 		
-		redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+		redirect(base_url('products/bookset?tab=with_product'));
 	}
 	
 	/**
@@ -6301,8 +6301,3 @@ class Products extends Vendor_base
 		echo json_encode(array('status' => 'success', 'message' => 'Image deleted successfully'));
 	}
 }
-
-
-
-
-

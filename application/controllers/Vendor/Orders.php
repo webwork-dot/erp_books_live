@@ -509,6 +509,11 @@ class Orders extends Vendor_base
 		$total_count = $this->Order_model->get_paginated_pending_order_count($filter_data);
 		$page_data['total_count'] = $total_count;
 		
+		// Get order counts for each status (for tabs)
+		$vendor_id = $this->current_vendor['id'];
+		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
+		$page_data['order_status'] = 'pending';
+		
 		// Pagination setup
 		$per_page = 10;
 		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
@@ -521,7 +526,7 @@ class Orders extends Vendor_base
 		// Setup pagination
 		$this->load->library('pagination');
 		$pagination_config = $this->get_pagination_config(
-			base_url($this->current_vendor['domain'] . '/orders/pending-orders'),
+			base_url($this->current_vendor['domain'] . '/orders/pending'),
 			$total_count,
 			$per_page
 		);
@@ -565,6 +570,11 @@ class Orders extends Vendor_base
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_cancelled_order_count($filter_data);
 		$page_data['total_count'] = $total_count;
+		
+		// Get order counts for each status (for tabs)
+		$vendor_id = $this->current_vendor['id'];
+		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
+		$page_data['order_status'] = 'cancelled';
 		
 		// Pagination setup
 		$per_page = 10;

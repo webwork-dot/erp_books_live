@@ -1,7 +1,7 @@
 <!-- Start Breadcrumb -->
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
-		<h6><a href="<?php echo base_url('products/individual-products' : 'products/individual-products'); ?>"><i class="isax isax-arrow-left me-2"></i>Add New Individual Product</a></h6>
+		<h6><a href="<?php echo base_url('products/individual-products'); ?>"><i class="isax isax-arrow-left me-2"></i>Add New Individual Product</a></h6>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -329,7 +329,7 @@
 
 <div class="border-top my-3 pt-3">
 	<div class="d-flex align-items-center justify-content-end gap-2">
-		<a href="<?php echo base_url('products/individual-products' : 'products/individual-products'); ?>" class="btn btn-outline">Cancel</a>
+		<a href="<?php echo base_url('products/individual-products'); ?>" class="btn btn-outline">Cancel</a>
 		<button type="submit" form="individual-product-form" class="btn btn-primary">Create Product</button>
 	</div>
 </div>
@@ -641,7 +641,7 @@ function generateVariationCombinations(typeIds) {
 		formData.append('type_ids[]', id);
 	});
 	
-	fetch('<?php echo base_url("products/variations/generate_combinations" : "products/variations/generate_combinations"); ?>', {
+	fetch('<?php echo base_url("products/variations/generate_combinations"); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -796,7 +796,7 @@ function loadSizePricing() {
 		return;
 	}
 	
-	fetch('<?php echo base_url("products/individual-products/get_sizes" : "products/individual-products/get_sizes"); ?>?size_chart_id=' + sizeChartId)
+	fetch('<?php echo base_url("products/individual-products/get_sizes"); ?>?size_chart_id=' + sizeChartId)
 		.then(response => response.json())
 		.then(data => {
 			if (data.status === 'success' && data.sizes.length > 0) {
@@ -910,7 +910,7 @@ function loadSizeColorPricing() {
 		return;
 	}
 	
-	fetch('<?php echo base_url("products/individual-products/get_sizes" : "products/individual-products/get_sizes"); ?>?size_chart_id=' + sizeChartId)
+	fetch('<?php echo base_url("products/individual-products/get_sizes"); ?>?size_chart_id=' + sizeChartId)
 		.then(response => response.json())
 		.then(data => {
 			if (data.status === 'success' && data.sizes.length > 0) {
@@ -1006,7 +1006,7 @@ function loadSubcategories(categoryId) {
 	}
 	
 	// Fetch subcategories
-	fetch('<?php echo base_url("products/individual-products/get_subcategories" : "products/individual-products/get_subcategories"); ?>?parent_id=' + categoryId)
+	fetch('<?php echo base_url("products/individual-products/get_subcategories"); ?>?parent_id=' + categoryId)
 		.then(response => response.json())
 		.then(data => {
 			if (data.status === 'success') {
@@ -1051,7 +1051,7 @@ function addCategory() {
 	formData.append('description', description);
 	// No parent_id - this is always a main category
 	
-	fetch('<?php echo base_url("products/individual-products/add_category" : "products/individual-products/add_category"); ?>', {
+	fetch('<?php echo base_url("products/individual-products/add_category"); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -1130,7 +1130,7 @@ function addSubcategory() {
 	formData.append('description', description);
 	formData.append('parent_id', parentId);
 	
-	fetch('<?php echo base_url("products/individual-products/add_category" : "products/individual-products/add_category"); ?>', {
+	fetch('<?php echo base_url("products/individual-products/add_category"); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -1198,7 +1198,7 @@ function addColor() {
 	formData.append('color_code', colorCode);
 	formData.append('description', description);
 	
-	fetch('<?php echo base_url("products/individual-products/add_color" : "products/individual-products/add_color"); ?>', {
+	fetch('<?php echo base_url("products/individual-products/add_color"); ?>', {
 		method: 'POST',
 		body: formData
 	})
@@ -1356,4 +1356,3 @@ document.addEventListener('DOMContentLoaded', function() {
 	setTimeout(attachEventHandlers, 500);
 });
 </script>
-

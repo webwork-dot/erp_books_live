@@ -4,7 +4,7 @@
 		<h6>Manage Textbooks</h6>
 	</div>
 	<div>
-		<a href="<?php echo base_url('products/textbook/add' : 'products/textbook/add'); ?>" class="btn btn-primary">
+		<a href="<?php echo base_url('products/textbook/add'); ?>" class="btn btn-primary">
 			<i class="isax isax-add"></i> Add New Textbook
 		</a>
 	</div>
@@ -14,7 +14,7 @@
 <!-- Filters -->
 <div class="card mb-3">
 	<div class="card-body">
-		<form method="get" action="<?php echo base_url('products/textbook' : 'products/textbook'); ?>">
+		<form method="get" action="<?php echo base_url('products/textbook'); ?>">
 			<!-- Search on Top -->
 			<div class="row gx-3 mb-3">
 				<div class="col-lg-8 col-md-8">
@@ -38,7 +38,7 @@
 						<label class="form-label">&nbsp;</label>
 						<div class="d-flex gap-2">
 							<button type="submit" class="btn btn-primary flex-fill">Filter</button>
-							<a href="<?php echo base_url('products/textbook' : 'products/textbook'); ?>" class="btn btn-outline-secondary">Clear</a>
+							<a href="<?php echo base_url('products/textbook'); ?>" class="btn btn-outline-secondary">Clear</a>
 						</div>
 					</div>
 				</div>
@@ -252,10 +252,10 @@
 									</span>
 								</td>
 								<td class="text-end">
-									<a href="<?php echo base_url('products/textbook/edit/' . $textbook['id'] : 'products/textbook/edit/' . $textbook['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
+									<a href="<?php echo base_url('products/textbook/edit/' . $textbook['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
-									<a href="<?php echo base_url('products/textbook/delete/' . $textbook['id'] : 'products/textbook/delete/' . $textbook['id']); ?>" onclick="return confirm('Are you sure you want to delete this textbook?');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
+									<a href="<?php echo base_url('products/textbook/delete/' . $textbook['id']); ?>" onclick="return confirm('Are you sure you want to delete this textbook?');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
 										<i class="isax isax-trash"></i>
 									</a>
 								</td>
@@ -277,7 +277,7 @@
 						<ul class="pagination pagination-sm mb-0">
 							<?php if ($current_page > 1): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url('products/textbook?' . http_build_query(array_merge($filters, array('page' => $current_page - 1))) : 'products/textbook?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
+									<a class="page-link" href="<?php echo base_url('products/textbook?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -292,14 +292,14 @@
 									</li>
 								<?php else: ?>
 									<li class="page-item">
-										<a class="page-link" href="<?php echo base_url('products/textbook?' . http_build_query(array_merge($filters, array('page' => $i))) : 'products/textbook?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
+										<a class="page-link" href="<?php echo base_url('products/textbook?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
 									</li>
 								<?php endif; ?>
 							<?php endfor; ?>
 							
 							<?php if ($current_page < $total_pages): ?>
 								<li class="page-item">
-									<a class="page-link" href="<?php echo base_url('products/textbook?' . http_build_query(array_merge($filters, array('page' => $current_page + 1))) : 'products/textbook?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
+									<a class="page-link" href="<?php echo base_url('products/textbook?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
 								</li>
 							<?php else: ?>
 								<li class="page-item disabled">
@@ -313,5 +313,4 @@
 		<?php endif; ?>
 	</div>
 </div>
-
 
