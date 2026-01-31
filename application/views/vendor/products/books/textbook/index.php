@@ -172,7 +172,15 @@
 							<tr>
 								<td>
 									<?php if (!empty($textbook['thumbnail'])): ?>
-										<img src="<?php echo base_url($textbook['thumbnail']); ?>" alt="Textbook" style="width: 50px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>'">
+										<?php
+										$stored_path = trim($textbook['thumbnail']);
+										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+											$image_url = $stored_path;
+										} else {
+											$image_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
+										}
+										?>
+										<img src="<?php echo $image_url; ?>" alt="Textbook" style="width: 50px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';">
 									<?php else: ?>
 										<div style="width: 50px; height: 60px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
 											<i class="isax isax-image" style="font-size: 20px; color: #999;"></i>
@@ -313,4 +321,3 @@
 		<?php endif; ?>
 	</div>
 </div>
-

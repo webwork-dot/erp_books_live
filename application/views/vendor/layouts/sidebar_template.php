@@ -4,37 +4,24 @@
 			<div class="sidebar" id="sidebar-two">
 
 				<!-- Start Logo -->
-				<div class="sidebar-logo" style="background-color: #ffffff;width: 200px;">
-					<?php 
-					// Get logo from vendor database (erp_clients.logo field)
-					$logo_url = '';
-					if (isset($current_vendor['logo']) && !empty($current_vendor['logo'])) {
-						// Check if file exists before using it
-						if (file_exists(FCPATH . $current_vendor['logo'])) {
-							$logo_url = base_url($current_vendor['logo']);
-						}
-					}
+				<div class="sidebar-logo" style="background-color:#ffffff;width:200px;">
+					<?php
+						$this->load->helper('common');
+						$logo_url = get_simple_vendor_logo_url();
 					?>
-					<?php if (!empty($logo_url)): ?>
-					<a href="<?php echo base_url('dashboard'); ?>" class="logo logo-normal">
-						<img src="<?php echo $logo_url; ?>" alt="Logo">
+
+					<a href="<?= base_url('dashboard'); ?>" class="logo">
+						<img
+							src="<?= $logo_url; ?>"
+							alt="Logo"
+							style="max-width:100%; height:auto;"
+							onerror="this.src='<?= base_url('assets/images/logo.png'); ?>'"
+						>
 					</a>
-					<a href="<?php echo base_url('dashboard'); ?>" class="logo-small">
-						<img src="<?php echo $logo_url; ?>" alt="Logo">
-					</a>
-					<a href="<?php echo base_url('dashboard'); ?>" class="dark-logo">
-						<img src="<?php echo $logo_url; ?>" alt="Logo">
-					</a>
-					<a href="<?php echo base_url('dashboard'); ?>" class="dark-small">
-						<img src="<?php echo $logo_url; ?>" alt="Logo">
-					</a>
-					<?php endif; ?>
+
 					
-					<!-- Sidebar Hover Menu Toggle Button -->
-					<a id="toggle_btn" href="javascript:void(0);">
-						<i class="isax isax-menu-1"></i>
-					</a>
 				</div>
+
 				<!-- End Logo -->
 						
 				<!-- Search -->

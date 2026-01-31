@@ -484,46 +484,76 @@ class Vendors extends Erp_base
 				$vendor_data['password'] = sha1($password);
 			}
 			
-			// Handle logo upload
-			if (isset($_FILES['logo']['name']) && !empty($_FILES['logo']['name']))
+			// Handle logo upload (EXACT pattern like notebooks, domain-based folder)
+			if (!empty($_FILES['logo']['name']))
 			{
-				// Create uploads directory if it doesn't exist
-				$upload_path = './uploads/vendors/logos/';
-				if (!is_dir($upload_path))
-				{
-					if (!mkdir($upload_path, 0755, TRUE))
-					{
-						log_message('error', 'Failed to create logo upload directory: ' . $upload_path);
-						$this->session->set_flashdata('error', 'Failed to create upload directory. Please check folder permissions.');
-					}
+				$this->config->load('upload');
+				$uploadCfg = $this->config->item('vendor_logo_upload');
+				// Derive vendor folder from domain (EXACT same logic as earlier)
+				$raw_domain = strtolower(trim($this->input->post('domain')));
+				$raw_domain = preg_replace('#^https?://#', '', $raw_domain);
+				$raw_domain = preg_replace('#^www\.#', '', $raw_domain);
+				$raw_domain = rtrim($raw_domain, '/');
+
+				$segments = preg_split('#/#', $raw_domain, -1, PREG_SPLIT_NO_EMPTY);
+				$vendor_folder = !empty($segments) ? end($segments) : 'default';
+				$vendor_folder = preg_replace('/[^a-z0-9\.\-]/', '', $vendor_folder);
+
+				if (empty($vendor_folder)) {
+					$vendor_folder = 'default';
 				}
-				
-				// Configure upload
-				$config['upload_path'] = $upload_path;
-				$config['allowed_types'] = 'gif|jpg|jpeg|png|svg';
-				$config['max_size'] = 2048; // 2MB
-				$config['file_name'] = 'vendor_' . $vendor_id . '_' . time();
-				$config['overwrite'] = TRUE;
-				
-				$this->load->library('upload', $config);
-				
-				if ($this->upload->do_upload('logo'))
-				{
-					$upload_data = $this->upload->data();
-					$vendor_data['logo'] = 'uploads/vendors/logos/' . $upload_data['file_name'];
-					
-					// Delete old logo if exists
-					if (!empty($vendor['logo']) && file_exists(FCPATH . $vendor['logo']))
-					{
-						@unlink(FCPATH . $vendor['logo']);
-					}
+
+
+				// SAME path structure as notebook/uniform
+				$upload_path = rtrim($uploadCfg['root_path'], '/')
+							. '/'
+							. $vendor_folder . '/'
+							. trim($uploadCfg['relative_dir'], '/')
+							. '/';
+
+				if (!is_dir($upload_path)) {
+					mkdir($upload_path, 0775, true);
 				}
-				else
-				{
-					$error = $this->upload->display_errors();
-					$this->session->set_flashdata('error', 'Logo upload failed: ' . $error);
+
+
+				// check writability ONLY if directory does not exist
+				if (!is_dir($upload_path)) {
+					mkdir($upload_path, 0775, true);
+				}
+
+				$config = [
+					'upload_path'   => $upload_path,
+					'allowed_types' => implode('|', $uploadCfg['allowed_types']),
+					'max_size'      => $uploadCfg['max_size'],
+					'file_name'     => 'vendor_' . $vendor_id . '_' . time(),
+					'overwrite'     => true
+				];
+
+				$this->load->library('upload');
+				$this->upload->initialize($config);
+
+				if (!$this->upload->do_upload('logo')) {
+					$this->session->set_flashdata(
+						'error',
+						'Logo upload failed: ' . strip_tags($this->upload->display_errors())
+					);
+					redirect('erp-admin/vendors/edit/' . $vendor_id);
+				}
+
+				$upload_data = $this->upload->data();
+
+				// ✅ STORE RELATIVE PATH ONLY (same as notebooks)
+				$vendor_data['logo'] =
+					trim($uploadCfg['relative_dir'], '/') . '/'
+					. $upload_data['file_name'];
+
+				// Delete old logo
+				if (!empty($vendor['logo']) && file_exists(FCPATH . $vendor['logo'])) {
+					@unlink(FCPATH . $vendor['logo']);
 				}
 			}
+
+
 			// Handle logo removal
 			elseif ($this->input->post('remove_logo') == '1')
 			{
@@ -1762,4 +1792,3 @@ class Vendors extends Erp_base
 		}
 	}
 }
-

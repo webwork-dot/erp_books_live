@@ -74,7 +74,7 @@ class Products extends Vendor_base
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['feature'] = $feature;
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
 			array('label' => $feature['name'], 'active' => true)
 		);
@@ -139,7 +139,7 @@ class Products extends Vendor_base
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['filters'] = $filters;
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
 			array('label' => 'Stationery', 'active' => true)
 		);
@@ -247,6 +247,71 @@ class Products extends Vendor_base
 					$product['image'] = 'assets/' . $image_path;
 				} else {
 					$product['image'] = 'assets/uploads/' . ltrim($image_path, '/');
+				}
+				
+				$image_order = $this->input->post('image_order');
+				$main_image_id = $this->input->post('main_image_id');
+				$deleted_image_ids = $this->input->post('deleted_image_ids');
+				$this->config->load('upload');
+				$uploadCfg = $this->config->item('textbook_upload');
+				
+				if (!empty($deleted_image_ids))
+				{
+					$deleted_ids = explode(',', $deleted_image_ids);
+					$deleted_ids = array_filter(array_map('trim', $deleted_ids));
+					
+					if (!empty($deleted_ids))
+					{
+						$this->db->where('textbook_id', $id);
+						$this->db->where_in('id', $deleted_ids);
+						$images_to_delete = $this->db->get('erp_textbook_images')->result_array();
+						
+						foreach ($images_to_delete as $img)
+						{
+							$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . ltrim($img['image_path'], '/');
+							if (file_exists($image_path)) { @unlink($image_path); }
+						}
+						
+						$this->db->where('textbook_id', $id);
+						$this->db->where_in('id', $deleted_ids);
+						$this->db->delete('erp_textbook_images');
+					}
+				}
+				
+				if (!empty($main_image_id) && is_numeric($main_image_id))
+				{
+					$this->db->where('id', $main_image_id);
+					$this->db->where('textbook_id', $id);
+					if ($this->db->count_all_results('erp_textbook_images') == 1)
+					{
+						$this->db->where('textbook_id', $id)->update('erp_textbook_images', array('is_main' => 0));
+						$this->db->where('id', $main_image_id)->where('textbook_id', $id)->update('erp_textbook_images', array('is_main' => 1));
+					}
+				}
+				
+				if (!empty($image_order))
+				{
+					$image_ids = explode(',', $image_order);
+					$image_ids = array_filter(array_map('trim', $image_ids));
+					
+					foreach ($image_ids as $order => $image_id)
+					{
+						$image_id = trim($image_id);
+						if (!empty($image_id) && is_numeric($image_id))
+						{
+							$this->db->where('id', $image_id);
+							$this->db->where('textbook_id', $id);
+							$image = $this->db->get('erp_textbook_images')->row_array();
+							
+							if ($image)
+							{
+								$this->db->where('id', $image_id);
+								$this->db->update('erp_textbook_images', array(
+									'image_order' => $order
+								));
+							}
+						}
+					}
 				}
 			} else {
 				// If no main image found, use first image by order
@@ -697,7 +762,7 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
 			array('label' => 'Individual Products', 'active' => true)
 		);
@@ -732,9 +797,9 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Individual Products', 'url' => base_url($this->current_vendor['domain'] . '/products/individual-products')),
+			array('label' => 'Individual Products', 'url' => base_url($this->config->item('base_url') . '/products/individual-products')),
 			array('label' => 'Add Product', 'active' => true)
 		);
 		
@@ -1008,16 +1073,16 @@ class Products extends Vendor_base
 			switch ($product_type)
 			{
 				case 'textbook':
-					redirect($this->current_vendor['domain'] . '/products/textbook/edit/' . $id);
+					redirect(base_url('products/textbook/edit/' . $id));
 					break;
 				case 'notebook':
-					redirect($this->current_vendor['domain'] . '/products/notebook/edit/' . $id);
+					redirect($this->config->item('base_url') . '/products/notebook/edit/' . $id);
 					break;
 				case 'stationery':
-					redirect($this->current_vendor['domain'] . '/products/stationery/edit/' . $id);
+					redirect($this->config->item('base_url') . '/products/stationery/edit/' . $id);
 					break;
 				case 'uniform':
-					redirect($this->current_vendor['domain'] . '/products/uniforms/edit/' . $id);
+					redirect($this->config->item('base_url') . '/products/uniforms/edit/' . $id);
 					break;
 			}
 			return;
@@ -1116,9 +1181,9 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Individual Products', 'url' => base_url($this->current_vendor['domain'] . '/products/individual-products')),
+			array('label' => 'Individual Products', 'url' => base_url($this->config->item('base_url') . '/products/individual-products')),
 			array('label' => 'Edit Product', 'active' => true)
 		);
 		
@@ -1331,11 +1396,13 @@ class Products extends Vendor_base
 	{
 		if (!empty($_FILES['images']['name'][0]))
 		{
-			$upload_path = './assets/uploads/vendors/' . $this->current_vendor['id'] . '/individual-products/images/';
-			if (!is_dir($upload_path))
-			{
-				mkdir($upload_path, 0755, TRUE);
-			}
+			$this->config->load('upload');
+			$uploadCfg = $this->config->item('individual_product_upload');
+			$this->load->helper('common');
+			$vendor_folder = get_vendor_domain_folder();
+			$date_folder = date('Y_m_d');
+			$upload_path = rtrim($uploadCfg['root_path'], '/') . '/' . $uploadCfg['relative_dir'] . $vendor_folder . '/' . $date_folder . '/';
+			if (!is_dir($upload_path)) { mkdir($upload_path, 0755, TRUE); }
 			
 			$files = $_FILES['images'];
 			$image_order = json_decode($this->input->post('image_order'), TRUE);
@@ -1357,25 +1424,8 @@ class Products extends Vendor_base
 			{
 				if (isset($files['name'][$original_index]) && $files['error'][$original_index] == 0 && !empty($files['name'][$original_index]))
 				{
-					// Validate MIME type
-					$allowed_mimes = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml', 'image/x-icon', 'image/tiff', 'image/tif', 'image/avif');
-					$allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif');
-					$file_mime = $files['type'][$original_index];
-					
-					// Get file extension as fallback
 					$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
-					
-					// Check both MIME type and file extension (some browsers send incorrect MIME types for AVIF)
-					// Accept file if EITHER MIME type OR extension is valid (extension takes precedence for AVIF)
-					$mime_valid = in_array($file_mime, $allowed_mimes);
-					$ext_valid = in_array($file_ext, $allowed_extensions);
-					$is_valid = $mime_valid || $ext_valid;
-					
-					if (!$is_valid)
-					{
-						$upload_errors[] = $files['name'][$original_index] . ': Invalid file type. Only image files are allowed.';
-						continue;
-					}
+					if (!in_array($file_ext, $uploadCfg['allowed_types'], true)) { $upload_errors[] = $files['name'][$original_index] . ': Invalid file type'; continue; }
 					
 					// Reset $_FILES array for this iteration
 					$_FILES['image']['name'] = $files['name'][$original_index];
@@ -1384,13 +1434,10 @@ class Products extends Vendor_base
 					$_FILES['image']['error'] = $files['error'][$original_index];
 					$_FILES['image']['size'] = $files['size'][$original_index];
 					
-					// Get file extension
-					$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
-					
 					$config['upload_path'] = $upload_path;
-					$config['allowed_types'] = '*';
-					$config['max_size'] = 5120; // 5MB
-					$config['file_name'] = 'individual_product_' . $product_id . '_' . time() . '_' . $original_index . '.' . $file_ext;
+					$config['allowed_types'] = implode('|', $uploadCfg['allowed_types']);
+					$config['max_size'] = $uploadCfg['max_size'];
+					$config['file_name'] = 'individual_product_' . $product_id . '_' . uniqid() . '_' . $original_index . '.' . $file_ext;
 					$config['overwrite'] = FALSE;
 					
 					$this->load->library('upload');
@@ -1400,7 +1447,7 @@ class Products extends Vendor_base
 					{
 						$upload_data = $this->upload->data();
 						$images_data[] = array(
-							'path' => 'assets/uploads/vendors/' . $this->current_vendor['id'] . '/individual-products/images/' . $upload_data['file_name'],
+							'path' => 'uploads/' . $uploadCfg['relative_dir'] . $vendor_folder . '/' . $date_folder . '/' . $upload_data['file_name'],
 							'order' => $order,
 							'is_main' => ($order == $main_image_index) ? 1 : 0
 						);
@@ -1436,6 +1483,8 @@ class Products extends Vendor_base
 		$image_order = $this->input->post('image_order');
 		$main_image_id = $this->input->post('main_image_id');
 		$deleted_image_ids = $this->input->post('deleted_image_ids');
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('individual_product_upload');
 		
 		// Handle deleted images
 		if (!empty($deleted_image_ids))
@@ -1457,7 +1506,7 @@ class Products extends Vendor_base
 						{
 							if ($img['id'] == $image_id)
 							{
-								$image_path = FCPATH . 'assets/uploads/' . ltrim($img['image_path'], '/');
+								$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . ltrim($img['image_path'], '/');
 								if (file_exists($image_path))
 								{
 									@unlink($image_path);
@@ -1822,7 +1871,7 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
 			array('label' => 'Variations', 'active' => true)
 		);
@@ -2214,16 +2263,16 @@ class Products extends Vendor_base
 			// Validation and save logic will go here
 			// For now, just redirect back
 			$this->session->set_flashdata('success', 'Stationery product added successfully (placeholder)');
-			redirect($this->current_vendor['domain'] . '/products/stationery');
+			redirect($this->config->item('base_url') . '/products/stationery');
 		}
 		
 		$data['title'] = 'Add Stationery - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Stationery', 'url' => base_url($this->current_vendor['domain'] . '/products/stationery')),
+			array('label' => 'Stationery', 'url' => base_url($this->config->item('base_url') . '/products/stationery')),
 			array('label' => 'Add New', 'active' => true)
 		);
 		
@@ -2298,16 +2347,16 @@ class Products extends Vendor_base
 			// Validation and update logic will go here
 			// For now, just redirect back
 			$this->session->set_flashdata('success', 'Stationery product updated successfully (placeholder)');
-			redirect($this->current_vendor['domain'] . '/products/stationery');
+			redirect($this->config->item('base_url') . '/products/stationery');
 		}
 		
 		$data['title'] = 'Edit Stationery - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
-			array('label' => 'Stationery', 'url' => base_url($this->current_vendor['domain'] . '/products/stationery')),
+			array('label' => 'Stationery', 'url' => base_url($this->config->item('base_url') . '/products/stationery')),
 			array('label' => 'Edit', 'active' => true)
 		);
 		
@@ -2334,7 +2383,7 @@ class Products extends Vendor_base
 		// Delete logic will go here
 		// For now, just redirect
 		$this->session->set_flashdata('success', 'Stationery product deleted successfully (placeholder)');
-		redirect($this->current_vendor['domain'] . '/products/stationery');
+		redirect($this->config->item('base_url') . '/products/stationery');
 	}
 	
 	/**
@@ -2711,7 +2760,7 @@ class Products extends Vendor_base
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['filters'] = $filters;
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
 			array('label' => 'Books', 'url' => '#'),
 			array('label' => 'Textbooks', 'active' => true)
@@ -2830,57 +2879,31 @@ class Products extends Vendor_base
 					if (!empty($_FILES['images']['name'][0]))
 					{
 						$this->load->library('upload');
-						
-						// Create base uploads directory if it doesn't exist
-						$base_upload_path = './uploads/';
-						if (!is_dir($base_upload_path))
-						{
-							mkdir($base_upload_path, 0755, TRUE);
-						}
-						
-						// Create textbooks directory if it doesn't exist
-						$textbooks_upload_path = './uploads/textbooks/';
-						if (!is_dir($textbooks_upload_path))
-						{
-							mkdir($textbooks_upload_path, 0755, TRUE);
-						}
-						
-						// Create upload directory if it doesn't exist
-						$upload_path = './uploads/textbooks/' . $this->current_vendor['id'] . '/';
-						if (!is_dir($upload_path))
-						{
-							if (!mkdir($upload_path, 0755, TRUE))
-							{
-								log_message('error', 'Failed to create upload directory: ' . $upload_path);
-								$this->session->set_flashdata('error', 'Failed to create upload directory. Please check folder permissions.');
-							}
-						}
+						$this->config->load('upload');
+						$uploadCfg = $this->config->item('textbook_upload');
+						$this->load->helper('common');
+						$vendor_folder = get_vendor_domain_folder();
+						$date_folder = date('Y_m_d');
+						$upload_path =
+							rtrim($uploadCfg['base_root'], '/') . '/'
+							. $vendor_folder . '/'
+							. trim($uploadCfg['relative_dir'], '/') . '/'
+							. $date_folder . '/';
+						if (!is_dir($upload_path)) { mkdir($upload_path, 0775, TRUE); }
 						
 						$files = $_FILES['images'];
 						$image_order = 0;
 						$upload_errors = array();
+						$main_image_index = (int)$this->input->post('main_image_index');
+						$uploaded_image_ids = array();
 						
 						foreach ($files['name'] as $key => $filename)
 						{
 							if ($files['error'][$key] == 0 && !empty($filename))
 							{
-								// Validate MIME type to ensure it's an image
-								$allowed_mimes = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml', 'image/x-icon', 'image/tiff', 'image/tif', 'image/avif');
-								$allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif');
-								$file_mime = $files['type'][$key];
-								
-								// Get file extension as fallback
 								$file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-								
-								// Check both MIME type and file extension (some browsers send incorrect MIME types for AVIF)
-								// Accept file if EITHER MIME type OR extension is valid (extension takes precedence for AVIF)
-								$mime_valid = in_array($file_mime, $allowed_mimes);
-								$ext_valid = in_array($file_ext, $allowed_extensions);
-								$is_valid = $mime_valid || $ext_valid;
-								
-								if (!$is_valid)
-								{
-									$upload_errors[] = $filename . ': Invalid file type. Only image files are allowed.';
+								if (!in_array($file_ext, $uploadCfg['allowed_types'], true)) {
+									$upload_errors[] = $filename . ': Invalid file type';
 									continue;
 								}
 								
@@ -2891,13 +2914,10 @@ class Products extends Vendor_base
 								$_FILES['image']['error'] = $files['error'][$key];
 								$_FILES['image']['size'] = $files['size'][$key];
 								
-								// Get file extension and convert to lowercase
-								$file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-								
 								$config['upload_path'] = $upload_path;
-								$config['allowed_types'] = '*'; // Allow all types - we validate MIME type above
-								$config['max_size'] = 5120; // 5MB
-								$config['file_name'] = 'textbook_' . $textbook_id . '_' . time() . '_' . $key . '.' . $file_ext;
+								$config['allowed_types'] = implode('|', $uploadCfg['allowed_types']);
+								$config['max_size'] = $uploadCfg['max_size'];
+								$config['file_name'] = 'textbook_' . $textbook_id . '_' . uniqid() . '_' . $key . '.' . $file_ext;
 								$config['overwrite'] = FALSE;
 								
 								$this->upload->initialize($config);
@@ -2907,7 +2927,10 @@ class Products extends Vendor_base
 									$upload_data = $this->upload->data();
 									$image_data = array(
 										'textbook_id' => $textbook_id,
-										'image_path' => 'uploads/textbooks/' . $this->current_vendor['id'] . '/' . $upload_data['file_name'],
+										'image_path' =>
+													'uploads/textbooks/images/' .
+													$date_folder . '/' .
+													$upload_data['file_name'],
 										'image_order' => $image_order++,
 										'created_at' => date('Y-m-d H:i:s')
 									);
@@ -2926,7 +2949,13 @@ class Products extends Vendor_base
 							}
 						}
 						
-						// Show upload errors if any
+						if (isset($uploaded_image_ids[$main_image_index]))
+						{
+							$this->db->where('textbook_id', $textbook_id);
+							$this->db->update('erp_textbook_images', array('is_main' => 0));
+							$this->db->where('id', $uploaded_image_ids[$main_image_index]);
+							$this->db->update('erp_textbook_images', array('is_main' => 1));
+						}
 						if (!empty($upload_errors))
 						{
 							$this->session->set_flashdata('error', 'Some images failed to upload: ' . implode(', ', $upload_errors));
@@ -3009,7 +3038,7 @@ class Products extends Vendor_base
 					{
 						$this->session->set_flashdata('success', 'Textbook product added successfully');
 					}
-					redirect($this->current_vendor['domain'] . '/products/textbook');
+					redirect(base_url('products/textbook'));
 				}
 				else
 				{
@@ -3022,10 +3051,10 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
 			array('label' => 'Books', 'url' => '#'),
-			array('label' => 'Textbooks', 'url' => base_url($this->current_vendor['domain'] . '/products/textbook')),
+			array('label' => 'Textbooks', 'url' => base_url($this->config->item('base_url') . '/products/textbook')),
 			array('label' => 'Add New', 'active' => true)
 		);
 		
@@ -3185,31 +3214,17 @@ class Products extends Vendor_base
 				if (!empty($_FILES['images']['name'][0]))
 				{
 					$this->load->library('upload');
-					
-					// Create base uploads directory if it doesn't exist
-					$base_upload_path = './uploads/';
-					if (!is_dir($base_upload_path))
-					{
-						mkdir($base_upload_path, 0755, TRUE);
-					}
-					
-					// Create textbooks directory if it doesn't exist
-					$textbooks_upload_path = './uploads/textbooks/';
-					if (!is_dir($textbooks_upload_path))
-					{
-						mkdir($textbooks_upload_path, 0755, TRUE);
-					}
-					
-					// Create upload directory if it doesn't exist
-					$upload_path = './uploads/textbooks/' . $this->current_vendor['id'] . '/';
-					if (!is_dir($upload_path))
-					{
-						if (!mkdir($upload_path, 0755, TRUE))
-						{
-							log_message('error', 'Failed to create upload directory: ' . $upload_path);
-							$this->session->set_flashdata('error', 'Failed to create upload directory. Please check folder permissions.');
-						}
-					}
+					$this->config->load('upload');
+					$uploadCfg = $this->config->item('textbook_upload');
+					$this->load->helper('common');
+					$vendor_folder = get_vendor_domain_folder();
+					$date_folder = date('Y_m_d');
+					$upload_path =
+								rtrim($uploadCfg['base_root'], '/') . '/'
+								. $vendor_folder . '/'
+								. trim($uploadCfg['relative_dir'], '/') . '/'
+								. $date_folder . '/';
+					if (!is_dir($upload_path)) { mkdir($upload_path, 0755, TRUE); }
 					
 					// Get current max image order
 					$this->db->select_max('image_order');
@@ -3224,23 +3239,9 @@ class Products extends Vendor_base
 					{
 						if ($files['error'][$key] == 0 && !empty($filename))
 						{
-							// Validate MIME type to ensure it's an image
-							$allowed_mimes = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml', 'image/x-icon', 'image/tiff', 'image/tif', 'image/avif');
-							$allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif');
-							$file_mime = $files['type'][$key];
-							
-							// Get file extension as fallback
 							$file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-							
-							// Check both MIME type and file extension (some browsers send incorrect MIME types for AVIF)
-							// Accept file if EITHER MIME type OR extension is valid (extension takes precedence for AVIF)
-							$mime_valid = in_array($file_mime, $allowed_mimes);
-							$ext_valid = in_array($file_ext, $allowed_extensions);
-							$is_valid = $mime_valid || $ext_valid;
-							
-							if (!$is_valid)
-							{
-								$upload_errors[] = $filename . ': Invalid file type. Only image files are allowed.';
+							if (!in_array($file_ext, $uploadCfg['allowed_types'], true)) {
+								$upload_errors[] = $filename . ': Invalid file type';
 								continue;
 							}
 							
@@ -3251,13 +3252,10 @@ class Products extends Vendor_base
 							$_FILES['image']['error'] = $files['error'][$key];
 							$_FILES['image']['size'] = $files['size'][$key];
 							
-							// Get file extension and convert to lowercase
-							$file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-							
 							$config['upload_path'] = $upload_path;
-							$config['allowed_types'] = '*'; // Allow all types - we validate MIME type above
-							$config['max_size'] = 5120; // 5MB
-							$config['file_name'] = 'textbook_' . $id . '_' . time() . '_' . $key . '.' . $file_ext;
+							$config['allowed_types'] = implode('|', $uploadCfg['allowed_types']);
+							$config['max_size'] = $uploadCfg['max_size'];
+							$config['file_name'] = 'textbook_' . $id . '_' . uniqid() . '_' . $key . '.' . $file_ext;
 							$config['overwrite'] = FALSE;
 							
 							$this->upload->initialize($config);
@@ -3267,11 +3265,16 @@ class Products extends Vendor_base
 								$upload_data = $this->upload->data();
 								$image_data = array(
 									'textbook_id' => $id,
-									'image_path' => 'uploads/textbooks/' . $this->current_vendor['id'] . '/' . $upload_data['file_name'],
+									'image_path' =>
+										'uploads/textbooks/images/' .
+										$date_folder . '/' .
+										$upload_data['file_name'],
 									'image_order' => $image_order++,
 									'created_at' => date('Y-m-d H:i:s')
 								);
 								$this->db->insert('erp_textbook_images', $image_data);
+								$insert_id = $this->db->insert_id();
+								$uploaded_image_ids[$image_order - 1] = $insert_id;
 							}
 							else
 							{
@@ -3379,7 +3382,7 @@ class Products extends Vendor_base
 				}
 				
 				$this->session->set_flashdata('success', 'Textbook product updated successfully');
-				redirect($this->current_vendor['domain'] . '/products/textbook');
+				redirect(base_url('products/textbook'));
 			}
 		}
 		
@@ -3387,10 +3390,10 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Products', 'url' => '#'),
 			array('label' => 'Books', 'url' => '#'),
-			array('label' => 'Textbooks', 'url' => base_url($this->current_vendor['domain'] . '/products/textbook')),
+			array('label' => 'Textbooks', 'url' => base_url($this->config->item('base_url') . '/products/textbook')),
 			array('label' => 'Edit', 'active' => true)
 		);
 		
@@ -3417,7 +3420,7 @@ class Products extends Vendor_base
 		// Delete logic will go here
 		// For now, just redirect
 		$this->session->set_flashdata('success', 'Textbook product deleted successfully (placeholder)');
-		redirect($this->current_vendor['domain'] . '/products/books/textbook');
+		redirect($this->config->item('base_url') . '/products/books/textbook');
 	}
 	
 	/**
@@ -3873,7 +3876,7 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
 			array('label' => 'Notebooks', 'active' => true)
 		);
 		
@@ -5036,7 +5039,7 @@ class Products extends Vendor_base
 						else
 						{
 							$this->session->set_flashdata('success', 'Bookset without products added successfully.');
-							redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=without_product'));
+							redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=without_product'));
 							return;
 						}
 					}
@@ -5438,7 +5441,7 @@ class Products extends Vendor_base
 						else
 						{
 							$this->session->set_flashdata('success', 'Bookset updated successfully.');
-							redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=' . $redirect_tab));
+							redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=' . $redirect_tab));
 							return;
 						}
 					}
@@ -5631,7 +5634,7 @@ class Products extends Vendor_base
 		if (!$bookset_id)
 		{
 			$this->session->set_flashdata('error', 'Invalid bookset ID.');
-			redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+			redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=with_product'));
 			return;
 		}
 		
@@ -5643,7 +5646,7 @@ class Products extends Vendor_base
 		if (!$bookset)
 		{
 			$this->session->set_flashdata('error', 'Bookset not found.');
-			redirect(base_url($this->current_vendor['domain'] . '/products/bookset?tab=with_product'));
+			redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=with_product'));
 			return;
 		}
 		
@@ -5778,7 +5781,9 @@ class Products extends Vendor_base
 					}
 					
 					$this->session->set_flashdata('success', 'Notebook created successfully.');
-					redirect(base_url($this->current_vendor['domain'] . '/products/notebooks'));
+					$this->load->helper('common');
+					$vendor_domain = $this->getVendorDomainForUrl();
+					redirect(vendor_base_url('products/notebooks', $vendor_domain));
 				}
 				else
 				{
@@ -5791,8 +5796,8 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
-			array('label' => 'Notebooks', 'url' => base_url($this->current_vendor['domain'] . '/products/notebooks')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+			array('label' => 'Notebooks', 'url' => base_url($this->config->item('base_url') . '/products/notebooks')),
 			array('label' => 'Add New', 'active' => true)
 		);
 		
@@ -5924,7 +5929,9 @@ class Products extends Vendor_base
 				}
 				
 				$this->session->set_flashdata('success', 'Notebook updated successfully.');
-				redirect(base_url($this->current_vendor['domain'] . '/products/notebooks'));
+				$this->load->helper('common');
+				$vendor_domain = $this->getVendorDomainForUrl();
+				redirect(vendor_base_url('products/notebooks', $vendor_domain));
 			}
 		}
 		
@@ -5933,8 +5940,8 @@ class Products extends Vendor_base
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->getVendorDomainForUrl();
 		$data['breadcrumb'] = array(
-			array('label' => 'Dashboard', 'url' => base_url($this->current_vendor['domain'] . '/dashboard')),
-			array('label' => 'Notebooks', 'url' => base_url($this->current_vendor['domain'] . '/products/notebooks')),
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+			array('label' => 'Notebooks', 'url' => base_url($this->config->item('base_url') . '/products/notebooks')),
 			array('label' => 'Edit', 'active' => true)
 		);
 		
@@ -5991,169 +5998,222 @@ class Products extends Vendor_base
 		$this->db->delete('erp_notebooks');
 		
 		$this->session->set_flashdata('success', 'Notebook deleted successfully.');
-		redirect(base_url($this->current_vendor['domain'] . '/products/books/notebooks'));
+		$this->load->helper('common');
+		$vendor_domain = $this->getVendorDomainForUrl();
+		redirect(vendor_base_url('products/notebooks', $vendor_domain));
 	}
 	
+	
 	/**
-	 * Handle Notebook Image Uploads
+	 * Handle Notebook Image Uploads (EXACT like Uniforms)
 	 */
 	protected function handleNotebookImageUploads($notebook_id)
 	{
 		if (!empty($_FILES['images']['name'][0]))
 		{
-			$upload_path = './assets/uploads/vendors/' . $this->current_vendor['id'] . '/notebooks/images/';
-			if (!is_dir($upload_path))
-			{
-				mkdir($upload_path, 0755, TRUE);
+			// Load upload config
+			$this->config->load('upload');
+			$uploadCfg = $this->config->item('notebook_upload');
+
+			$this->load->helper('common');
+			$vendor_folder = get_vendor_domain_folder();
+			$date_folder   = date('Y_m_d');
+
+			// Build upload path (same pattern as uniform)
+			$upload_path = rtrim($uploadCfg['root_path'], '/')
+						. '/'
+						. $vendor_folder . '/'
+						. $uploadCfg['relative_dir']
+						. $date_folder
+						. '/';
+
+			if (!is_dir($upload_path)) {
+				mkdir($upload_path, 0755, true);
 			}
-			
+
 			$files = $_FILES['images'];
-			$image_order = 0;
-			$upload_errors = array();
-			
-			foreach ($files['name'] as $key => $filename)
+
+			// SAME ordering logic as uniform
+			$image_order_json  = $this->input->post('image_order');
+			$image_order       = json_decode($image_order_json, TRUE);
+			$main_image_index  = (int)$this->input->post('main_image_index');
+
+			$this->db->select_max('image_order');
+			$this->db->where('notebook_id', $notebook_id);
+			$max_order_result = $this->db->get('erp_notebook_images')->row_array();
+
+			$start_order = $max_order_result['image_order'] !== NULL
+							? ($max_order_result['image_order'] + 1)
+							: 0;
+
+			if (!is_array($image_order)) {
+				$image_order = [];
+				for ($i = 0; $i < count($files['name']); $i++) {
+					$image_order[] = $i;
+				}
+			}
+
+			$this->load->library('upload');
+
+			$upload_errors = [];
+			$uploaded_count = 0;
+			$uploaded_image_ids = [];
+
+			foreach ($image_order as $order => $original_index)
 			{
-				if ($files['error'][$key] == 0 && !empty($filename))
+				if (isset($files['name'][$original_index]) && $files['error'][$original_index] == 0)
 				{
-					// Validate MIME type to ensure it's an image
-					$allowed_mimes = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml', 'image/x-icon', 'image/tiff', 'image/tif', 'image/avif');
-					$allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif');
-					$file_mime = $files['type'][$key];
-					
-					// Get file extension as fallback
-					$file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-					
-					// Check both MIME type and file extension (some browsers send incorrect MIME types for AVIF)
-					// Accept file if EITHER MIME type OR extension is valid (extension takes precedence for AVIF)
-					$mime_valid = in_array($file_mime, $allowed_mimes);
-					$ext_valid = in_array($file_ext, $allowed_extensions);
-					$is_valid = $mime_valid || $ext_valid;
-					
-					if (!$is_valid)
-					{
-						$upload_errors[] = $filename . ': Invalid file type. Only image files are allowed.';
+					$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
+
+					if (!in_array($file_ext, $uploadCfg['allowed_types'], true)) {
+						$upload_errors[] = $files['name'][$original_index] . ': Invalid file type';
 						continue;
 					}
-					
-					// Reset $_FILES array for this iteration
-					$_FILES['image']['name'] = $files['name'][$key];
-					$_FILES['image']['type'] = $files['type'][$key];
-					$_FILES['image']['tmp_name'] = $files['tmp_name'][$key];
-					$_FILES['image']['error'] = $files['error'][$key];
-					$_FILES['image']['size'] = $files['size'][$key];
-					
-					// Get file extension and convert to lowercase
-					$file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-					
-					$config['upload_path'] = $upload_path;
-					$config['allowed_types'] = '*'; // Allow all types - we validate MIME type above
-					$config['max_size'] = 5120; // 5MB
-					$config['file_name'] = 'notebook_' . $notebook_id . '_' . time() . '_' . $key . '.' . $file_ext;
-					$config['overwrite'] = FALSE;
-					
-					$this->load->library('upload');
+
+					$_FILES['image']['name']     = $files['name'][$original_index];
+					$_FILES['image']['type']     = $files['type'][$original_index];
+					$_FILES['image']['tmp_name'] = $files['tmp_name'][$original_index];
+					$_FILES['image']['error']    = $files['error'][$original_index];
+					$_FILES['image']['size']     = $files['size'][$original_index];
+
+					$config['upload_path']   = $upload_path;
+					$config['allowed_types'] = implode('|', $uploadCfg['allowed_types']);
+					$config['max_size']      = $uploadCfg['max_size'];
+					$config['file_name']     = 'notebook_' . $notebook_id . '_' . uniqid() . '_' . $original_index;
+					$config['overwrite']     = FALSE;
+
 					$this->upload->initialize($config);
-					
+
 					if ($this->upload->do_upload('image'))
 					{
 						$upload_data = $this->upload->data();
-						$this->db->insert('erp_notebook_images', array(
+						$final_order = $start_order + $uploaded_count;
+
+						$this->db->insert('erp_notebook_images', [
 							'notebook_id' => $notebook_id,
-							'image_path' => 'vendors/' . $this->current_vendor['id'] . '/notebooks/images/' . $upload_data['file_name'],
-							'image_order' => $image_order++,
-							'created_at' => date('Y-m-d H:i:s')
-						));
+							'image_path' => 'uploads/notebooks/images/' . $date_folder . '/' . $upload_data['file_name'],
+							'image_order' => $final_order,
+							'is_main'     => ($start_order == 0 && $order == $main_image_index) ? 1 : 0,
+							'created_at'  => date('Y-m-d H:i:s')
+						]);
+
+						if ($this->db->affected_rows()) {
+							$uploaded_image_ids[$order] = $this->db->insert_id();
+							$uploaded_count++;
+						}
 					}
 					else
 					{
 						$error = $this->upload->display_errors('', '');
-						$upload_errors[] = $filename . ': ' . $error;
+						$upload_errors[] = $files['name'][$original_index] . ': ' . $error;
 						log_message('error', 'Notebook image upload failed: ' . $error);
 					}
 				}
-				elseif ($files['error'][$key] != 0)
-				{
-					$upload_errors[] = $filename . ': Upload error code ' . $files['error'][$key];
-				}
 			}
-			
-			// Show upload errors if any
-			if (!empty($upload_errors))
+
+			// Ensure single main image (same as uniform)
+			if ($start_order === 0 && isset($uploaded_image_ids[$main_image_index]))
 			{
-				$this->session->set_flashdata('error', 'Some images failed to upload: ' . implode(', ', $upload_errors));
+				$this->db->where('notebook_id', $notebook_id)
+						->update('erp_notebook_images', ['is_main' => 0]);
+
+				$this->db->where('id', $uploaded_image_ids[$main_image_index])
+						->update('erp_notebook_images', ['is_main' => 1]);
+			}
+
+			if (!empty($upload_errors)) {
+				$this->session->set_flashdata(
+					'error',
+					'Some images failed to upload: ' . implode(', ', $upload_errors)
+				);
 			}
 		}
 	}
+
 	
+	/**
+	 * Handle existing notebook image updates (order, main image, deletions)
+	 */
 	/**
 	 * Handle existing notebook image updates (order, main image, deletions)
 	 */
 	protected function handleNotebookImageUpdates($notebook_id)
 	{
-		$image_order = $this->input->post('image_order');
-		$main_image_id = $this->input->post('main_image_id');
-		$deleted_image_ids = $this->input->post('deleted_image_ids');
-		
-		// Handle deleted images
+		$image_order        = $this->input->post('image_order');
+		$main_image_id      = $this->input->post('main_image_id');
+		$deleted_image_ids  = $this->input->post('deleted_image_ids');
+
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('notebook_upload');
+
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
+
+		/** ---------------- DELETE IMAGES ---------------- */
 		if (!empty($deleted_image_ids))
 		{
-			$deleted_ids = explode(',', $deleted_image_ids);
-			$deleted_ids = array_filter(array_map('trim', $deleted_ids));
-			
+			$deleted_ids = array_filter(array_map('trim', explode(',', $deleted_image_ids)));
+
 			if (!empty($deleted_ids))
 			{
+				$this->db->where('notebook_id', $notebook_id);
+				$this->db->where_in('id', $deleted_ids);
+				$images_to_delete = $this->db->get('erp_notebook_images')->result_array();
+
+				foreach ($images_to_delete as $img)
+				{
+					$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . ltrim($img['image_path'], '/');
+					if (file_exists($image_path)) {
+						@unlink($image_path);
+					}
+				}
+
 				$this->db->where('notebook_id', $notebook_id);
 				$this->db->where_in('id', $deleted_ids);
 				$this->db->delete('erp_notebook_images');
 			}
 		}
-		
-		// Handle image order and main image
+
+		/** ---------------- MAIN IMAGE ---------------- */
+		if (!empty($main_image_id) && is_numeric($main_image_id))
+		{
+			$this->db->where('id', $main_image_id);
+			$this->db->where('notebook_id', $notebook_id);
+
+			if ($this->db->count_all_results('erp_notebook_images') == 1)
+			{
+				$this->db->where('notebook_id', $notebook_id)
+						->update('erp_notebook_images', ['is_main' => 0]);
+
+				$this->db->where('id', $main_image_id)
+						->where('notebook_id', $notebook_id)
+						->update('erp_notebook_images', ['is_main' => 1]);
+			}
+		}
+
+		/** ---------------- IMAGE ORDER ---------------- */
 		if (!empty($image_order))
 		{
-			$image_ids = explode(',', $image_order);
-			$image_ids = array_filter(array_map('trim', $image_ids));
-			
-			// Update image order
+			$image_ids = array_filter(array_map('trim', explode(',', $image_order)));
+
 			foreach ($image_ids as $order => $image_id)
 			{
-				$image_id = trim($image_id);
-				if (!empty($image_id))
+				if (is_numeric($image_id))
 				{
-					// Check if image belongs to this notebook
 					$this->db->where('id', $image_id);
 					$this->db->where('notebook_id', $notebook_id);
-					$image = $this->db->get('erp_notebook_images')->row_array();
-					
-					if ($image)
+					if ($this->db->count_all_results('erp_notebook_images') == 1)
 					{
-						// Determine if this is the main image
-						$is_main = ($main_image_id == $image_id) ? 1 : 0;
-						
-						// Update image order and is_main
-						$this->db->where('id', $image_id);
-						$this->db->update('erp_notebook_images', array(
-							'image_order' => $order,
-							'is_main' => $is_main
-						));
+						$this->db->where('id', $image_id)
+								->update('erp_notebook_images', [
+									'image_order' => $order
+								]);
 					}
 				}
 			}
 		}
-		
-		// If main_image_id is set but not in image_order, update it separately
-		if (!empty($main_image_id) && empty($image_order))
-		{
-			// First, set all images to not main
-			$this->db->where('notebook_id', $notebook_id);
-			$this->db->update('erp_notebook_images', array('is_main' => 0));
-			
-			// Then set the specified image as main
-			$this->db->where('id', $main_image_id);
-			$this->db->where('notebook_id', $notebook_id);
-			$this->db->update('erp_notebook_images', array('is_main' => 1));
-		}
 	}
+
 	
 	/**
 	 * Notebook Add Type (AJAX)

@@ -29,7 +29,12 @@
 									endforeach;
 									?>
 									<?php foreach ($notebook_images as $img): 
-										$image_url = base_url('assets/uploads/' . ltrim($img['image_path'], '/'));
+										$stored_path = trim($img['image_path']);
+										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+											$image_url = $stored_path;
+										} else {
+											$image_url = get_vendor_domain_url() . '/' . $stored_path;
+										}
 									?>
 										<div class="image-preview-item existing-image" data-image-id="<?php echo $img['id']; ?>" style="position: relative; display: inline-block; margin: 3px; cursor: move; vertical-align: top; width: 120px;">
 											<img src="<?php echo $image_url; ?>" alt="Notebook Image" style="width: 120px; height: 120px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px 4px 0 0; display: block;" onerror="console.error('Image failed to load:', this.src); this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';">
@@ -78,7 +83,7 @@
 							<div class="mb-3">
 								<label class="form-label">Type <span class="text-danger">*</span></label>
 								<div class="input-group">
-									<select name="types[]" id="types" class="select select2-multiple" multiple required>
+									<select name="types[]" id="types" class="select2" multiple required>
 										<?php 
 										$notebook_types = isset($notebook_types) ? $notebook_types : array();
 										$selected_type_ids = array();
@@ -502,84 +507,9 @@ window.addEventListener('load', function() {
 		var $ = window.jQuery;
 		
 $(document).ready(function() {
-	// Function to initialize Select2 for multiple selects
-	function initMultipleSelect2() {
-		if (typeof $ !== 'undefined' && $.fn.select2) {
-			// Check if Select2 is already initialized and destroy if needed
-			$('#types').each(function() {
-				if ($(this).hasClass('select2-hidden-accessible')) {
-					$(this).select2('destroy');
-				}
-			});
-			
-			// Initialize with multiple selection support
-			$('#types').select2({
-				width: '100%',
-				placeholder: 'Select options...',
-				allowClear: true,
-				multiple: true,
-				minimumResultsForSearch: 0,
-				theme: 'bootstrap-5'
-			});
-		} else {
-			// If Select2 is not ready, try again after a short delay
-			setTimeout(initMultipleSelect2, 100);
-		}
-	}
+	$('#types').select2({ width: '100%', multiple: true });
 	
-	// Wait a bit for script.js to finish initializing, then reinitialize our selects
-	setTimeout(initMultipleSelect2, 800);
-	
-	// Image preview for newly selected images
-	var imageInput = document.getElementById('images');
-	if (imageInput) {
-		imageInput.addEventListener('change', function(e) {
-			var preview = document.getElementById('image-preview');
-			// Don't clear existing previews, just add new ones
-			
-			for (var i = 0; i < e.target.files.length; i++) {
-				var file = e.target.files[i];
-				if (file.type.startsWith('image/')) {
-					var reader = new FileReader();
-					reader.onload = (function(file) {
-						return function(e) {
-							var imgContainer = document.createElement('div');
-							imgContainer.className = 'position-relative';
-							imgContainer.style.cssText = 'width: 100px; height: 120px; margin: 5px; display: inline-block;';
-							
-							var img = document.createElement('img');
-							img.src = e.target.result;
-							img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; border-radius: 4px;';
-							img.alt = 'New Image Preview';
-							
-							var removeBtn = document.createElement('button');
-							removeBtn.type = 'button';
-							removeBtn.className = 'btn btn-sm btn-danger position-absolute top-0 end-0';
-							removeBtn.style.cssText = 'margin: 2px; padding: 2px 6px;';
-							removeBtn.innerHTML = '<i class="isax isax-close-circle"></i>';
-							removeBtn.onclick = function() {
-								imgContainer.remove();
-								// Remove file from input
-								var dt = new DataTransfer();
-								var files = imageInput.files;
-								for (var j = 0; j < files.length; j++) {
-									if (files[j] !== file) {
-										dt.items.add(files[j]);
-									}
-								}
-								imageInput.files = dt.files;
-							};
-							
-							imgContainer.appendChild(img);
-							imgContainer.appendChild(removeBtn);
-							preview.appendChild(imgContainer);
-						};
-					})(file);
-					reader.readAsDataURL(file);
-				}
-			}
-		});
-	}
+	// Image preview handled by the sortable plugin; avoid duplicate previews
 });
 	});
 })();

@@ -8,9 +8,14 @@
 
 <style>
 	.packages-container {
+		height: 70vh;
 		max-height: 70vh;
-		overflow-y: auto;
+		overflow-y: auto !important;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 		padding-right: 10px;
+		position: relative;
+		display: block;
 	}
 	.package-card {
 		transition: all 0.3s ease;
@@ -137,7 +142,7 @@
 					</button>
 				</div>
 					
-				<div id="packages_area" class="packages-container">
+				<div id="packages_area" class="packages-container" data-simplebar>
 					<!-- Packages will be added here dynamically -->
 				</div>
 				<div class="mt-3">

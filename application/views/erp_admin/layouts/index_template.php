@@ -32,21 +32,22 @@ foreach ($vars as $key => $value) {
 		// Immediately clear flashdata from session to prevent it from showing again
 		// CodeIgniter stores flashdata in flash:new: and flash:old: keys
 		if ($flash_success || $flash_error) {
-			// Clear all flashdata keys
 			$this->session->unset_userdata('flash:new:success');
 			$this->session->unset_userdata('flash:old:success');
 			$this->session->unset_userdata('flash:new:error');
 			$this->session->unset_userdata('flash:old:error');
+			$this->session->unset_userdata('success');
+			$this->session->unset_userdata('error');
 		}
 		
 		// Only show one alert at a time - prioritize error over success
 		if ($flash_error): ?>
-			<div class="alert alert-danger alert-dismissible fade show" role="alert" id="flash-alert" data-alert-id="<?php echo md5($flash_error . time()); ?>">
+			<div class="alert alert-danger alert-dismissible fade show" role="alert" id="flash-alert" data-alert-id="<?php echo md5($flash_error); ?>">
 				<?php echo htmlspecialchars($flash_error); ?>
 				<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 			</div>
 		<?php elseif ($flash_success): ?>
-			<div class="alert alert-success alert-dismissible fade show" role="alert" id="flash-alert" data-alert-id="<?php echo md5($flash_success . time()); ?>">
+			<div class="alert alert-success alert-dismissible fade show" role="alert" id="flash-alert" data-alert-id="<?php echo md5($flash_success); ?>">
 				<?php echo htmlspecialchars($flash_success); ?>
 				<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 			</div>
@@ -114,4 +115,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <?php $this->load->view('erp_admin/layouts/footer_template', $data); ?>
-

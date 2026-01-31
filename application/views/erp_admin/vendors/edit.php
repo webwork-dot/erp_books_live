@@ -242,13 +242,12 @@
                         </div>
                       </div>
                       <div class="col-md-6">
-                        <?php if (isset($vendor['logo']) && !empty($vendor['logo']) && file_exists(FCPATH . $vendor['logo'])): ?>
+                        <?php if (!empty($vendor['logo'])): ?>
                         <div class="mb-3">
                           <label class="form-label fw-medium">Current Logo</label>
                           <div class="d-flex align-items-start gap-3">
                             <div class="border rounded p-2 bg-white">
-                              <img src="<?php echo base_url($vendor['logo']); ?>" alt="Vendor Logo"
-                                style="max-width: 120px; max-height: 60px; object-fit: contain;">
+                              <img src="<?php echo 'https://' . $vendor['domain'] . '/' . ltrim($vendor['logo'], '/'); ?>" alt="Vendor Logo" style="max-width: 120px; max-height: 60px; object-fit: contain;">
                             </div>
                             <div class="flex-grow-1">
                               <small class="text-muted d-block">Current logo</small>

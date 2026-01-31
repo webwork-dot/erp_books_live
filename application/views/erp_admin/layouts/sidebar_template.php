@@ -17,10 +17,7 @@
 						<img src="<?php echo base_url('assets/images/logo.png'); ?>" alt="Logo" onerror="this.src='<?php echo base_url('assets/template/img/logo-small-white.svg'); ?>'">
 					</a>
 					
-					<!-- Sidebar Hover Menu Toggle Button -->
-					<a id="toggle_btn" href="javascript:void(0);">
-						<i class="isax isax-menu-1"></i>
-					</a>
+					
 				</div>
 				<!-- End Logo -->
 						

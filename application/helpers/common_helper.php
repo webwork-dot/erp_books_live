@@ -1549,6 +1549,39 @@ if (!function_exists('get_vendor_domain_folder')) {
     }
 }
 
+if (!function_exists('get_simple_vendor_logo_url')) {
+    function get_simple_vendor_logo_url()
+    {
+        $CI =& get_instance();
+
+        // Ensure DB is loaded
+        if (!isset($CI->db)) {
+            $CI->load->database();
+        }
+
+        // Fetch first vendor (or adjust WHERE if needed later)
+        $row = $CI->db
+                  ->select('domain, logo')
+                  ->limit(1)
+                  ->get('erp_clients')
+                  ->row_array();
+
+        if (empty($row) || empty($row['domain']) || empty($row['logo'])) {
+            return base_url('assets/images/logo.png');
+        }
+
+        $domain = rtrim($row['domain'], '/');
+        $logo   = ltrim($row['logo'], '/');
+
+        // Ensure protocol
+        if (!preg_match('#^https?://#', $domain)) {
+            $domain = 'https://' . $domain;
+        }
+
+        return $domain . '/' . $logo;
+    }
+}
+
 
 
 

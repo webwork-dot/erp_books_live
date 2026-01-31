@@ -7,10 +7,19 @@
 <!-- End Breadcrumb -->
 
 <style>
+
+	.badge {
+		margin-left:8px;
+	}
 	.packages-container {
+		height: 70vh;
 		max-height: 70vh;
-		overflow-y: auto;
+		overflow-y: auto !important;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 		padding-right: 10px;
+		position: relative;
+		display: block;
 	}
 	.package-card {
 		transition: all 0.3s ease;
@@ -134,14 +143,19 @@
 						<div class="col-lg-4 col-md-6">
 							<div class="mb-3">
 								<label class="form-label">Grade <span class="text-danger">*</span></label>
-								<select name="grade_id" id="grade_id" class="select" required>
-									<option value="">Select Grade</option>
-									<?php if (!empty($grades)): ?>
-										<?php foreach ($grades as $grade): ?>
-											<option value="<?php echo $grade['id']; ?>"><?php echo htmlspecialchars($grade['name']); ?></option>
-										<?php endforeach; ?>
-									<?php endif; ?>
-								</select>
+								<div class="input-group flex-nowrap">
+									<select name="grade_id" id="grade_id" class="select" required>
+										<option value="">Select Grade</option>
+										<?php if (!empty($grades)): ?>
+											<?php foreach ($grades as $grade): ?>
+												<option value="<?php echo $grade['id']; ?>"><?php echo htmlspecialchars($grade['name']); ?></option>
+											<?php endforeach; ?>
+										<?php endif; ?>
+									</select>
+									<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addGradeModal" style="padding: 0.4rem 1rem;">
+										<i class="isax isax-add"></i> Add
+									</button>
+								</div>
 								<?php echo form_error('grade_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 							</div>
 						</div>
@@ -164,7 +178,7 @@
 					</button>
 				</div>
 					
-				<div id="packages_area" class="packages-container">
+				<div id="packages_area" class="packages-container" data-simplebar>
 					<!-- Packages will be added here dynamically -->
 				</div>
 				<div class="mt-3">
@@ -222,6 +236,34 @@
 </div>
 
 <?php echo form_close(); ?>
+
+<!-- Add Grade Modal -->
+<div class="modal fade" id="addGradeModal" tabindex="-1" aria-labelledby="addGradeModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="addGradeModalLabel">Add Grade</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<form id="addGradeForm">
+					<div class="mb-3">
+						<label class="form-label">Name <span class="text-danger">*</span></label>
+						<input type="text" name="name" id="grade_name" class="form-control" required>
+					</div>
+					<div class="mb-3">
+						<label class="form-label">Description</label>
+						<textarea name="description" id="grade_description" class="form-control" rows="3"></textarea>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" onclick="addGrade()">Add Grade</button>
+			</div>
+		</div>
+	</div>
+</div>
 
 <script>
 (function() {
@@ -1123,4 +1165,52 @@
 	// Start checking for jQuery
 	initScript();
 })();
+
+function addGrade() {
+	var name = document.getElementById('grade_name').value;
+	var description = document.getElementById('grade_description').value;
+	
+	if (!name) {
+		alert('Please enter a name');
+		return;
+	}
+	
+	var formData = new FormData();
+	formData.append('name', name);
+	formData.append('description', description);
+	
+	fetch('<?php echo base_url('products/textbook/add_grade'); ?>', {
+		method: 'POST',
+		body: formData
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.status === 'success') {
+			var select = document.getElementById('grade_id');
+			var $select = $('#grade_id');
+			
+			if ($select.length && $select.hasClass('select2-hidden-accessible')) {
+				$select.select2('destroy');
+			}
+			
+			var option = document.createElement('option');
+			option.value = data.id;
+			option.textContent = data.name;
+			option.selected = true;
+			select.appendChild(option);
+			
+			if ($select.hasClass('select')) {
+				$select.select2();
+			}
+			
+			document.getElementById('addGradeForm').reset();
+		} else {
+			alert(data.message || 'Failed to add grade');
+		}
+	})
+	.catch(error => {
+		console.error('Error:', error);
+		alert('An error occurred');
+	});
+}
 </script>

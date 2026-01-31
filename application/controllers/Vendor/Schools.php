@@ -273,15 +273,13 @@ class Schools extends Vendor_base
 					
 					$this->session->set_flashdata('success', 'School created successfully.');
 					$this->load->helper('common');
-					$vendor_domain = $this->getVendorDomainForUrl();
-					redirect(vendor_url('schools', $vendor_domain));
+					redirect(base_url('schools'));
 				}
 				else
 				{
 					$this->session->set_flashdata('error', 'Failed to create school.');
 					$this->load->helper('common');
-					$vendor_domain = $this->getVendorDomainForUrl();
-					redirect(vendor_url('schools/add', $vendor_domain));
+					redirect(base_url('schools/add'));
 				}
 			}
 		}
@@ -366,8 +364,7 @@ class Schools extends Vendor_base
 			{
 			$this->session->set_flashdata('error', 'Please select at least one board.');
 			$this->load->helper('common');
-			$vendor_domain = $this->getVendorDomainForUrl();
-			redirect(vendor_url('schools/edit/' . $school_id, $vendor_domain));
+			redirect(base_url('schools/edit/' . $school_id));
 			return;
 			}
 			
@@ -412,8 +409,7 @@ class Schools extends Vendor_base
 			{
 				$this->session->set_flashdata('success', 'School updated successfully.');
 				$this->load->helper('common');
-			$vendor_domain = $this->getVendorDomainForUrl();
-			redirect(vendor_url('schools', $vendor_domain));
+			redirect(base_url('schools'));
 			}
 			else
 			{
@@ -423,8 +419,7 @@ class Schools extends Vendor_base
 				{
 					$this->session->set_flashdata('error', 'Failed to update school: ' . $db_error['message']);
 					$this->load->helper('common');
-					$vendor_domain = $this->getVendorDomainForUrl();
-					redirect(vendor_url('schools/edit/' . $school_id, $vendor_domain));
+					redirect(base_url('schools/edit/' . $school_id));
 				}
 				else
 				{
@@ -433,8 +428,7 @@ class Schools extends Vendor_base
 					// So we should still show success
 					$this->session->set_flashdata('success', 'School updated successfully.');
 					$this->load->helper('common');
-					$vendor_domain = $this->getVendorDomainForUrl();
-					redirect(vendor_url('schools', $vendor_domain));
+					redirect(base_url('schools'));
 				}
 			}
 		}
@@ -595,8 +589,7 @@ class Schools extends Vendor_base
 		}
 		
 		$this->load->helper('common');
-		$vendor_domain = $this->getVendorDomainForUrl();
-		redirect(vendor_url('schools', $vendor_domain));
+		redirect(base_url('schools'));
 	}
 	
 	/**
@@ -634,9 +627,8 @@ class Schools extends Vendor_base
 			}
 		}
 		
-		$this->load->helper('common');
-		$vendor_domain = $this->getVendorDomainForUrl();
-		redirect(vendor_url('schools/edit/' . $image['school_id'], $vendor_domain));
+		$this->load->helper('common');		
+		redirect(base_url('schools/edit/' . $image['school_id']));
 	}
 	
 	/**

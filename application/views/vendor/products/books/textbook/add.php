@@ -51,7 +51,7 @@
 							<div class="mb-3">
 								<label class="form-label">Type <span class="text-danger">*</span></label>
 								<div class="input-group">
-									<select name="types[]" id="types" class="select select2-multiple" multiple required>
+									<select name="types[]" id="types" class="select" multiple required>
 										<?php if (!empty($types)): ?>
 											<?php foreach ($types as $type): ?>
 												<option value="<?php echo $type['id']; ?>"><?php echo htmlspecialchars($type['name']); ?></option>
@@ -581,57 +581,9 @@ window.addEventListener('load', function() {
 
 // Wait for jQuery and Select2 to be loaded
 $(document).ready(function() {
-	// Function to initialize Select2 for multiple selects
-	function initMultipleSelect2() {
-		if (typeof $ !== 'undefined' && $.fn.select2) {
-			// Check if Select2 is already initialized and destroy if needed
-			$('#types, #grades, #ages, #subjects').each(function() {
-				if ($(this).hasClass('select2-hidden-accessible')) {
-					$(this).select2('destroy');
-				}
-			});
-			
-			// Initialize with multiple selection support
-			$('#types, #grades, #ages, #subjects').select2({
-				width: '100%',
-				placeholder: 'Select options...',
-				allowClear: true,
-				multiple: true,
-				minimumResultsForSearch: 0,
-				theme: 'bootstrap-5'
-			});
-		} else {
-			// If Select2 is not ready, try again after a short delay
-			setTimeout(initMultipleSelect2, 100);
-		}
-	}
+	$('#types').select2({ width: '100%', multiple: true });
 	
-	// Wait a bit for script.js to finish initializing, then reinitialize our selects
-	setTimeout(initMultipleSelect2, 800);
-	
-	// Image preview
-	document.getElementById('images').addEventListener('change', function(e) {
-		var preview = document.getElementById('image-preview');
-		preview.innerHTML = '';
-		
-		for (var i = 0; i < e.target.files.length; i++) {
-			var file = e.target.files[i];
-			if (file.type.startsWith('image/')) {
-				var reader = new FileReader();
-				reader.onload = function(e) {
-					var img = document.createElement('img');
-					img.src = e.target.result;
-					img.style.width = '100px';
-					img.style.height = '120px';
-					img.style.objectFit = 'cover';
-					img.style.borderRadius = '4px';
-					img.style.margin = '5px';
-					preview.appendChild(img);
-				};
-				reader.readAsDataURL(file);
-			}
-		}
-	});
+	// Image preview handled by the sortable plugin; avoid duplicate previews
 	
 	// Initialize grade/age fields visibility
 	toggleGradeAgeFields();

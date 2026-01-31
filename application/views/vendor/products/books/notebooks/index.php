@@ -140,15 +140,10 @@
 									<?php if (!empty($notebook['thumbnail'])): ?>
 										<?php
 										$stored_path = trim($notebook['thumbnail']);
-										$image_url = '';
-										
-										// Determine image URL based on stored path format
-										if (strpos($stored_path, 'assets/uploads/') !== false) {
-											$image_url = base_url($stored_path);
-										} elseif (strpos($stored_path, 'vendors/') === 0) {
-											$image_url = base_url('assets/uploads/' . $stored_path);
+										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+											$image_url = $stored_path;
 										} else {
-											$image_url = base_url('assets/uploads/' . ltrim($stored_path, '/'));
+											$image_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
 										}
 										?>
 										<img src="<?php echo $image_url; ?>" alt="Notebook" style="width: 50px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';">
