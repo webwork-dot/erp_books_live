@@ -4707,6 +4707,9 @@ class Products extends Vendor_base
 							'updated_at' => date('Y-m-d H:i:s')
 						);
 						
+						// Generate slug for the bookset
+						$bookset_data['slug'] = $this->generate_bookset_slug($bookset_data);
+						
 						$this->db->insert('erp_booksets', $bookset_data);
 						$bookset_id = $this->db->insert_id();
 						
@@ -4961,19 +4964,22 @@ class Products extends Vendor_base
 					}
 					
 					// Create bookset
-					$bookset_data = array(
-						'vendor_id' => $this->current_vendor['id'],
-						'school_id' => $this->input->post('school_id'),
-						'board_id' => $this->input->post('board_id'),
-						'grade_id' => $this->input->post('grade_id'),
-						'bookset_name' => $this->input->post('bookset_name') ? $this->input->post('bookset_name') : NULL,
-						'has_products' => 0,
-						'mandatory_packages' => $this->input->post('mandatory_packages'),
-						'total_packages' => count($packages_data),
-						'status' => $this->input->post('status'),
-						'created_at' => date('Y-m-d H:i:s'),
-						'updated_at' => date('Y-m-d H:i:s')
-					);
+				$bookset_data = array(
+					'vendor_id' => $this->current_vendor['id'],
+					'school_id' => $this->input->post('school_id'),
+					'board_id' => $this->input->post('board_id'),
+					'grade_id' => $this->input->post('grade_id'),
+					'bookset_name' => $this->input->post('bookset_name') ? $this->input->post('bookset_name') : NULL,
+					'has_products' => 0,
+					'mandatory_packages' => $this->input->post('mandatory_packages'),
+					'total_packages' => count($packages_data),
+					'status' => $this->input->post('status'),
+					'created_at' => date('Y-m-d H:i:s'),
+					'updated_at' => date('Y-m-d H:i:s')
+				);
+				
+				// Generate slug for the bookset
+				$bookset_data['slug'] = $this->generate_bookset_slug($bookset_data);
 					
 					$this->db->insert('erp_booksets', $bookset_data);
 					$bookset_id = $this->db->insert_id();
@@ -5317,16 +5323,22 @@ class Products extends Vendor_base
 						$this->db->trans_start();
 						
 						// Update bookset
-						$bookset_data = array(
-							'school_id' => $this->input->post('school_id'),
-							'board_id' => $this->input->post('board_id'),
-							'grade_id' => $this->input->post('grade_id'),
-							'bookset_name' => $this->input->post('bookset_name') ? $this->input->post('bookset_name') : NULL,
-							'mandatory_packages' => $this->input->post('mandatory_packages'),
-							'total_packages' => count($packages_data),
-							'status' => $this->input->post('status'),
-							'updated_at' => date('Y-m-d H:i:s')
-						);
+					$bookset_data = array(
+						'school_id' => $this->input->post('school_id'),
+						'board_id' => $this->input->post('board_id'),
+						'grade_id' => $this->input->post('grade_id'),
+						'bookset_name' => $this->input->post('bookset_name') ? $this->input->post('bookset_name') : NULL,
+						'mandatory_packages' => $this->input->post('mandatory_packages'),
+						'total_packages' => count($packages_data),
+						'status' => $this->input->post('status'),
+						'updated_at' => date('Y-m-d H:i:s')
+					);
+					
+					// Generate slug for the bookset (only if name changed)
+					$current_bookset = $this->db->get_where('erp_booksets', ['id' => $bookset_id])->row_array();
+					if ($current_bookset['bookset_name'] != $bookset_data['bookset_name']) {
+						$bookset_data['slug'] = $this->generate_bookset_slug($bookset_data);
+					}
 						
 						$this->db->where('id', $bookset_id);
 						$this->db->where('vendor_id', $this->current_vendor['id']);
@@ -5441,8 +5453,8 @@ class Products extends Vendor_base
 						else
 						{
 							$this->session->set_flashdata('success', 'Bookset updated successfully.');
-							redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=' . $redirect_tab));
-							return;
+						redirect('/products/bookset?tab=' . $redirect_tab);
+						return;
 						}
 					}
 				}
@@ -5455,6 +5467,9 @@ class Products extends Vendor_base
 		$this->db->where('bp.bookset_id', $bookset_id);
 		$this->db->order_by('bp.created_at', 'ASC');
 		$existing_packages = $this->db->get()->result_array();
+		
+		// Debug: Check what packages were found
+		log_message('debug', 'Found ' . count($existing_packages) . ' packages for bookset ID: ' . $bookset_id);
 		
 		if ($has_products)
 		{
@@ -6359,5 +6374,77 @@ class Products extends Vendor_base
 		$this->db->delete('erp_notebook_images');
 		
 		echo json_encode(array('status' => 'success', 'message' => 'Image deleted successfully'));
+	}
+
+	/**
+	 * Generate unique slug for bookset
+	 * 
+	 * @param array $bookset_data Bookset data array
+	 * @return string Unique slug
+	 */
+	private function generate_bookset_slug($bookset_data)
+	{
+		$base_slug = '';
+		
+		// Get school name for slug
+		if (!empty($bookset_data['school_id'])) {
+			$school = $this->db->get_where('erp_schools', ['id' => $bookset_data['school_id']])->row_array();
+			if ($school) {
+				$base_slug .= strtolower(url_title($school['school_name'] ?? $school['name'] ?? '')) . '-';
+			}
+		}
+		
+		// Get board name for slug
+		if (!empty($bookset_data['board_id'])) {
+			$board = $this->db->get_where('erp_school_boards', ['id' => $bookset_data['board_id']])->row_array();
+			if ($board) {
+				$base_slug .= strtolower(url_title($board['board_name'] ?? '')) . '-';
+			}
+		}
+		
+		// Get grade for slug
+		if (!empty($bookset_data['grade_id'])) {
+			$grade = $this->db->get_where('erp_textbook_grades', ['id' => $bookset_data['grade_id']])->row_array();
+			if ($grade) {
+				$base_slug .= strtolower(url_title($grade['name'] ?? '')) . '-';
+			}
+		}
+		
+		// Add bookset name
+		if (!empty($bookset_data['bookset_name'])) {
+			$base_slug .= strtolower(url_title($bookset_data['bookset_name']));
+		}
+		
+		// Clean up the slug (remove special characters, multiple hyphens, etc.)
+		$slug = preg_replace('/[^a-z0-9\-]/', '', $base_slug);
+		$slug = preg_replace('/-+/', '-', $slug);
+		$slug = trim($slug, '-');
+		
+		// If slug is empty, use a default
+		if (empty($slug)) {
+			$slug = 'bookset';
+		}
+		
+		// Make sure slug is unique
+		$counter = 1;
+		$original_slug = $slug;
+		
+		while (true) {
+			$this->db->where('slug', $slug);
+			$this->db->where('vendor_id', $this->current_vendor['id']);
+			if (!empty($bookset_data['id'])) {
+				$this->db->where('id !=', $bookset_data['id']);
+			}
+			$existing = $this->db->get('erp_booksets')->row_array();
+			
+			if (!$existing) {
+				break;
+			}
+			
+			$slug = $original_slug . '-' . $counter;
+			$counter++;
+		}
+		
+		return $slug;
 	}
 }

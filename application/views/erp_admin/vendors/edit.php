@@ -7,6 +7,8 @@
 </div>
 <!-- End Breadcrumb -->
 
+<?php echo form_open_multipart('erp-admin/vendors/edit/' . $vendor['id']); ?>
+
 <!-- Vendor Edit Tabs -->
 <style>
 .vendor-edit-tabs-wrapper {
@@ -164,8 +166,6 @@
               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             <?php endif; ?>
-
-            <?php echo form_open_multipart('erp-admin/vendors/edit/' . $vendor['id']); ?>
             <div class="row gx-3">
               <div class="col-lg-6 col-md-6">
                 <div class="mb-3">
@@ -209,6 +209,9 @@
                 </div>
               </div>
             </div>
+
+           
+
           </div>
         </div>
       </div>
@@ -274,6 +277,9 @@
                 </div>
               </div>
 
+
+              
+
               <!-- Sidebar Color Section -->
               <div class="col-lg-4 col-md-5">
                 <div class="card border-0 bg-light">
@@ -328,6 +334,61 @@
                         </div>
                         <div class="flex-grow-1">
                           <small class="text-muted">Sidebar appearance</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+               <!-- Favicon Upload -->
+              <div class="row gx-4 mb-4"> 
+                <div class="col-12">
+                  <div class="card border-0 bg-light">
+                    <div class="card-body p-4">
+                      <h6 class="mb-3">
+                        <i class="isax isax-gallery me-2 text-primary"></i>
+                        Favicon
+                      </h6>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label fw-medium">Upload Favicon</label>
+                            <input type="file" name="favicon" id="favicon" class="form-control" accept="image/png">
+                            <small class="text-muted fs-13">Recommended: ICO, PNG (16x16 or 32x32). Max size: 500KB</small>
+                            <?php echo form_error('favicon', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <?php if (!empty($vendor['favicon'])): ?>
+                          <div class="mb-3">
+                            <label class="form-label fw-medium">Current Favicon</label>
+                            <div class="d-flex align-items-start gap-3">
+                              <div class="border rounded p-2 bg-white">
+                                <img 
+                                  src="<?php echo 'https://' . $vendor['domain'] . '/' . ltrim($vendor['favicon'], '/'); ?>" 
+                                  alt="Favicon"
+                                  style="max-width: 32px; max-height: 32px; object-fit: contain;"
+                                >
+                              </div>
+                              <div class="flex-grow-1">
+                                <small class="text-muted d-block">Current favicon</small>
+                                <label class="form-check mt-2">
+                                  <input type="checkbox" name="remove_favicon" value="1" class="form-check-input">
+                                  <span class="form-check-label fs-13">Remove current favicon</span>
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                          <?php else: ?>
+                          <div class="mb-3">
+                            <label class="form-label fw-medium">Current Favicon</label>
+                            <div class="text-center py-4 border rounded bg-white">
+                              <i class="isax isax-gallery text-muted" style="font-size: 24px;"></i>
+                              <p class="text-muted fs-13 mt-2 mb-0">No favicon uploaded<br><small>Default favicon will be used</small></p>
+                            </div>
+                          </div>
+                          <?php endif; ?>
                         </div>
                       </div>
                     </div>
@@ -692,51 +753,7 @@
               <?php echo form_error('meta_keywords', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
             </div>
 
-            <!-- Favicon Upload -->
-            <div class="border-top pt-4 mt-4">
-              <h6 class="mb-3">
-                <i class="isax isax-gallery me-2 text-primary"></i>
-                Favicon
-              </h6>
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label fw-medium">Upload Favicon</label>
-                    <input type="file" name="favicon" id="favicon" class="form-control" accept="image/*">
-                    <small class="text-muted fs-13">Recommended: ICO, PNG (16x16 or 32x32). Max size: 500KB</small>
-                    <?php echo form_error('favicon', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <?php if (isset($vendor['favicon']) && !empty($vendor['favicon']) && file_exists(FCPATH . $vendor['favicon'])): ?>
-                  <div class="mb-3">
-                    <label class="form-label fw-medium">Current Favicon</label>
-                    <div class="d-flex align-items-start gap-3">
-                      <div class="border rounded p-2 bg-white">
-                        <img src="<?php echo base_url($vendor['favicon']); ?>" alt="Favicon"
-                          style="max-width: 32px; max-height: 32px; object-fit: contain;">
-                      </div>
-                      <div class="flex-grow-1">
-                        <small class="text-muted d-block">Current favicon</small>
-                        <label class="form-check mt-2">
-                          <input type="checkbox" name="remove_favicon" value="1" class="form-check-input">
-                          <span class="form-check-label fs-13">Remove current favicon</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                  <?php else: ?>
-                  <div class="mb-3">
-                    <label class="form-label fw-medium">Current Favicon</label>
-                    <div class="text-center py-4 border rounded bg-white">
-                      <i class="isax isax-gallery text-muted" style="font-size: 24px;"></i>
-                      <p class="text-muted fs-13 mt-2 mb-0">No favicon uploaded<br><small>Default favicon will be used</small></p>
-                    </div>
-                  </div>
-                  <?php endif; ?>
-                </div>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>

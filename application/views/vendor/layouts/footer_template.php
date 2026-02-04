@@ -20,7 +20,7 @@
 <!-- Bootstrap Core JS -->
 <script src="<?php echo base_url('assets/template/js/bootstrap.bundle.min.js'); ?>"></script> 
 
-<!-- Select2 Core JS (CDN) -->
+<!-- Select2 JS (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <!-- SweetAlert2 JS (CDN) -->

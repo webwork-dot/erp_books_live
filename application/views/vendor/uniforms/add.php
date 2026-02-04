@@ -117,7 +117,42 @@
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<div class="mb-2">
 								<label class="form-label fs-13 mb-1">Color</label>
-								<input type="text" name="color" id="color" class="form-control form-control-sm" value="<?php echo set_value('color', isset($uniform) ? $uniform['color'] : ''); ?>">
+								<select name="color" id="color" class="form-control form-control-sm select2-color" data-placeholder="Select a color">
+									<option value=""></option>
+									<option value="White" <?php echo set_select('color', 'White'); ?>>White</option>
+									<option value="Black" <?php echo set_select('color', 'Black'); ?>>Black</option>
+									<option value="Navy Blue" <?php echo set_select('color', 'Navy Blue'); ?>>Navy Blue</option>
+									<option value="Royal Blue" <?php echo set_select('color', 'Royal Blue'); ?>>Royal Blue</option>
+									<option value="Sky Blue" <?php echo set_select('color', 'Sky Blue'); ?>>Sky Blue</option>
+									<option value="Light Blue" <?php echo set_select('color', 'Light Blue'); ?>>Light Blue</option>
+									<option value="Dark Blue" <?php echo set_select('color', 'Dark Blue'); ?>>Dark Blue</option>
+									<option value="Red" <?php echo set_select('color', 'Red'); ?>>Red</option>
+									<option value="Maroon" <?php echo set_select('color', 'Maroon'); ?>>Maroon</option>
+									<option value="Burgundy" <?php echo set_select('color', 'Burgundy'); ?>>Burgundy</option>
+									<option value="Green" <?php echo set_select('color', 'Green'); ?>>Green</option>
+									<option value="Forest Green" <?php echo set_select('color', 'Forest Green'); ?>>Forest Green</option>
+									<option value="Olive Green" <?php echo set_select('color', 'Olive Green'); ?>>Olive Green</option>
+									<option value="Yellow" <?php echo set_select('color', 'Yellow'); ?>>Yellow</option>
+									<option value="Gold" <?php echo set_select('color', 'Gold'); ?>>Gold</option>
+									<option value="Orange" <?php echo set_select('color', 'Orange'); ?>>Orange</option>
+									<option value="Purple" <?php echo set_select('color', 'Purple'); ?>>Purple</option>
+									<option value="Lavender" <?php echo set_select('color', 'Lavender'); ?>>Lavender</option>
+									<option value="Pink" <?php echo set_select('color', 'Pink'); ?>>Pink</option>
+									<option value="Hot Pink" <?php echo set_select('color', 'Hot Pink'); ?>>Hot Pink</option>
+									<option value="Brown" <?php echo set_select('color', 'Brown'); ?>>Brown</option>
+									<option value="Tan" <?php echo set_select('color', 'Tan'); ?>>Tan</option>
+									<option value="Beige" <?php echo set_select('color', 'Beige'); ?>>Beige</option>
+									<option value="Cream" <?php echo set_select('color', 'Cream'); ?>>Cream</option>
+									<option value="Ivory" <?php echo set_select('color', 'Ivory'); ?>>Ivory</option>
+									<option value="Gray" <?php echo set_select('color', 'Gray'); ?>>Gray</option>
+									<option value="Charcoal" <?php echo set_select('color', 'Charcoal'); ?>>Charcoal</option>
+									<option value="Silver" <?php echo set_select('color', 'Silver'); ?>>Silver</option>
+									<option value="Platinum" <?php echo set_select('color', 'Platinum'); ?>>Platinum</option>
+									<option value="Multi-Color" <?php echo set_select('color', 'Multi-Color'); ?>>Multi-Color</option>
+									<option value="Patterned" <?php echo set_select('color', 'Patterned'); ?>>Patterned</option>
+									<option value="Striped" <?php echo set_select('color', 'Striped'); ?>>Striped</option>
+									<option value="Checkered" <?php echo set_select('color', 'Checkered'); ?>>Checkered</option>
+								</select>
 							</div>
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
@@ -1324,6 +1359,14 @@ document.addEventListener('DOMContentLoaded', function() {
 		$('#uniform_type_id').select2({
 			theme: 'bootstrap-5',
 			placeholder: 'Select Uniform Type',
+			allowClear: true,
+			width: '100%'
+		});
+
+		// Initialize Select2 on color dropdown
+		$('.select2-color').select2({
+			theme: 'bootstrap-5',
+			placeholder: 'Select a color',
 			allowClear: true,
 			width: '100%'
 		});

@@ -5383,9 +5383,7 @@ select.form-control-sm:not([size]):not([multiple]) {
   right: auto;
 }
 
-.select2-container {
-  width: 100% !important;
-}
+
 .select2-container .select2-selection--single {
   border: 1px solid var(--border-color);
   height: calc(1.5em + 1rem + 2px);
@@ -21080,9 +21078,9 @@ span.flatpickr-weekday,
   border-color: var(--border-color) !important;
 }
 
-.select2-container {
-  width: 100% !important;
-}
+.select2-container{
+		width: 100% !important;
+	}
 .select2-container .select2-selection--single {
   border: 1px solid var(--border-color);
   height: 36px;

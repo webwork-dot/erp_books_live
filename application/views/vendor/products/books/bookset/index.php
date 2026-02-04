@@ -235,14 +235,14 @@
 							<div class="col-md-2">
 								<div class="d-flex align-items-center gap-2">
 									<?php if (!empty($bookset['thumbnail'])): ?>
-										<?php
-										$stored_path = trim($bookset['thumbnail']);
-										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
-											$image_url = $stored_path;
-										} else {
-											$image_url = base_url('uploads/schools/' . $stored_path);
-										}
-										?>
+									<?php
+									$stored_path = trim($bookset['thumbnail']);
+									if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+										$image_url = $stored_path;
+									} else {
+										$image_url = get_vendor_domain_url().'/' . $stored_path;
+									}
+									?>
 										<img src="<?php echo $image_url; ?>" alt="School" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>'">
 									<?php else: ?>
 										<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">

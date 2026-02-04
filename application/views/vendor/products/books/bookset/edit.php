@@ -74,6 +74,8 @@
 	.select2-container--default .select2-selection.is-invalid {
 		border-color: #dc3545 !important;
 	}
+
+	
 </style>
 
 <?php echo form_open(base_url('products/bookset/edit/' . $bookset['id']), array('id' => 'bookset-with-products-form')); ?>
@@ -224,10 +226,14 @@
 <script>
 (function() {
 	function initScript() {
-		if (typeof window.jQuery === 'undefined') {
+		if (
+			typeof window.jQuery === 'undefined' ||
+			typeof jQuery.fn.select2 === 'undefined'
+		) {
 			setTimeout(initScript, 100);
 			return;
 		}
+
 		
 		var $ = window.jQuery;
 		
@@ -1142,9 +1148,18 @@
 		});
 		
 		// Initialize Select2 for existing selects
-		if ($('.select').length > 0) {
-			$('.select').select2();
+		function initSelect2Safe(selector) {
+			if (typeof $.fn.select2 === 'function') {
+				$(selector).select2();
+			} else {
+				console.error('Select2 not loaded yet');
+			}
 		}
+
+		if ($('.select').length > 0) {
+			initSelect2Safe('.select');
+		}
+
 		
 		// Load existing packages
 		if (packages.length > 0) {

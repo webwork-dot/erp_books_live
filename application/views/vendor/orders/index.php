@@ -137,7 +137,7 @@
       <div class="col-12">
          <ul class="nav nav-tabs brbm0" role="tablist">
             <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'all' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders/all'); ?>">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'all' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders'); ?>">
                   All Orders
                </a>
             </li>

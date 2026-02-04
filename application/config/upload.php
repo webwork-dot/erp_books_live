@@ -46,6 +46,15 @@ $config['vendor_logo_upload'] = [
     'base_root'    => '/www/webwork/',
     'root_path'    => '/www/webwork/',
     'relative_dir' => 'uploads/vendors_logos/logos/',
-    'allowed_types'=> ['gif','jpg','jpeg','png','svg'],
+    'allowed_types'=> ['gif','jpg','jpeg','png','svg','ico'],
     'max_size'     => 2048
 ];
+
+$config['vendor_favicon_upload'] = [
+    'base_root'    => '/www/webwork/',
+    'root_path'    => '/www/webwork/',
+    'relative_dir' => 'uploads/vendors_logos/favicons/',
+    'allowed_types'=> ['png'], 
+    'max_size'     => 512      
+];
+?>

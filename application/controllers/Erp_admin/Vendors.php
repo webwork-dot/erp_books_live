@@ -327,6 +327,16 @@ class Vendors extends Erp_base
 	 */
 	public function edit($vendor_id)
 	{
+		// 🔥 FORCE load upload config
+		$this->config->load('upload', TRUE);
+
+		// Get favicon config
+		$faviconCfg = $this->config->item('vendor_favicon_upload', 'upload');
+		if (!is_array($faviconCfg)) {
+			log_message('error', 'vendor_favicon_upload config NOT loaded');
+			show_error('Favicon upload configuration missing.');
+		}
+
 		// Check permission
 		if (!$this->hasPermission('vendors', 'update'))
 		{
@@ -347,6 +357,9 @@ class Vendors extends Erp_base
 		$this->form_validation->set_rules('password', 'Password', 'min_length[6]');
 		$this->form_validation->set_rules('sidebar_color', 'Sidebar Color', 'trim|callback_validate_color');
 		$this->form_validation->set_rules('payment_gateway', 'Payment Gateway', 'trim|in_list[razorpay,ccavenue,]');
+		$this->form_validation->set_rules('site_title', 'Site Title', 'trim|max_length[255]');
+		$this->form_validation->set_rules('meta_description', 'Meta Description', 'trim|max_length[500]');
+		$this->form_validation->set_rules('meta_keywords', 'Meta Keywords', 'trim|max_length[500]');
 		
 		// Conditional validation for payment gateway fields
 		$payment_gateway = $this->input->post('payment_gateway');
@@ -436,7 +449,11 @@ class Vendors extends Erp_base
 				// Preserve existing status when editing (no status field in edit form)
 				'status' => $vendor['status'],
 				'sidebar_color' => $this->input->post('sidebar_color') ? $this->input->post('sidebar_color') : 'sidebarbg1',
-				'payment_gateway' => $this->input->post('payment_gateway') ? $this->input->post('payment_gateway') : ''
+				'payment_gateway' => $this->input->post('payment_gateway') ? $this->input->post('payment_gateway') : '',
+				// SEO fields
+				'site_title' => $this->input->post('site_title') ? $this->input->post('site_title') : NULL,
+				'meta_description' => $this->input->post('meta_description') ? $this->input->post('meta_description') : NULL,
+				'meta_keywords' => $this->input->post('meta_keywords') ? $this->input->post('meta_keywords') : NULL
 			);
 			
 			// Handle payment gateway fields based on selection
@@ -564,228 +581,314 @@ class Vendors extends Erp_base
 				}
 				$vendor_data['logo'] = NULL;
 			}
-			
-			// Update vendor
-			$update_result = $this->Erp_client_model->updateClient($vendor_id, $vendor_data);
-			
-			// Update vendor user in erp_users table (non-critical, continue even if fails)
-			$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
-			
-			if ($vendor_role_id)
+
+			// Handle favicon upload
+			log_message('debug', 'Checking favicon upload - FILES data: ' . print_r($_FILES, true));
+			if (!empty($_FILES['favicon']['name']))
 			{
-				// Check if username has changed
-				$username_changed = ($vendor['username'] !== $vendor_data['username']);
+					$this->config->load('upload', TRUE);
+				// Get favicon config
+				$faviconCfg = $this->config->item('vendor_favicon_upload', 'upload');
+					// Derive vendor folder from domain (same logic as logo)
+					$raw_domain = strtolower(trim($this->input->post('domain')));
+					$raw_domain = preg_replace('#^https?://#', '', $raw_domain);
+					$raw_domain = preg_replace('#^www\.#', '', $raw_domain);
+					$raw_domain = rtrim($raw_domain, '/');
 
-				// If username changed, check if new username already exists
-				if ($username_changed)
-				{
-					$user_with_new_username = $this->Erp_user_model->getUserByUsername($vendor_data['username']);
-					if ($user_with_new_username)
-					{
-						$this->session->set_flashdata('error', 'Username "' . $vendor_data['username'] . '" is already taken.');
-						redirect('erp-admin/vendors/edit/' . $vendor_id);
+					$segments = preg_split('#/#', $raw_domain, -1, PREG_SPLIT_NO_EMPTY);
+					$vendor_folder = !empty($segments) ? end($segments) : 'default';
+					$vendor_folder = preg_replace('/[^a-z0-9\.\-]/', '', $vendor_folder);
+
+					if (empty($vendor_folder)) {
+						$vendor_folder = 'default';
 					}
-				}
 
-				// Get existing user by old username
-				$existing_user = $this->Erp_user_model->getUserByUsername($vendor['username']);
-				
-				if ($existing_user)
-				{
-					// Update existing user
-					$user_data = array(
-						'username' => $vendor_data['username'],
-						'email' => $vendor_data['username'] . '@' . $vendor_data['domain'] . '.local',
-						'role_id' => $vendor_role_id,
-						'status' => ($vendor_data['status'] == 'active') ? 1 : 0
+					// Same path structure as logo
+					$upload_path = rtrim($faviconCfg['root_path'], '/')
+								. '/'
+								. $vendor_folder . '/'
+								. trim($faviconCfg['relative_dir'], '/') . '/';
+
+					if (!is_dir($upload_path)) {
+						mkdir($upload_path, 0775, true);
+					}
+
+					$config = [
+						'upload_path'   => $upload_path,
+						'allowed_types' => implode('|', $faviconCfg['allowed_types']),
+						'max_size'      => $faviconCfg['max_size'],
+						'file_name'     => 'favicon_' . $vendor_id . '_' . time(),
+						'overwrite'     => true
+					];
+
+					$this->load->library('upload');
+					$this->upload->initialize($config);
+					if (!isset($_FILES['favicon']) || $_FILES['favicon']['error'] !== UPLOAD_ERR_OK) {
+						log_message('error', 'Favicon upload aborted. PHP upload error code: ' . ($_FILES['favicon']['error'] ?? 'NO_FILE'));
+					}
+
+					if (!$this->upload->do_upload('favicon')) {
+					// Debug: Log detailed upload errors
+				$upload_errors = $this->upload->display_errors();
+				log_message('error', 'Favicon upload failed: ' . $upload_errors);
+				log_message('error', 'Favicon upload config: ' . print_r($config, true));
+				log_message('error', 'Favicon FILES data: ' . print_r($_FILES['favicon'], true));
+				log_message('error', 'Upload path exists: ' . (is_dir($upload_path) ? 'YES' : 'NO'));
+				log_message('error', 'Upload path writable: ' . (is_writable($upload_path) ? 'YES' : 'NO'));
+				log_message('error', 'Upload path: ' . $upload_path);
+					
+					$this->session->set_flashdata(
+						'error',
+						'Favicon upload failed: ' . strip_tags($upload_errors)
 					);
-					
-					// Update password if provided (already hashed)
-					if (!empty($password))
-					{
-						$user_data['password'] = $vendor_data['password']; // Already SHA1 hashed
-					}
-					
-					// Direct update to avoid double hashing
-					if (!empty($password))
-					{
-						$user_data['password'] = $vendor_data['password'];
-						$this->db->where('id', $existing_user['id']);
-						$this->db->update('erp_users', $user_data);
-					}
-					else
-					{
-						$this->Erp_user_model->updateUser($existing_user['id'], $user_data);
+					redirect('erp-admin/vendors/edit/' . $vendor_id);
+				}
+
+					$upload_data = $this->upload->data();
+
+					// Store relative path only (same as logo)
+					$vendor_data['favicon'] =
+						trim($faviconCfg['relative_dir'], '/') . '/'
+						. $upload_data['file_name'];
+
+					// Delete old favicon
+					if (!empty($vendor['favicon']) && file_exists(FCPATH . $vendor['favicon'])) {
+						@unlink(FCPATH . $vendor['favicon']);
 					}
 				}
-				else
+
+				// Handle favicon removal
+				elseif ($this->input->post('remove_favicon') == '1')
 				{
-					// This shouldn't happen in edit mode, but handle it just in case
-					log_message('error', 'Vendor user not found during edit operation for vendor: ' . $vendor['username']);
-				}
-			}
-			
-			// Handle feature assignment (always process, even if main update had no changes)
-			$features = $this->input->post('features');
-			if (!is_array($features))
-			{
-				$features = array();
-			}
-			
-			$subcategories = $this->input->post('subcategories');
-			if (!is_array($subcategories))
-			{
-				$subcategories = array();
-			}
-			
-			// Normalize feature keys to integers (POST keys are strings, but we need integers for comparison)
-			$normalized_features = array();
-			foreach ($features as $key => $value) {
-				$normalized_features[(int)$key] = $value;
-			}
-			$features = $normalized_features;
-			
-			// Normalize subcategory assignments
-			$normalized_subcategories = array();
-			foreach ($subcategories as $feature_id => $subcat_list)
-			{
-				if (is_array($subcat_list))
-				{
-					$normalized_subcategories[(int)$feature_id] = array_map('intval', $subcat_list);
-				}
-			}
-			$subcategories = $normalized_subcategories;
-			
-			// Get all available features (only main categories)
-			$all_features = $this->Erp_feature_model->getAllFeatures();
-			$main_features = array();
-			foreach ($all_features as $feature)
-			{
-				if (empty($feature['parent_id']))
-				{
-					$main_features[] = $feature;
-				}
-			}
-			
-			$features_updated = FALSE;
-			foreach ($main_features as $feature)
-			{
-				$feature_id = (int)$feature['id'];
-				$enabled = isset($features[$feature_id]) && $features[$feature_id] == '1' ? TRUE : FALSE;
-				
-				$assign_result = $this->Erp_client_model->assignFeature($vendor_id, $feature_id, $enabled);
-				if ($assign_result)
-				{
-					$features_updated = TRUE;
+					// Delete old favicon if exists
+					if (!empty($vendor['favicon']) && file_exists(FCPATH . $vendor['favicon']))
+					{
+						@unlink(FCPATH . $vendor['favicon']);
+					}
+					$vendor_data['favicon'] = NULL;
 				}
 				
-				// Handle subcategories for this main feature
-				if ($enabled)
+				// Update vendor
+				$update_result = $this->Erp_client_model->updateClient($vendor_id, $vendor_data);
+				
+				// Update vendor user in erp_users table (non-critical, continue even if fails)
+				$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
+				
+				if ($vendor_role_id)
 				{
-					// Get all subcategories for this feature
-					$all_subcategories = $this->Erp_feature_model->getSubcategoriesByParent($feature_id);
-					
-					// Get submitted subcategories for this feature (default to empty array if not set)
-					$submitted_subcat_ids = isset($subcategories[$feature_id]) && is_array($subcategories[$feature_id]) ? $subcategories[$feature_id] : array();
-					
-					// Get currently enabled subcategories for this vendor and feature
-					$current_subcategories = $this->Erp_client_model->getClientSubcategories($vendor_id, $feature_id);
-					$current_subcat_ids = array();
-					foreach ($current_subcategories as $current_subcat)
+					// Check if username has changed
+					$username_changed = ($vendor['username'] !== $vendor_data['username']);
+
+					// If username changed, check if new username already exists
+					if ($username_changed)
 					{
-						$current_subcat_ids[] = (int)$current_subcat['subcategory_id'];
-					}
-					
-					foreach ($all_subcategories as $subcat)
-					{
-						$subcat_id = (int)$subcat['id'];
-						// Subcategory is enabled only if it's in the submitted array
-						$subcat_enabled = in_array($subcat_id, $submitted_subcat_ids);
-						
-						if ($subcat_enabled)
+						$user_with_new_username = $this->Erp_user_model->getUserByUsername($vendor_data['username']);
+						if ($user_with_new_username)
 						{
-							// Enable/assign the subcategory
-							if ($this->Erp_client_model->assignSubcategory($vendor_id, $feature_id, $subcat_id, TRUE))
-							{
-								$features_updated = TRUE;
-							}
+							$this->session->set_flashdata('error', 'Username "' . $vendor_data['username'] . '" is already taken.');
+							redirect('erp-admin/vendors/edit/' . $vendor_id);
+						}
+					}
+
+					// Get existing user by old username
+					$existing_user = $this->Erp_user_model->getUserByUsername($vendor['username']);
+					
+					if ($existing_user)
+					{
+						// Update existing user
+						$user_data = array(
+							'username' => $vendor_data['username'],
+							'email' => $vendor_data['username'] . '@' . $vendor_data['domain'] . '.local',
+							'role_id' => $vendor_role_id,
+							'status' => ($vendor_data['status'] == 'active') ? 1 : 0
+						);
+						
+						// Update password if provided (already hashed)
+						if (!empty($password))
+						{
+							$user_data['password'] = $vendor_data['password']; // Already SHA1 hashed
+						}
+						
+						// Direct update to avoid double hashing
+						if (!empty($password))
+						{
+							$user_data['password'] = $vendor_data['password'];
+							$this->db->where('id', $existing_user['id']);
+							$this->db->update('erp_users', $user_data);
 						}
 						else
 						{
-							// Remove the subcategory if it was previously enabled
-							if (in_array($subcat_id, $current_subcat_ids))
+							$this->Erp_user_model->updateUser($existing_user['id'], $user_data);
+						}
+					}
+					else
+					{
+						// This shouldn't happen in edit mode, but handle it just in case
+						log_message('error', 'Vendor user not found during edit operation for vendor: ' . $vendor['username']);
+					}
+				}
+				
+				// Handle feature assignment (always process, even if main update had no changes)
+				$features = $this->input->post('features');
+				if (!is_array($features))
+				{
+					$features = array();
+				}
+				
+				$subcategories = $this->input->post('subcategories');
+				if (!is_array($subcategories))
+				{
+					$subcategories = array();
+				}
+				
+				// Normalize feature keys to integers (POST keys are strings, but we need integers for comparison)
+				$normalized_features = array();
+				foreach ($features as $key => $value) {
+					$normalized_features[(int)$key] = $value;
+				}
+				$features = $normalized_features;
+				
+				// Normalize subcategory assignments
+				$normalized_subcategories = array();
+				foreach ($subcategories as $feature_id => $subcat_list)
+				{
+					if (is_array($subcat_list))
+					{
+						$normalized_subcategories[(int)$feature_id] = array_map('intval', $subcat_list);
+					}
+				}
+				$subcategories = $normalized_subcategories;
+				
+				// Get all available features (only main categories)
+				$all_features = $this->Erp_feature_model->getAllFeatures();
+				$main_features = array();
+				foreach ($all_features as $feature)
+				{
+					if (empty($feature['parent_id']))
+					{
+						$main_features[] = $feature;
+					}
+				}
+				
+				$features_updated = FALSE;
+				foreach ($main_features as $feature)
+				{
+					$feature_id = (int)$feature['id'];
+					$enabled = isset($features[$feature_id]) && $features[$feature_id] == '1' ? TRUE : FALSE;
+					
+					$assign_result = $this->Erp_client_model->assignFeature($vendor_id, $feature_id, $enabled);
+					if ($assign_result)
+					{
+						$features_updated = TRUE;
+					}
+					
+					// Handle subcategories for this main feature
+					if ($enabled)
+					{
+						// Get all subcategories for this feature
+						$all_subcategories = $this->Erp_feature_model->getSubcategoriesByParent($feature_id);
+						
+						// Get submitted subcategories for this feature (default to empty array if not set)
+						$submitted_subcat_ids = isset($subcategories[$feature_id]) && is_array($subcategories[$feature_id]) ? $subcategories[$feature_id] : array();
+						
+						// Get currently enabled subcategories for this vendor and feature
+						$current_subcategories = $this->Erp_client_model->getClientSubcategories($vendor_id, $feature_id);
+						$current_subcat_ids = array();
+						foreach ($current_subcategories as $current_subcat)
+						{
+							$current_subcat_ids[] = (int)$current_subcat['subcategory_id'];
+						}
+						
+						foreach ($all_subcategories as $subcat)
+						{
+							$subcat_id = (int)$subcat['id'];
+							// Subcategory is enabled only if it's in the submitted array
+							$subcat_enabled = in_array($subcat_id, $submitted_subcat_ids);
+							
+							if ($subcat_enabled)
 							{
-								if ($this->Erp_client_model->removeSubcategory($vendor_id, $feature_id, $subcat_id))
+								// Enable/assign the subcategory
+								if ($this->Erp_client_model->assignSubcategory($vendor_id, $feature_id, $subcat_id, TRUE))
 								{
 									$features_updated = TRUE;
 								}
 							}
+							else
+							{
+								// Remove the subcategory if it was previously enabled
+								if (in_array($subcat_id, $current_subcat_ids))
+								{
+									if ($this->Erp_client_model->removeSubcategory($vendor_id, $feature_id, $subcat_id))
+									{
+										$features_updated = TRUE;
+									}
+								}
+							}
+						}
+					}
+					elseif (!$enabled)
+					{
+						// If main feature is disabled, remove all subcategory assignments
+						$all_subcategories = $this->Erp_feature_model->getSubcategoriesByParent($feature_id);
+						foreach ($all_subcategories as $subcat)
+						{
+							$this->Erp_client_model->removeSubcategory($vendor_id, $feature_id, $subcat['id']);
 						}
 					}
 				}
-				elseif (!$enabled)
+				
+				// Sync all features to vendor database after updates
+				if ($features_updated)
 				{
-					// If main feature is disabled, remove all subcategory assignments
-					$all_subcategories = $this->Erp_feature_model->getSubcategoriesByParent($feature_id);
-					foreach ($all_subcategories as $subcat)
+					$this->load->model('Feature_sync_model');
+					try
 					{
-						$this->Erp_client_model->removeSubcategory($vendor_id, $feature_id, $subcat['id']);
+						$this->Feature_sync_model->syncVendorFeatures($vendor_id);
+					}
+					catch (Exception $e)
+					{
+						log_message('error', 'Failed to sync features after vendor update: ' . $e->getMessage());
+						// Don't block update if sync fails
 					}
 				}
-			}
-			
-			// Sync all features to vendor database after updates
-			if ($features_updated)
-			{
-				$this->load->model('Feature_sync_model');
-				try
-				{
-					$this->Feature_sync_model->syncVendorFeatures($vendor_id);
+				
+				// Sync vendor data to vendor database after update
+				try {
+					$sync_result = $this->Vendor_sync_model->syncVendorData($vendor_id);
+					if (!$sync_result) {
+						log_message('warning', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
+					}
+				} catch (Exception $e) {
+					log_message('error', 'Exception during vendor data sync after update: ' . $e->getMessage());
 				}
-				catch (Exception $e)
+				
+				// Consider update successful if:
+				// 1. Main update succeeded, OR
+				// 2. Features were updated (which means something changed)
+				if ($update_result || $features_updated)
 				{
-					log_message('error', 'Failed to sync features after vendor update: ' . $e->getMessage());
-					// Don't block update if sync fails
-				}
-			}
-			
-			// Sync vendor data to vendor database after update
-			try {
-				$sync_result = $this->Vendor_sync_model->syncVendorData($vendor_id);
-				if (!$sync_result) {
-					log_message('warning', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
-				}
-			} catch (Exception $e) {
-				log_message('error', 'Exception during vendor data sync after update: ' . $e->getMessage());
-			}
-			
-			// Consider update successful if:
-			// 1. Main update succeeded, OR
-			// 2. Features were updated (which means something changed)
-			if ($update_result || $features_updated)
-			{
-				$this->session->set_flashdata('success', 'Vendor updated successfully.');
-				redirect('erp-admin/vendors');
-			}
-			else
-			{
-				// Check if there was a database error
-				$db_error = $this->db->error();
-				if (!empty($db_error['message']) && isset($db_error['code']) && $db_error['code'] != 0)
-				{
-					$this->session->set_flashdata('error', 'Failed to update vendor: ' . $db_error['message']);
-					redirect('erp-admin/vendors/edit/' . $vendor_id);
-				}
-				else
-				{
-					// If we get here, it means update returned FALSE but no error
-					// This can happen if data hasn't changed, but features were updated
-					// So we should still show success
 					$this->session->set_flashdata('success', 'Vendor updated successfully.');
 					redirect('erp-admin/vendors');
 				}
+				else
+				{
+					// Check if there was a database error
+					$db_error = $this->db->error();
+					if (!empty($db_error['message']) && isset($db_error['code']) && $db_error['code'] != 0)
+					{
+						$this->session->set_flashdata('error', 'Failed to update vendor: ' . $db_error['message']);
+						redirect('erp-admin/vendors/edit/' . $vendor_id);
+					}
+					else
+					{
+						// If we get here, it means update returned FALSE but no error
+						// This can happen if data hasn't changed, but features were updated
+						// So we should still show success
+						$this->session->set_flashdata('success', 'Vendor updated successfully.');
+						redirect('erp-admin/vendors');
+					}
+				}
 			}
-		}
 	}
 	
 	/**
