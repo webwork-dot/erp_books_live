@@ -89,6 +89,8 @@ $route['client-admin/dashboard'] = 'Client_admin/dashboard';
 
 // School Admin Routes
 $route['school-admin'] = 'School_admin/dashboard';
+$route['school-admin/auth/login'] = 'School_admin/auth/login';
+$route['school-admin/auth/logout'] = 'School_admin/auth/logout';
 $route['school-admin/dashboard'] = 'School_admin/dashboard';
 
 // API Routes
