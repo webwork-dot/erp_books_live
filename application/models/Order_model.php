@@ -441,46 +441,73 @@ class Order_model extends CI_Model
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
 		if ($order_status == 'all') {
-			$order_status_filter = ""; // No status filter for "all"
+				$order_status_filter = ""; // No status filter for "all"
 		} elseif ($order_status == 'pending') {
-			$order_status_filter = " AND order_status='1'";
+				$order_status_filter = " AND d.order_status='1'";
 		} elseif ($order_status == 'processing') {
-			$order_status_filter = " AND order_status='2'";
+				$order_status_filter = " AND d.order_status='2'";
 		} elseif ($order_status == 'out_for_delivery') {
-			$order_status_filter = " AND order_status='3'";
+				$order_status_filter = " AND d.order_status='3'";
 		} elseif ($order_status == 'delivered') {
-			$order_status_filter = " AND order_status='4'";
+				$order_status_filter = " AND d.order_status='4'";
 		} elseif ($order_status == 'return') {
-			$order_status_filter = " AND order_status='7'";
+				$order_status_filter = " AND d.order_status='7'";
 		} else {
-			$order_status_filter = " AND order_status='0'";
+				$order_status_filter = " AND d.order_status='0'";
 		}
 
-		// Add vendor filter - check if vendor_id column exists in tbl_order_details
-		// If not, we'll filter through order items
+		// Vendor filter (if you later enable it through order items, use oi.)
 		if (!empty($vendor_id)) {
-			// Try to filter by vendor_id if column exists, otherwise filter through order items
-			// $vendor_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi WHERE oi.order_id = tbl_order_details.id AND oi.vendor_id = '" . (int)$vendor_id . "')";
+				// Example:
+				// $vendor_filter = " AND oi.vendor_id = '" . (int)$vendor_id . "'";
+				// OR (safer for duplicates):
+				// $vendor_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.vendor_id = '" . (int)$vendor_id . "')";
 		}
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") :
-			$keyword = trim($filter_data['keywords']);
-			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or invoice_no like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or coupon_code like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+				$keyword = trim($filter_data['keywords']);
+				$keyword_esc = $this->db->escape_like_str($keyword);
+
+				$keyword_filter = " AND (
+						d.order_type LIKE '%{$keyword_esc}%'
+						OR d.order_unique_id LIKE '%{$keyword_esc}%'
+						OR d.user_name LIKE '%{$keyword_esc}%'
+						OR d.invoice_no LIKE '%{$keyword_esc}%'
+						OR d.coupon_code LIKE '%{$keyword_esc}%'
+						OR d.user_phone LIKE '%{$keyword_esc}%'
+				)";
+		endif;
+
+		if (isset($filter_data['school_user_id']) && $filter_data['school_user_id'] != "") :
+			$keyword_filter .= " AND (
+						oi.school_id = '" . (int)$filter_data['school_user_id'] . "' AND oi.order_type = 'bookset'
+				)";
 		endif;
 
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
-			$order_date = explode(' - ', $filter_data['date_range']);
-			$from = date('Y-m-d', strtotime($order_date[0]));
-			$to = date('Y-m-d', strtotime($order_date[1]));
-			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+				$order_date = explode(' - ', $filter_data['date_range']);
+				$from = date('Y-m-d', strtotime($order_date[0]));
+				$to   = date('Y-m-d', strtotime($order_date[1]));
+
+				$from = $this->db->escape_str($from);
+				$to   = $this->db->escape_str($to);
+
+				$order_date_filter = " AND (DATE(d.order_date) BETWEEN '{$from}' AND '{$to}')";
 		endif;
 
-		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE (id<>'') AND (payment_status='success' OR payment_status='cod' OR payment_method='cod') $keyword_filter $order_status_filter $order_date_filter $vendor_filter ORDER BY id asc");
+		$query = $this->db->query("
+				SELECT d.id
+				FROM tbl_order_details d
+				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+				WHERE (d.id <> '')
+					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_method='cod')
+					$keyword_filter
+					$order_status_filter
+					$order_date_filter
+					$vendor_filter
+				GROUP BY d.id
+				ORDER BY d.id ASC
+		");
 		return $query->num_rows();
 	}
 
@@ -505,46 +532,73 @@ class Order_model extends CI_Model
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
 		if ($order_status == 'all') {
-			$order_status_filter = ""; // No status filter for "all"
+				$order_status_filter = ""; // No status filter for "all"
 		} elseif ($order_status == 'pending') {
-			$order_status_filter = " AND order_status='1'";
+				$order_status_filter = " AND d.order_status='1'";
 		} elseif ($order_status == 'processing') {
-			$order_status_filter = " AND order_status='2'";
+				$order_status_filter = " AND d.order_status='2'";
 		} elseif ($order_status == 'out_for_delivery') {
-			$order_status_filter = " AND order_status='3'";
+				$order_status_filter = " AND d.order_status='3'";
 		} elseif ($order_status == 'delivered') {
-			$order_status_filter = " AND order_status='4'";
+				$order_status_filter = " AND d.order_status='4'";
 		} elseif ($order_status == 'return') {
-			$order_status_filter = " AND order_status='7'";
+				$order_status_filter = " AND d.order_status='7'";
 		} else {
-			$order_status_filter = " AND order_status='0'";
+				$order_status_filter = " AND d.order_status='0'";
 		}
 
-		// Add vendor filter
-		// if (!empty($vendor_id)) {
-		// 	$vendor_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi WHERE oi.order_id = tbl_order_details.id AND oi.vendor_id = '" . (int)$vendor_id . "')";
-		// }
+		// Vendor filter (if you later enable it through order items, use oi.)
+		if (!empty($vendor_id)) {
+				// Example:
+				// $vendor_filter = " AND oi.vendor_id = '" . (int)$vendor_id . "'";
+				// OR (safer for duplicates):
+				// $vendor_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.vendor_id = '" . (int)$vendor_id . "')";
+		}
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") :
-			$keyword = trim($filter_data['keywords']);
-			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or invoice_no like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or coupon_code like '%" . $this->db->escape_like_str($keyword) . "%'
-			  or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+				$keyword = trim($filter_data['keywords']);
+				$keyword_esc = $this->db->escape_like_str($keyword);
+
+				$keyword_filter = " AND (
+						d.order_type LIKE '%{$keyword_esc}%'
+						OR d.order_unique_id LIKE '%{$keyword_esc}%'
+						OR d.user_name LIKE '%{$keyword_esc}%'
+						OR d.invoice_no LIKE '%{$keyword_esc}%'
+						OR d.coupon_code LIKE '%{$keyword_esc}%'
+						OR d.user_phone LIKE '%{$keyword_esc}%'
+				)";
+		endif;
+
+		if (isset($filter_data['school_user_id']) && $filter_data['school_user_id'] != "") :
+			$keyword_filter .= " AND (
+						oi.school_id = '" . (int)$filter_data['school_user_id'] . "' AND oi.order_type = 'bookset'
+				)";
 		endif;
 
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
-			$order_date = explode(' - ', $filter_data['date_range']);
-			$from = date('Y-m-d', strtotime($order_date[0]));
-			$to = date('Y-m-d', strtotime($order_date[1]));
-			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+				$order_date = explode(' - ', $filter_data['date_range']);
+				$from = date('Y-m-d', strtotime($order_date[0]));
+				$to   = date('Y-m-d', strtotime($order_date[1]));
+
+				$from = $this->db->escape_str($from);
+				$to   = $this->db->escape_str($to);
+
+				$order_date_filter = " AND (DATE(d.order_date) BETWEEN '{$from}' AND '{$to}')";
 		endif;
 
+
 		$resultdata = array();
-		$query = $this->db->query("SELECT id,checkout_type,payment_method,razorpay_order_id,payment_id,processing_date,shipment_date,delivery_date,return_date,tracking_id,shipping_label,track_url,courier,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_status,order_date,invoice_no,invoice_url,coupon_code,source FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter ORDER BY id desc LIMIT $offset,$per_page");
-		
+		$query = $this->db->query("
+				SELECT d.id, d.checkout_type, d.payment_method, d.razorpay_order_id, d.payment_id, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.tracking_id, d.shipping_label, d.track_url, d.courier, d.order_type, d.order_token, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.coupon_code, d.source
+				FROM tbl_order_details d
+				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_method='cod')
+					AND d.order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter
+				GROUP BY d.id
+				ORDER BY d.id DESC
+				LIMIT $offset, $per_page
+		");
+
 		if (!empty($query)) {
 			foreach ($query->result_array() as $item) {
 
@@ -777,22 +831,43 @@ class Order_model extends CI_Model
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
-			$keyword = trim($filter_data['keywords']);
-			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
-			or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
-			or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
-			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
-		}
+					$keyword = trim($filter_data['keywords']);
+					$kw = $this->db->escape_like_str($keyword);
 
-		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
-			$order_date = explode(' - ', $filter_data['date_range']);
-			$from = date('Y-m-d', strtotime($order_date[0]));
-			$to = date('Y-m-d', strtotime($order_date[1]));
-			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
-		}
+					$keyword_filter = " AND (
+							d.order_type LIKE '%{$kw}%'
+							OR d.order_unique_id LIKE '%{$kw}%'
+							OR d.user_name LIKE '%{$kw}%'
+							OR d.user_phone LIKE '%{$kw}%'
+					)";
+			}
 
-		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE is_refund='" . $this->db->escape_str($is_refund) . "' AND payment_status='success' AND order_status='" . $this->db->escape_str($order_status) . "' $keyword_filter $machine_filter $order_date_filter ORDER BY id asc");
-		return $query->num_rows();
+			if (isset($filter_data['school_user_id']) && $filter_data['school_user_id'] != "") :
+			$keyword_filter .= " AND (
+						oi.school_id = '" . (int)$filter_data['school_user_id'] . "' AND oi.order_type = 'bookset'
+				)";
+		endif;
+
+			if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+					$order_date = explode(' - ', $filter_data['date_range']);
+					$from = date('Y-m-d', strtotime($order_date[0]));
+					$to   = date('Y-m-d', strtotime($order_date[1]));
+
+					$order_date_filter = " AND (DATE(d.order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+			}
+
+			$query = $this->db->query("
+					SELECT COUNT(DISTINCT d.id) AS total
+					FROM tbl_order_details d
+					INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+					WHERE d.is_refund = '" . $this->db->escape_str($is_refund) . "'
+						AND d.payment_status = 'success'
+						AND d.order_status = '" . $this->db->escape_str($order_status) . "'
+						$keyword_filter
+						$machine_filter
+						$order_date_filter
+			");
+			return (int) $query->row()->total;
 	}
 
 	/**
@@ -813,21 +888,60 @@ class Order_model extends CI_Model
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
-			$keyword = trim($filter_data['keywords']);
-			$keyword_filter = " AND (order_type like '%" . $this->db->escape_like_str($keyword) . "%'
-			or order_unique_id like '%" . $this->db->escape_like_str($keyword) . "%'
-			or user_name like '%" . $this->db->escape_like_str($keyword) . "%'
-			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
+				$keyword = trim($filter_data['keywords']);
+				$kw = $this->db->escape_like_str($keyword);
+
+				$keyword_filter = " AND (
+						d.order_type LIKE '%{$kw}%'
+						OR d.order_unique_id LIKE '%{$kw}%'
+						OR d.user_name LIKE '%{$kw}%'
+						OR d.user_phone LIKE '%{$kw}%'
+				)";
 		}
+
+		if (isset($filter_data['school_user_id']) && $filter_data['school_user_id'] != "") :
+			$keyword_filter .= " AND (
+						oi.school_id = '" . (int)$filter_data['school_user_id'] . "' AND oi.order_type = 'bookset'
+				)";
+		endif;
 
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
-			$order_date = explode(' - ', $filter_data['date_range']);
-			$from = date('Y-m-d', strtotime($order_date[0]));
-			$to = date('Y-m-d', strtotime($order_date[1]));
-			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+				$order_date = explode(' - ', $filter_data['date_range']);
+				$from = date('Y-m-d', strtotime($order_date[0]));
+				$to   = date('Y-m-d', strtotime($order_date[1]));
+
+				$order_date_filter = " AND (DATE(d.order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
 		}
 
-		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,remark,payable_amt,order_type,order_unique_id,user_id,order_status,payment_status,refund_amt,order_date,cancelled_date,invoice_no,cancel_invoice_url FROM tbl_order_details WHERE is_refund='" . $this->db->escape_str($is_refund) . "' AND (payment_status='success' OR payment_status='cod') AND order_status='" . $this->db->escape_str($order_status) . "' $keyword_filter $machine_filter $order_date_filter ORDER BY id desc LIMIT $offset,$per_page");
+		$query = $this->db->query("
+				SELECT 
+						d.id,
+						d.razorpay_order_id,
+						d.payment_id,
+						d.remark,
+						d.payable_amt,
+						d.order_type,
+						d.order_unique_id,
+						d.user_id,
+						d.order_status,
+						d.payment_status,
+						d.refund_amt,
+						d.order_date,
+						d.cancelled_date,
+						d.invoice_no,
+						d.cancel_invoice_url
+				FROM tbl_order_details d
+				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+				WHERE d.is_refund = '" . $this->db->escape_str($is_refund) . "'
+					AND (d.payment_status='success' OR d.payment_status='cod')
+					AND d.order_status = '" . $this->db->escape_str($order_status) . "'
+					$keyword_filter
+					$machine_filter
+					$order_date_filter
+				GROUP BY d.id
+				ORDER BY d.id DESC
+				LIMIT $offset, $per_page
+		");
 		
 		if (!empty($query)) {
 			foreach ($query->result_array() as $item) {

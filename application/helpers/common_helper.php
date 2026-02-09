@@ -34,6 +34,33 @@ if ( ! function_exists('format_amount'))
 }
 
 
+function root_domain($urlOrHost)
+{
+    // If it's just a host (admin.example.com), make it a URL for parse_url
+    $url = (strpos($urlOrHost, '://') === false) ? "http://{$urlOrHost}" : $urlOrHost;
+
+    $host = strtolower(parse_url($url, PHP_URL_HOST) ?? '');
+    if ($host === '' || $host === 'localhost' || filter_var($host, FILTER_VALIDATE_IP)) {
+        return $host;
+    }
+
+    $parts = explode('.', $host);
+    if (count($parts) <= 2) return $host;
+
+    // Handle some common “double” TLDs (add more if you need)
+    $twoLevelTlds = [
+        'co.uk','org.uk','ac.uk','gov.uk',
+        'com.au','net.au','org.au',
+        'co.in'
+    ];
+
+    $last2 = implode('.', array_slice($parts, -2)); // example: co.uk OR example.com
+    if (in_array($last2, $twoLevelTlds, true) && count($parts) >= 3) {
+        return implode('.', array_slice($parts, -3)); // example.co.uk
+    }
+
+    return $last2; // example.com
+}
 
 
 if (!function_exists('cal_dis_array')) {

@@ -92,6 +92,15 @@ $route['school-admin'] = 'School_admin/dashboard';
 $route['school-admin/auth/login'] = 'School_admin/auth/login';
 $route['school-admin/auth/logout'] = 'School_admin/auth/logout';
 $route['school-admin/dashboard'] = 'School_admin/dashboard';
+// School Admin Orders routes
+$route['school-admin/orders'] = 'School_admin/orders/index';
+$route['school-admin/orders/all'] = 'School_admin/orders/index/all';
+$route['school-admin/orders/pending'] = 'School_admin/orders/index/pending';
+$route['school-admin/orders/processing'] = 'School_admin/orders/index/processing';
+$route['school-admin/orders/out_for_delivery'] = 'School_admin/orders/index/out_for_delivery';
+$route['school-admin/orders/delivered'] = 'School_admin/orders/index/delivered';
+$route['school-admin/orders/return'] = 'School_admin/orders/index/return';
+$route['school-admin/orders/cancelled-orders'] = 'School_admin/orders/cancelled_orders';
 
 // API Routes
 $route['api'] = 'api';
