@@ -155,7 +155,6 @@
 						<th>Product Name</th>
 						<th>Publisher</th>
 						<th>Board</th>
-						<th>Type</th>
 						<th>Grade/Age</th>
 						<th>Subject</th>
 						<th>ISBN/SKU</th>
@@ -195,19 +194,6 @@
 								</td>
 								<td><?php echo htmlspecialchars($textbook['publisher_name'] ? $textbook['publisher_name'] : '-'); ?></td>
 								<td><?php echo htmlspecialchars($textbook['board_name'] ? $textbook['board_name'] : '-'); ?></td>
-								<td>
-									<?php if (!empty($textbook['types'])): ?>
-										<?php 
-										$type_names = array();
-										foreach ($textbook['types'] as $type) {
-											$type_names[] = htmlspecialchars($type['name']);
-										}
-										echo implode(', ', $type_names);
-										?>
-									<?php else: ?>
-										<span class="text-muted">-</span>
-									<?php endif; ?>
-								</td>
 								<td>
 									<?php if ($textbook['grade_age_type'] == 'grade' && !empty($textbook['grades'])): ?>
 										<span class="badge badge-info">Grade: </span>

@@ -26,6 +26,30 @@ Adds `is_main` column to image tables:
 SOURCE erp-system/database/add_is_main_to_image_tables.sql;
 ```
 
+### 3. `create_erp_products_table.sql`
+Creates unified `erp_products` table for all non-bookset products, based on the old `products` schema from `ganeshbooks_dbc` with multi-vendor and type support.
+
+**To run (per vendor database):**
+```sql
+SOURCE erp-system/database/create_erp_products_table.sql;
+```
+
+### 4. Unified products data migration
+
+`application/controllers/Erp_admin/Product_migration.php` copies data from:
+- `erp_textbooks`
+- `erp_notebooks`
+- `erp_stationery`
+- `erp_uniforms`
+- `erp_individual_products`
+
+into `erp_products` with `legacy_table` / `legacy_id` mappings.
+
+**To run (CLI recommended, after creating `erp_products`):**
+```bash
+php index.php Erp_admin/Product_migration/run
+```
+
 ## Implementation Status
 
 ### ✅ Completed

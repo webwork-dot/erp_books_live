@@ -47,24 +47,7 @@
 				
 					<!-- Basic Information -->
 					<div class="row gx-3">
-						<div class="col-lg-6 col-md-6">
-							<div class="mb-3">
-								<label class="form-label">Type <span class="text-danger">*</span></label>
-								<div class="input-group">
-									<select name="types[]" id="types" class="select" multiple required>
-										<?php if (!empty($types)): ?>
-											<?php foreach ($types as $type): ?>
-												<option value="<?php echo $type['id']; ?>"><?php echo htmlspecialchars($type['name']); ?></option>
-											<?php endforeach; ?>
-										<?php endif; ?>
-									</select>
-									<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addTypeModal" style="padding: 0.4rem 1rem;">
-										<i class="isax isax-add"></i> Add
-									</button>
-								</div>
-								<?php echo form_error('types', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
-							</div>
-						</div>
+						<!-- Type field removed: textbook type is implied by URL /products/textbook/add -->
 						<div class="col-lg-6 col-md-6">
 							<div class="mb-3">
 								<label class="form-label">Publisher <span class="text-danger">*</span></label>
@@ -151,7 +134,8 @@
 							<div class="mb-3">
 								<label class="form-label">Subject <span class="text-danger">*</span></label>
 								<div class="input-group">
-									<select name="subjects[]" id="subjects" class="select select2-multiple subject-select" multiple required>
+									<select name="subjects[]" id="subjects" class="select subject-select" required>
+										<option value="">Select Subject</option>
 										<?php if (!empty($subjects)): ?>
 											<?php foreach ($subjects as $subject): ?>
 												<option value="<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></option>
@@ -286,19 +270,13 @@
 			<div class="card-body">
 				<h2 class=" border-bottom pb-3 mb-3">Price</h2>
 				<div class="row gx-3">
-					<div class="col-lg-6 col-md-6">
+					<div class="col-lg-4 col-md-4">
 						<div class="mb-3">
 							<label class="form-label">Product Code (For control of school set)</label>
 							<input type="text" name="product_code" id="product_code" class="form-control" form="textbook-form" value="<?php echo set_value('product_code', isset($textbook) ? $textbook['product_code'] : ''); ?>">
 						</div>
 					</div>
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<label class="form-label">SKU /Product Code</label>
-							<input type="text" name="sku" id="sku" class="form-control" form="textbook-form" value="<?php echo set_value('sku', isset($textbook) ? $textbook['sku'] : ''); ?>">
-						</div>
-					</div>
-					<div class="col-lg-6 col-md-6">
+					<div class="col-lg-4 col-md-4">
 						<div class="mb-3">
 							<label class="form-label">MRP <span class="text-danger">*</span></label>
 							<input type="number" name="mrp" id="mrp" class="form-control" form="textbook-form" value="<?php echo set_value('mrp', isset($textbook) ? $textbook['mrp'] : ''); ?>" step="0.01" min="0" required>
@@ -306,7 +284,7 @@
 							<?php echo form_error('mrp', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
-					<div class="col-lg-6 col-md-6">
+					<div class="col-lg-4 col-md-4">
 						<div class="mb-3">
 							<label class="form-label">Selling Price <span class="text-danger">*</span></label>
 							<input type="number" name="selling_price" id="selling_price" class="form-control" form="textbook-form" value="<?php echo set_value('selling_price', isset($textbook) ? $textbook['selling_price'] : ''); ?>" step="0.01" min="0" required>
@@ -394,33 +372,7 @@
 </div>
 <?php echo form_close(); ?>
 
-<!-- Add Type Modal -->
-<div class="modal fade" id="addTypeModal" tabindex="-1" aria-labelledby="addTypeModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-dialog-centered">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="addTypeModalLabel">Add Type</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<form id="addTypeForm">
-					<div class="mb-3">
-						<label class="form-label">Name <span class="text-danger">*</span></label>
-						<input type="text" name="name" id="type_name" class="form-control" required>
-					</div>
-					<div class="mb-3">
-						<label class="form-label">Description</label>
-						<textarea name="description" id="type_description" class="form-control" rows="3"></textarea>
-					</div>
-				</form>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-				<button type="button" class="btn btn-primary" onclick="addType()">Add Type</button>
-			</div>
-		</div>
-	</div>
-</div>
+<!-- Type modal removed: type is implicit from textbook URL -->
 
 <!-- Add Publisher Modal -->
 <div class="modal fade" id="addPublisherModal" tabindex="-1" aria-labelledby="addPublisherModalLabel" aria-hidden="true">

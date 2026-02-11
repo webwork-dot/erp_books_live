@@ -151,11 +151,45 @@ class Dashboard extends Vendor_base
 			? $data['feature_stats']['uniforms']['products'] 
 			: array('active' => 0, 'inactive' => 0, 'out_of_stock' => 0);
 		
+		// Aggregate product statistics across all enabled features (for universal Products box)
+		$data['product_totals'] = array(
+			'active' => 0,
+			'inactive' => 0,
+			'out_of_stock' => 0
+		);
+		
+		if (!empty($data['feature_stats']) && is_array($data['feature_stats'])) {
+			foreach ($data['feature_stats'] as $feature_slug => $stats) {
+				if (isset($stats['products']) && is_array($stats['products'])) {
+					foreach (array('active', 'inactive', 'out_of_stock') as $key) {
+						if (isset($stats['products'][$key])) {
+							$data['product_totals'][$key] += (int) $stats['products'][$key];
+						}
+					}
+				}
+			}
+		}
+		
 		// School Statistics
 		$data['schools'] = array(
 			'active' => $this->School_model->getTotalSchoolsByVendor($vendor_id, array('status' => 'active')),
 			'inactive' => $this->School_model->getTotalSchoolsByVendor($vendor_id, array('status' => 'inactive'))
 		);
+		
+		// Bookset statistics (active / inactive)
+		$data['booksets'] = array(
+			'active' => 0,
+			'inactive' => 0,
+		);
+		
+		// Only calculate if booksets table exists
+		if ($this->db->table_exists('erp_booksets')) {
+			$this->db->where('status', 'active');
+			$data['booksets']['active'] = $this->db->count_all_results('erp_booksets');
+			
+			$this->db->where('status', 'inactive');
+			$data['booksets']['inactive'] = $this->db->count_all_results('erp_booksets');
+		}
 		
 		$data['breadcrumb'] = array(
 			array('label' => 'Dashboard', 'active' => true)

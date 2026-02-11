@@ -3,6 +3,14 @@
 		<div class="two-col-sidebar" id="two-col-sidebar">
 			<div class="sidebar" id="sidebar-two">
 
+				<style>
+				/* Ensure sidebar menu text is Capitalized consistently */
+				#sidebar-two .sidebar-menu li a span,
+				#sidebar-two .sidebar-menu li a {
+					text-transform: capitalize;
+				}
+				</style>
+
 				<!-- Start Logo -->
 				<div class="sidebar-logo" style="background-color:#ffffff;width:200px;">
 					<?php

@@ -27,6 +27,7 @@ class Products extends Vendor_base
 		parent::__construct();
 		$this->load->model('Erp_client_model');
 		$this->load->model('Erp_feature_model');
+		$this->load->model('Product_model');
 	}
 	
 	/**
@@ -2828,7 +2829,7 @@ class Products extends Vendor_base
 			$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
 			$this->form_validation->set_rules('mrp', 'MRP', 'required|numeric');
 			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required|numeric');
-			$this->form_validation->set_rules('types[]', 'Type', 'required');
+			// Textbook type is now implicit from the URL; no explicit types[] field required
 			$this->form_validation->set_rules('subjects[]', 'Subject', 'required');
 			
 			if ($this->form_validation->run() == FALSE)
@@ -2869,12 +2870,50 @@ class Products extends Vendor_base
 					'updated_at' => date('Y-m-d H:i:s')
 				);
 				
-				// Insert textbook
+				// Insert textbook into legacy table
 				$this->db->insert('erp_textbooks', $textbook_data);
 				$textbook_id = $this->db->insert_id();
 				
 				if ($textbook_id)
 				{
+					// Mirror into unified erp_products table
+					$product_payload = array(
+						'vendor_id'      => $this->current_vendor['id'],
+						'category_id'    => NULL,
+						'type'           => 'textbook',
+						'slug'           => NULL,
+						'product_name'   => $textbook_data['product_name'],
+						'description'    => $textbook_data['product_description'],
+						'status'         => ($textbook_data['status'] === 'active') ? 1 : 0,
+						'brand_id'       => $textbook_data['publisher_id'],
+						'board_id'       => $textbook_data['board_id'],
+						'grade_id'       => NULL,
+						'subject_id'     => NULL,
+						'discount'       => 0,
+						'discount_amount'=> 0,
+						'selling_price'  => $textbook_data['selling_price'],
+						'product_mrp'    => $textbook_data['mrp'],
+						'gst'            => $textbook_data['gst_percentage'],
+						'isbn'           => $textbook_data['isbn'],
+						'hsn'            => $textbook_data['hsn'],
+						'sku'            => $textbook_data['sku'],
+						'quantity'       => 0,
+						'length'         => $textbook_data['packaging_length'],
+						'width'          => $textbook_data['packaging_width'],
+						'height'         => $textbook_data['packaging_height'],
+						'weight'         => $textbook_data['packaging_weight'],
+						'meta_title'     => $textbook_data['meta_title'],
+						'meta_keyword'   => $textbook_data['meta_keywords'],
+						'meta_description'=> $textbook_data['meta_description'],
+						'min_quantity'   => $textbook_data['min_quantity'],
+						'no_of_pages'    => NULL,
+						'binding_type'   => NULL,
+						'material_id'    => NULL,
+						'legacy_table'   => 'erp_textbooks',
+						'legacy_id'      => $textbook_id,
+					);
+					
+					$this->Product_model->create_product($product_payload);
 					// Handle images upload
 					if (!empty($_FILES['images']['name'][0]))
 					{
@@ -2959,24 +2998,6 @@ class Products extends Vendor_base
 						if (!empty($upload_errors))
 						{
 							$this->session->set_flashdata('error', 'Some images failed to upload: ' . implode(', ', $upload_errors));
-						}
-					}
-					
-					// Handle types (many-to-many)
-					$types = $this->input->post('types');
-					if (!empty($types) && is_array($types))
-					{
-						foreach ($types as $type_id)
-						{
-							if (!empty($type_id))
-							{
-								$type_mapping = array(
-									'textbook_id' => $textbook_id,
-									'type_id' => $type_id,
-									'created_at' => date('Y-m-d H:i:s')
-								);
-								$this->db->insert('erp_textbook_type_mapping', $type_mapping);
-							}
 						}
 					}
 					
@@ -3167,7 +3188,7 @@ class Products extends Vendor_base
 			$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
 			$this->form_validation->set_rules('mrp', 'MRP', 'required|numeric');
 			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required|numeric');
-			$this->form_validation->set_rules('types[]', 'Type', 'required');
+			// Textbook type is now implicit from the URL; no explicit types[] field required
 			$this->form_validation->set_rules('subjects[]', 'Subject', 'required');
 			
 			if ($this->form_validation->run() == FALSE)
@@ -5732,7 +5753,7 @@ class Products extends Vendor_base
 			$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
 			$this->form_validation->set_rules('mrp', 'MRP', 'required|numeric');
 			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required|numeric');
-			$this->form_validation->set_rules('types[]', 'Type', 'required');
+			// Notebook type is now implicit from the URL; no explicit types[] field required
 			
 			if ($this->form_validation->run() == FALSE)
 			{
@@ -5773,12 +5794,54 @@ class Products extends Vendor_base
 					'updated_at' => date('Y-m-d H:i:s')
 				);
 				
-				// Insert notebook
+				// Insert notebook into legacy table
 				$this->db->insert('erp_notebooks', $notebook_data);
 				$notebook_id = $this->db->insert_id();
 				
 				if ($notebook_id)
 				{
+					// Mirror into unified erp_products table
+					$product_payload = array(
+						'vendor_id'      => $this->current_vendor['id'],
+						'category_id'    => NULL,
+						'type'           => 'notebook',
+						'slug'           => NULL, // can be generated later if needed
+						'product_name'   => $notebook_data['product_name'],
+						'description'    => $notebook_data['product_description'],
+						'status'         => ($notebook_data['status'] === 'active') ? 1 : 0,
+						'brand_id'       => $notebook_data['brand_id'],
+						'board_id'       => NULL,
+						'grade_id'       => NULL,
+						'subject_id'     => NULL,
+						'discount'       => 0,
+						'discount_amount'=> 0,
+						'selling_price'  => $notebook_data['selling_price'],
+						'product_mrp'    => $notebook_data['mrp'],
+						'gst'            => $notebook_data['gst_percentage'],
+						'isbn'           => $notebook_data['isbn'],
+						'hsn'            => $notebook_data['hsn'],
+						'sku'            => $notebook_data['sku'],
+						'quantity'       => 0,
+						'length'         => $notebook_data['packaging_length'],
+						'width'          => $notebook_data['packaging_width'],
+						'height'         => $notebook_data['packaging_height'],
+						'weight'         => $notebook_data['packaging_weight'],
+						'meta_title'     => $notebook_data['meta_title'],
+						'meta_keyword'   => $notebook_data['meta_keywords'],
+						'meta_description'=> $notebook_data['meta_description'],
+						'product_origin' => NULL,
+						'gender'         => NULL,
+						'size_chart_id'  => NULL,
+						'no_of_pages'    => $notebook_data['no_of_pages'],
+						'binding_type'   => $notebook_data['binding_type'],
+						'material_id'    => NULL,
+						'min_quantity'   => $notebook_data['min_quantity'],
+						'legacy_table'   => 'erp_notebooks',
+						'legacy_id'      => $notebook_id,
+					);
+					
+					$this->Product_model->create_product($product_payload);
+					
 					// Handle images upload
 					$this->handleNotebookImageUploads($notebook_id);
 					
@@ -5835,7 +5898,7 @@ class Products extends Vendor_base
 		
 		$this->load->library('form_validation');
 		
-		// Get notebook
+		// Get notebook from legacy table
 		$this->db->where('id', $id);
 		$this->db->where('vendor_id', $this->current_vendor['id']);
 		$notebook = $this->db->get('erp_notebooks')->row_array();
@@ -5861,11 +5924,7 @@ class Products extends Vendor_base
 		$this->db->order_by('image_order', 'ASC');
 		$data['notebook_images'] = $this->db->get('erp_notebook_images')->result_array();
 		
-		// Get notebook types
-		$this->db->select('ntm.type_id');
-		$this->db->from('erp_notebook_type_mapping ntm');
-		$this->db->where('ntm.notebook_id', $id);
-		$data['notebook_types'] = $this->db->get()->result_array();
+		// Notebook types (legacy) are no longer edited; keep existing mappings but do not expose UI
 		
 		if ($this->input->method() == 'post')
 		{
@@ -5876,8 +5935,7 @@ class Products extends Vendor_base
 			$this->form_validation->set_rules('product_description', 'Product Description', 'required');
 			$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
 			$this->form_validation->set_rules('mrp', 'MRP', 'required|numeric');
-			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required|numeric');
-			$this->form_validation->set_rules('types[]', 'Type', 'required');
+			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required');
 			
 			if ($this->form_validation->run() == FALSE)
 			{
@@ -5916,32 +5974,46 @@ class Products extends Vendor_base
 					'updated_at' => date('Y-m-d H:i:s')
 				);
 				
-				// Update notebook
+				// Update notebook in legacy table
 				$this->db->where('id', $id);
 				$this->db->where('vendor_id', $this->current_vendor['id']);
 				$this->db->update('erp_notebooks', $notebook_data);
+				
+				// Mirror changes into unified erp_products row (if it exists)
+				$product = $this->Product_model->get_product_by_legacy('erp_notebooks', $id, $this->current_vendor['id']);
+				if ($product)
+				{
+					$product_update = array(
+						'product_name'    => $notebook_data['product_name'],
+						'description'     => $notebook_data['product_description'],
+						'status'          => ($notebook_data['status'] === 'active') ? 1 : 0,
+						'brand_id'        => $notebook_data['brand_id'],
+						'selling_price'   => $notebook_data['selling_price'],
+						'product_mrp'     => $notebook_data['mrp'],
+						'gst'             => $notebook_data['gst_percentage'],
+						'isbn'            => $notebook_data['isbn'],
+						'hsn'             => $notebook_data['hsn'],
+						'sku'             => $notebook_data['sku'],
+						'length'          => $notebook_data['packaging_length'],
+						'width'           => $notebook_data['packaging_width'],
+						'height'          => $notebook_data['packaging_height'],
+						'weight'          => $notebook_data['packaging_weight'],
+						'meta_title'      => $notebook_data['meta_title'],
+						'meta_keyword'    => $notebook_data['meta_keywords'],
+						'meta_description'=> $notebook_data['meta_description'],
+						'no_of_pages'     => $notebook_data['no_of_pages'],
+						'binding_type'    => $notebook_data['binding_type'],
+						'min_quantity'    => $notebook_data['min_quantity'],
+					);
+					
+					$this->Product_model->update_product($product['id'], $product_update);
+				}
 				
 				// Handle images upload
 				$this->handleNotebookImageUploads($id);
 				
 				// Handle existing image updates (order, main image, deletions)
 				$this->handleNotebookImageUpdates($id);
-				
-				// Update type mappings
-				$this->db->where('notebook_id', $id);
-				$this->db->delete('erp_notebook_type_mapping');
-				
-				$types = $this->input->post('types');
-				if (!empty($types) && is_array($types))
-				{
-					foreach ($types as $type_id)
-					{
-						$this->db->insert('erp_notebook_type_mapping', array(
-							'notebook_id' => $id,
-							'type_id' => $type_id
-						));
-					}
-				}
 				
 				$this->session->set_flashdata('success', 'Notebook updated successfully.');
 				$this->load->helper('common');
@@ -5977,7 +6049,7 @@ class Products extends Vendor_base
 			show_404();
 		}
 		
-		// Get notebook
+		// Get notebook from legacy table
 		$this->db->where('id', $id);
 		$this->db->where('vendor_id', $this->current_vendor['id']);
 		$notebook = $this->db->get('erp_notebooks')->row_array();
@@ -6002,6 +6074,13 @@ class Products extends Vendor_base
 		// Delete type mappings
 		$this->db->where('notebook_id', $id);
 		$this->db->delete('erp_notebook_type_mapping');
+		
+		// Soft delete corresponding unified product (if any)
+		$product = $this->Product_model->get_product_by_legacy('erp_notebooks', $id, $this->current_vendor['id']);
+		if ($product)
+		{
+			$this->Product_model->delete_product($product['id']);
+		}
 		
 		// Delete images
 		$this->db->where('notebook_id', $id);
