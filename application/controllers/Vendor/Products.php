@@ -1512,6 +1512,12 @@ class Products extends Vendor_base
 								{
 									@unlink($image_path);
 								}
+								
+								// Delete from erp_product_images table (unified table)
+								$this->db->where('legacy_table', 'erp_individual_product_images');
+								$this->db->where('legacy_id', $image_id);
+								$this->db->delete('erp_product_images');
+								
 								break;
 							}
 						}
@@ -2488,8 +2494,45 @@ class Products extends Vendor_base
 			return;
 		}
 		
-		// Delete image logic will go here
-		// For now, return placeholder
+		// Get image data
+		$this->db->where('id', $id);
+		$image = $this->db->get('erp_stationery_images')->row_array();
+		
+		if (!$image)
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Image not found'));
+			return;
+		}
+		
+		// Verify stationery belongs to this vendor
+		$this->db->where('id', $image['stationery_id']);
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$stationery = $this->db->get('erp_stationery')->row_array();
+		
+		if (!$stationery)
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Unauthorized access'));
+			return;
+		}
+		
+		// Delete physical file
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('stationery_upload');
+		$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . ltrim($image['image_path'], '/');
+		if (file_exists($image_path))
+		{
+			@unlink($image_path);
+		}
+		
+		// Delete from erp_product_images table (unified table)
+		$this->db->where('legacy_table', 'erp_stationery_images');
+		$this->db->where('legacy_id', $id);
+		$this->db->delete('erp_product_images');
+		
+		// Delete from database
+		$this->db->where('id', $id);
+		$this->db->delete('erp_stationery_images');
+		
 		echo json_encode(array('status' => 'success', 'message' => 'Image deleted successfully'));
 	}
 	
@@ -2895,9 +2938,11 @@ class Products extends Vendor_base
 						'product_mrp'    => $textbook_data['mrp'],
 						'gst'            => $textbook_data['gst_percentage'],
 						'isbn'           => $textbook_data['isbn'],
-						'hsn'            => $textbook_data['hsn'],
-						'sku'            => $textbook_data['sku'],
-						'quantity'       => 0,
+					'hsn'            => $textbook_data['hsn'],
+					'sku'            => $textbook_data['sku'],
+					'product_code'   => $textbook_data['product_code'],
+					'pointers'       => $textbook_data['pointers'],
+					'quantity'       => 0,
 						'length'         => $textbook_data['packaging_length'],
 						'width'          => $textbook_data['packaging_width'],
 						'height'         => $textbook_data['packaging_height'],
@@ -3230,7 +3275,38 @@ class Products extends Vendor_base
 				$this->db->where('id', $id);
 				$this->db->where('vendor_id', $this->current_vendor['id']);
 				$this->db->update('erp_textbooks', $textbook_data);
-				
+
+				// Mirror changes into unified erp_products row (if it exists)
+				$product = $this->Product_model->get_product_by_legacy('erp_textbooks', $id, $this->current_vendor['id']);
+				if ($product)
+				{
+					$product_update = array(
+						'product_name'    => $textbook_data['product_name'],
+						'description'     => $textbook_data['product_description'],
+						'status'          => ($textbook_data['status'] === 'active') ? 1 : 0,
+						'brand_id'        => $textbook_data['publisher_id'],
+						'board_id'        => $textbook_data['board_id'],
+						'selling_price'   => $textbook_data['selling_price'],
+						'product_mrp'     => $textbook_data['mrp'],
+						'gst'             => $textbook_data['gst_percentage'],
+						'isbn'            => $textbook_data['isbn'],
+						'hsn'             => $textbook_data['hsn'],
+						'sku'             => $textbook_data['sku'],
+						'product_code'    => $textbook_data['product_code'],
+						'pointers'        => $textbook_data['pointers'],
+						'length'          => $textbook_data['packaging_length'],
+						'width'           => $textbook_data['packaging_width'],
+						'height'          => $textbook_data['packaging_height'],
+						'weight'          => $textbook_data['packaging_weight'],
+						'meta_title'      => $textbook_data['meta_title'],
+						'meta_keyword'    => $textbook_data['meta_keywords'],
+						'meta_description'=> $textbook_data['meta_description'],
+						'min_quantity'    => $textbook_data['min_quantity'],
+					);
+					
+					$this->Product_model->update_product($product['id'], $product_update);
+				}
+
 				// Handle new images upload
 				if (!empty($_FILES['images']['name'][0]))
 				{
@@ -3401,7 +3477,52 @@ class Products extends Vendor_base
 						}
 					}
 				}
-				
+
+				// Handle image order and main image status updates
+				$image_order = $this->input->post('image_order');
+				$main_image_id = $this->input->post('main_image_id');
+				$deleted_image_ids = $this->input->post('deleted_image_ids');
+
+				// Process deleted images
+				if (!empty($deleted_image_ids)) {
+					$deleted_ids = explode(',', $deleted_image_ids);
+					foreach ($deleted_ids as $deleted_id) {
+						if (!empty($deleted_id)) {
+							$this->db->where('id', $deleted_id);
+							$this->db->where('textbook_id', $id);
+							$this->db->delete('erp_textbook_images');
+						}
+					}
+				}
+
+				// Process image order
+				if (!empty($image_order)) {
+					$order_array = explode(',', $image_order);
+					foreach ($order_array as $index => $image_id) {
+						if (!empty($image_id)) {
+							$this->db->where('id', $image_id);
+							$this->db->where('textbook_id', $id);
+							$this->db->update('erp_textbook_images', array(
+								'image_order' => $index
+							));
+						}
+					}
+				}
+
+				// Process main image
+				if (!empty($main_image_id)) {
+					// First, set all images to not main
+					$this->db->where('textbook_id', $id);
+					$this->db->update('erp_textbook_images', array('is_main' => 0));
+					
+					// Then set the specified image as main
+					$this->db->where('id', $main_image_id);
+					$this->db->where('textbook_id', $id);
+					$this->db->update('erp_textbook_images', array(
+						'is_main' => 1
+					));
+				}
+
 				$this->session->set_flashdata('success', 'Textbook product updated successfully');
 				redirect(base_url('products/textbook'));
 			}
@@ -3765,6 +3886,11 @@ class Products extends Vendor_base
 		{
 			@unlink($image_path);
 		}
+		
+		// Delete from erp_product_images table (unified table)
+		$this->db->where('legacy_table', 'erp_textbook_images');
+		$this->db->where('legacy_id', $id);
+		$this->db->delete('erp_product_images');
 		
 		// Delete from database
 		$this->db->where('id', $id);
@@ -5820,8 +5946,10 @@ class Products extends Vendor_base
 						'gst'            => $notebook_data['gst_percentage'],
 						'isbn'           => $notebook_data['isbn'],
 						'hsn'            => $notebook_data['hsn'],
-						'sku'            => $notebook_data['sku'],
-						'quantity'       => 0,
+					'sku'            => $notebook_data['sku'],
+					'product_code'   => $notebook_data['product_code'],
+					'pointers'       => $notebook_data['pointers'],
+					'quantity'       => 0,
 						'length'         => $notebook_data['packaging_length'],
 						'width'          => $notebook_data['packaging_width'],
 						'height'         => $notebook_data['packaging_height'],
@@ -5992,9 +6120,11 @@ class Products extends Vendor_base
 						'product_mrp'     => $notebook_data['mrp'],
 						'gst'             => $notebook_data['gst_percentage'],
 						'isbn'            => $notebook_data['isbn'],
-						'hsn'             => $notebook_data['hsn'],
-						'sku'             => $notebook_data['sku'],
-						'length'          => $notebook_data['packaging_length'],
+					'hsn'             => $notebook_data['hsn'],
+					'sku'             => $notebook_data['sku'],
+					'product_code'    => $notebook_data['product_code'],
+					'pointers'        => $notebook_data['pointers'],
+					'length'          => $notebook_data['packaging_length'],
 						'width'           => $notebook_data['packaging_width'],
 						'height'          => $notebook_data['packaging_height'],
 						'weight'          => $notebook_data['packaging_weight'],
@@ -6260,6 +6390,11 @@ class Products extends Vendor_base
 					if (file_exists($image_path)) {
 						@unlink($image_path);
 					}
+					
+					// Delete from erp_product_images table (unified table)
+					$this->db->where('legacy_table', 'erp_notebook_images');
+					$this->db->where('legacy_id', $img['id']);
+					$this->db->delete('erp_product_images');
 				}
 
 				$this->db->where('notebook_id', $notebook_id);
@@ -6447,6 +6582,11 @@ class Products extends Vendor_base
 		{
 			@unlink($image_path);
 		}
+		
+		// Delete from erp_product_images table (unified table)
+		$this->db->where('legacy_table', 'erp_notebook_images');
+		$this->db->where('legacy_id', $id);
+		$this->db->delete('erp_product_images');
 		
 		// Delete from database
 		$this->db->where('id', $id);

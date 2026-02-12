@@ -39,6 +39,13 @@ class Product_model extends CI_Model
 			$data['created_at'] = date('Y-m-d H:i:s');
 		}
 		
+		// Generate slug from product_name if not provided
+		if (empty($data['slug']) && !empty($data['product_name']))
+		{
+			$data['slug'] = $this->generateSlug($data['product_name']);
+			$data['slug'] = $this->ensureUniqueSlug($data['slug']);
+		}
+		
 		$this->db->insert('erp_products', $data);
 		
 		if ($this->db->affected_rows() > 0)
@@ -279,6 +286,200 @@ class Product_model extends CI_Model
 		{
 			$this->db->where('is_deleted', 0);
 		}
+	}
+
+	/**
+	 * Get product images from unified reference table
+	 *
+	 * @param int $product_id Product ID
+	 * @param int|null $vendor_id Optional vendor ID for security
+	 * @param bool $main_only Whether to return only main image
+	 * @return array Array of image data
+	 */
+	public function get_product_images($product_id, $vendor_id = NULL, $main_only = FALSE)
+	{
+		$this->db->from('erp_product_images');
+		$this->db->where('product_id', (int) $product_id);
+		
+		if ($vendor_id !== NULL)
+		{
+			$this->db->where('vendor_id', (int) $vendor_id);
+		}
+		
+		if ($main_only)
+		{
+			$this->db->where('is_main', 1);
+		}
+		
+		$this->db->order_by('image_order', 'ASC');
+		$this->db->order_by('created_at', 'ASC');
+		
+		$query = $this->db->get();
+		return $query->result_array();
+	}
+
+	/**
+	 * Get main product image
+	 *
+	 * @param int $product_id Product ID
+	 * @param int|null $vendor_id Optional vendor ID for security
+	 * @return array|FALSE Main image data or FALSE if not found
+	 */
+	public function get_main_product_image($product_id, $vendor_id = NULL)
+	{
+		$images = $this->get_product_images($product_id, $vendor_id, TRUE);
+		return !empty($images) ? $images[0] : FALSE;
+	}
+
+	/**
+	 * Get product images by legacy reference
+	 *
+	 * @param string $legacy_table Legacy table name
+	 * @param int $legacy_id Legacy ID
+	 * @param int $vendor_id Vendor ID
+	 * @return array Array of image data
+	 */
+	public function get_images_by_legacy($legacy_table, $legacy_id, $vendor_id)
+	{
+		// First get the product ID from the legacy reference
+		$product = $this->get_product_by_legacy($legacy_table, $legacy_id, $vendor_id);
+		
+		if (!$product)
+		{
+			return array();
+		}
+		
+		return $this->get_product_images($product['id'], $vendor_id);
+	}
+
+	/**
+	 * Add image reference to unified table
+	 *
+	 * @param array $image_data Image data
+	 * @return int|FALSE Image reference ID on success, FALSE on failure
+	 */
+	public function add_image_reference(array $image_data)
+	{
+		if (!isset($image_data['created_at']))
+		{
+			$image_data['created_at'] = date('Y-m-d H:i:s');
+		}
+		
+		$this->db->insert('erp_product_images', $image_data);
+		
+		if ($this->db->affected_rows() > 0)
+		{
+			return $this->db->insert_id();
+		}
+		
+		return FALSE;
+	}
+
+	/**
+	 * Update main image status
+	 *
+	 * @param int $product_id Product ID
+	 * @param int $image_id Image ID to set as main
+	 * @param int $vendor_id Vendor ID
+	 * @return bool TRUE on success, FALSE on failure
+	 */
+	public function set_main_image($product_id, $image_id, $vendor_id)
+	{
+		// First set all images for this product to not main
+		$this->db->where('product_id', (int) $product_id);
+		$this->db->where('vendor_id', (int) $vendor_id);
+		$this->db->update('erp_product_images', array('is_main' => 0));
+		
+		// Then set the specified image as main
+		$this->db->where('id', (int) $image_id);
+		$this->db->where('product_id', (int) $product_id);
+		$this->db->where('vendor_id', (int) $vendor_id);
+		$this->db->update('erp_product_images', array('is_main' => 1));
+		
+		return $this->db->affected_rows() > 0;
+	}
+
+	/**
+	 * Delete image reference
+	 *
+	 * @param int $image_id Image reference ID
+	 * @param int $vendor_id Vendor ID
+	 * @return bool TRUE on success, FALSE on failure
+	 */
+	public function delete_image_reference($image_id, $vendor_id)
+	{
+		$this->db->where('id', (int) $image_id);
+		$this->db->where('vendor_id', (int) $vendor_id);
+		$this->db->delete('erp_product_images');
+		
+		return $this->db->affected_rows() > 0;
+	}
+
+	/**
+	 * Update image order
+	 *
+	 * @param int $image_id Image reference ID
+	 * @param int $order New order position
+	 * @param int $vendor_id Vendor ID
+	 * @return bool TRUE on success, FALSE on failure
+	 */
+	public function update_image_order($image_id, $order, $vendor_id)
+	{
+		$this->db->where('id', (int) $image_id);
+		$this->db->where('vendor_id', (int) $vendor_id);
+		$this->db->update('erp_product_images', array('image_order' => (int) $order));
+		
+		return $this->db->affected_rows() > 0;
+	}
+
+	/**
+	 * Generate slug from text
+	 *
+	 * @param	string	$text	Text to convert to slug
+	 * @return	string	Generated slug
+	 */
+	private function generateSlug($text)
+	{
+		$text = strtolower(trim($text));
+		$text = preg_replace('/[^\w\s-]/', '', $text); // Remove special characters
+		$text = preg_replace('/[\s_-]+/', '-', $text); // Replace spaces and underscores with hyphens
+		$text = preg_replace('/^-+|-+$/', '', $text); // Remove leading/trailing hyphens
+		
+		return $text;
+	}
+
+	/**
+	 * Ensure slug is unique
+	 *
+	 * @param	string	$slug	Slug to check
+	 * @param	int	$exclude_id	Optional product ID to exclude (for edit)
+	 * @return	string	Unique slug
+	 */
+	private function ensureUniqueSlug($slug, $exclude_id = NULL)
+	{
+		$base_slug = $slug;
+		$counter = 1;
+		
+		while ($counter < 100) // Safety limit
+		{
+			$this->db->where('slug', $slug);
+			if ($exclude_id !== NULL)
+			{
+				$this->db->where('id !=', (int)$exclude_id);
+			}
+			$query = $this->db->get('erp_products');
+			
+			if ($query->num_rows() == 0)
+			{
+				return $slug; // Slug is unique
+			}
+			
+			$counter++;
+			$slug = $base_slug . '-' . $counter;
+		}
+		
+		// Fallback: add timestamp if we couldn't find a unique slug
+		return $base_slug . '-' . time();
 	}
 }
 
