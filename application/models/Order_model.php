@@ -438,6 +438,9 @@ class Order_model extends CI_Model
 		$order_date_filter = "";
 		$order_status_filter = "";
 		$vendor_filter = "";
+		$pincode_filter = "";
+		$school_filter = "";
+		$grade_filter = "";
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
 		if ($order_status == 'all') {
@@ -484,6 +487,31 @@ class Order_model extends CI_Model
 				)";
 		endif;
 
+		// Pincode filter
+		if (isset($filter_data['pincode']) && $filter_data['pincode'] != "") :
+			$pincode = trim($filter_data['pincode']);
+			$pincode_esc = $this->db->escape_str($pincode);
+			$pincode_filter = " AND EXISTS (SELECT 1 FROM tbl_order_address oa WHERE oa.order_id = d.id AND oa.pincode = '{$pincode_esc}')";
+		endif;
+
+		// School filter
+		if (isset($filter_data['school']) && $filter_data['school'] != "") :
+			$school_id = (int)$filter_data['school'];
+			$school_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.school_id = '{$school_id}')";
+		endif;
+
+		// Grade filter
+		if (isset($filter_data['grade']) && $filter_data['grade'] != "") :
+			$grade_id = (int)$filter_data['grade'];
+			$grade_filter = " AND EXISTS (
+				SELECT 1 FROM tbl_order_items oi3 
+				LEFT JOIN erp_booksets bs ON (bs.id = oi3.product_id AND oi3.order_type = 'bookset')
+				LEFT JOIN erp_bookset_packages bp ON (bp.id = oi3.product_id AND oi3.order_type = 'package')
+				WHERE oi3.order_id = d.id 
+				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
+			)";
+		endif;
+
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
 				$order_date = explode(' - ', $filter_data['date_range']);
 				$from = date('Y-m-d', strtotime($order_date[0]));
@@ -505,6 +533,9 @@ class Order_model extends CI_Model
 					$order_status_filter
 					$order_date_filter
 					$vendor_filter
+					$pincode_filter
+					$school_filter
+					$grade_filter
 				GROUP BY d.id
 				ORDER BY d.id ASC
 		");
@@ -529,6 +560,9 @@ class Order_model extends CI_Model
 		$order_date_filter = "";
 		$order_status_filter = "";
 		$vendor_filter = "";
+		$pincode_filter = "";
+		$school_filter = "";
+		$grade_filter = "";
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
 		if ($order_status == 'all') {
@@ -575,6 +609,31 @@ class Order_model extends CI_Model
 				)";
 		endif;
 
+		// Pincode filter
+		if (isset($filter_data['pincode']) && $filter_data['pincode'] != "") :
+			$pincode = trim($filter_data['pincode']);
+			$pincode_esc = $this->db->escape_str($pincode);
+			$pincode_filter = " AND EXISTS (SELECT 1 FROM tbl_order_address oa WHERE oa.order_id = d.id AND oa.pincode = '{$pincode_esc}')";
+		endif;
+
+		// School filter
+		if (isset($filter_data['school']) && $filter_data['school'] != "") :
+			$school_id = (int)$filter_data['school'];
+			$school_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.school_id = '{$school_id}')";
+		endif;
+
+		// Grade filter
+		if (isset($filter_data['grade']) && $filter_data['grade'] != "") :
+			$grade_id = (int)$filter_data['grade'];
+			$grade_filter = " AND EXISTS (
+				SELECT 1 FROM tbl_order_items oi3 
+				LEFT JOIN erp_booksets bs ON (bs.id = oi3.product_id AND oi3.order_type = 'bookset')
+				LEFT JOIN erp_bookset_packages bp ON (bp.id = oi3.product_id AND oi3.order_type = 'package')
+				WHERE oi3.order_id = d.id 
+				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
+			)";
+		endif;
+
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
 				$order_date = explode(' - ', $filter_data['date_range']);
 				$from = date('Y-m-d', strtotime($order_date[0]));
@@ -593,7 +652,7 @@ class Order_model extends CI_Model
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_method='cod')
-					AND d.order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter
+					AND d.order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter $pincode_filter $school_filter $grade_filter
 				GROUP BY d.id
 				ORDER BY d.id DESC
 				LIMIT $offset, $per_page
@@ -642,6 +701,68 @@ class Order_model extends CI_Model
 				$sku = (count($sku) > 0) ? implode(', ', $sku) : '-';
 				$hsn = (count($hsn) > 0) ? implode(', ', $hsn) : '-';
 
+				// Get product names
+				$product_names = [];
+				$product_query = $this->db->select('product_title')->where('order_id', $item['id'])->get('tbl_order_items');
+				if ($product_query->num_rows() > 0) {
+					foreach ($product_query->result_array() as $prod) {
+						if (!empty($prod['product_title'])) {
+							$product_names[] = $prod['product_title'];
+						}
+					}
+				}
+				$product_name = (count($product_names) > 0) ? implode(', ', $product_names) : '-';
+
+				// Get address
+				$address = '-';
+				$address_query = $this->db->select('address, city, state, pincode')->where('order_id', $item['id'])->limit(1)->get('tbl_order_address');
+				if ($address_query->num_rows() > 0) {
+					$addr = $address_query->row_array();
+					$address_parts = array_filter([
+						$addr['address'],
+						$addr['city'],
+						$addr['state'],
+						$addr['pincode']
+					]);
+					$address = !empty($address_parts) ? implode(', ', $address_parts) : '-';
+				}
+
+				// Get school name
+				$school_name = '-';
+				$school_query = $this->db->query("
+					SELECT 
+						CASE 
+							WHEN sb.id IS NOT NULL THEN CONCAT(sb.branch_name, ' (', s.school_name, ')')
+							WHEN s.id IS NOT NULL THEN s.school_name
+							ELSE NULL
+						END as school_name
+					FROM tbl_order_items oi
+					LEFT JOIN erp_schools s ON s.id = oi.school_id
+					LEFT JOIN erp_school_branches sb ON sb.id = oi.school_id
+					WHERE oi.order_id = '" . (int)$item['id'] . "'
+					AND oi.school_id IS NOT NULL
+					LIMIT 1
+				");
+				if ($school_query->num_rows() > 0 && !empty($school_query->row()->school_name)) {
+					$school_name = $school_query->row()->school_name;
+				}
+
+				// Get grade name
+				$grade_name = '-';
+				$grade_query = $this->db->query("
+					SELECT tg.name as grade_name
+					FROM tbl_order_items oi
+					LEFT JOIN erp_booksets bs ON (bs.id = oi.product_id AND oi.order_type = 'bookset')
+					LEFT JOIN erp_bookset_packages bp ON (bp.id = oi.product_id AND oi.order_type = 'package')
+					LEFT JOIN erp_textbook_grades tg ON (tg.id = bs.grade_id OR tg.id = bp.grade_id)
+					WHERE oi.order_id = '" . (int)$item['id'] . "'
+					AND tg.id IS NOT NULL
+					LIMIT 1
+				");
+				if ($grade_query->num_rows() > 0 && !empty($grade_query->row()->grade_name)) {
+					$grade_name = $grade_query->row()->grade_name;
+				}
+
 				$checkout_type = '';
 				if ($item['checkout_type'] == 'guest_checkout') {
 					$checkout_type = 'Guest Checkout';
@@ -658,7 +779,6 @@ class Order_model extends CI_Model
 					"order_unique_id" => $item['order_unique_id'],
 					"user_name"       => $item['user_name'],
 					"user_phone"      => $item['user_phone'],
-					"coupon_code"     => ($item['coupon_code']) ? $item['coupon_code'] : '-',
 					"status"          => $item['order_status'],
 					"payment_status"  => $item['payment_status'],
 					"tracking_id"     => $item['tracking_id'],
@@ -678,6 +798,10 @@ class Order_model extends CI_Model
 					"shipment_date"   => date("d M, Y H:i:s", strtotime($item['shipment_date'])),
 					"delivery_date"   => date("d M, Y H:i:s", strtotime($item['delivery_date'])),
 					"date"            => $date,
+					"product_name"    => $product_name,
+					"address"         => $address,
+					"school_name"     => $school_name,
+					"grade_name"      => $grade_name,
 				);
 			}
 		}
@@ -742,6 +866,9 @@ class Order_model extends CI_Model
 		$machine_filter = "";
 		$keyword_filter = "";
 		$order_date_filter = "";
+		$pincode_filter = "";
+		$school_filter = "";
+		$grade_filter = "";
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
 			$keyword = trim($filter_data['keywords']);
@@ -751,6 +878,31 @@ class Order_model extends CI_Model
 			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
 		}
 
+		// Pincode filter
+		if (isset($filter_data['pincode']) && $filter_data['pincode'] != "") {
+			$pincode = trim($filter_data['pincode']);
+			$pincode_esc = $this->db->escape_str($pincode);
+			$pincode_filter = " AND EXISTS (SELECT 1 FROM tbl_order_address oa WHERE oa.order_id = tbl_order_details.id AND oa.pincode = '{$pincode_esc}')";
+		}
+
+		// School filter
+		if (isset($filter_data['school']) && $filter_data['school'] != "") {
+			$school_id = (int)$filter_data['school'];
+			$school_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = tbl_order_details.id AND oi2.school_id = '{$school_id}')";
+		}
+
+		// Grade filter
+		if (isset($filter_data['grade']) && $filter_data['grade'] != "") {
+			$grade_id = (int)$filter_data['grade'];
+			$grade_filter = " AND EXISTS (
+				SELECT 1 FROM tbl_order_items oi3 
+				LEFT JOIN erp_booksets bs ON bs.id = oi3.bookset_id 
+				LEFT JOIN erp_bookset_packages bp ON bp.id = oi3.package_id 
+				WHERE oi3.order_id = tbl_order_details.id 
+				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
+			)";
+		}
+
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
 			$order_date = explode(' - ', $filter_data['date_range']);
 			$from = date('Y-m-d', strtotime($order_date[0]));
@@ -758,7 +910,7 @@ class Order_model extends CI_Model
 			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
 		}
 
-		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE (id<>'') AND (payment_status='pending' or payment_status='failed') $keyword_filter $machine_filter $order_date_filter ORDER BY id asc");
+		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE (id<>'') AND (payment_status='pending' or payment_status='failed') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id asc");
 		return $query->num_rows();
 	}
 
@@ -777,6 +929,9 @@ class Order_model extends CI_Model
 		$machine_filter = "";
 		$keyword_filter = "";
 		$order_date_filter = "";
+		$pincode_filter = "";
+		$school_filter = "";
+		$grade_filter = "";
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
 			$keyword = trim($filter_data['keywords']);
@@ -786,6 +941,31 @@ class Order_model extends CI_Model
 			or user_phone like '%" . $this->db->escape_like_str($keyword) . "%')";
 		}
 
+		// Pincode filter
+		if (isset($filter_data['pincode']) && $filter_data['pincode'] != "") {
+			$pincode = trim($filter_data['pincode']);
+			$pincode_esc = $this->db->escape_str($pincode);
+			$pincode_filter = " AND EXISTS (SELECT 1 FROM tbl_order_address oa WHERE oa.order_id = tbl_order_details.id AND oa.pincode = '{$pincode_esc}')";
+		}
+
+		// School filter
+		if (isset($filter_data['school']) && $filter_data['school'] != "") {
+			$school_id = (int)$filter_data['school'];
+			$school_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = tbl_order_details.id AND oi2.school_id = '{$school_id}')";
+		}
+
+		// Grade filter
+		if (isset($filter_data['grade']) && $filter_data['grade'] != "") {
+			$grade_id = (int)$filter_data['grade'];
+			$grade_filter = " AND EXISTS (
+				SELECT 1 FROM tbl_order_items oi3 
+				LEFT JOIN erp_booksets bs ON bs.id = oi3.bookset_id 
+				LEFT JOIN erp_bookset_packages bp ON bp.id = oi3.package_id 
+				WHERE oi3.order_id = tbl_order_details.id 
+				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
+			)";
+		}
+
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
 			$order_date = explode(' - ', $filter_data['date_range']);
 			$from = date('Y-m-d', strtotime($order_date[0]));
@@ -793,10 +973,72 @@ class Order_model extends CI_Model
 			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
 		}
 
-		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_method,payment_status,order_date FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') and payment_method<>'cod') $keyword_filter $machine_filter $order_date_filter ORDER BY id desc LIMIT $offset,$per_page");
+		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_method,payment_status,order_date FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') and payment_method<>'cod') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id desc LIMIT $offset,$per_page");
 		
 		if (!empty($query)) {
 			foreach ($query->result_array() as $item) {
+				// Get product names
+				$product_names = [];
+				$product_query = $this->db->select('product_title')->where('order_id', $item['id'])->get('tbl_order_items');
+				if ($product_query->num_rows() > 0) {
+					foreach ($product_query->result_array() as $prod) {
+						if (!empty($prod['product_title'])) {
+							$product_names[] = $prod['product_title'];
+						}
+					}
+				}
+				$product_name = (count($product_names) > 0) ? implode(', ', $product_names) : '-';
+
+				// Get address
+				$address = '-';
+				$address_query = $this->db->select('address, city, state, pincode')->where('order_id', $item['id'])->limit(1)->get('tbl_order_address');
+				if ($address_query->num_rows() > 0) {
+					$addr = $address_query->row_array();
+					$address_parts = array_filter([
+						$addr['address'],
+						$addr['city'],
+						$addr['state'],
+						$addr['pincode']
+					]);
+					$address = !empty($address_parts) ? implode(', ', $address_parts) : '-';
+				}
+
+				// Get school name
+				$school_name = '-';
+				$school_query = $this->db->query("
+					SELECT 
+						CASE 
+							WHEN sb.id IS NOT NULL THEN CONCAT(sb.branch_name, ' (', s.school_name, ')')
+							WHEN s.id IS NOT NULL THEN s.school_name
+							ELSE NULL
+						END as school_name
+					FROM tbl_order_items oi
+					LEFT JOIN erp_schools s ON s.id = oi.school_id
+					LEFT JOIN erp_school_branches sb ON sb.id = oi.school_id
+					WHERE oi.order_id = '" . (int)$item['id'] . "'
+					AND oi.school_id IS NOT NULL
+					LIMIT 1
+				");
+				if ($school_query->num_rows() > 0 && !empty($school_query->row()->school_name)) {
+					$school_name = $school_query->row()->school_name;
+				}
+
+				// Get grade name
+				$grade_name = '-';
+				$grade_query = $this->db->query("
+					SELECT tg.name as grade_name
+					FROM tbl_order_items oi
+					LEFT JOIN erp_booksets bs ON (bs.id = oi.product_id AND oi.order_type = 'bookset')
+					LEFT JOIN erp_bookset_packages bp ON (bp.id = oi.product_id AND oi.order_type = 'package')
+					LEFT JOIN erp_textbook_grades tg ON (tg.id = bs.grade_id OR tg.id = bp.grade_id)
+					WHERE oi.order_id = '" . (int)$item['id'] . "'
+					AND tg.id IS NOT NULL
+					LIMIT 1
+				");
+				if ($grade_query->num_rows() > 0 && !empty($grade_query->row()->grade_name)) {
+					$grade_name = $grade_query->row()->grade_name;
+				}
+
 				$resultdata[] = array(
 					"id"             => $item['id'],
 					"order_type"     => $item['order_type'],
@@ -810,6 +1052,10 @@ class Order_model extends CI_Model
 					"razorpay_order_id" => $item['razorpay_order_id'],
 					"payment_id"      => ($item['payment_id']) ? $item['payment_id'] : '-',
 					"date"            => date("d M, Y H:i:s", strtotime($item['order_date'])),
+					"product_name"    => $product_name,
+					"address"         => $address,
+					"school_name"     => $school_name,
+					"grade_name"      => $grade_name,
 				);
 			}
 		}
@@ -827,6 +1073,9 @@ class Order_model extends CI_Model
 		$machine_filter = "";
 		$keyword_filter = "";
 		$order_date_filter = "";
+		$pincode_filter = "";
+		$school_filter = "";
+		$grade_filter = "";
 		$is_refund = isset($filter_data['is_refund']) ? $filter_data['is_refund'] : '0';
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
 
@@ -848,6 +1097,31 @@ class Order_model extends CI_Model
 				)";
 		endif;
 
+		// Pincode filter
+		if (isset($filter_data['pincode']) && $filter_data['pincode'] != "") {
+			$pincode = trim($filter_data['pincode']);
+			$pincode_esc = $this->db->escape_str($pincode);
+			$pincode_filter = " AND EXISTS (SELECT 1 FROM tbl_order_address oa WHERE oa.order_id = d.id AND oa.pincode = '{$pincode_esc}')";
+		}
+
+		// School filter
+		if (isset($filter_data['school']) && $filter_data['school'] != "") {
+			$school_id = (int)$filter_data['school'];
+			$school_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.school_id = '{$school_id}')";
+		}
+
+		// Grade filter
+		if (isset($filter_data['grade']) && $filter_data['grade'] != "") {
+			$grade_id = (int)$filter_data['grade'];
+			$grade_filter = " AND EXISTS (
+				SELECT 1 FROM tbl_order_items oi3 
+				LEFT JOIN erp_booksets bs ON bs.id = oi3.bookset_id 
+				LEFT JOIN erp_bookset_packages bp ON bp.id = oi3.package_id 
+				WHERE oi3.order_id = d.id 
+				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
+			)";
+		}
+
 			if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
 					$order_date = explode(' - ', $filter_data['date_range']);
 					$from = date('Y-m-d', strtotime($order_date[0]));
@@ -866,6 +1140,9 @@ class Order_model extends CI_Model
 						$keyword_filter
 						$machine_filter
 						$order_date_filter
+						$pincode_filter
+						$school_filter
+						$grade_filter
 			");
 			return (int) $query->row()->total;
 	}
@@ -884,6 +1161,9 @@ class Order_model extends CI_Model
 		$machine_filter = "";
 		$keyword_filter = "";
 		$order_date_filter = "";
+		$pincode_filter = "";
+		$school_filter = "";
+		$grade_filter = "";
 		$is_refund = isset($filter_data['is_refund']) ? $filter_data['is_refund'] : '0';
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
 
@@ -904,6 +1184,31 @@ class Order_model extends CI_Model
 						oi.school_id = '" . (int)$filter_data['school_user_id'] . "' AND oi.order_type = 'bookset'
 				)";
 		endif;
+
+		// Pincode filter
+		if (isset($filter_data['pincode']) && $filter_data['pincode'] != "") {
+			$pincode = trim($filter_data['pincode']);
+			$pincode_esc = $this->db->escape_str($pincode);
+			$pincode_filter = " AND EXISTS (SELECT 1 FROM tbl_order_address oa WHERE oa.order_id = d.id AND oa.pincode = '{$pincode_esc}')";
+		}
+
+		// School filter
+		if (isset($filter_data['school']) && $filter_data['school'] != "") {
+			$school_id = (int)$filter_data['school'];
+			$school_filter = " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.school_id = '{$school_id}')";
+		}
+
+		// Grade filter
+		if (isset($filter_data['grade']) && $filter_data['grade'] != "") {
+			$grade_id = (int)$filter_data['grade'];
+			$grade_filter = " AND EXISTS (
+				SELECT 1 FROM tbl_order_items oi3 
+				LEFT JOIN erp_booksets bs ON bs.id = oi3.bookset_id 
+				LEFT JOIN erp_bookset_packages bp ON bp.id = oi3.package_id 
+				WHERE oi3.order_id = d.id 
+				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
+			)";
+		}
 
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
 				$order_date = explode(' - ', $filter_data['date_range']);
@@ -938,6 +1243,9 @@ class Order_model extends CI_Model
 					$keyword_filter
 					$machine_filter
 					$order_date_filter
+					$pincode_filter
+					$school_filter
+					$grade_filter
 				GROUP BY d.id
 				ORDER BY d.id DESC
 				LIMIT $offset, $per_page
@@ -947,6 +1255,68 @@ class Order_model extends CI_Model
 			foreach ($query->result_array() as $item) {
 				$invoice_url = !empty($item['cancel_invoice_url']) ? base_url($item['cancel_invoice_url']) : '#';
 				$invoice_no = !empty($item['cancel_invoice_url']) ? '<a href="' . $invoice_url . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
+
+				// Get product names
+				$product_names = [];
+				$product_query = $this->db->select('product_title')->where('order_id', $item['id'])->get('tbl_order_items');
+				if ($product_query->num_rows() > 0) {
+					foreach ($product_query->result_array() as $prod) {
+						if (!empty($prod['product_title'])) {
+							$product_names[] = $prod['product_title'];
+						}
+					}
+				}
+				$product_name = (count($product_names) > 0) ? implode(', ', $product_names) : '-';
+
+				// Get address
+				$address = '-';
+				$address_query = $this->db->select('address, city, state, pincode')->where('order_id', $item['id'])->limit(1)->get('tbl_order_address');
+				if ($address_query->num_rows() > 0) {
+					$addr = $address_query->row_array();
+					$address_parts = array_filter([
+						$addr['address'],
+						$addr['city'],
+						$addr['state'],
+						$addr['pincode']
+					]);
+					$address = !empty($address_parts) ? implode(', ', $address_parts) : '-';
+				}
+
+				// Get school name
+				$school_name = '-';
+				$school_query = $this->db->query("
+					SELECT 
+						CASE 
+							WHEN sb.id IS NOT NULL THEN CONCAT(sb.branch_name, ' (', s.school_name, ')')
+							WHEN s.id IS NOT NULL THEN s.school_name
+							ELSE NULL
+						END as school_name
+					FROM tbl_order_items oi
+					LEFT JOIN erp_schools s ON s.id = oi.school_id
+					LEFT JOIN erp_school_branches sb ON sb.id = oi.school_id
+					WHERE oi.order_id = '" . (int)$item['id'] . "'
+					AND oi.school_id IS NOT NULL
+					LIMIT 1
+				");
+				if ($school_query->num_rows() > 0 && !empty($school_query->row()->school_name)) {
+					$school_name = $school_query->row()->school_name;
+				}
+
+				// Get grade name
+				$grade_name = '-';
+				$grade_query = $this->db->query("
+					SELECT tg.name as grade_name
+					FROM tbl_order_items oi
+					LEFT JOIN erp_booksets bs ON (bs.id = oi.product_id AND oi.order_type = 'bookset')
+					LEFT JOIN erp_bookset_packages bp ON (bp.id = oi.product_id AND oi.order_type = 'package')
+					LEFT JOIN erp_textbook_grades tg ON (tg.id = bs.grade_id OR tg.id = bp.grade_id)
+					WHERE oi.order_id = '" . (int)$item['id'] . "'
+					AND tg.id IS NOT NULL
+					LIMIT 1
+				");
+				if ($grade_query->num_rows() > 0 && !empty($grade_query->row()->grade_name)) {
+					$grade_name = $grade_query->row()->grade_name;
+				}
 
 				$resultdata[] = array(
 					"id"              => $item['id'],
@@ -963,6 +1333,10 @@ class Order_model extends CI_Model
 					"order_date"      => date('d-m-Y h:i A', strtotime($item['order_date'])),
 					"cancelled_date"  => ($item['cancelled_date']) ? date('d-m-Y h:i A', strtotime($item['cancelled_date'])) : '-',
 					"invoice_no"       => $invoice_no,
+					"product_name"    => $product_name,
+					"address"         => $address,
+					"school_name"     => $school_name,
+					"grade_name"      => $grade_name,
 				);
 			}
 		}

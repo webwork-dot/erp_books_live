@@ -22,6 +22,7 @@
 
 .add_btn_primary {
   float: left;
+  display: flex;
 }
 
 .address_item_header {
@@ -66,6 +67,21 @@ $ci = &get_instance();
                     <i class="fa fa-download"></i> Invoice
                   </a>
                 <?php endif; ?>
+                
+                <?php if ($order_data[0]->order_status == '2' || $order_data[0]->order_status == 2): // Processing ?>
+                  <?php if (!empty($order_data[0]->shipping_label)): ?>
+                    <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>" class="btn btn-info" target="_blank" style="margin-left: 10px;">
+                      <i class="fa fa-download"></i> Download Shipping Label
+                    </a>
+                    <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>" class="btn btn-warning" style="margin-left: 10px;" onclick="return confirm('Are you sure you want to regenerate the shipping label? The old label will be deleted.');">
+                      <i class="fa fa-refresh"></i> Regenerate Label
+                    </a>
+                  <?php else: ?>
+                    <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>" class="btn btn-primary" style="margin-left: 10px;">
+                      <i class="fa fa-file"></i> Generate Shipping Label
+                    </a>
+                  <?php endif; ?>
+                <?php endif; ?>
               </div>
             </div>
           </div>
@@ -89,6 +105,9 @@ $ci = &get_instance();
 
                 <div style="font-size: 14px;margin-top: 5px">
                   <strong style="font-weight: 500;color: #575757">Order Date:</strong>&nbsp;&nbsp;&nbsp;<?php echo date('d-m-Y h:i A', strtotime($order_data[0]->order_date));?>
+                </div>
+                <div style="font-size: 14px;margin-top: 5px">
+                  <strong style="font-weight: 500;color: #575757">Order Type:</strong>&nbsp;&nbsp;&nbsp;<?= isset($order_type) ? ucfirst($order_type) : 'Individual' ?>
                 </div>
                 <div style="font-size: 14px;margin-top: 5px">
                   <strong style="font-weight: 500;color: #575757">Payable Amount:</strong>&nbsp;&nbsp;&nbsp;<?php echo $currency_code . ' ' . (isset($order_data[0]->payable_amt) ? $order_data[0]->payable_amt : '0');?>
@@ -233,7 +252,144 @@ $ci = &get_instance();
                         <?php
                         $_total_amt = $_total_price = $_total_qty = 0;
 
-                        foreach ($items_arr as $key => $val) {
+                        // Display bookset products if order type is bookset
+                        if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_products)) {
+                          // Group bookset products by package
+                          $packages = array();
+                          foreach ($bookset_products as $bookset_product) {
+                            $package_id = $bookset_product->package_id;
+                            if (!isset($packages[$package_id])) {
+                              $packages[$package_id] = array(
+                                'package_name' => $bookset_product->package_name,
+                                'package_price' => $bookset_product->package_price,
+                                'products' => array()
+                              );
+                            }
+                            $packages[$package_id]['products'][] = $bookset_product;
+                          }
+                          
+                          // Display each package and its products
+                          foreach ($packages as $package_id => $package_data) {
+                            ?>
+                            <tr>
+                              <td colspan="6" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">
+                                Package: <?= htmlspecialchars($package_data['package_name']) ?> 
+                                (<?= $currency_code . ' ' . number_format($package_data['package_price'], 2) ?>)
+                              </td>
+                            </tr>
+                            <?php
+                            foreach ($package_data['products'] as $bookset_product) {
+                              $rowwise_total_price = isset($bookset_product->total_price) ? $bookset_product->total_price : ($bookset_product->unit_price * $bookset_product->quantity);
+                              $_total_price += $rowwise_total_price;
+                              $_total_qty += $bookset_product->quantity;
+                              
+                              // Get product image (try different product tables based on product_type)
+                              $product_image = '';
+                              if (!empty($bookset_product->product_id)) {
+                                $product_id = $bookset_product->product_id;
+                                $product_type = $bookset_product->product_type;
+                                
+                                // Try to get image based on product type
+                                if ($product_type == 'textbook') {
+                                  $img_query = $this->db->select('image_path')
+                                    ->from('erp_textbook_images')
+                                    ->where('textbook_id', $product_id)
+                                    ->where('is_main', 1)
+                                    ->limit(1)
+                                    ->get();
+                                  if ($img_query->num_rows() > 0) {
+                                    $image_path = $img_query->row()->image_path;
+                                    if (strpos($image_path, 'http://') === 0 || strpos($image_path, 'https://') === 0) {
+                                      $product_image = $image_path;
+                                    } elseif (strpos($image_path, 'assets/uploads/') === 0) {
+                                      $product_image = $image_path;
+                                    } else {
+                                      $product_image = 'assets/uploads/' . ltrim($image_path, '/');
+                                    }
+                                  }
+                                } elseif ($product_type == 'notebook') {
+                                  $img_query = $this->db->select('image_path')
+                                    ->from('erp_notebook_images')
+                                    ->where('notebook_id', $product_id)
+                                    ->where('is_main', 1)
+                                    ->limit(1)
+                                    ->get();
+                                  if ($img_query->num_rows() > 0) {
+                                    $image_path = $img_query->row()->image_path;
+                                    if (strpos($image_path, 'http://') === 0 || strpos($image_path, 'https://') === 0) {
+                                      $product_image = $image_path;
+                                    } elseif (strpos($image_path, 'assets/uploads/') === 0) {
+                                      $product_image = $image_path;
+                                    } else {
+                                      $product_image = 'assets/uploads/' . ltrim($image_path, '/');
+                                    }
+                                  }
+                                }
+                              }
+                            ?>
+                            <tr>
+                              <td class="thick-line bdr_left" style="width: 100px;">
+                                <?php if (!empty($product_image)): 
+                                  if (strpos($product_image, 'http://') === 0 || strpos($product_image, 'https://') === 0) {
+                                    $img_url = $product_image;
+                                  } else {
+                                    $img_url = base_url($product_image);
+                                  }
+                                ?>
+                                  <img src="<?= $img_url ?>" style="height: 115px;width: auto;border: 1px solid #ddd;border-radius:2px;max-width: 100px;" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />
+                                <?php else: ?>
+                                  <div style="height: 115px;width: 100px;border: 1px solid #ddd;border-radius:2px;display: flex;align-items: center;justify-content: center;background: #f5f5f5;">
+                                    <i class="fa fa-image" style="font-size: 24px;color: #ccc;"></i>
+                                  </div>
+                                <?php endif; ?>
+                              </td>
+                              <td class="thick-line bdr_left">
+                                <?= htmlspecialchars($bookset_product->product_name) ?>
+                                <p class="mb-1"><small>Type: <?= ucfirst($bookset_product->product_type) ?></small></p>
+                                <?php if (!empty($bookset_product->product_sku)): ?>
+                                <p class="mb-1"><small>SKU: <?= htmlspecialchars($bookset_product->product_sku) ?></small></p>
+                                <?php endif; ?>
+                                <?php if (!empty($bookset_product->product_isbn)): ?>
+                                <p class="mb-1"><small>ISBN: <?= htmlspecialchars($bookset_product->product_isbn) ?></small></p>
+                                <?php endif; ?>
+                              </td>
+                              <td class="thick-line text-center bdr_left"><?= !empty($bookset_product->product_sku) ? htmlspecialchars($bookset_product->product_sku) : '-' ?></td>
+                              <td class="thick-line text-center bdr_left"><?= $bookset_product->quantity ?></td>
+                              <td class="text-center thick-line"><?= $currency_code . ' ' . number_format($bookset_product->unit_price, 2) ?></td>
+                              <td class="text-center thick-line"><?= $currency_code . ' ' . number_format($rowwise_total_price, 2) ?></td>
+                            </tr>
+                            <?php
+                            }
+                          }
+                          
+                          // Display bookset information if available
+                          if (!empty($bookset_info)) {
+                            ?>
+                            <tr>
+                              <td colspan="6" style="background-color: #e8f4f8; padding: 10px;">
+                                <strong>Bookset Information:</strong><br>
+                                <?php if (!empty($bookset_info->school_name)): ?>
+                                School: <?= htmlspecialchars($bookset_info->school_name) ?><br>
+                                <?php endif; ?>
+                                <?php if (!empty($bookset_info->grade_name)): ?>
+                                Grade: <?= htmlspecialchars($bookset_info->grade_name) ?><br>
+                                <?php endif; ?>
+                                <?php if (!empty($bookset_info->board_name)): ?>
+                                Board: <?= htmlspecialchars($bookset_info->board_name) ?><br>
+                                <?php endif; ?>
+                                <?php if (!empty($bookset_info->f_name) || !empty($bookset_info->m_name) || !empty($bookset_info->s_name)): ?>
+                                Student Name: <?= trim(htmlspecialchars($bookset_info->f_name . ' ' . $bookset_info->m_name . ' ' . $bookset_info->s_name)) ?><br>
+                                <?php endif; ?>
+                                <?php if (!empty($bookset_info->dob)): ?>
+                                Date of Birth: <?= date('d-m-Y', strtotime($bookset_info->dob)) ?>
+                                <?php endif; ?>
+                              </td>
+                            </tr>
+                            <?php
+                          }
+                        } else {
+                          // Display regular order items
+                          foreach ($items_arr as $key => $val) {
                           $rowwise_total_price = isset($val->total_price) ? $val->total_price : (isset($val->product_price) ? $val->product_price * (isset($val->product_qty) ? $val->product_qty : 1) : 0);
                           $_total_price += $rowwise_total_price;
                           
@@ -309,9 +465,12 @@ $ci = &get_instance();
                           <td class="thick-line text-center bdr_left"><?= isset($val->product_sku) ? $val->product_sku : '-' ?></td>
                           <td class="thick-line text-center bdr_left"><?= isset($val->product_qty) ? $val->product_qty : '1' ?></td>
                           <td class="text-center thick-line"><?= $currency_code . ' ' . (isset($val->product_price) ? $val->product_price : '0') ?></td>
-                          <td class="text-center thick-line"><?= $currency_code . ' ' . number_format($rowwise_total_price, 2) ?></td>
+                          <td class="text-center thick-line"><?= $currency_code . ' ' . number_format($rowwise_total_price, 2) ?>                          </td>
                         </tr>
-                        <?php } ?>
+                        <?php 
+                          } 
+                        } // End of else block for regular items
+                        ?>
 
                         <tr>
                           <td class="thick-line bdr_left"></td>

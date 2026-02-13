@@ -28,6 +28,7 @@ class Orders extends Vendor_base
 		$this->load->model('Order_model');
 		$this->load->model('School_model');
 		$this->load->model('Uniform_model');
+		$this->load->model('Pdf_model');
 	}
 	
 	/**
@@ -88,6 +89,9 @@ class Orders extends Vendor_base
 		$filter_data['date_range'] = $this->input->get('date_range');
 		$filter_data['machine']   = $this->input->get('machine');
 		$filter_data['keywords']  = $this->input->get('keywords');
+		$filter_data['pincode']   = $this->input->get('pincode');
+		$filter_data['school']    = $this->input->get('school');
+		$filter_data['grade']     = $this->input->get('grade');
 		$filter_data['order_status']  = ($param1 != "" ? $param1 : 'all');
 		$page_data['order_status']  = $filter_data['order_status'];
 
@@ -131,6 +135,10 @@ class Orders extends Vendor_base
 		$page_data['current_vendor'] = $this->current_vendor;
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
+		
+		// Get schools and grades for filter dropdowns
+		$page_data['schools'] = $this->get_schools_for_filter();
+		$page_data['grades'] = $this->get_grades_for_filter();
 		
 		// Load content view
 		$data['title'] = 'Orders - ' . $this->current_vendor['name'];
@@ -504,6 +512,9 @@ class Orders extends Vendor_base
 		$filter_data['date_range'] = $this->input->get('date_range');
 		$filter_data['machine']   = $this->input->get('machine');
 		$filter_data['keywords']  = $this->input->get('keywords');
+		$filter_data['pincode']   = $this->input->get('pincode');
+		$filter_data['school']    = $this->input->get('school');
+		$filter_data['grade']     = $this->input->get('grade');
 
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_pending_order_count($filter_data);
@@ -543,6 +554,10 @@ class Orders extends Vendor_base
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
 		
+		// Get schools and grades for filter dropdowns
+		$page_data['schools'] = $this->get_schools_for_filter();
+		$page_data['grades'] = $this->get_grades_for_filter();
+		
 		// Load content view
 		$data['title'] = 'Pending Orders - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
@@ -564,6 +579,9 @@ class Orders extends Vendor_base
 		$filter_data['date_range'] = $this->input->get('date_range');
 		$filter_data['machine']   = $this->input->get('machine');
 		$filter_data['keywords']  = $this->input->get('keywords');
+		$filter_data['pincode']   = $this->input->get('pincode');
+		$filter_data['school']    = $this->input->get('school');
+		$filter_data['grade']     = $this->input->get('grade');
 		$filter_data['is_refund'] = $this->input->get('is_refund') ? $this->input->get('is_refund') : '0';
 		$filter_data['order_status'] = $this->input->get('order_status') ? $this->input->get('order_status') : '6';
 
@@ -604,6 +622,10 @@ class Orders extends Vendor_base
 		$page_data['current_vendor'] = $this->current_vendor;
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
+		
+		// Get schools and grades for filter dropdowns
+		$page_data['schools'] = $this->get_schools_for_filter();
+		$page_data['grades'] = $this->get_grades_for_filter();
 		
 		// Load content view
 		$data['title'] = 'Cancelled Orders - ' . $this->current_vendor['name'];
@@ -1053,6 +1075,1222 @@ class Orders extends Vendor_base
 
 		// Restore original error reporting
 		error_reporting($old_error_reporting);
+	}
+
+	/**
+	 * Get schools for filter dropdown
+	 *
+	 * @return	array	Array of schools
+	 */
+	private function get_schools_for_filter()
+	{
+		$vendor_id = $this->current_vendor['id'];
+		
+		// Get schools
+		$this->db->select('erp_schools.id, erp_schools.school_name, "school" as type');
+		$this->db->from('erp_schools');
+		$this->db->where('erp_schools.vendor_id', $vendor_id);
+		$this->db->where('erp_schools.status', 'active');
+		$this->db->order_by('erp_schools.school_name', 'ASC');
+		$schools = $this->db->get()->result_array();
+		
+		// Get branches
+		$this->db->select('erp_school_branches.id, erp_school_branches.branch_name as school_name, "branch" as type, erp_schools.school_name as parent_school_name');
+		$this->db->from('erp_school_branches');
+		$this->db->join('erp_schools', 'erp_schools.id = erp_school_branches.school_id', 'left');
+		$this->db->where('erp_school_branches.vendor_id', $vendor_id);
+		$this->db->where('erp_school_branches.status', 'active');
+		$branches = $this->db->get()->result_array();
+		
+		// Combine and format
+		$all_schools = array();
+		foreach ($schools as $school) {
+			$all_schools[] = array(
+				'id' => $school['id'],
+				'name' => $school['school_name'],
+				'type' => 'school'
+			);
+		}
+		foreach ($branches as $branch) {
+			$all_schools[] = array(
+				'id' => $branch['id'],
+				'name' => $branch['school_name'] . (isset($branch['parent_school_name']) ? ' (' . $branch['parent_school_name'] . ')' : ''),
+				'type' => 'branch'
+			);
+		}
+		
+		// Sort alphabetically
+		usort($all_schools, function($a, $b) {
+			return strcasecmp($a['name'], $b['name']);
+		});
+		
+		return $all_schools;
+	}
+
+	/**
+	 * Get grades for filter dropdown
+	 *
+	 * @return	array	Array of grades
+	 */
+	private function get_grades_for_filter()
+	{
+		$vendor_id = $this->current_vendor['id'];
+		
+		$this->db->select('id, name');
+		$this->db->from('erp_textbook_grades');
+		$this->db->where('vendor_id', $vendor_id);
+		$this->db->where('status', 'active');
+		$this->db->order_by('name', 'ASC');
+		$grades = $this->db->get()->result_array();
+		
+		return $grades;
+	}
+
+	/**
+	 * Generate shipping label for an order
+	 *
+	 * @param	string	$order_no	Order unique ID
+	 * @return	void
+	 */
+	public function generate_shipping_label($order_no)
+	{
+		// Increase memory limit for PDF generation
+		ini_set('memory_limit', '256M');
+		
+		// Get order details
+		$order_data = $this->Order_model->get_order($order_no);
+		
+		if (!$order_data)
+		{
+			show_error('Order not found', 404);
+			return;
+		}
+		
+		$order = $order_data[0];
+		$order_id = $order->id;
+		
+		// Verify order belongs to vendor and is in processing status
+		if ($order->order_status != '2' && $order->order_status != 2)
+		{
+			$this->session->set_flashdata('error', 'Shipping label can only be generated for orders in processing status.');
+			redirect(base_url('orders/view/' . $order_no));
+			return;
+		}
+		
+		// Generate shipping number (tracking ID) - use order_unique_id as slot_no for compatibility
+		$shipping_number = $order_no; // Use order_unique_id as shipping number
+		
+		// Generate unique ship_order_id for this shipping label generation (BEFORE barcode generation)
+		// Format: SHIP + YYYYMMDD + HHMMSS + random 4 digits
+		$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%04d', mt_rand(0, 9999));
+		
+		// Ensure uniqueness by checking if it exists
+		$check_unique = $this->db->where('ship_order_id', $unique_ship_order_id)
+			->get('tbl_order_details')
+			->num_rows();
+		if ($check_unique > 0) {
+			// If exists, add more random digits
+			$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%06d', mt_rand(0, 999999));
+		}
+		
+		// Check if shipping label already exists in vendor_shipping_label table
+		$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
+		$label_id = null;
+		$barcode_url = '';
+		
+		if ($shipping_label->num_rows() > 0) {
+			$label_row = $shipping_label->row();
+			$label_id = $label_row->id;
+			// Generate barcode using ship_order_id (not shipping_number)
+			if (empty($label_row->barcode_url)) {
+				$this->Pdf_model->get_picqer_barcode($unique_ship_order_id, $label_id, 'barcode_url');
+				// Get updated barcode URL
+				$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+				$barcode_url = !empty($updated_label->barcode_url) ? base_url($updated_label->barcode_url) : '';
+			} else {
+				$barcode_url = base_url($label_row->barcode_url);
+			}
+		} else {
+			// Create new shipping label entry in vendor_shipping_label table
+			// Use current vendor_id from order
+			$vendor_id = isset($order->vendor_id) ? $order->vendor_id : (isset($this->current_vendor['id']) ? $this->current_vendor['id'] : null);
+			
+			// Check if vendor_shipping_label table exists before inserting
+			if ($this->db->table_exists('vendor_shipping_label')) {
+				$label_id = $this->Pdf_model->add_shipping_label($shipping_number, $vendor_id, $shipping_number);
+				
+				if ($label_id) {
+					// Generate barcode using ship_order_id (not shipping_number)
+					$this->Pdf_model->get_picqer_barcode($unique_ship_order_id, $label_id, 'barcode_url');
+					// Get barcode URL
+					$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+					$barcode_url = !empty($updated_label->barcode_url) ? base_url($updated_label->barcode_url) : '';
+				}
+			} else {
+				// Table doesn't exist, generate QR code and save directly to order
+				// Generate QR code using ship_order_id
+				try {
+					require_once APPPATH . 'vendor/autoload.php';
+					
+					$qrCode = \Endroid\QrCode\QrCode::create($unique_ship_order_id)
+						->setSize(300)
+						->setMargin(10);
+					
+					$writer = new \Endroid\QrCode\Writer\PngWriter();
+					$result = $writer->write($qrCode);
+					$barcode_data = $result->getString();
+					
+					// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
+					$date_folder = date('Y_m_d');
+					$relative_dir = 'uploads/vendor_picqer_barcode/';
+					
+					$upload_path = FCPATH . trim($relative_dir, '/') . '/'
+						. $date_folder . '/';
+					
+					// Create directory structure step by step
+					if (!is_dir($upload_path)) {
+						// Try to create the full path
+						if (!@mkdir($upload_path, 0775, true)) {
+							// If that fails, try creating directories one by one
+							$dirs_to_create = array();
+							$current_path = $upload_path;
+							while (!is_dir($current_path) && $current_path !== FCPATH && $current_path !== '/') {
+								$dirs_to_create[] = $current_path;
+								$current_path = dirname($current_path);
+							}
+							$dirs_to_create = array_reverse($dirs_to_create);
+							
+							foreach ($dirs_to_create as $dir) {
+								if (!is_dir($dir)) {
+									@mkdir($dir, 0775, true);
+								}
+							}
+						}
+					}
+					
+					$file_name = $unique_ship_order_id . ".png";
+					$pngAbsoluteFilePath = $upload_path . $file_name;
+					$relative_path = trim($relative_dir, '/') . '/'
+						. $date_folder . '/'
+						. $file_name;
+					
+					@file_put_contents($pngAbsoluteFilePath, $barcode_data);
+					$barcode_url = base_url($relative_path);
+					$label_id = null;
+				} catch (Exception $e) {
+					$barcode_url = '';
+					$label_id = null;
+				}
+			}
+		}
+		
+		// Get order items to determine order type
+		$items_arr = $this->db->select('*')
+			->from('tbl_order_items')
+			->where('order_id', $order_id)
+			->order_by('id', 'ASC')
+			->get()
+			->result();
+		
+		// Determine order type (bookset, individual, or uniform)
+		$order_type_label = 'Individual';
+		$has_bookset = false;
+		$has_uniform = false;
+		
+		foreach ($items_arr as $item) {
+			// Check order_type field in tbl_order_items
+			if (isset($item->order_type)) {
+				if ($item->order_type == 'bookset' || $item->order_type == 'package') {
+					$has_bookset = true;
+					break; // Found bookset, no need to check further
+				} elseif ($item->order_type == 'uniform') {
+					$has_uniform = true;
+				}
+			}
+		}
+		
+		if ($has_bookset) {
+			$order_type_label = 'Bookset';
+		} elseif ($has_uniform) {
+			$order_type_label = 'Uniform';
+		} else {
+			$order_type_label = 'Individual';
+		}
+		
+		// Get order address
+		$address_arr = $this->db->select('*')
+			->from('tbl_order_address')
+			->where('order_id', $order_id)
+			->order_by('id', 'ASC')
+			->limit(1)
+			->get()
+			->result();
+		
+		// Get vendor logo directly from erp_clients table
+		$logo_path = null;
+		$logo_url = '';
+		$logo_base64 = '';
+		
+		// Get logo path directly from erp_clients table
+		$logo_row = $this->db->select('logo')
+			->from('erp_clients')
+			->limit(1)
+			->get()
+			->row();
+		
+		if (!empty($logo_row) && !empty($logo_row->logo)) {
+			$logo_path = FCPATH . ltrim($logo_row->logo, '/');
+			if (file_exists($logo_path)) {
+				$logo_url = base_url($logo_row->logo);
+			} else {
+				$logo_path = null;
+			}
+		}
+		
+		// Function to resize and compress image for PDF
+		$resize_image_for_pdf = function($image_path, $max_width = 200, $max_height = 100, $quality = 85) {
+			if (!file_exists($image_path) || !function_exists('imagecreatefromjpeg')) {
+				return false;
+			}
+			
+			$image_info = getimagesize($image_path);
+			if ($image_info === false) {
+				return false;
+			}
+			
+			$mime_type = $image_info['mime'];
+			$width = $image_info[0];
+			$height = $image_info[1];
+			
+			// Calculate new dimensions
+			$ratio = min($max_width / $width, $max_height / $height);
+			$new_width = (int)($width * $ratio);
+			$new_height = (int)($height * $ratio);
+			
+			// Create image resource based on type
+			// Suppress PNG iCCP warnings
+			$old_error_reporting = error_reporting();
+			error_reporting($old_error_reporting & ~E_WARNING);
+			
+			switch ($mime_type) {
+				case 'image/jpeg':
+					$source = @imagecreatefromjpeg($image_path);
+					break;
+				case 'image/png':
+					$source = @imagecreatefrompng($image_path);
+					break;
+				case 'image/gif':
+					$source = @imagecreatefromgif($image_path);
+					break;
+				default:
+					error_reporting($old_error_reporting);
+					return false;
+			}
+			
+			// Restore error reporting
+			error_reporting($old_error_reporting);
+			
+			if (!$source) {
+				return false;
+			}
+			
+			// Create new image
+			$new_image = imagecreatetruecolor($new_width, $new_height);
+			
+			// Preserve transparency for PNG
+			if ($mime_type == 'image/png') {
+				imagealphablending($new_image, false);
+				imagesavealpha($new_image, true);
+				$transparent = imagecolorallocatealpha($new_image, 255, 255, 255, 127);
+				imagefilledrectangle($new_image, 0, 0, $new_width, $new_height, $transparent);
+			}
+			
+			// Resize
+			imagecopyresampled($new_image, $source, 0, 0, 0, 0, $new_width, $new_height, $width, $height);
+			
+			// Output to buffer
+			ob_start();
+			switch ($mime_type) {
+				case 'image/jpeg':
+					imagejpeg($new_image, null, $quality);
+					break;
+				case 'image/png':
+					imagepng($new_image, null, 9);
+					break;
+				case 'image/gif':
+					imagegif($new_image);
+					break;
+			}
+			$image_data = ob_get_contents();
+			ob_end_clean();
+			
+			// Clean up
+			imagedestroy($source);
+			imagedestroy($new_image);
+			
+			return array('data' => $image_data, 'mime' => $mime_type);
+		};
+		
+		// Convert logo to base64 for PDF compatibility (with optimization)
+			if (!empty($logo_path) && file_exists($logo_path)) {
+				$resized = $resize_image_for_pdf($logo_path, 200, 100, 85);
+				if ($resized !== false) {
+					$logo_base64 = 'data:' . $resized['mime'] . ';base64,' . base64_encode($resized['data']);
+				} else {
+					// Fallback: use original image if resize fails
+					$image_data = file_get_contents($logo_path);
+					$image_info = getimagesize($logo_path);
+					if ($image_info !== false) {
+						$mime_type = $image_info['mime'];
+						// Limit size to 500KB
+						if (strlen($image_data) < 500000) {
+							$logo_base64 = 'data:' . $mime_type . ';base64,' . base64_encode($image_data);
+						}
+					}
+				}
+			}
+		
+		// Get barcode and convert to base64 for PDF
+		$barcode_base64 = '';
+		$barcode_file_path = '';
+		
+		// First, try to get barcode path from order table
+		if (!empty($order->barcode_path)) {
+			$barcode_file_path = FCPATH . ltrim($order->barcode_path, '/');
+			if (file_exists($barcode_file_path)) {
+				$barcode_url = base_url($order->barcode_path);
+			}
+		}
+		
+		// If not found, try to get from barcode_url
+		if (empty($barcode_file_path) && !empty($barcode_url)) {
+			// Extract relative path from URL
+			$barcode_relative = str_replace(base_url(), '', $barcode_url);
+			$barcode_relative = ltrim($barcode_relative, '/');
+			$barcode_file_path = FCPATH . $barcode_relative;
+			
+			// If file doesn't exist, try to get from database
+			if (!file_exists($barcode_file_path)) {
+				if ($label_id) {
+					$label_row = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+					if (!empty($label_row->barcode_url)) {
+						$barcode_file_path = FCPATH . ltrim($label_row->barcode_url, '/');
+						$barcode_url = base_url($label_row->barcode_url);
+					}
+				}
+			}
+		}
+		
+		// Convert barcode to base64 for PDF
+		if (!empty($barcode_file_path) && file_exists($barcode_file_path)) {
+			$barcode_data = file_get_contents($barcode_file_path);
+			if ($barcode_data !== false) {
+				$barcode_base64 = 'data:image/png;base64,' . base64_encode($barcode_data);
+			}
+		}
+		
+		// Get logo absolute file path (already have logo_path from above)
+		$logo_file_path = '';
+		if (!empty($logo_path) && file_exists($logo_path)) {
+			$logo_file_path = $logo_path;
+		}
+		
+		// Prepare data for shipping label
+		$label_data = array(
+			'order' => $order,
+			'items' => $items_arr,
+			'address' => !empty($address_arr) ? $address_arr[0] : null,
+			'order_type_label' => $order_type_label,
+			'logo_url' => $logo_url, // Use URL for HTML preview
+			'logo_file_path' => $logo_file_path, // Absolute file path for PDF
+			'logo_base64' => $logo_base64, // Base64 for PDF
+			'shipping_number' => $shipping_number,
+			'barcode_url' => $barcode_url, // URL for HTML preview
+			'barcode_file_path' => $barcode_file_path, // Absolute file path for PDF
+			'barcode_base64' => $barcode_base64 // Base64 for PDF
+		);
+		
+		// Start output buffering to prevent any output before headers
+		ob_start();
+		
+		// Generate PDF
+		$this->load->library('pdf');
+		
+		// Suppress deprecation warnings from dompdf HTML5 parser
+		$old_error_reporting = error_reporting();
+		error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+		
+		// Generate unique ship_order_id for this shipping label generation
+		// Format: SHIP + YYYYMMDD + HHMMSS + random 4 digits
+		$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%04d', mt_rand(0, 9999));
+		
+		// Ensure uniqueness by checking if it exists
+		$check_unique = $this->db->where('ship_order_id', $unique_ship_order_id)
+			->get('tbl_order_details')
+			->num_rows();
+		if ($check_unique > 0) {
+			// If exists, add more random digits
+			$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%06d', mt_rand(0, 999999));
+		}
+		
+		// Use kirtiBook design - fetch shipping label HTML from model
+		$address_obj = !empty($address_arr) ? $address_arr[0] : null;
+		
+		// Embed CSS inline for PDF compatibility (PDF libraries don't load external CSS files)
+		$html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>';
+		// Bootstrap CSS (minified - include key styles for PDF)
+		if (file_exists(FCPATH . 'assets/pdf/bootstrap.min.css')) {
+			$html .= file_get_contents(FCPATH . 'assets/pdf/bootstrap.min.css');
+		}
+		// Custom A5 CSS
+		if (file_exists(FCPATH . 'assets/pdf/cutsom-a5.css')) {
+			$html .= file_get_contents(FCPATH . 'assets/pdf/cutsom-a5.css');
+		}
+		$html .= '</style></head><body>';
+		
+		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self', $unique_ship_order_id);
+		
+		$html .= '</body></html>';
+		
+		// Generate PDF
+		$this->pdf->set_paper("A4", "portrait");
+		
+		// Clear any output that might have been generated
+		ob_clean();
+		
+		// Use the same upload pattern as images
+		$this->load->helper('common');
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('shipping_label_upload');
+		$vendor_folder = get_vendor_domain_folder();
+		$date_folder = date('Y_m_d');
+		
+		// Build upload path using the same pattern as textbook images
+		$upload_path = rtrim($uploadCfg['base_root'], '/') . '/'
+			. $vendor_folder . '/'
+			. trim($uploadCfg['relative_dir'], '/') . '/'
+			. $date_folder . '/';
+		
+		// Create directory if it doesn't exist (with proper permissions)
+		if (!is_dir($upload_path)) {
+			mkdir($upload_path, 0775, true);
+		}
+		
+		// Delete old shipping labels for this order if they exist
+		if (!empty($order->shipping_label)) {
+			// Get old file path
+			$old_relative_path = $order->shipping_label;
+			$old_path_parts = explode('/', $old_relative_path);
+			$old_date_folder = isset($old_path_parts[2]) ? $old_path_parts[2] : date('Y_m_d');
+			$old_filename = end($old_path_parts);
+			
+			// Build old file path
+			$old_file_path = rtrim($uploadCfg['base_root'], '/') . '/'
+				. $vendor_folder . '/'
+				. trim($uploadCfg['relative_dir'], '/') . '/'
+				. $old_date_folder . '/'
+				. $old_filename;
+			
+			// Delete old file if it exists
+			if (file_exists($old_file_path)) {
+				@unlink($old_file_path);
+			}
+			
+			// Also try to delete any other shipping labels for this order (in case there are multiple)
+			$old_pattern = $upload_path . 'shipping_label_' . $order_no . '_*.pdf';
+			$old_files = glob($old_pattern);
+			if ($old_files) {
+				foreach ($old_files as $old_file) {
+					if (file_exists($old_file)) {
+						@unlink($old_file);
+					}
+				}
+			}
+		}
+		
+		// Generate PDF filename
+		$pdf_filename = 'shipping_label_' . $order_no . '_' . time() . '.pdf';
+		$pdf_path = $upload_path . $pdf_filename;
+		
+		try {
+			$this->pdf->set_option('isHtml5ParserEnabled', TRUE);
+			$this->pdf->load_html($html);
+			$this->pdf->render();
+			
+			// Get PDF output
+			$pdf_output = $this->pdf->output();
+			file_put_contents($pdf_path, $pdf_output);
+		} catch (Exception $e) {
+			// If HTML5 parser fails, try without it
+			error_reporting($old_error_reporting);
+			$this->pdf = new Pdf(); // Reinitialize PDF object
+			$this->pdf->set_paper("A4", "portrait");
+			$this->pdf->set_option('isHtml5ParserEnabled', FALSE);
+			$this->pdf->load_html($html);
+			$this->pdf->render();
+			
+			// Get PDF output
+			$pdf_output = $this->pdf->output();
+			file_put_contents($pdf_path, $pdf_output);
+		}
+		
+		// Restore original error reporting
+		error_reporting($old_error_reporting);
+		
+		// Store relative path in database (same pattern as images)
+		$relative_path = 'uploads/shipping_labels/' . $date_folder . '/' . $pdf_filename;
+		
+		// Get relative barcode path for order table (get directly from database)
+		// Barcode should be generated against ship_order_id, so check with that
+		$barcode_relative_path = '';
+		if ($label_id) {
+			$label_row = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+			if (!empty($label_row->barcode_url)) {
+				$barcode_relative_path = $label_row->barcode_url; // Already a relative path
+			}
+		}
+		
+		// Update order with shipping label, unique shipping ID, and barcode path
+		$order_update_data = array(
+			'shipping_label' => $relative_path,
+			'ship_order_id' => $unique_ship_order_id,
+			'courier' => 'SELF'
+		);
+		
+		// Add barcode_path if we have it
+		if (!empty($barcode_relative_path)) {
+			$order_update_data['barcode_path'] = $barcode_relative_path;
+		}
+		
+		$this->db->where('id', $order_id);
+		$this->db->update('tbl_order_details', $order_update_data);
+		
+		// Update vendor_shipping_label table with label URL if label_id exists and table exists
+		if ($label_id && $this->db->table_exists('vendor_shipping_label')) {
+			$this->db->where('id', $label_id);
+			$this->db->update('vendor_shipping_label', array(
+				'label_url' => $relative_path
+			));
+		}
+		
+		// End output buffering
+		ob_end_clean();
+		
+		// Redirect to download
+		redirect(base_url('orders/download_shipping_label/' . $order_no));
+	}
+	
+	/**
+	 * Download shipping label for an order
+	 *
+	 * @param	string	$order_no	Order unique ID
+	 * @return	void
+	 */
+	public function download_shipping_label($order_no)
+	{
+		// Get order details
+		$order_data = $this->Order_model->get_order($order_no);
+		
+		if (!$order_data)
+		{
+			show_error('Order not found', 404);
+			return;
+		}
+		
+		$order = $order_data[0];
+		
+		if (empty($order->shipping_label))
+		{
+			$this->session->set_flashdata('error', 'Shipping label not found. Please generate it first.');
+			redirect(base_url('orders/view/' . $order_no));
+			return;
+		}
+		
+		// Use the same path pattern as images (construct full path from relative path)
+		$this->load->helper('common');
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('shipping_label_upload');
+		$vendor_folder = get_vendor_domain_folder();
+		
+		// Extract date folder from relative path (format: uploads/shipping_labels/2026_02_13/filename.pdf)
+		$relative_path = $order->shipping_label;
+		$path_parts = explode('/', $relative_path);
+		$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
+		$filename = end($path_parts);
+		
+		// Build full file path using the same pattern as upload
+		$file_path = rtrim($uploadCfg['base_root'], '/') . '/'
+			. $vendor_folder . '/'
+			. trim($uploadCfg['relative_dir'], '/') . '/'
+			. $date_folder . '/'
+			. $filename;
+		
+		// Fallback to FCPATH if the above path doesn't exist (for backward compatibility)
+		if (!file_exists($file_path)) {
+			$file_path = FCPATH . $relative_path;
+		}
+		
+		if (!file_exists($file_path))
+		{
+			$this->session->set_flashdata('error', 'Shipping label file not found at: ' . $file_path);
+			redirect(base_url('orders/view/' . $order_no));
+			return;
+		}
+		
+		// Output PDF using readfile (no deprecation issues)
+		header('Content-Type: application/pdf');
+		header('Content-Disposition: attachment; filename="shipping_label_' . $order_no . '.pdf"');
+		header('Content-Length: ' . filesize($file_path));
+		readfile($file_path);
+		exit;
+	}
+	
+	/**
+	 * Test shipping label view for design purposes (HTML preview, not PDF)
+	 *
+	 * @param	string	$order_no	Order unique ID
+	 * @return	void
+	 */
+	public function test_shipping_label($order_no)
+	{
+		// Increase memory limit for PDF generation
+		ini_set('memory_limit', '256M');
+		
+		// Get order details
+		$order_data = $this->Order_model->get_order($order_no);
+		
+		if (!$order_data)
+		{
+			show_error('Order not found', 404);
+			return;
+		}
+		
+		$order = $order_data[0];
+		$order_id = $order->id;
+		
+		// Get order items
+		$items_arr = $this->db->select('*')
+			->from('tbl_order_items')
+			->where('order_id', $order_id)
+			->order_by('id', 'ASC')
+			->get()
+			->result();
+		
+		// Get order address
+		$address_arr = $this->db->select('*')
+			->from('tbl_order_address')
+			->where('order_id', $order_id)
+			->order_by('id', 'ASC')
+			->limit(1)
+			->get()
+			->result();
+		
+		// Get vendor logo - use URL directly for HTML preview (no need for base64)
+		$this->load->helper('common');
+		$logo_url = get_simple_vendor_logo_url();
+		
+		// Determine order type (bookset, individual, or uniform)
+		$order_type_label = 'Individual';
+		$has_bookset = false;
+		$has_uniform = false;
+		
+		foreach ($items_arr as $item) {
+			// Check order_type field in tbl_order_items
+			if (isset($item->order_type)) {
+				if ($item->order_type == 'bookset' || $item->order_type == 'package') {
+					$has_bookset = true;
+					break; // Found bookset, no need to check further
+				} elseif ($item->order_type == 'uniform') {
+					$has_uniform = true;
+				}
+			}
+		}
+		
+		if ($has_bookset) {
+			$order_type_label = 'Bookset';
+		} elseif ($has_uniform) {
+			$order_type_label = 'Uniform';
+		} else {
+			$order_type_label = 'Individual';
+		}
+		
+		// Use order_unique_id as shipping number for consistency
+		$shipping_number = $order_no;
+		
+		// Get barcode URL if it exists in order
+		$barcode_url = '';
+		if (!empty($order->barcode_path)) {
+			$barcode_url = base_url($order->barcode_path);
+		} else {
+			// Try to get from vendor_shipping_label
+			$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
+			if ($shipping_label->num_rows() > 0) {
+				$label_row = $shipping_label->row();
+				if (!empty($label_row->barcode_url)) {
+					$barcode_url = base_url($label_row->barcode_url);
+				}
+			}
+		}
+		
+		// Use kirtiBook design - fetch shipping label HTML from model
+		$address_obj = !empty($address_arr) ? $address_arr[0] : null;
+		
+		// For HTML preview, use external CSS links
+		$html = '<link rel="stylesheet" href="' . base_url() . 'assets/pdf/bootstrap.min.css">';
+		$html .= '<link rel="stylesheet" href="' . base_url() . 'assets/pdf/cutsom-a5.css">';
+		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self');
+		
+		echo $html;
+	}
+
+	/**
+	 * Test barcode generation and shipping label functionality
+	 * 
+	 * @param	string	$order_no	Order unique ID (optional)
+	 * @return	void
+	 */
+	public function test_barcode($order_no = '')
+	{
+		// Increase memory limit for PDF generation
+		ini_set('memory_limit', '256M');
+		
+		echo "<h1>Barcode Generation Test</h1>";
+		echo "<hr>";
+		
+		// Test 1: Check if Pdf_model is loaded
+		echo "<h2>Test 1: Model Loading</h2>";
+		if (isset($this->Pdf_model)) {
+			echo "✓ Pdf_model is loaded<br>";
+		} else {
+			echo "✗ Pdf_model is NOT loaded<br>";
+			return;
+		}
+		
+		// Test 2: Check if QR code library is available
+		echo "<h2>Test 2: QR Code Library</h2>";
+		if (class_exists('Endroid\QrCode\QrCode')) {
+			echo "✓ Endroid QR Code class is available<br>";
+		} else {
+			echo "✗ Endroid QR Code class is NOT available<br>";
+			echo "Trying to load autoload...<br>";
+			require_once APPPATH . 'vendor/autoload.php';
+			if (class_exists('Endroid\QrCode\QrCode')) {
+				echo "✓ QR Code library loaded successfully<br>";
+			} else {
+				echo "✗ Failed to load QR Code library<br>";
+				return;
+			}
+		}
+		
+		// Test 3: Generate a test QR code using the actual upload path
+		echo "<h2>Test 3: QR Code Generation & Upload</h2>";
+		$test_code = 'TEST' . date('YmdHis');
+		try {
+			require_once APPPATH . 'vendor/autoload.php';
+			
+			$qrCode = \Endroid\QrCode\QrCode::create($test_code)
+				->setSize(300)
+				->setMargin(10);
+			
+			$writer = new \Endroid\QrCode\Writer\PngWriter();
+			$result = $writer->write($qrCode);
+			$barcode = $result->getString();
+			
+			if ($barcode) {
+				echo "✓ Barcode generated successfully for code: $test_code<br>";
+				echo "Barcode size: " . strlen($barcode) . " bytes<br>";
+				
+				// Use the same path structure as Pdf_model (main folder, not vendor-specific)
+				$date_folder = date('Y_m_d');
+				$relative_dir = 'uploads/vendor_picqer_barcode/';
+				
+				// Full upload path (absolute) - main folder, not vendor-specific
+				$upload_path = FCPATH . trim($relative_dir, '/') . '/'
+					. $date_folder . '/';
+				
+				echo "<br><strong>Upload Path Details:</strong><br>";
+				echo "FCPATH: " . FCPATH . "<br>";
+				echo "Relative Dir: $relative_dir<br>";
+				echo "Date Folder: $date_folder<br>";
+				echo "Full Upload Path: $upload_path<br>";
+				
+				// Check if directory exists
+				if (!is_dir($upload_path)) {
+					echo "⚠ Directory does not exist. Attempting to create...<br>";
+					
+					// Try to create directory structure step by step
+					$dirs_to_create = array();
+					$current_path = $upload_path;
+					while (!is_dir($current_path) && $current_path !== FCPATH && $current_path !== '/') {
+						$dirs_to_create[] = $current_path;
+						$current_path = dirname($current_path);
+					}
+					$dirs_to_create = array_reverse($dirs_to_create);
+					
+					$created = false;
+					foreach ($dirs_to_create as $dir) {
+						if (!is_dir($dir)) {
+							if (@mkdir($dir, 0775, true)) {
+								echo "✓ Created directory: $dir<br>";
+								$created = true;
+							} else {
+								$last_error = error_get_last();
+								$error_msg = $last_error && isset($last_error['message']) ? $last_error['message'] : 'Unknown error';
+								echo "✗ Failed to create directory: $dir<br>";
+								echo "Error: $error_msg<br>";
+								break;
+							}
+						}
+					}
+					
+					if ($created && is_dir($upload_path)) {
+						echo "✓ Directory structure created successfully<br>";
+					} else {
+						echo "<br><strong>Directory Creation Debug:</strong><br>";
+						$parent_dir = dirname($upload_path);
+						echo "Parent dir: $parent_dir<br>";
+						echo "Parent dir exists: " . (is_dir($parent_dir) ? "Yes" : "No") . "<br>";
+						if (is_dir($parent_dir)) {
+							echo "Parent dir writable: " . (is_writable($parent_dir) ? "Yes" : "No") . "<br>";
+							echo "Parent dir permissions: " . substr(sprintf('%o', fileperms($parent_dir)), -4) . "<br>";
+						}
+					}
+				} else {
+					echo "✓ Directory exists<br>";
+				}
+				
+				// Check if directory is writable
+				if (is_dir($upload_path)) {
+					echo "Directory is writable: " . (is_writable($upload_path) ? "Yes" : "No") . "<br>";
+					if (!is_writable($upload_path)) {
+						echo "Directory permissions: " . substr(sprintf('%o', fileperms($upload_path)), -4) . "<br>";
+						echo "⚠ Warning: Directory exists but is not writable. You may need to set permissions manually.<br>";
+					}
+				}
+				
+				// Use test code as filename (like order number)
+				$test_file_name = $test_code . '.png';
+				$test_pngAbsoluteFilePath = $upload_path . $test_file_name;
+				$test_relative_path = trim($relative_dir, '/') . '/'
+					. $date_folder . '/'
+					. $test_file_name;
+				
+				echo "<br><strong>File Details:</strong><br>";
+				echo "Absolute File Path: $test_pngAbsoluteFilePath<br>";
+				echo "Relative Path (for DB): $test_relative_path<br>";
+				
+				// Try to save the file
+				$write_result = @file_put_contents($test_pngAbsoluteFilePath, $barcode);
+				if ($write_result !== false) {
+					echo "✓ File write returned: $write_result bytes written<br>";
+				} else {
+					echo "✗ File write failed. Error: " . (error_get_last() ? error_get_last()['message'] : 'Unknown error') . "<br>";
+				}
+				
+				// Check if file exists
+				if (file_exists($test_pngAbsoluteFilePath)) {
+					$file_size = filesize($test_pngAbsoluteFilePath);
+					echo "✓ Test barcode file exists!<br>";
+					echo "File size: $file_size bytes<br>";
+					echo "File path: $test_relative_path<br>";
+					echo "<br><img src='" . base_url($test_relative_path) . "' alt='Test Barcode' style='max-width:400px; border:1px solid #ccc;'><br>";
+					echo "<br><strong>File URL:</strong> <a href='" . base_url($test_relative_path) . "' target='_blank'>" . base_url($test_relative_path) . "</a><br>";
+				} else {
+					echo "✗ Test barcode file does NOT exist after write attempt<br>";
+					echo "Attempted path: $test_pngAbsoluteFilePath<br>";
+					echo "<br><strong>⚠ Permission Issue Detected:</strong><br>";
+					echo "The uploads directory exists but is not writable. You need to manually create the directory structure with proper permissions.<br>";
+					echo "<br><strong>Solution:</strong><br>";
+					echo "Please run these commands on your server (via SSH or file manager):<br>";
+					echo "<code>mkdir -p " . dirname($upload_path) . "<br>";
+					echo "chmod 775 " . dirname($upload_path) . "<br>";
+					echo "mkdir -p $upload_path<br>";
+					echo "chmod 775 $upload_path</code><br>";
+					echo "<br>Or create the directory manually:<br>";
+					echo "<code>" . dirname($upload_path) . "</code><br>";
+					echo "with permissions 775 or 777<br>";
+				}
+			} else {
+				echo "✗ Barcode generation returned empty<br>";
+			}
+		} catch (Exception $e) {
+			echo "✗ Error generating barcode: " . $e->getMessage() . "<br>";
+			echo "Stack trace: " . $e->getTraceAsString() . "<br>";
+		}
+		
+		// Test 4: Test with actual order if provided
+		if (!empty($order_no)) {
+			echo "<h2>Test 4: Order Barcode Generation</h2>";
+			$order_data = $this->Order_model->get_order($order_no);
+			
+			if ($order_data && !empty($order_data[0])) {
+				$order = $order_data[0];
+				$order_id = $order->id;
+				$shipping_number = $order_no;
+				
+				echo "Order ID: $order_id<br>";
+				echo "Order Number: $order_no<br>";
+				echo "Shipping Number: $shipping_number<br>";
+		
+				// Check if vendor_shipping_label table exists
+				$table_exists = $this->db->table_exists('vendor_shipping_label');
+				echo "Vendor Shipping Label Table Exists: " . ($table_exists ? "Yes" : "No") . "<br>";
+				
+				// Check if shipping label exists
+				$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
+				$label_id = null;
+				
+				if ($table_exists && $shipping_label->num_rows() > 0) {
+					$label_row = $shipping_label->row();
+					$label_id = $label_row->id;
+					echo "✓ Shipping label found in database (ID: $label_id)<br>";
+					
+					if (!empty($label_row->barcode_url)) {
+						// Check if path is correct (should start with 'uploads/vendor_picqer_barcode/')
+						$needs_regeneration = false;
+						if (strpos($label_row->barcode_url, 'uploads/vendor_picqer_barcode/') !== 0) {
+							echo "⚠ Barcode URL has incorrect path format: " . $label_row->barcode_url . "<br>";
+							echo "Regenerating with correct path...<br>";
+							$needs_regeneration = true;
+						} else {
+							echo "✓ Barcode URL exists: " . $label_row->barcode_url . "<br>";
+							// Check if file actually exists
+							$this->config->load('upload');
+							$uploadCfg = $this->config->item('picqer_barcode_upload');
+							if (empty($uploadCfg)) {
+								$textbookCfg = $this->config->item('textbook_upload');
+								$uploadCfg = array(
+									'base_root' => $textbookCfg['base_root'],
+									'relative_dir' => 'uploads/vendor_picqer_barcode/'
+								);
+							}
+							// Check file existence - barcodes are now in main folder (not vendor-specific)
+							$full_path = FCPATH . ltrim($label_row->barcode_url, '/');
+							if (!file_exists($full_path)) {
+								echo "⚠ Barcode file does not exist at: $full_path<br>";
+								echo "Regenerating...<br>";
+								$needs_regeneration = true;
+							}
+						}
+						
+						if ($needs_regeneration) {
+							$this->Pdf_model->get_picqer_barcode($shipping_number, $label_id, 'barcode_url');
+							$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+							if (!empty($updated_label->barcode_url)) {
+								echo "✓ Barcode regenerated and saved: " . $updated_label->barcode_url . "<br>";
+								// Update order table
+								$this->db->where('id', $order_id);
+								$this->db->update('tbl_order_details', array(
+									'barcode_path' => $updated_label->barcode_url
+								));
+								echo "✓ Barcode path updated in order table<br>";
+								$label_row->barcode_url = $updated_label->barcode_url;
+							}
+						}
+						
+						if (!empty($label_row->barcode_url)) {
+							echo "<img src='" . base_url($label_row->barcode_url) . "' alt='Order Barcode' style='max-width:400px;'><br>";
+						}
+		} else {
+						echo "⚠ Barcode URL is empty, generating new barcode...<br>";
+						$this->Pdf_model->get_picqer_barcode($shipping_number, $label_id, 'barcode_url');
+						$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+						if (!empty($updated_label->barcode_url)) {
+							echo "✓ Barcode generated and saved: " . $updated_label->barcode_url . "<br>";
+							// Update order table
+							$this->db->where('id', $order_id);
+							$this->db->update('tbl_order_details', array(
+								'barcode_path' => $updated_label->barcode_url
+							));
+							echo "✓ Barcode path saved to order table<br>";
+							echo "<img src='" . base_url($updated_label->barcode_url) . "' alt='Order Barcode' style='max-width:400px;'><br>";
+						}
+					}
+				} else {
+					if (!$table_exists) {
+						echo "⚠ vendor_shipping_label table does not exist. Generating barcode directly...<br>";
+					} else {
+						echo "⚠ Shipping label not found, creating new entry...<br>";
+					}
+					
+					$vendor_id = isset($order->vendor_id) ? $order->vendor_id : (isset($this->current_vendor['id']) ? $this->current_vendor['id'] : null);
+					
+					if ($table_exists) {
+						$label_id = $this->Pdf_model->add_shipping_label($shipping_number, $vendor_id, $shipping_number);
+						
+						if ($label_id) {
+							echo "✓ Shipping label created (ID: $label_id)<br>";
+							$this->Pdf_model->get_picqer_barcode($shipping_number, $label_id, 'barcode_url');
+							$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+							if (!empty($updated_label->barcode_url)) {
+								echo "✓ Barcode generated and saved: " . $updated_label->barcode_url . "<br>";
+								echo "<img src='" . base_url($updated_label->barcode_url) . "' alt='Order Barcode' style='max-width:400px;'><br>";
+								
+								// Update order with barcode path
+								$this->db->where('id', $order_id);
+								$this->db->update('tbl_order_details', array(
+									'barcode_path' => $updated_label->barcode_url
+								));
+								echo "✓ Barcode path saved to order table<br>";
+							}
+						}
+					} else {
+						// Generate QR code directly without vendor_shipping_label table
+						try {
+							require_once APPPATH . 'vendor/autoload.php';
+							
+							$qrCode = \Endroid\QrCode\QrCode::create($shipping_number)
+								->setSize(300)
+								->setMargin(10);
+							
+							$writer = new \Endroid\QrCode\Writer\PngWriter();
+							$result = $writer->write($qrCode);
+							$barcode_data = $result->getString();
+							
+							// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
+							$date_folder = date('Y_m_d');
+							$relative_dir = 'uploads/vendor_picqer_barcode/';
+							
+							$upload_path = FCPATH . trim($relative_dir, '/') . '/'
+								. $date_folder . '/';
+							
+							if (!is_dir($upload_path)) {
+								@mkdir($upload_path, 0775, true);
+							}
+							
+							$file_name = $shipping_number . ".png";
+							$pngAbsoluteFilePath = $upload_path . $file_name;
+							$relative_path = trim($relative_dir, '/') . '/'
+								. $date_folder . '/'
+								. $file_name;
+							
+							@file_put_contents($pngAbsoluteFilePath, $barcode_data);
+							echo "✓ Barcode generated and saved: " . $relative_path . "<br>";
+							echo "<img src='" . base_url($relative_path) . "' alt='Order Barcode' style='max-width:400px;'><br>";
+							
+							// Update order with barcode path
+							$this->db->where('id', $order_id);
+							$this->db->update('tbl_order_details', array(
+								'barcode_path' => $relative_path
+							));
+							echo "✓ Barcode path saved to order table<br>";
+						} catch (Exception $e) {
+							echo "✗ Error generating barcode: " . $e->getMessage() . "<br>";
+						}
+					}
+				}
+				
+				// Check order table for barcode_path
+				$this->db->select('barcode_path');
+				$this->db->where('id', $order_id);
+				$order_check = $this->db->get('tbl_order_details')->row();
+				if (!empty($order_check->barcode_path)) {
+					echo "✓ Order table has barcode_path: " . $order_check->barcode_path . "<br>";
+				} else {
+					echo "⚠ Order table does not have barcode_path<br>";
+				}
+			} else {
+				echo "✗ Order not found: $order_no<br>";
+			}
+		} else {
+			echo "<h2>Test 4: Skipped (No order number provided)</h2>";
+			echo "To test with an order, use: " . base_url('orders/test_barcode/ORDER_NUMBER') . "<br>";
+		}
+		
+		// Test 5: Upload configuration
+		echo "<h2>Test 5: Upload Configuration</h2>";
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('picqer_barcode_upload');
+		
+		// Check if config file exists
+		$config_file = APPPATH . 'config/upload.php';
+		if (file_exists($config_file)) {
+			echo "✓ Upload config file exists<br>";
+		} else {
+			echo "✗ Upload config file NOT found at: $config_file<br>";
+		}
+		
+		// If picqer config not found, use textbook config as reference
+		if (empty($uploadCfg) || !is_array($uploadCfg)) {
+			echo "⚠ picqer_barcode_upload config not found, using textbook_upload as reference...<br>";
+			$textbookCfg = $this->config->item('textbook_upload');
+			if (!empty($textbookCfg) && is_array($textbookCfg)) {
+				$uploadCfg = array(
+					'base_root' => $textbookCfg['base_root'],
+					'relative_dir' => 'uploads/vendor_picqer_barcode/'
+				);
+				echo "✓ Using fallback config from textbook_upload<br>";
+			}
+		}
+		
+		if ($uploadCfg && !empty($uploadCfg) && is_array($uploadCfg)) {
+			echo "✓ Picqer barcode upload config found<br>";
+			echo "Relative Dir: " . (isset($uploadCfg['relative_dir']) ? $uploadCfg['relative_dir'] : 'NOT SET') . "<br>";
+			echo "Note: Barcodes are saved to main folder (not vendor-specific)<br>";
+			echo "<br><strong>Path Information:</strong><br>";
+			echo "FCPATH: " . FCPATH . "<br>";
+			
+			$date_folder = date('Y_m_d');
+			$relative_dir = isset($uploadCfg['relative_dir']) ? $uploadCfg['relative_dir'] : 'uploads/vendor_picqer_barcode/';
+			
+			// Use FCPATH directly (main folder, not vendor-specific)
+			$upload_path = FCPATH . trim($relative_dir, '/') . '/'
+				. $date_folder . '/';
+			echo "Full Upload Path: $upload_path<br>";
+			
+			if (is_dir($upload_path)) {
+				echo "✓ Upload directory exists<br>";
+				echo "Directory is writable: " . (is_writable($upload_path) ? "Yes" : "No") . "<br>";
+			} else {
+				echo "⚠ Upload directory does not exist<br>";
+				echo "Attempting to create directory...<br>";
+				if (@mkdir($upload_path, 0775, true)) {
+					echo "✓ Directory created successfully<br>";
+					echo "Directory is writable: " . (is_writable($upload_path) ? "Yes" : "No") . "<br>";
+				} else {
+					$last_error = error_get_last();
+					echo "✗ Failed to create directory<br>";
+					if ($last_error) {
+						echo "Error: " . $last_error['message'] . "<br>";
+					}
+					echo "<br><strong>Directory Permission Check:</strong><br>";
+					$parent_dir = dirname($upload_path);
+					echo "Parent dir: $parent_dir<br>";
+					echo "Parent dir exists: " . (is_dir($parent_dir) ? "Yes" : "No") . "<br>";
+					if (is_dir($parent_dir)) {
+						echo "Parent dir writable: " . (is_writable($parent_dir) ? "Yes" : "No") . "<br>";
+						echo "Parent dir permissions: " . substr(sprintf('%o', fileperms($parent_dir)), -4) . "<br>";
+					}
+					// Check FCPATH itself
+					echo "<br>FCPATH exists: " . (is_dir(FCPATH) ? "Yes" : "No") . "<br>";
+					if (is_dir(FCPATH)) {
+						echo "FCPATH writable: " . (is_writable(FCPATH) ? "Yes" : "No") . "<br>";
+						echo "FCPATH permissions: " . substr(sprintf('%o', fileperms(FCPATH)), -4) . "<br>";
+					}
+					// Check uploads directory
+					$uploads_dir = FCPATH . 'uploads/';
+					echo "<br>Uploads dir: $uploads_dir<br>";
+					echo "Uploads dir exists: " . (is_dir($uploads_dir) ? "Yes" : "No") . "<br>";
+					if (is_dir($uploads_dir)) {
+						echo "Uploads dir writable: " . (is_writable($uploads_dir) ? "Yes" : "No") . "<br>";
+						echo "Uploads dir permissions: " . substr(sprintf('%o', fileperms($uploads_dir)), -4) . "<br>";
+					}
+				}
+			}
+		} else {
+			echo "✗ Picqer barcode upload config NOT found or is empty<br>";
+			echo "Using default path structure...<br>";
+			$date_folder = date('Y_m_d');
+			$relative_dir = 'uploads/vendor_picqer_barcode/';
+			$upload_path = FCPATH . trim($relative_dir, '/') . '/' . $date_folder . '/';
+			echo "FCPATH: " . FCPATH . "<br>";
+			echo "Default Upload Path: $upload_path<br>";
+		}
+		
+		echo "<hr>";
+		echo "<h2>Test Summary</h2>";
+		echo "<p>All tests completed. Check the results above.</p>";
+		echo "<p><a href='" . base_url('orders') . "'>Back to Orders</a></p>";
 	}
 
 

@@ -57,4 +57,20 @@ $config['vendor_favicon_upload'] = [
     'allowed_types'=> ['png'], 
     'max_size'     => 512      
 ];
+
+$config['shipping_label_upload'] = [
+    'base_root'    => '/www/webwork/',
+    'root_path'    => '/www/webwork/',
+    'relative_dir' => 'uploads/shipping_labels/',
+    'allowed_types'=> ['pdf'],
+    'max_size'     => 10240
+];
+
+$config['picqer_barcode_upload'] = [
+    'base_root'    => '/www/webwork/',
+    'root_path'    => '/www/webwork/',
+    'relative_dir' => 'uploads/vendor_picqer_barcode/',
+    'allowed_types'=> ['png'],
+    'max_size'     => 5120
+];
 ?>

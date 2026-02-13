@@ -181,15 +181,41 @@
          <div class="card brtop0">
             <div class="card-body">
                <form method="get" action="<?php echo base_url('orders/' . $order_status); ?>" class="row">
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                      <label>Keywords</label>
                      <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone, Invoice Number...">
                   </div>
-                  <!-- <div class="col-md-4">
-                     <label>Date Range</label>
-                     <input type="text" name="date_range" class="form-control daterange" value="<?php echo isset($filter_data['date_range']) ? htmlspecialchars($filter_data['date_range']) : ''; ?>" placeholder="Select Date Range">
-                  </div> -->
-                  <div class="col-md-4">
+                  <div class="col-md-2">
+                     <label>Pincode</label>
+                     <input type="text" name="pincode" class="form-control" value="<?php echo isset($filter_data['pincode']) ? htmlspecialchars($filter_data['pincode']) : ''; ?>" placeholder="Enter Pincode">
+                  </div>
+                  <div class="col-md-2">
+                     <label>School</label>
+                     <select name="school" class="form-control">
+                        <option value="">All Schools</option>
+                        <?php if(isset($schools) && !empty($schools)): ?>
+                           <?php foreach($schools as $school): ?>
+                              <option value="<?php echo $school['id']; ?>" <?php echo (isset($filter_data['school']) && $filter_data['school'] == $school['id']) ? 'selected' : ''; ?>>
+                                 <?php echo htmlspecialchars($school['name']); ?>
+                              </option>
+                           <?php endforeach; ?>
+                        <?php endif; ?>
+                     </select>
+                  </div>
+                  <div class="col-md-2">
+                     <label>Grade</label>
+                     <select name="grade" class="form-control">
+                        <option value="">All Grades</option>
+                        <?php if(isset($grades) && !empty($grades)): ?>
+                           <?php foreach($grades as $grade): ?>
+                              <option value="<?php echo $grade['id']; ?>" <?php echo (isset($filter_data['grade']) && $filter_data['grade'] == $grade['id']) ? 'selected' : ''; ?>>
+                                 <?php echo htmlspecialchars($grade['name']); ?>
+                              </option>
+                           <?php endforeach; ?>
+                        <?php endif; ?>
+                     </select>
+                  </div>
+                  <div class="col-md-3">
                      <label>&nbsp;</label>
                      <div>
                         <button type="submit" class="btn btn-primary">Search</button>
@@ -283,6 +309,10 @@
                               <th>Source</th>
                               <th>User Name</th>
                               <th>User Phone</th>
+                              <th>Product Name</th>
+                              <th>Address</th>
+                              <th>School</th>
+                              <th>Grade</th>
                               <th nowrap="">
                                  <?php
                                  if ($order_status == 'all' || $order_status == '') {
@@ -304,7 +334,6 @@
                               </th>
                               <th>Payment Method</th>
                               <th>Payment Id</th>
-                              <th>Coupon Code</th>
                               <th>Invoice Number</th>
                               <th class="cat_action_list">Action</th>
                            </tr>
@@ -371,10 +400,13 @@
                                     <td><?php echo $item['source']; ?></td>
                                     <td><?php echo $item['user_name']; ?></td>
                                     <td><?php echo $item['user_phone']; ?></td>
+                                    <td><?php echo isset($item['product_name']) ? $item['product_name'] : '-'; ?></td>
+                                    <td><?php echo isset($item['address']) ? $item['address'] : '-'; ?></td>
+                                    <td><?php echo isset($item['school_name']) ? $item['school_name'] : '-'; ?></td>
+                                    <td><?php echo isset($item['grade_name']) ? $item['grade_name'] : '-'; ?></td>
                                     <td><?php echo $item['date']; ?></td>
                                     <td><?php echo $item['payment_method']; ?></td>
                                     <td><?php echo $item['payment_id']; ?></td>
-                                    <td><?php echo $item['coupon_code']; ?></td>
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
@@ -385,15 +417,24 @@
                            else: ?>
                               <tr>
                                  <td colspan="<?php 
-                                    $colspan = 10;
+                                    $colspan = 14;
                                     if ($order_status == 'all' || $order_status == '') {
-                                       $colspan = 12; // checkbox + status column
+                                       $colspan = 16; // checkbox + status column + product + address + school + grade
                                     } elseif ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'out_for_delivery') {
-                                       $colspan = 11; // checkbox column
+                                       $colspan = 15; // checkbox column + product + address + school + grade
                                     }
                                     echo $colspan;
                                  ?>">
-                                    <p class="notf">Data not found</p>
+                                    <p class="notf">
+                                       <?php 
+                                       $has_filters = !empty($filter_data['keywords']) || !empty($filter_data['pincode']) || !empty($filter_data['school']) || !empty($filter_data['grade']);
+                                       if ($has_filters): 
+                                       ?>
+                                          No orders found with the current filters. Please try changing your filter criteria.
+                                       <?php else: ?>
+                                          Data not found
+                                       <?php endif; ?>
+                                    </p>
                                  </td>
                               </tr>
                            <?php endif; ?>

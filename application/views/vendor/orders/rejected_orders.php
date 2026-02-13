@@ -119,20 +119,46 @@
       <div class="col-12">
          <div class="card brtop0">
             <div class="card-body">
-               <form method="get" action="<?php echo base_url('orders/rejected-orders'); ?>" class="row">
-                  <div class="col-md-4">
+               <form method="get" action="<?php echo base_url('orders/cancelled-orders'); ?>" class="row">
+                  <div class="col-md-3">
                      <label>Keywords</label>
                      <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone...">
                   </div>
-                  <!-- <div class="col-md-4">
-                     <label>Date Range</label>
-                     <input type="text" name="date_range" class="form-control daterange" value="<?php echo isset($filter_data['date_range']) ? htmlspecialchars($filter_data['date_range']) : ''; ?>" placeholder="Select Date Range">
-                  </div> -->
-                  <div class="col-md-4">
+                  <div class="col-md-2">
+                     <label>Pincode</label>
+                     <input type="text" name="pincode" class="form-control" value="<?php echo isset($filter_data['pincode']) ? htmlspecialchars($filter_data['pincode']) : ''; ?>" placeholder="Enter Pincode">
+                  </div>
+                  <div class="col-md-2">
+                     <label>School</label>
+                     <select name="school" class="form-control">
+                        <option value="">All Schools</option>
+                        <?php if(isset($schools) && !empty($schools)): ?>
+                           <?php foreach($schools as $school): ?>
+                              <option value="<?php echo $school['id']; ?>" <?php echo (isset($filter_data['school']) && $filter_data['school'] == $school['id']) ? 'selected' : ''; ?>>
+                                 <?php echo htmlspecialchars($school['name']); ?>
+                              </option>
+                           <?php endforeach; ?>
+                        <?php endif; ?>
+                     </select>
+                  </div>
+                  <div class="col-md-2">
+                     <label>Grade</label>
+                     <select name="grade" class="form-control">
+                        <option value="">All Grades</option>
+                        <?php if(isset($grades) && !empty($grades)): ?>
+                           <?php foreach($grades as $grade): ?>
+                              <option value="<?php echo $grade['id']; ?>" <?php echo (isset($filter_data['grade']) && $filter_data['grade'] == $grade['id']) ? 'selected' : ''; ?>>
+                                 <?php echo htmlspecialchars($grade['name']); ?>
+                              </option>
+                           <?php endforeach; ?>
+                        <?php endif; ?>
+                     </select>
+                  </div>
+                  <div class="col-md-3">
                      <label>&nbsp;</label>
                      <div>
                         <button type="submit" class="btn btn-primary">Search</button>
-                        <a href="<?php echo base_url('orders/rejected-orders'); ?>" class="btn btn-secondary">Clear</a>
+                        <a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="btn btn-secondary">Clear</a>
                      </div>
                   </div>
                </form>
@@ -159,6 +185,10 @@
                         <th>Order ID</th>
                         <th>Order Type</th>
                         <th>User ID</th>
+                        <th>Product Name</th>
+                        <th>Address</th>
+                        <th>School</th>
+                        <th>Grade</th>
                         <th>Order Date</th>
                         <th>Cancelled Date</th>
                         <th>Payable Amount</th>
@@ -179,6 +209,10 @@
                               <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
                               <td><?php echo isset($item['order_type']) ? $item['order_type'] : '-'; ?></td>
                               <td><?php echo isset($item['user_id']) ? $item['user_id'] : '-'; ?></td>
+                              <td><?php echo isset($item['product_name']) ? $item['product_name'] : '-'; ?></td>
+                              <td><?php echo isset($item['address']) ? $item['address'] : '-'; ?></td>
+                              <td><?php echo isset($item['school_name']) ? $item['school_name'] : '-'; ?></td>
+                              <td><?php echo isset($item['grade_name']) ? $item['grade_name'] : '-'; ?></td>
                               <td><?php echo $item['order_date']; ?></td>
                               <td><?php echo $item['cancelled_date']; ?></td>
                               <td><?php echo isset($item['payable_amt']) ? number_format($item['payable_amt'], 2) : '0.00'; ?></td>
@@ -199,8 +233,17 @@
                         <?php endforeach; 
                      else: ?>
                         <tr>
-                           <td colspan="13">
-                              <p class="notf">Data not found</p>
+                           <td colspan="17">
+                              <p class="notf">
+                                 <?php 
+                                 $has_filters = !empty($filter_data['keywords']) || !empty($filter_data['pincode']) || !empty($filter_data['school']) || !empty($filter_data['grade']);
+                                 if ($has_filters): 
+                                 ?>
+                                    No orders found with the current filters. Please try changing your filter criteria.
+                                 <?php else: ?>
+                                    Data not found
+                                 <?php endif; ?>
+                              </p>
                            </td>
                         </tr>
                      <?php endif; ?>

@@ -154,6 +154,11 @@ $route['orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';
 $route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$1';
 $route['orders/view/(:any)'] = 'Vendor/orders/view/$1';
 $route['orders/download_invoice/(:any)'] = 'Vendor/orders/download_invoice/$1';
+$route['orders/generate_shipping_label/(:any)'] = 'Vendor/orders/generate_shipping_label/$1';
+$route['orders/download_shipping_label/(:any)'] = 'Vendor/orders/download_shipping_label/$1';
+$route['orders/test_shipping_label/(:any)'] = 'Vendor/Orders/test_shipping_label/$1';
+$route['orders/test_barcode'] = 'Vendor/orders/test_barcode';
+$route['orders/test_barcode/(:any)'] = 'Vendor/orders/test_barcode/$1';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';
@@ -273,6 +278,9 @@ $route['(:any)/(:any)/(:any)'] = 'Vendor/$2/$3'; // Vendor controller/method rou
 $route['(:any)/(:any)'] = 'Vendor/$2'; // Vendor controller routes (controller -> Vendor/controller)
 
 // Default route
+// Public shipping details route (for QR code scanning)
+$route['shipping/(:any)'] = 'Shipping/index/$1';
+
 $route['default_controller'] = 'Welcome';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
