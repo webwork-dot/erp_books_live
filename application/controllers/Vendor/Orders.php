@@ -287,6 +287,96 @@ class Orders extends Vendor_base
 			$address_arr = array($default_address);
 		}
 		
+		// Determine order type
+		$order_type = 'Individual';
+		$has_bookset = false;
+		$has_uniform = false;
+		
+		foreach ($items_arr as $item) {
+			if (isset($item->order_type)) {
+				if ($item->order_type == 'bookset' || $item->order_type == 'package') {
+					$has_bookset = true;
+					break;
+				} elseif ($item->order_type == 'uniform') {
+					$has_uniform = true;
+				}
+			}
+		}
+		
+		if ($has_bookset) {
+			$order_type = 'bookset';
+		} elseif ($has_uniform) {
+			$order_type = 'uniform';
+		}
+		
+		// Get bookset products and info if order type is bookset
+		$bookset_products = array();
+		$bookset_info = null;
+		if ($order_type == 'bookset') {
+			// Get bookset products from erp_bookset_order_products
+			if ($this->db->table_exists('erp_bookset_order_products')) {
+				$bookset_products = $this->db->select('*')
+					->from('erp_bookset_order_products')
+					->where('order_id', $order_id)
+					->order_by('id', 'ASC')
+					->get()
+					->result();
+			}
+			
+			// Get bookset info (school, grade, board, student details)
+			if (!empty($items_arr)) {
+				$first_item = $items_arr[0];
+				$bookset_id = isset($first_item->bookset_id) ? $first_item->bookset_id : (isset($first_item->product_id) && isset($first_item->order_type) && $first_item->order_type == 'bookset' ? $first_item->product_id : null);
+				$package_id = isset($first_item->package_id) ? $first_item->package_id : (isset($first_item->product_id) && isset($first_item->order_type) && $first_item->order_type == 'package' ? $first_item->product_id : null);
+				
+				if (!empty($bookset_id) && $this->db->table_exists('erp_booksets')) {
+					$bookset_info = $this->db->select('bs.*, s.school_name, tg.name as grade_name, sb.board_name')
+						->from('erp_booksets bs')
+						->join('erp_schools s', 's.id = bs.school_id', 'left')
+						->join('erp_textbook_grades tg', 'tg.id = bs.grade_id', 'left')
+						->join('erp_school_boards sb', 'sb.id = bs.board_id', 'left')
+						->where('bs.id', $bookset_id)
+						->limit(1)
+						->get()
+						->row();
+				} elseif (!empty($package_id) && $this->db->table_exists('erp_bookset_packages')) {
+					$bookset_info = $this->db->select('bp.*, s.school_name, tg.name as grade_name, sb.board_name')
+						->from('erp_bookset_packages bp')
+						->join('erp_schools s', 's.id = bp.school_id', 'left')
+						->join('erp_textbook_grades tg', 'tg.id = bp.grade_id', 'left')
+						->join('erp_school_boards sb', 'sb.id = bp.board_id', 'left')
+						->where('bp.id', $package_id)
+						->limit(1)
+						->get()
+						->row();
+				}
+			}
+		}
+		
+		// Get order status history from erp_order_status_history
+		$status_history = array();
+		if ($this->db->table_exists('erp_order_status_history')) {
+			// Try to get order_id from erp_orders table first
+			$erp_order = $this->db->select('id')
+				->from('erp_orders')
+				->where('order_number', $order_no)
+				->or_where('order_unique_id', $order_no)
+				->limit(1)
+				->get()
+				->row();
+			
+			$erp_order_id = !empty($erp_order) ? $erp_order->id : null;
+			
+			if (!empty($erp_order_id)) {
+				$status_history = $this->db->select('*')
+					->from('erp_order_status_history')
+					->where('order_id', $erp_order_id)
+					->order_by('created_at', 'ASC')
+					->get()
+					->result();
+			}
+		}
+		
 		// Prepare page data
 		$data['title'] = 'Order Details - ' . $order_no;
 		$data['current_vendor'] = $this->current_vendor;
@@ -295,6 +385,10 @@ class Orders extends Vendor_base
 		$data['items_arr'] = $items_arr;
 		$data['address_arr'] = $address_arr;
 		$data['current_page'] = 'Order Details';
+		$data['order_type'] = $order_type;
+		$data['bookset_products'] = $bookset_products;
+		$data['bookset_info'] = $bookset_info;
+		$data['status_history'] = $status_history;
 		
 		// Load content view
 		$data['content'] = $this->load->view('vendor/orders/view', $data, TRUE);

@@ -471,6 +471,8 @@ $config['csrf_expire'] = 7200;
 $config['csrf_regenerate'] = TRUE;
 $config['csrf_exclude_uris'] = array(
 	'api/.*', 
+	'profile/get_profile',
+	'profile/update_profile',
 	'erp-admin/features/.*',
 	'erp-admin/vendors/toggle_status/.*',
 	'products/textbook/add_type', 

@@ -30,6 +30,9 @@ $vendor_name = isset($current_vendor['name']) ? htmlspecialchars($current_vendor
 				<span class="fw-semibold"><?php echo $vendor_name; ?></span>
 			</div>
 			<div class="d-flex align-items-center flex-wrap gap-3">
+				<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#profileModal">
+					<i class="isax isax-profile-circle me-1"></i>Profile
+				</button>
 				<span class="d-flex align-items-center text-muted fs-13">
 					<i class="isax isax-calendar5 me-1"></i><?php echo $ist_date; ?>
 				</span>

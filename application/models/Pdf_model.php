@@ -1,97 +1,113 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
-require_once APPPATH . 'vendor/autoload.php';
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Writer\PngWriter;
+
 
 class Pdf_model extends CI_Model
 {
+    private function generate_qr_base64($text)
+    {
+        include_once APPPATH . 'libraries/phpqrcode/qrlib.php';
+
+        $folder = FCPATH . 'uploads/vendor_picqer_barcode/';
+        if (!is_dir($folder)) {
+            mkdir($folder, 0777, true);
+        }
+
+        $file = $folder . md5($text) . '.png';
+
+        if (!file_exists($file)) {
+            QRcode::png($text, $file, QR_ECLEVEL_Q, 15, 2);
+        }
+
+        return 'data:image/png;base64,' . base64_encode(file_get_contents($file));
+    }
+
     public function fetch_shipping_label($shipping_no, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, $type = "self", $ship_order_id = null)
     {
         $shipping_label = $this->get_shipping_label($shipping_no)->row();
-        $barcode_no = '';
-        $check_flag = 0;
-        
-        // Load config and helper for file path checking
-        $this->config->load('upload');
-        $uploadCfg = $this->config->item('picqer_barcode_upload');
         $this->load->helper('common');
         
-        // Helper function to check if barcode file exists (using main folder, not vendor-specific)
-        $check_barcode_file_exists = function($relative_path) {
-            if (empty($relative_path)) {
-                return false;
-            }
-            $full_path = FCPATH . ltrim($relative_path, '/');
-            return file_exists($full_path);
-        };
-        
-        // Use ship_order_id for barcode if provided, otherwise use shipping_no
-        $barcode_number = !empty($ship_order_id) ? $ship_order_id : $shipping_no;
-        
-        if ($type == "self") {
-            if (!empty($shipping_label) && !empty($shipping_label->barcode_url)) {
-                $barcode_file_path = FCPATH . ltrim($shipping_label->barcode_url, '/');
-                if (file_exists($barcode_file_path)) {
-                    // Use base64 for PDF compatibility
-                    $barcode_data = file_get_contents($barcode_file_path);
-                    if ($barcode_data !== false) {
-                        $barcode = 'data:image/png;base64,' . base64_encode($barcode_data);
-                    } else {
-                        $barcode = base_url($shipping_label->barcode_url);
-                    }
-                } else {
-                    $barcode = base_url($shipping_label->barcode_url);
+        // Fetch school_name and grade_name for bookset orders if not already in order object
+        if ($order_type_label == 'Bookset') {
+            // If school_name is not set, try to get it from order
+            if (empty($order->school_name) && !empty($order->school_id)) {
+                $school_row = $this->db->select('school_name')
+                    ->from('erp_schools')
+                    ->where('id', $order->school_id)
+                    ->limit(1)
+                    ->get()
+                    ->row();
+                if (!empty($school_row)) {
+                    $order->school_name = $school_row->school_name;
                 }
-                $barcode_no = $barcode_number;
-                
-                if (!$check_barcode_file_exists($shipping_label->barcode_url)) {
-                    // Regenerate barcode with ship_order_id if provided
-                    $barcode_url_new = $this->get_picqer_barcode_refresh($barcode_number, $shipping_label->id, 'barcode_url');
-                    $barcode_file_path = FCPATH . ltrim($barcode_url_new, '/');
-                    if (file_exists($barcode_file_path)) {
-                        $barcode_data = file_get_contents($barcode_file_path);
-                        if ($barcode_data !== false) {
-                            $barcode = 'data:image/png;base64,' . base64_encode($barcode_data);
-                        } else {
-                            $barcode = base_url($barcode_url_new);
+            }
+            
+            // If grade_name is not set, try to get it from order items (booksets/packages)
+            if (empty($order->grade_name) && !empty($items_arr)) {
+                foreach ($items_arr as $item) {
+                    // Handle erp_order_items table structure (has bookset_id and package_id fields)
+                    $bookset_id = isset($item->bookset_id) ? $item->bookset_id : null;
+                    $package_id = isset($item->package_id) ? $item->package_id : null;
+                    
+                    // Handle tbl_order_items table structure (uses order_type and product_id)
+                    if (empty($bookset_id) && empty($package_id)) {
+                        if (isset($item->order_type)) {
+                            if ($item->order_type == 'bookset' && !empty($item->product_id)) {
+                                $bookset_id = $item->product_id;
+                            } elseif ($item->order_type == 'package' && !empty($item->product_id)) {
+                                $package_id = $item->product_id;
+                            }
                         }
-                    } else {
-                        $barcode = base_url($barcode_url_new);
+                    }
+                    
+                    // Try to get grade from bookset
+                    if (!empty($bookset_id) && $this->db->table_exists('erp_booksets')) {
+                        $bookset_row = $this->db->select('bs.grade_id, tg.name as grade_name')
+                            ->from('erp_booksets bs')
+                            ->join('erp_textbook_grades tg', 'tg.id = bs.grade_id', 'left')
+                            ->where('bs.id', $bookset_id)
+                            ->limit(1)
+                            ->get()
+                            ->row();
+                        if (!empty($bookset_row) && !empty($bookset_row->grade_name)) {
+                            $order->grade_name = $bookset_row->grade_name;
+                            break;
+                        }
+                    }
+                    
+                    // Try to get grade from package
+                    if (empty($order->grade_name) && !empty($package_id) && $this->db->table_exists('erp_bookset_packages')) {
+                        $package_row = $this->db->select('bp.grade_id, tg.name as grade_name')
+                            ->from('erp_bookset_packages bp')
+                            ->join('erp_textbook_grades tg', 'tg.id = bp.grade_id', 'left')
+                            ->where('bp.id', $package_id)
+                            ->limit(1)
+                            ->get()
+                            ->row();
+                        if (!empty($package_row) && !empty($package_row->grade_name)) {
+                            $order->grade_name = $package_row->grade_name;
+                            break;
+                        }
                     }
                 }
-            } elseif (!empty($barcode_url)) {
-                // Try to convert URL to base64 if file exists
-                $barcode_relative = str_replace(base_url(), '', $barcode_url);
-                $barcode_relative = ltrim($barcode_relative, '/');
-                $barcode_file_path = FCPATH . $barcode_relative;
-                if (file_exists($barcode_file_path)) {
-                    $barcode_data = file_get_contents($barcode_file_path);
-                    if ($barcode_data !== false) {
-                        $barcode = 'data:image/png;base64,' . base64_encode($barcode_data);
-                    } else {
-                        $barcode = $barcode_url;
-                    }
-                } else {
-                    $barcode = $barcode_url;
-                }
-                $barcode_no = $barcode_number;
-            } else {
-                $check_flag = 1;
             }
+        }
+        
+        // Generate QR codes on-the-fly
+        if ($type == "self") {
+            $barcode_no = $shipping_no;
+            $barcode = $this->generate_qr_base64($barcode_no);
         } elseif ($type == "bigship" && !empty($shipping_label) && !empty($shipping_label->awb_number)) {
-            $barcode = base_url($shipping_label->barcode_awb_url);
             $barcode_no = $shipping_label->awb_number;
-            if (!$check_barcode_file_exists($shipping_label->barcode_awb_url) || empty($shipping_label->barcode_awb_url)) {
-                $barcode_url_new = $this->get_picqer_barcode_refresh($shipping_label->awb_number, $shipping_label->id, 'barcode_awb_url');
-                $barcode = base_url($barcode_url_new);
-            }
+            $barcode = $this->generate_qr_base64($barcode_no);
         } else {
-            $check_flag = 1;
+            // Fallback: use shipping_no
+            $barcode_no = $shipping_no;
+            $barcode = $this->generate_qr_base64($barcode_no);
         }
     
         $output = '';
-        if ($check_flag == 0) {
+        if (!empty($barcode)) {
             $output = '<body class="A5"><div class="panel-body tbold" id="page-wrap">';
             $output .= '<section id="data-list-view" class="print-this" >
                     <body>
@@ -127,7 +143,7 @@ class Pdf_model extends CI_Model
             $output .= '<tr>
                      <th colspan="1" class="text-left head order_no" style="width: 30%!important;">';
             if (!empty($logo_src)) {
-                $output .= '<img src="' . htmlspecialchars($logo_src) . '" class="logo" width="200" style="height: auto; max-height: 120px;">';
+                $output .= '<img src="' . htmlspecialchars($logo_src) . '" class="logo" style="height:60px;">';
             }
             $output .= '</th>
 
@@ -165,82 +181,41 @@ class Pdf_model extends CI_Model
                     </table>
                     </div>
 
-                    <!-- Top Section: Shipping ID on left, Pincode + QR Code + Bookset on right -->
-                    <table id="invoice" class="" style="width: 100%; margin-top: 10px;">
+                    <!-- Top Section: Shipping ID on left, Pincode on right -->
+                    <table style="width:100%; margin-top:10px;">
                     <tr>
-                    <th class="text-left head order_no" style="width: 50%;">
-                    <div class="box" style="border: 2px solid #000; padding: 10px; text-align: center;">
-                        <h4 class="mb-0 mt-0" style="font-size: 18px !important; font-weight: bold;">
-                            <b>' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>
-                        </h4>
-                    </div>
-                    </th>
-                    <th class="text-left head order_no" style="width: 50%;">
-                    <div class="box" style="border: 2px solid #000; padding: 10px; text-align: center;">
-                        <h4 class="mb-0 mt-0" style="font-size: 18px !important; font-weight: bold;">
-                            <b>Pincode: ' . (!empty($address_obj) ? htmlspecialchars($address_obj->pincode) : '') . '</b>
-                        </h4>
-                    </div>
-                    <div style="text-align: center; margin-top: 10px;">
-                        <img src="' . htmlspecialchars($barcode) . '" style="width: 150px; height: 150px; display: block; margin: 0 auto; object-fit: contain; max-width: 150px; max-height: 150px;">
-                    </div>
-                    <div class="box" style="border: 2px solid #000; padding: 10px; text-align: center; margin-top: 10px;">
-                        <h4 class="mb-0 mt-0" style="font-size: 18px !important; font-weight: bold;">
-                            <b>' . strtoupper($order_type_label) . '</b>
-                        </h4>
-                    </div>
-                    </th>
+                    <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
+                        <b style="font-size:20px;">' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>
+                    </td>
+                    <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
+                        <b style="font-size:20px;">Pincode: ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '') . '</b>
+                    </td>
                     </tr>
                     </table>
 
                     <!-- Shipping Details Section -->
-                    <table id="invoice" class="" style="width: 100%; margin-top: 15px;">
+                    <table style="width:100%; margin-top:10px;">
                     <tr>
-                    <th class="text-left head order_no w-100" style="padding: 10px;">
-                        <h5 class="mt-0" style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
-                            <b>Shipping to :</b>
-                        </h5>
-                        <p style="font-size: 14px; margin: 5px 0;"><b>Name: </b>' . (!empty($address_obj) ? htmlspecialchars($address_obj->name) : htmlspecialchars($order->user_name)) . ', <b>Contact No: </b>' . (!empty($address_obj) ? htmlspecialchars($address_obj->mobile_no) : htmlspecialchars($order->user_phone)) . '</p>';
+                    <td style="width:65%; vertical-align:top; padding:10px; font-size:14px; line-height:20px; text-align:left;">
+                        <div><b>Name:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : (!empty($order->user_name) ? $order->user_name : '')) . '</div>
+                        <div><b>Contact No:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->mobile_no) ? $address_obj->mobile_no : (!empty($order->user_phone) ? $order->user_phone : '')) . '</div>';
             
             if ($student_name != '' && $student_name != NULL) {
-                $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Student: </b><b>' . htmlspecialchars($student_name) . '</b></p>';
+                $output .= '<div><b>Student:</b> ' . htmlspecialchars($student_name) . '</div>';
             }
             
-            // Address details
-            if (!empty($address_obj)) {
-                if (!empty($address_obj->flat_house_no)) {
-                    $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Flat / House Number: </b>' . htmlspecialchars($address_obj->flat_house_no);
-                    if (!empty($address_obj->building_name)) {
-                        $output .= ', <b>Building Name: </b>' . htmlspecialchars($address_obj->building_name);
-                    }
-                    $output .= '</p>';
-                } elseif (!empty($address_obj->building_name)) {
-                    $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Building Name: </b>' . htmlspecialchars($address_obj->building_name) . '</p>';
-                }
-                if (!empty($address_obj->address)) {
-                    $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Street Name: </b>' . htmlspecialchars($address_obj->address) . '</p>';
-                }
-                if (!empty($address_obj->landmark)) {
-                    $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Landmark: </b>' . htmlspecialchars($address_obj->landmark) . '</p>';
-                }
-                
-                // Location details
-                $location_parts = array();
-                if (!empty($address_obj->country)) $location_parts[] = 'Country: ' . htmlspecialchars($address_obj->country);
-                if (!empty($address_obj->state)) $location_parts[] = 'State: ' . htmlspecialchars($address_obj->state);
-                if (!empty($address_obj->city)) $location_parts[] = 'City: ' . htmlspecialchars($address_obj->city);
-                if (!empty($address_obj->pincode)) $location_parts[] = 'Pincode: ' . htmlspecialchars($address_obj->pincode);
-                
-                if (!empty($location_parts)) {
-                    $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Location: </b>' . implode(', ', $location_parts) . '</p>';
-                }
-                
-                if (!empty($address_obj->alternate_phone)) {
-                    $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Alternate Contact No: </b>' . htmlspecialchars($address_obj->alternate_phone) . '</p>';
-                }
-            }
-            
-            $output .= '</th>
+            $output .= '<div><b>Address:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->address) ? $address_obj->address : '') . '</div>
+                        <div><b>City:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->city) ? $address_obj->city : '') . '</div>
+                        <div><b>State:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->state) ? $address_obj->state : '') . '</div>
+                        <div><b>Pincode:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '') . '</div>
+                        <div><b>Country:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->country) ? $address_obj->country : '') . '</div>
+                    </td>
+                    <td style="width:35%; text-align:center; vertical-align:middle;">
+                        <img src="' . htmlspecialchars($barcode) . '" style="width:170px; height:170px;">
+                        <div style="border:2px solid #000; padding:8px; margin-top:10px;">
+                            <b>' . strtoupper($order_type_label) . '</b>
+                        </div>
+                    </td>
                     </tr>
                     </table>
 
@@ -280,77 +255,51 @@ class Pdf_model extends CI_Model
             $output .= '</tbody>
                     </table>';
 
-            // Bottom Section: Shipping ID on left, Pincode + QR Code on right
-            $output .= '<table id="invoice" class="" style="width: 100%; margin-top: 15px;">
+            /* ================= BOTTOM SHIPPING STRIP ================= */
+            $output .= '<table style="width:100%; margin-top:10px;">
                     <tr>
-                    <th class="text-left head order_no" style="width: 50%;">
-                    <div class="box" style="border: 2px solid #000; padding: 10px; text-align: center;">
-                        <h4 class="mb-0 mt-0" style="font-size: 18px !important; font-weight: bold;">
-                            <b>' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>
-                        </h4>
-                    </div>
-                    </th>
-                    <th class="text-left head order_no" style="width: 50%;">
-                    <div class="box" style="border: 2px solid #000; padding: 10px; text-align: center;">
-                        <h4 class="mb-0 mt-0" style="font-size: 18px !important; font-weight: bold;">
-                            <b>Pincode: ' . (!empty($address_obj) ? htmlspecialchars($address_obj->pincode) : '') . '</b>
-                        </h4>
-                    </div>
-                    <div style="text-align: center; margin-top: 10px;">
-                        <img src="' . htmlspecialchars($barcode) . '" style="width: 150px; height: 150px; display: block; margin: 0 auto; object-fit: contain; max-width: 150px; max-height: 150px;">
-                    </div>
-                    </th>
+                    <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
+                        <b style="font-size:20px;">' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>
+                    </td>
+                    <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
+                        <b style="font-size:20px;">Pincode: ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '') . '</b>
+                    </td>
                     </tr>
                     </table>';
 
-            // Seller Details Section
-            $output .= '<table id="invoice" class="" style="width: 100%; margin-top: 15px;">
+            /* ================= SELLER LEFT + QR RIGHT ================= */
+            $output .= '<table style="width:100%; margin-top:12px;">
                     <tr>
-                    <th class="text-left head order_no" style="padding: 10px;">
-                        <h5 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
-                            <b>Seller Details:</b>
-                        </h5>';
+                    <td style="width:70%; vertical-align:top; padding:10px; font-size:14px; text-align:left;">
+                        <h4 style="margin:0 0 6px 0;"><b>Seller Details:</b></h4>';
             
-            // Get vendor details - join with vendor_communication_details and vendor_billing_details
-            $vendor_id = isset($order->vendor_id) ? $order->vendor_id : null;
-            $vendor_info = null;
-            $vendor_billing = null;
+            // Get seller details from erp_clients table
+            $seller_info = $this->db->select('name, address, pincode, pan, gstin')
+                ->from('erp_clients')
+                ->limit(1)
+                ->get()
+                ->row();
             
-            if (!empty($vendor_id)) {
-                // Get vendor communication details
-                $vendor_info = $this->db->select('v.company_name, v.address, states.name as state, cities.name as city, v.pincode')
-                    ->from('vendor_communication_details as v')
-                    ->join('states', 'states.id = v.state_id', 'left')
-                    ->join('cities', 'cities.id = v.city_id', 'left')
-                    ->where('v.vendor_id', $vendor_id)
-                    ->get()
-                    ->row();
-                
-                // Get vendor billing details (PAN, GST)
-                $vendor_billing = $this->db->select('pan, gst')
-                    ->from('vendor_billing_details')
-                    ->where('vendor_id', $vendor_id)
-                    ->get()
-                    ->row();
-            }
-            
-            $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Sold By: </b>' . (!empty($vendor_info->company_name) ? htmlspecialchars($vendor_info->company_name) : '') . '</p>';
-            if (!empty($vendor_info->address) || !empty($vendor_info->state) || !empty($vendor_info->city)) {
-                $vendor_addr = array();
-                if (!empty($vendor_info->address)) $vendor_addr[] = htmlspecialchars($vendor_info->address);
-                if (!empty($vendor_info->state)) $vendor_addr[] = htmlspecialchars($vendor_info->state);
-                if (!empty($vendor_info->city)) $vendor_addr[] = htmlspecialchars($vendor_info->city);
-                $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Address: </b>' . implode(',', $vendor_addr) . '</p>';
-                if (!empty($vendor_info->pincode)) {
-                    $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>Pincode: </b>' . htmlspecialchars($vendor_info->pincode) . '</p>';
+            if (!empty($seller_info)) {
+                $output .= '<div><b>' . (!empty($seller_info->name) ? htmlspecialchars($seller_info->name) : '') . '</b></div>';
+                if (!empty($seller_info->address)) {
+                    $output .= '<div>' . htmlspecialchars($seller_info->address) . '</div>';
+                }
+                if (!empty($seller_info->pincode)) {
+                    $output .= '<div>Pincode: <b>' . htmlspecialchars($seller_info->pincode) . '</b></div>';
+                }
+                if (!empty($seller_info->pan)) {
+                    $output .= '<div>PAN: <b>' . htmlspecialchars($seller_info->pan) . '</b></div>';
+                }
+                if (!empty($seller_info->gstin)) {
+                    $output .= '<div>GSTIN: <b>' . htmlspecialchars($seller_info->gstin) . '</b></div>';
                 }
             }
-            if (!empty($vendor_billing->pan) || !empty($vendor_billing->gst)) {
-                $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>PAN: </b>' . (!empty($vendor_billing->pan) ? htmlspecialchars($vendor_billing->pan) : '') . '</p>';
-                $output .= '<p style="font-size: 14px; margin: 5px 0;"><b>GSTIN: </b>' . (!empty($vendor_billing->gst) ? htmlspecialchars($vendor_billing->gst) : '') . '</p>';
-            }
             
-            $output .= '</th>
+            $output .= '</td>
+                    <td style="width:30%; text-align:center; vertical-align:top;">
+                        <img src="' . htmlspecialchars($barcode) . '" style="width:180px;">
+                    </td>
                     </tr>
                     </table>';
 

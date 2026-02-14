@@ -308,6 +308,9 @@
 									</span>
 								</a>
 								<div class="dropdown-menu dropdown-menu-end p-2">
+									<a class="dropdown-item d-flex align-items-center" href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#profileModal">
+										<i class="isax isax-profile-circle me-2"></i>Profile Information
+									</a>
 									<?php 
 									$logout_url = base_url('logout');
 									?>

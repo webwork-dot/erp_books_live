@@ -387,5 +387,147 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- Profile Information Modal -->
+<div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="profileModalLabel">Profile Information</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<form id="profileForm">
+					<div class="mb-3">
+						<label for="profile_name" class="form-label">Name <span class="text-danger">*</span></label>
+						<input type="text" class="form-control" id="profile_name" name="name" required>
+						<div class="invalid-feedback"></div>
+					</div>
+					<div class="mb-3">
+						<label for="profile_address" class="form-label">Address</label>
+						<textarea class="form-control" id="profile_address" name="address" rows="3"></textarea>
+						<div class="invalid-feedback"></div>
+					</div>
+					<div class="mb-3">
+						<label for="profile_pincode" class="form-label">Pincode</label>
+						<input type="text" class="form-control" id="profile_pincode" name="pincode" maxlength="10">
+						<div class="invalid-feedback"></div>
+					</div>
+					<div class="mb-3">
+						<label for="profile_pan" class="form-label">PAN</label>
+						<input type="text" class="form-control" id="profile_pan" name="pan" maxlength="20" placeholder="ABCDE1234F">
+						<div class="invalid-feedback"></div>
+					</div>
+					<div class="mb-3">
+						<label for="profile_gstin" class="form-label">GSTIN</label>
+						<input type="text" class="form-control" id="profile_gstin" name="gstin" maxlength="20" placeholder="29ABCDE1234F1Z5">
+						<div class="invalid-feedback"></div>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" id="saveProfileBtn">Save Changes</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+$(document).ready(function() {
+	// Load profile data when modal is shown
+	$('#profileModal').on('show.bs.modal', function() {
+		loadProfileData();
+	});
+
+	// Load profile data
+	function loadProfileData() {
+		$.ajax({
+			url: window.location.origin + '/profile/get_profile',
+			type: 'GET',
+			dataType: 'json',
+			success: function(response) {
+				if (response.success && response.data) {
+					$('#profile_name').val(response.data.name || '');
+					$('#profile_address').val(response.data.address || '');
+					$('#profile_pincode').val(response.data.pincode || '');
+					$('#profile_pan').val(response.data.pan || '');
+					$('#profile_gstin').val(response.data.gstin || '');
+					
+					// Clear any previous validation errors
+					$('.form-control').removeClass('is-invalid');
+					$('.invalid-feedback').text('');
+				} else {
+					alert('Failed to load profile data: ' + (response.message || 'Unknown error'));
+				}
+			},
+			error: function(xhr, status, error) {
+				console.error('Error loading profile:', error);
+				alert('Failed to load profile data. Please try again.');
+			}
+		});
+	}
+
+	// Save profile data
+	$('#saveProfileBtn').on('click', function() {
+		var $btn = $(this);
+		var originalText = $btn.html();
+		
+		// Disable button and show loading
+		$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...');
+		
+		// Clear previous validation errors
+		$('.form-control').removeClass('is-invalid');
+		$('.invalid-feedback').text('');
+		
+		// Get form data
+		var formData = {
+			name: $('#profile_name').val(),
+			address: $('#profile_address').val(),
+			pincode: $('#profile_pincode').val(),
+			pan: $('#profile_pan').val(),
+			gstin: $('#profile_gstin').val()
+		};
+		
+		$.ajax({
+			url: window.location.origin + '/profile/update_profile',
+			type: 'POST',
+			data: formData,
+			dataType: 'json',
+			success: function(response) {
+				if (response.success) {
+					// Show success message
+					alert('Profile updated successfully!');
+					
+					// Close modal
+					$('#profileModal').modal('hide');
+					
+					// Optionally reload page to reflect changes in header
+					location.reload();
+				} else {
+					// Show validation errors
+					if (response.errors) {
+						$.each(response.errors, function(field, error) {
+							var $field = $('#profile_' + field);
+							$field.addClass('is-invalid');
+							$field.siblings('.invalid-feedback').text(error);
+						});
+					} else {
+						alert('Failed to update profile: ' + (response.message || 'Unknown error'));
+					}
+				}
+			},
+			error: function(xhr, status, error) {
+				console.error('Error updating profile:', error);
+				alert('Failed to update profile. Please try again.');
+			},
+			complete: function() {
+				// Re-enable button
+				$btn.prop('disabled', false).html(originalText);
+			}
+		});
+	});
+});
+</script>
+
 <?php $this->load->view('vendor/layouts/footer_template', $data); ?>
 
