@@ -24,7 +24,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |
 */
 
-$config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "http" : "http");
+$config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "https" : "http");
 $config['base_url'] .= "://".$_SERVER['HTTP_HOST'];
 $config['base_url'] .= str_replace(basename($_SERVER['SCRIPT_NAME']),"",$_SERVER['SCRIPT_NAME']);
 
@@ -499,6 +499,10 @@ $config['csrf_exclude_uris'] = array(
 	'products/individual-products/get_sizes',
 	'products/variations/add_type',
 	'products/variations/update_type/.*',
+	'orders/move_to_processing_single',
+	'orders/move_to_out_for_delivery_single',
+	'orders/move_to_delivered_single',
+	'orders/set_shipper',
 	'products/variations/delete_type/.*',
 	'products/variations/get_values',
 	'products/variations/add_value',

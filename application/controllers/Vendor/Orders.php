@@ -287,34 +287,50 @@ class Orders extends Vendor_base
 			$address_arr = array($default_address);
 		}
 		
-		// Determine order type
-		$order_type = 'Individual';
-		$has_bookset = false;
-		$has_uniform = false;
-		
-		foreach ($items_arr as $item) {
-			if (isset($item->order_type)) {
-				if ($item->order_type == 'bookset' || $item->order_type == 'package') {
-					$has_bookset = true;
-					break;
-				} elseif ($item->order_type == 'uniform') {
-					$has_uniform = true;
+		// Determine order type - first check type_order field in tbl_order_details
+		$order_type = 'individual';
+		if (!empty($order_data[0]->type_order)) {
+			$order_type = strtolower($order_data[0]->type_order);
+		} else {
+			// Fallback: determine from order items
+			$has_bookset = false;
+			$has_uniform = false;
+			
+			foreach ($items_arr as $item) {
+				if (isset($item->order_type)) {
+					if ($item->order_type == 'bookset' || $item->order_type == 'package') {
+						$has_bookset = true;
+						break;
+					} elseif ($item->order_type == 'uniform') {
+						$has_uniform = true;
+					}
 				}
 			}
-		}
-		
-		if ($has_bookset) {
-			$order_type = 'bookset';
-		} elseif ($has_uniform) {
-			$order_type = 'uniform';
+			
+			if ($has_bookset) {
+				$order_type = 'bookset';
+			} elseif ($has_uniform) {
+				$order_type = 'uniform';
+			}
 		}
 		
 		// Get bookset products and info if order type is bookset
 		$bookset_products = array();
 		$bookset_info = null;
 		if ($order_type == 'bookset') {
-			// Get bookset products from erp_bookset_order_products
-			if ($this->db->table_exists('erp_bookset_order_products')) {
+			// First, try to get bookset products from tbl_order_bookset_products (the actual ordered products)
+			if ($this->db->table_exists('tbl_order_bookset_products')) {
+				$bookset_products = $this->db->select('*')
+					->from('tbl_order_bookset_products')
+					->where('order_id', $order_id)
+					->order_by('package_id', 'ASC')
+					->order_by('id', 'ASC')
+					->get()
+					->result();
+			}
+			
+			// If no products from tbl_order_bookset_products, try erp_bookset_order_products
+			if (empty($bookset_products) && $this->db->table_exists('erp_bookset_order_products')) {
 				$bookset_products = $this->db->select('*')
 					->from('erp_bookset_order_products')
 					->where('order_id', $order_id)
@@ -323,32 +339,128 @@ class Orders extends Vendor_base
 					->result();
 			}
 			
-			// Get bookset info (school, grade, board, student details)
+			// If no products from erp_bookset_order_products, try to get from bookset_packages_json in tbl_order_items
+			if (empty($bookset_products) && !empty($items_arr)) {
+				foreach ($items_arr as $item) {
+					if (isset($item->order_type) && $item->order_type == 'bookset') {
+						// Try to get bookset_packages_json from order item
+						// Note: This field might be stored in a different way, so we'll use the data we have
+						$bookset_id = isset($item->product_id) ? $item->product_id : null;
+						$package_ids = isset($item->package_id) ? $item->package_id : '';
+						
+						// If package_ids exist, fetch products from packages
+						if (!empty($package_ids)) {
+							$package_id_array = explode(',', $package_ids);
+							$package_id_array = array_filter(array_map('trim', $package_id_array));
+							
+							if (!empty($package_id_array) && $this->db->table_exists('erp_bookset_package_products')) {
+								$package_products = $this->db->select('bpp.*, bp.package_name, bp.package_price')
+									->from('erp_bookset_package_products bpp')
+									->join('erp_bookset_packages bp', 'bp.id = bpp.package_id', 'left')
+									->where_in('bpp.package_id', $package_id_array)
+									->where('bpp.status', 'active')
+									->order_by('bpp.package_id', 'ASC')
+									->order_by('bpp.id', 'ASC')
+									->get()
+									->result();
+								
+								foreach ($package_products as $pkg_prod) {
+									$bookset_products[] = (object)array(
+										'package_id' => $pkg_prod->package_id,
+										'package_name' => $pkg_prod->package_name,
+										'package_price' => $pkg_prod->package_price,
+										'product_id' => $pkg_prod->product_id,
+										'product_type' => $pkg_prod->product_type,
+										'product_name' => $pkg_prod->display_name,
+										'product_sku' => '',
+										'quantity' => $pkg_prod->quantity,
+										'unit_price' => $pkg_prod->discounted_mrp,
+										'total_price' => $pkg_prod->discounted_mrp * $pkg_prod->quantity,
+									);
+								}
+							}
+						}
+						break; // Only process first bookset item
+					}
+				}
+			}
+			
+			// Get bookset info (school, grade, board, student details) from order items
 			if (!empty($items_arr)) {
-				$first_item = $items_arr[0];
-				$bookset_id = isset($first_item->bookset_id) ? $first_item->bookset_id : (isset($first_item->product_id) && isset($first_item->order_type) && $first_item->order_type == 'bookset' ? $first_item->product_id : null);
-				$package_id = isset($first_item->package_id) ? $first_item->package_id : (isset($first_item->product_id) && isset($first_item->order_type) && $first_item->order_type == 'package' ? $first_item->product_id : null);
-				
-				if (!empty($bookset_id) && $this->db->table_exists('erp_booksets')) {
-					$bookset_info = $this->db->select('bs.*, s.school_name, tg.name as grade_name, sb.board_name')
-						->from('erp_booksets bs')
-						->join('erp_schools s', 's.id = bs.school_id', 'left')
-						->join('erp_textbook_grades tg', 'tg.id = bs.grade_id', 'left')
-						->join('erp_school_boards sb', 'sb.id = bs.board_id', 'left')
-						->where('bs.id', $bookset_id)
-						->limit(1)
-						->get()
-						->row();
-				} elseif (!empty($package_id) && $this->db->table_exists('erp_bookset_packages')) {
-					$bookset_info = $this->db->select('bp.*, s.school_name, tg.name as grade_name, sb.board_name')
-						->from('erp_bookset_packages bp')
-						->join('erp_schools s', 's.id = bp.school_id', 'left')
-						->join('erp_textbook_grades tg', 'tg.id = bp.grade_id', 'left')
-						->join('erp_school_boards sb', 'sb.id = bp.board_id', 'left')
-						->where('bp.id', $package_id)
-						->limit(1)
-						->get()
-						->row();
+				foreach ($items_arr as $item) {
+					if (isset($item->order_type) && $item->order_type == 'bookset') {
+						// Get info directly from order item
+						$bookset_info = new stdClass();
+						$bookset_info->school_id = isset($item->school_id) ? $item->school_id : null;
+						$bookset_info->grade_id = isset($item->grade_id) ? $item->grade_id : null;
+						$bookset_info->board_id = isset($item->board_id) ? $item->board_id : null;
+						$bookset_info->f_name = isset($item->f_name) ? $item->f_name : '';
+						$bookset_info->m_name = isset($item->m_name) ? $item->m_name : '';
+						$bookset_info->s_name = isset($item->s_name) ? $item->s_name : '';
+						$bookset_info->dob = isset($item->dob) ? $item->dob : '';
+						
+						// Get roll_number - check direct field first, then JSON
+						$roll_number = '';
+						if (isset($item->roll_number) && !empty($item->roll_number)) {
+							$roll_number = $item->roll_number;
+						} elseif (isset($item->roll_no) && !empty($item->roll_no)) {
+							$roll_number = $item->roll_no;
+						} elseif (isset($item->bookset_packages_json) && !empty($item->bookset_packages_json)) {
+							// Try to extract from JSON
+							$json_data = json_decode($item->bookset_packages_json, true);
+							if (is_array($json_data) && isset($json_data['roll_number'])) {
+								$roll_number = $json_data['roll_number'];
+							} elseif (is_array($json_data) && isset($json_data['roll_no'])) {
+								$roll_number = $json_data['roll_no'];
+							} elseif (is_object($json_data) && isset($json_data->roll_number)) {
+								$roll_number = $json_data->roll_number;
+							} elseif (is_object($json_data) && isset($json_data->roll_no)) {
+								$roll_number = $json_data->roll_no;
+							}
+						}
+						$bookset_info->roll_number = $roll_number;
+						
+						// Fetch school name if school_id exists
+						if (!empty($bookset_info->school_id) && $this->db->table_exists('erp_schools')) {
+							$school_row = $this->db->select('school_name')
+								->from('erp_schools')
+								->where('id', $bookset_info->school_id)
+								->limit(1)
+								->get()
+								->row();
+							if (!empty($school_row)) {
+								$bookset_info->school_name = $school_row->school_name;
+							}
+						}
+						
+						// Fetch grade name if grade_id exists
+						if (!empty($bookset_info->grade_id) && $this->db->table_exists('erp_textbook_grades')) {
+							$grade_row = $this->db->select('name as grade_name')
+								->from('erp_textbook_grades')
+								->where('id', $bookset_info->grade_id)
+								->limit(1)
+								->get()
+								->row();
+							if (!empty($grade_row)) {
+								$bookset_info->grade_name = $grade_row->grade_name;
+							}
+						}
+						
+						// Fetch board name if board_id exists
+						if (!empty($bookset_info->board_id) && $this->db->table_exists('erp_school_boards')) {
+							$board_row = $this->db->select('board_name')
+								->from('erp_school_boards')
+								->where('id', $bookset_info->board_id)
+								->limit(1)
+								->get()
+								->row();
+							if (!empty($board_row)) {
+								$bookset_info->board_name = $board_row->board_name;
+							}
+						}
+						
+						break; // Only process first bookset item
+					}
 				}
 			}
 		}
@@ -356,17 +468,21 @@ class Orders extends Vendor_base
 		// Get order status history from erp_order_status_history
 		$status_history = array();
 		if ($this->db->table_exists('erp_order_status_history')) {
-			// Try to get order_id from erp_orders table first
+			// Try to get order_id from erp_orders table
+			// Note: erp_orders uses 'order_number', not 'order_unique_id'
 			$erp_order = $this->db->select('id')
 				->from('erp_orders')
 				->where('order_number', $order_no)
-				->or_where('order_unique_id', $order_no)
 				->limit(1)
 				->get()
 				->row();
 			
 			$erp_order_id = !empty($erp_order) ? $erp_order->id : null;
 			
+			// If order not found in erp_orders, it might be from tbl_order_details
+			// In that case, check if there's a relationship via order_id
+			// Since erp_order_status_history references erp_orders.id, 
+			// we can only get history if order exists in erp_orders
 			if (!empty($erp_order_id)) {
 				$status_history = $this->db->select('*')
 					->from('erp_order_status_history')
@@ -375,6 +491,21 @@ class Orders extends Vendor_base
 					->get()
 					->result();
 			}
+		}
+		
+		// Get additional status entries from tbl_order_status
+		$additional_status = array();
+		if (!empty($order_data[0]->id)) {
+			$additional_status = $this->db->select('*')
+				->from('tbl_order_status')
+				->where('order_id', $order_data[0]->id)
+				->where('status_title !=', '1') // Exclude order placed
+				->where('status_title !=', '2') // Exclude processing (we use processing_date)
+				->where('status_title !=', '3') // Exclude out for delivery (we use shipment_date)
+				->where('status_title !=', '4') // Exclude delivered (we use delivery_date)
+				->order_by('created_at', 'ASC')
+				->get()
+				->result();
 		}
 		
 		// Prepare page data
@@ -389,6 +520,8 @@ class Orders extends Vendor_base
 		$data['bookset_products'] = $bookset_products;
 		$data['bookset_info'] = $bookset_info;
 		$data['status_history'] = $status_history;
+		$data['additional_status'] = $additional_status;
+		$data['order_id'] = isset($order_data[0]->id) ? $order_data[0]->id : 0;
 		
 		// Load content view
 		$data['content'] = $this->load->view('vendor/orders/view', $data, TRUE);
@@ -591,6 +724,372 @@ class Orders extends Vendor_base
 			echo json_encode([
 				'status' => '400',
 				'message' => 'No orders were updated. Please ensure orders are in out for delivery status.',
+			]);
+		}
+	}
+	
+	/**
+	 * Move single order to processing status
+	 *
+	 * @return	void
+	 */
+	public function move_to_processing_single()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+		
+		if (empty($order_unique_id)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order ID is required.',
+			]);
+			return;
+		}
+		
+		// Get order by unique_id
+		$order = $this->Order_model->get_order($order_unique_id);
+		
+		if (empty($order)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order not found.',
+			]);
+			return;
+		}
+		
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+		
+		// Verify order is in pending status
+		if ($order_data->order_status != '1' && $order_data->order_status != 1) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order must be in pending status to move to processing.',
+			]);
+			return;
+		}
+		
+		// Update order status
+		$processing_date = date("Y-m-d H:i:s");
+		$this->db->where('id', $order_id);
+		$this->db->where('order_status', '1');
+		$this->db->update('tbl_order_details', array(
+			'order_status' => '2',
+			'processing_date' => $processing_date
+		));
+		
+		if ($this->db->affected_rows() > 0) {
+			// Update order items status
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '2'));
+			
+			// Add status history
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => '2',
+				'status_desc' => 'Order moved to processing',
+				'created_at' => $processing_date
+			));
+			
+			echo json_encode([
+				'status' => '200',
+				'message' => 'Order moved to processing successfully.',
+			]);
+		} else {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Failed to update order status.',
+			]);
+		}
+	}
+	
+	/**
+	 * Set shipper (courier) for an order
+	 *
+	 * @return	void
+	 */
+	public function set_shipper()
+	{
+		// Debug: Log incoming data
+		log_message('debug', 'set_shipper called with POST data: ' . print_r($this->input->post(), true));
+		
+		$order_unique_id = $this->input->post('order_unique_id');
+		$courier = $this->input->post('courier'); // 'manual' or 'shiprocket'
+		
+		if (empty($order_unique_id) || empty($courier)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order ID and courier type are required. Received: order_id=' . $order_unique_id . ', courier=' . $courier,
+			]);
+			return;
+		}
+		
+		if (!in_array($courier, ['manual', 'shiprocket'])) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Invalid courier type. Must be "manual" or "shiprocket". Received: ' . $courier,
+			]);
+			return;
+		}
+		
+		// Get order by unique_id
+		$order = $this->Order_model->get_order($order_unique_id);
+		
+		if (empty($order)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order not found.',
+			]);
+			return;
+		}
+		
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+		
+		// Verify order is in processing status
+		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order must be in processing status to set shipper. Current status: ' . $order_data->order_status,
+			]);
+			return;
+		}
+		
+		// Update courier - save as 'manual' for self delivery (enum only allows 'shiprocket', 'manual', '')
+		// Note: Database enum is ('shiprocket','manual',''), so we use 'manual' instead of 'SELF'
+		$courier_value = ($courier == 'manual') ? 'manual' : $courier;
+		
+		// Check current courier value first
+		$current_courier_row = $this->db->select('courier')
+			->from('tbl_order_details')
+			->where('id', $order_id)
+			->get()
+			->row();
+		
+		$current_courier = !empty($current_courier_row) ? $current_courier_row->courier : null;
+		
+		// If already set to the same value, return success
+		if ($current_courier == $courier_value) {
+			echo json_encode([
+				'status' => '200',
+				'message' => 'Shipper is already set to ' . ($courier == 'manual' ? 'Self Delivery' : '3rd Party (Shiprocket)') . '.',
+			]);
+			return;
+		}
+		
+		// Debug: Log update attempt
+		log_message('debug', 'Updating order_id=' . $order_id . ' with courier=' . $courier_value . ' (current: ' . $current_courier . ')');
+		
+		// Update courier
+		$this->db->where('id', $order_id);
+		$update_result = $this->db->update('tbl_order_details', array(
+			'courier' => $courier_value
+		));
+		
+		// Check for database errors
+		$db_error = $this->db->error();
+		if (!empty($db_error['message'])) {
+			log_message('error', 'Database error: ' . $db_error['message']);
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Database error: ' . $db_error['message'],
+			]);
+			return;
+		}
+		
+		$affected_rows = $this->db->affected_rows();
+		log_message('debug', 'Update result: ' . ($update_result ? 'true' : 'false') . ', affected_rows=' . $affected_rows . ', SQL: ' . $this->db->last_query());
+		
+		// Verify the update
+		$updated_courier_row = $this->db->select('courier')
+			->from('tbl_order_details')
+			->where('id', $order_id)
+			->get()
+			->row();
+		
+		$updated_courier = !empty($updated_courier_row) ? $updated_courier_row->courier : null;
+		
+		if ($updated_courier == $courier_value || $affected_rows > 0) {
+			// Add timeline entry
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => isset($this->current_vendor['id']) ? $this->current_vendor['id'] : 0,
+				'product_id' => 0,
+				'status_title' => 'Shipper Selected',
+				'status_desc' => 'Shipper set to ' . ($courier == 'manual' ? 'Self Delivery' : '3rd Party (Shiprocket)'),
+				'created_at' => date('Y-m-d H:i:s')
+			));
+			
+			echo json_encode([
+				'status' => '200',
+				'message' => 'Shipper set to ' . ($courier == 'manual' ? 'Self Delivery' : '3rd Party (Shiprocket)') . ' successfully.',
+			]);
+		} else {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Failed to update shipper. Current courier: ' . ($current_courier ? $current_courier : 'empty') . ', Attempted: ' . $courier_value . ', After update: ' . ($updated_courier ? $updated_courier : 'empty'),
+			]);
+		}
+	}
+	
+	/**
+	 * Move single order to out for delivery status
+	 *
+	 * @return	void
+	 */
+	public function move_to_out_for_delivery_single()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+		
+		if (empty($order_unique_id)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order ID is required.',
+			]);
+			return;
+		}
+		
+		// Get order by unique_id
+		$order = $this->Order_model->get_order($order_unique_id);
+		
+		if (empty($order)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order not found.',
+			]);
+			return;
+		}
+		
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+		
+		// Verify order is in processing status
+		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order must be in processing status to move to out for delivery.',
+			]);
+			return;
+		}
+		
+		// For self delivery, verify shipping label exists
+		if ($order_data->courier == 'manual' && empty($order_data->shipping_label)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Shipping label must be generated before moving to out for delivery.',
+			]);
+			return;
+		}
+		
+		// Update order status
+		$shipment_date = date("Y-m-d H:i:s");
+		$this->db->where('id', $order_id);
+		$this->db->where('order_status', '2');
+		$this->db->update('tbl_order_details', array(
+			'order_status' => '3',
+			'shipment_date' => $shipment_date
+		));
+		
+		if ($this->db->affected_rows() > 0) {
+			// Update order items status
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '3'));
+			
+			// Add status history
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => '3',
+				'status_desc' => 'Order moved to out for delivery',
+				'created_at' => $shipment_date
+			));
+			
+			echo json_encode([
+				'status' => '200',
+				'message' => 'Order moved to out for delivery successfully.',
+			]);
+		} else {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Failed to update order status.',
+			]);
+		}
+	}
+	
+	/**
+	 * Move single order to delivered status
+	 *
+	 * @return	void
+	 */
+	public function move_to_delivered_single()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+		
+		if (empty($order_unique_id)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order ID is required.',
+			]);
+			return;
+		}
+		
+		// Get order by unique_id
+		$order = $this->Order_model->get_order($order_unique_id);
+		
+		if (empty($order)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order not found.',
+			]);
+			return;
+		}
+		
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+		
+		// Verify order is in out for delivery status
+		if ($order_data->order_status != '3' && $order_data->order_status != 3) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order must be in out for delivery status to mark as delivered.',
+			]);
+			return;
+		}
+		
+		// Update order status
+		$delivery_date = date("Y-m-d H:i:s");
+		$this->db->where('id', $order_id);
+		$this->db->where('order_status', '3');
+		$this->db->update('tbl_order_details', array(
+			'order_status' => '4',
+			'delivery_date' => $delivery_date
+		));
+		
+		if ($this->db->affected_rows() > 0) {
+			// Update order items status
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '4'));
+			
+			// Add status history
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => '4',
+				'status_desc' => 'Order delivered',
+				'created_at' => $delivery_date
+			));
+			
+			echo json_encode([
+				'status' => '200',
+				'message' => 'Order marked as delivered successfully.',
+			]);
+		} else {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Failed to update order status.',
 			]);
 		}
 	}
@@ -1748,7 +2247,7 @@ class Orders extends Vendor_base
 		$order_update_data = array(
 			'shipping_label' => $relative_path,
 			'ship_order_id' => $unique_ship_order_id,
-			'courier' => 'SELF'
+			'courier' => 'manual' // 'manual' means self delivery (enum only allows 'shiprocket', 'manual', '')
 		);
 		
 		// Add barcode_path if we have it
@@ -1758,6 +2257,16 @@ class Orders extends Vendor_base
 		
 		$this->db->where('id', $order_id);
 		$this->db->update('tbl_order_details', $order_update_data);
+		
+		// Add timeline entry for shipping label generation
+		$this->db->insert('tbl_order_status', array(
+			'order_id' => $order_id,
+			'user_id' => isset($this->current_vendor['id']) ? $this->current_vendor['id'] : 0,
+			'product_id' => 0,
+			'status_title' => 'Shipping Label Generated',
+			'status_desc' => 'Shipping label has been generated and is ready for download',
+			'created_at' => date('Y-m-d H:i:s')
+		));
 		
 		// Update vendor_shipping_label table with label URL if label_id exists and table exists
 		if ($label_id && $this->db->table_exists('vendor_shipping_label')) {
@@ -1770,8 +2279,9 @@ class Orders extends Vendor_base
 		// End output buffering
 		ob_end_clean();
 		
-		// Redirect to download
-		redirect(base_url('orders/download_shipping_label/' . $order_no));
+		// Set success message and redirect back to order view (page will auto-reload)
+		$this->session->set_flashdata('success', 'Shipping label generated successfully.');
+		redirect(base_url('orders/view/' . $order_no));
 	}
 	
 	/**

@@ -6,6 +6,19 @@ class Pdf_model extends CI_Model
 {
     private function generate_qr_base64($text)
     {
+        // Override QR config to prevent database connection errors
+        if (!defined('QR_CACHEABLE')) {
+            define('QR_CACHEABLE', false);
+        }
+        
+        if (!defined('QR_TEMP_DIR')) {
+            $temp_dir = FCPATH . 'uploads/qrtemp/';
+            if (!is_dir($temp_dir)) {
+                @mkdir($temp_dir, 0777, true);
+            }
+            define('QR_TEMP_DIR', $temp_dir);
+        }
+        
         include_once APPPATH . 'libraries/phpqrcode/qrlib.php';
 
         $folder = FCPATH . 'uploads/vendor_picqer_barcode/';
@@ -29,22 +42,50 @@ class Pdf_model extends CI_Model
         
         // Fetch school_name and grade_name for bookset orders if not already in order object
         if ($order_type_label == 'Bookset') {
-            // If school_name is not set, try to get it from order
-            if (empty($order->school_name) && !empty($order->school_id)) {
-                $school_row = $this->db->select('school_name')
-                    ->from('erp_schools')
-                    ->where('id', $order->school_id)
-                    ->limit(1)
-                    ->get()
-                    ->row();
-                if (!empty($school_row)) {
-                    $order->school_name = $school_row->school_name;
+            // First, try to get school_id from order items if not in order object
+            if (empty($order->school_id) && !empty($items_arr)) {
+                foreach ($items_arr as $item) {
+                    if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->school_id)) {
+                        $order->school_id = $item->school_id;
+                        break;
+                    }
+                }
+            }
+            
+            // If school_name is not set, try to get it from order or order items
+            if (empty($order->school_name)) {
+                $school_id_to_use = !empty($order->school_id) ? $order->school_id : null;
+                
+                // If still no school_id, try to get from order items
+                if (empty($school_id_to_use) && !empty($items_arr)) {
+                    foreach ($items_arr as $item) {
+                        if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->school_id)) {
+                            $school_id_to_use = $item->school_id;
+                            $order->school_id = $school_id_to_use;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!empty($school_id_to_use) && $this->db->table_exists('erp_schools')) {
+                    $school_row = $this->db->select('school_name')
+                        ->from('erp_schools')
+                        ->where('id', $school_id_to_use)
+                        ->limit(1)
+                        ->get()
+                        ->row();
+                    if (!empty($school_row)) {
+                        $order->school_name = $school_row->school_name;
+                    }
                 }
             }
             
             // If grade_name is not set, try to get it from order items (booksets/packages)
             if (empty($order->grade_name) && !empty($items_arr)) {
                 foreach ($items_arr as $item) {
+                    // First, try to get grade_id directly from order item (if it exists in tbl_order_items)
+                    // Note: tbl_order_items might not have grade_id field, so we'll get it from bookset/package
+                    
                     // Handle erp_order_items table structure (has bookset_id and package_id fields)
                     $bookset_id = isset($item->bookset_id) ? $item->bookset_id : null;
                     $package_id = isset($item->package_id) ? $item->package_id : null;
@@ -62,31 +103,69 @@ class Pdf_model extends CI_Model
                     
                     // Try to get grade from bookset
                     if (!empty($bookset_id) && $this->db->table_exists('erp_booksets')) {
-                        $bookset_row = $this->db->select('bs.grade_id, tg.name as grade_name')
+                        $bookset_row = $this->db->select('bs.grade_id, tg.name as grade_name, bs.school_id')
                             ->from('erp_booksets bs')
                             ->join('erp_textbook_grades tg', 'tg.id = bs.grade_id', 'left')
                             ->where('bs.id', $bookset_id)
                             ->limit(1)
                             ->get()
                             ->row();
-                        if (!empty($bookset_row) && !empty($bookset_row->grade_name)) {
-                            $order->grade_name = $bookset_row->grade_name;
+                        if (!empty($bookset_row)) {
+                            if (!empty($bookset_row->grade_name)) {
+                                $order->grade_name = $bookset_row->grade_name;
+                            }
+                            // Also set school_id if not already set
+                            if (empty($order->school_id) && !empty($bookset_row->school_id)) {
+                                $order->school_id = $bookset_row->school_id;
+                                // Fetch school name
+                                $school_row = $this->db->select('school_name')
+                                    ->from('erp_schools')
+                                    ->where('id', $bookset_row->school_id)
+                                    ->limit(1)
+                                    ->get()
+                                    ->row();
+                                if (!empty($school_row)) {
+                                    $order->school_name = $school_row->school_name;
+                                }
+                            }
                             break;
                         }
                     }
                     
-                    // Try to get grade from package
+                    // Try to get grade from package (if package_id is a single value or first value from comma-separated)
                     if (empty($order->grade_name) && !empty($package_id) && $this->db->table_exists('erp_bookset_packages')) {
-                        $package_row = $this->db->select('bp.grade_id, tg.name as grade_name')
-                            ->from('erp_bookset_packages bp')
-                            ->join('erp_textbook_grades tg', 'tg.id = bp.grade_id', 'left')
-                            ->where('bp.id', $package_id)
-                            ->limit(1)
-                            ->get()
-                            ->row();
-                        if (!empty($package_row) && !empty($package_row->grade_name)) {
-                            $order->grade_name = $package_row->grade_name;
-                            break;
+                        // Handle comma-separated package_ids
+                        $package_ids_array = explode(',', $package_id);
+                        $first_package_id = trim($package_ids_array[0]);
+                        
+                        if (!empty($first_package_id)) {
+                            $package_row = $this->db->select('bp.grade_id, tg.name as grade_name, bp.school_id')
+                                ->from('erp_bookset_packages bp')
+                                ->join('erp_textbook_grades tg', 'tg.id = bp.grade_id', 'left')
+                                ->where('bp.id', $first_package_id)
+                                ->limit(1)
+                                ->get()
+                                ->row();
+                            if (!empty($package_row)) {
+                                if (!empty($package_row->grade_name)) {
+                                    $order->grade_name = $package_row->grade_name;
+                                }
+                                // Also set school_id if not already set
+                                if (empty($order->school_id) && !empty($package_row->school_id)) {
+                                    $order->school_id = $package_row->school_id;
+                                    // Fetch school name
+                                    $school_row = $this->db->select('school_name')
+                                        ->from('erp_schools')
+                                        ->where('id', $package_row->school_id)
+                                        ->limit(1)
+                                        ->get()
+                                        ->row();
+                                    if (!empty($school_row)) {
+                                        $order->school_name = $school_row->school_name;
+                                    }
+                                }
+                                break;
+                            }
                         }
                     }
                 }
@@ -154,9 +233,11 @@ class Pdf_model extends CI_Model
             if ($order_type_label == 'Bookset') {
                 if (!empty($order->school_name)) {
                     $output .= '<b>' . htmlspecialchars($order->school_name) . '</b>';
+                }
                     if (!empty($order->grade_name)) {
-                        $output .= ' <br/> <b>' . htmlspecialchars($order->grade_name) . '</b><br/>';
-                    }
+                    $output .= ' <br/> <b>Grade: ' . htmlspecialchars($order->grade_name) . '</b><br/>';
+                } elseif (!empty($order->school_name)) {
+                    $output .= '<br/>';
                 }
             } else {
                 // For other order types, show category
@@ -170,9 +251,75 @@ class Pdf_model extends CI_Model
                 $output .= ' <b>Order Date: ' . date('d M Y', strtotime($order->created_at)) . '</b>';
             }
             
+            // Get student name and roll number for bookset orders
             $student_name = '';
-            if (!empty($address_obj) && !empty($address_obj->student_name)) {
-                $student_name = $address_obj->student_name;
+            $roll_number = '';
+            
+            // First, try to get from items_arr for bookset orders
+            if (!empty($items_arr)) {
+                foreach ($items_arr as $item) {
+                    // Check if this is a bookset order item
+                    $is_bookset_item = false;
+                    if (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package')) {
+                        $is_bookset_item = true;
+                    } elseif ($order_type_label == 'Bookset') {
+                        $is_bookset_item = true;
+                    }
+                    
+                    if ($is_bookset_item) {
+                        // Get student name from order item fields
+                        if (empty($student_name)) {
+                            $f_name = isset($item->f_name) ? trim($item->f_name) : '';
+                            $m_name = isset($item->m_name) ? trim($item->m_name) : '';
+                            $s_name = isset($item->s_name) ? trim($item->s_name) : '';
+                            
+                            // Build full name
+                            $name_parts = array();
+                            if (!empty($f_name)) $name_parts[] = $f_name;
+                            if (!empty($m_name)) $name_parts[] = $m_name;
+                            if (!empty($s_name)) $name_parts[] = $s_name;
+                            
+                            if (!empty($name_parts)) {
+                                $student_name = trim(implode(' ', $name_parts));
+                            }
+                        }
+                        
+                        // Get roll_number - check direct field first, then JSON
+                        if (empty($roll_number)) {
+                            if (isset($item->roll_number) && !empty($item->roll_number)) {
+                                $roll_number = trim($item->roll_number);
+                            } elseif (isset($item->roll_no) && !empty($item->roll_no)) {
+                                $roll_number = trim($item->roll_no);
+                            } elseif (isset($item->bookset_packages_json) && !empty($item->bookset_packages_json)) {
+                                // Try to extract from JSON
+                                $json_data = json_decode($item->bookset_packages_json, true);
+                                if (is_array($json_data)) {
+                                    if (isset($json_data['roll_number']) && !empty($json_data['roll_number'])) {
+                                        $roll_number = trim($json_data['roll_number']);
+                                    } elseif (isset($json_data['roll_no']) && !empty($json_data['roll_no'])) {
+                                        $roll_number = trim($json_data['roll_no']);
+                                    }
+                                } elseif (is_object($json_data)) {
+                                    if (isset($json_data->roll_number) && !empty($json_data->roll_number)) {
+                                        $roll_number = trim($json_data->roll_number);
+                                    } elseif (isset($json_data->roll_no) && !empty($json_data->roll_no)) {
+                                        $roll_number = trim($json_data->roll_no);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // If we found student info, break (only need first bookset item)
+                        if (!empty($student_name) || !empty($roll_number)) {
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If still no student name, try from address_obj
+            if (empty($student_name) && !empty($address_obj) && !empty($address_obj->student_name)) {
+                $student_name = trim($address_obj->student_name);
             }
             
             $output .= '</h4>
@@ -200,8 +347,14 @@ class Pdf_model extends CI_Model
                         <div><b>Name:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : (!empty($order->user_name) ? $order->user_name : '')) . '</div>
                         <div><b>Contact No:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->mobile_no) ? $address_obj->mobile_no : (!empty($order->user_phone) ? $order->user_phone : '')) . '</div>';
             
-            if ($student_name != '' && $student_name != NULL) {
-                $output .= '<div><b>Student:</b> ' . htmlspecialchars($student_name) . '</div>';
+            // Display student name if available
+            if (!empty($student_name) && trim($student_name) != '') {
+                $output .= '<div><b>Student:</b> <b>' . htmlspecialchars($student_name) . '</b></div>';
+            }
+            
+            // Display roll number if available
+            if (!empty($roll_number) && trim($roll_number) != '') {
+                $output .= '<div><b>Roll Number:</b> <b>' . htmlspecialchars($roll_number) . '</b></div>';
             }
             
             $output .= '<div><b>Address:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->address) ? $address_obj->address : '') . '</div>
@@ -235,11 +388,210 @@ class Pdf_model extends CI_Model
                     </thead>
                     <tbody>';
 
+            // Calculate total invoice value for bookset orders
+            $total_invoice_value = 0;
+            if ($order_type_label == 'Bookset') {
+                // Try multiple fields for bookset orders
+                if (!empty($order->payable_amt) && floatval($order->payable_amt) > 0) {
+                    $total_invoice_value = floatval($order->payable_amt);
+                } elseif (!empty($order->total_amt) && floatval($order->total_amt) > 0) {
+                    $total_invoice_value = floatval($order->total_amt);
+                } elseif (!empty($order->payment_amount) && floatval($order->payment_amount) > 0) {
+                    $total_invoice_value = floatval($order->payment_amount);
+                } else {
+                    // Fallback: sum up item prices
+                    foreach ($items_arr as $item) {
+                        if (!empty($item->total_price) && floatval($item->total_price) > 0) {
+                            $total_invoice_value += floatval($item->total_price);
+                        } elseif (!empty($item->product_price) && floatval($item->product_price) > 0) {
+                            $qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
+                            $total_invoice_value += (floatval($item->product_price) * $qty);
+                        }
+                    }
+                }
+            } else {
+                // For individual orders, sum up item prices
+                foreach ($items_arr as $item) {
+                    if (!empty($item->total_price) && floatval($item->total_price) > 0) {
+                        $total_invoice_value += floatval($item->total_price);
+                    } elseif (!empty($item->product_price) && floatval($item->product_price) > 0) {
+                        $qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
+                        $total_invoice_value += (floatval($item->product_price) * $qty);
+                    }
+                }
+                // If still 0, try order fields
+                if ($total_invoice_value == 0) {
+                    if (!empty($order->payable_amt) && floatval($order->payable_amt) > 0) {
+                        $total_invoice_value = floatval($order->payable_amt);
+                    } elseif (!empty($order->total_amt) && floatval($order->total_amt) > 0) {
+                        $total_invoice_value = floatval($order->total_amt);
+                    }
+                }
+            }
+            
+            // Store bookset products for weight calculation
+            $bookset_products_for_weight = array();
+            
+            // For bookset orders, fetch products from tbl_order_bookset_products
+            if ($order_type_label == 'Bookset' && $this->db->table_exists('tbl_order_bookset_products')) {
+                // Get order_id from order object
+                $order_id_for_bookset = isset($order->id) ? $order->id : null;
+                if (empty($order_id_for_bookset) && !empty($items_arr)) {
+                    // Try to get order_id from first item
             foreach ($items_arr as $item) {
+                        if (isset($item->order_id)) {
+                            $order_id_for_bookset = $item->order_id;
+                            break;
+                        }
+                    }
+                }
+                
+                // Debug: Log order_id being used
+                // error_log("Shipping Label - Order ID for bookset: " . $order_id_for_bookset);
+                
+                if (!empty($order_id_for_bookset)) {
+                    // Fetch bookset products grouped by package
+                    $bookset_products = $this->db->select('*')
+                        ->from('tbl_order_bookset_products')
+                        ->where('order_id', $order_id_for_bookset)
+                        ->order_by('package_id', 'ASC')
+                        ->order_by('id', 'ASC')
+                        ->get()
+                        ->result();
+                    
+                    // Store for weight calculation
+                    $bookset_products_for_weight = $bookset_products;
+                    
+                    // Debug: Log number of products found
+                    // error_log("Shipping Label - Bookset products found: " . count($bookset_products));
+                    
+                    if (!empty($bookset_products) && count($bookset_products) > 0) {
+                        // Group by package
+                        $packages = array();
+                        foreach ($bookset_products as $bookset_product) {
+                            $package_id = isset($bookset_product->package_id) ? $bookset_product->package_id : 0;
+                            $package_name = isset($bookset_product->package_name) ? $bookset_product->package_name : 'Package ' . $package_id;
+                            
+                            if (!isset($packages[$package_id])) {
+                                $packages[$package_id] = array(
+                                    'package_name' => $package_name,
+                                    'products' => array()
+                                );
+                            }
+                            $packages[$package_id]['products'][] = $bookset_product;
+                        }
+                        
+                        // Display packages and their products
+                        foreach ($packages as $package_id => $package_data) {
+                            // Package header row
                 $output .= '<tr>
-                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . htmlspecialchars($order->order_unique_id) . '</td>
-                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($order->invoice_no) ? htmlspecialchars($order->invoice_no) : '') . '</td>
-                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold;" colspan="5">
+                                        Package: ' . htmlspecialchars($package_data['package_name']) . '
+                                    </td>
+                                </tr>';
+                            
+                            // Products in this package
+                            foreach ($package_data['products'] as $bookset_product) {
+                                $product_name = isset($bookset_product->product_name) ? $bookset_product->product_name : 'Product';
+                                $product_sku = isset($bookset_product->product_sku) ? $bookset_product->product_sku : '';
+                                
+                                $output .= '<tr>
+                                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . htmlspecialchars($order->order_unique_id) . '</td>
+                                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($order->invoice_no) ? htmlspecialchars($order->invoice_no) : '') . '</td>
+                                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">
+                                            <small class="book-pack">' . htmlspecialchars($product_name) . '</small>
+                                        </td>
+                                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($product_sku) ? htmlspecialchars($product_sku) : '-') . '</td>
+                                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
+                                
+                                // Calculate invoice value for this product
+                                $item_invoice_value = 0;
+                                if (isset($bookset_product->total_price) && !empty($bookset_product->total_price) && floatval($bookset_product->total_price) > 0) {
+                                    $item_invoice_value = floatval($bookset_product->total_price);
+                                } elseif (isset($bookset_product->unit_price) && !empty($bookset_product->unit_price)) {
+                                    $qty = isset($bookset_product->quantity) ? intval($bookset_product->quantity) : 1;
+                                    $item_invoice_value = floatval($bookset_product->unit_price) * $qty;
+                                } elseif ($total_invoice_value > 0 && count($bookset_products) > 0) {
+                                    // Fallback: divide total by number of products
+                                    $item_invoice_value = $total_invoice_value / count($bookset_products);
+                                }
+                                
+                                $output .= number_format($item_invoice_value, 2) . '</td>
+                                    </tr>';
+                            }
+                        }
+                    } else {
+                        // Fallback to items_arr if no bookset products found
+                        $item_count = count($items_arr);
+                        $invoice_value_per_item = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
+                        
+                        foreach ($items_arr as $item) {
+                            $output .= '<tr>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . htmlspecialchars($order->order_unique_id) . '</td>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($order->invoice_no) ? htmlspecialchars($order->invoice_no) : '') . '</td>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
+                            $output .= (!empty($order->school_name) ? htmlspecialchars($order->school_name) : '') . '<br>';
+                            $output .= '<small class="book-pack">' . htmlspecialchars(isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : '')) . '</small>';
+                            $output .= '</td>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($item->model_number) ? htmlspecialchars($item->model_number) : (!empty($item->product_sku) ? htmlspecialchars($item->product_sku) : '')) . '</td>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
+                            
+                            // Calculate invoice value
+                            $item_invoice_value = 0;
+                            if (!empty($item->total_price) && floatval($item->total_price) > 0) {
+                                $item_invoice_value = floatval($item->total_price);
+                            } elseif ($invoice_value_per_item > 0) {
+                                $item_invoice_value = $invoice_value_per_item;
+                            } elseif (!empty($item->product_price)) {
+                                $qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
+                                $item_invoice_value = floatval($item->product_price) * $qty;
+                            }
+                            
+                            $output .= number_format($item_invoice_value, 2) . '</td>
+                                </tr>';
+                        }
+                    }
+                } else {
+                    // Fallback to items_arr if order_id not found
+                    $item_count = count($items_arr);
+                    $invoice_value_per_item = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
+                    
+                    foreach ($items_arr as $item) {
+                        $output .= '<tr>
+                                <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . htmlspecialchars($order->order_unique_id) . '</td>
+                                <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($order->invoice_no) ? htmlspecialchars($order->invoice_no) : '') . '</td>
+                                <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
+                        $output .= (!empty($order->school_name) ? htmlspecialchars($order->school_name) : '') . '<br>';
+                        $output .= '<small class="book-pack">' . htmlspecialchars(isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : '')) . '</small>';
+                        $output .= '</td>
+                                <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($item->model_number) ? htmlspecialchars($item->model_number) : (!empty($item->product_sku) ? htmlspecialchars($item->product_sku) : '')) . '</td>
+                                <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
+                        
+                        // Calculate invoice value
+                        $item_invoice_value = 0;
+                        if (!empty($item->total_price) && floatval($item->total_price) > 0) {
+                            $item_invoice_value = floatval($item->total_price);
+                        } elseif ($invoice_value_per_item > 0) {
+                            $item_invoice_value = $invoice_value_per_item;
+                        } elseif (!empty($item->product_price)) {
+                            $qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
+                            $item_invoice_value = floatval($item->product_price) * $qty;
+                        }
+                        
+                        $output .= number_format($item_invoice_value, 2) . '</td>
+                            </tr>';
+                    }
+                }
+            } else {
+                // For individual orders or if table doesn't exist
+                $item_count = count($items_arr);
+                $invoice_value_per_item = ($item_count > 0 && $order_type_label == 'Bookset' && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
+                
+                foreach ($items_arr as $item) {
+                    $output .= '<tr>
+                            <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . htmlspecialchars($order->order_unique_id) . '</td>
+                            <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($order->invoice_no) ? htmlspecialchars($order->invoice_no) : '') . '</td>
+                            <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
                 if ($order_type_label == 'Individual') {
                     $output .= htmlspecialchars(isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : ''));
                 } else {
@@ -247,9 +599,36 @@ class Pdf_model extends CI_Model
                     $output .= '<small class="book-pack">' . htmlspecialchars(isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : '')) . '</small>';
                 }
                 $output .= '</td>
-                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($item->model_number) ? htmlspecialchars($item->model_number) : (!empty($item->product_sku) ? htmlspecialchars($item->product_sku) : '')) . '</td>
-                        <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($item->total_price) ? number_format($item->total_price, 2) : (!empty($item->product_price) ? number_format($item->product_price * (isset($item->product_qty) ? $item->product_qty : 1), 2) : '0.00')) . '</td>
+                            <td class="text-left" style="border: 1px solid #000; padding: 8px;">' . (!empty($item->model_number) ? htmlspecialchars($item->model_number) : (!empty($item->product_sku) ? htmlspecialchars($item->product_sku) : '')) . '</td>
+                            <td class="text-left" style="border: 1px solid #000; padding: 8px;">';
+                    
+                    // Calculate invoice value for this item
+                    $item_invoice_value = 0;
+                    if ($order_type_label == 'Bookset') {
+                        // For bookset, use calculated per-item value or item's total_price if available
+                        if (!empty($item->total_price) && floatval($item->total_price) > 0) {
+                            $item_invoice_value = floatval($item->total_price);
+                        } elseif ($invoice_value_per_item > 0) {
+                            $item_invoice_value = $invoice_value_per_item;
+                        } elseif (!empty($item->product_price)) {
+                            $qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
+                            $item_invoice_value = floatval($item->product_price) * $qty;
+                        } elseif ($total_invoice_value > 0 && $item_count > 0) {
+                            $item_invoice_value = $total_invoice_value / $item_count;
+                        }
+                    } else {
+                        // For individual orders, use item's price
+                        if (!empty($item->total_price)) {
+                            $item_invoice_value = floatval($item->total_price);
+                        } elseif (!empty($item->product_price)) {
+                            $qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
+                            $item_invoice_value = floatval($item->product_price) * $qty;
+                        }
+                    }
+                    
+                    $output .= number_format($item_invoice_value, 2) . '</td>
                         </tr>';
+                }
             }	
 
             $output .= '</tbody>
@@ -277,9 +656,9 @@ class Pdf_model extends CI_Model
             $seller_info = $this->db->select('name, address, pincode, pan, gstin')
                 ->from('erp_clients')
                 ->limit(1)
-                ->get()
-                ->row();
-            
+                    ->get()
+                    ->row();
+                
             if (!empty($seller_info)) {
                 $output .= '<div><b>' . (!empty($seller_info->name) ? htmlspecialchars($seller_info->name) : '') . '</b></div>';
                 if (!empty($seller_info->address)) {
@@ -309,8 +688,8 @@ class Pdf_model extends CI_Model
             $client_row = $this->db->select('domain')
                 ->from('erp_clients')
                 ->limit(1)
-                ->get()
-                ->row();
+                    ->get()
+                    ->row();
             if (!empty($client_row) && !empty($client_row->domain)) {
                 $vendor_domain = $client_row->domain;
                 // Remove http:// or https:// if present
@@ -323,13 +702,85 @@ class Pdf_model extends CI_Model
             
             // Calculate total weight
             $total_weight = 0;
-            foreach ($items_arr as $item) {
-                $item_weight = isset($item->weight) ? floatval($item->weight) : 0;
-                $item_qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
-                $total_weight += ($item_weight * $item_qty);
+            
+            // For bookset orders, calculate weight from tbl_order_bookset_products
+            if ($order_type_label == 'Bookset' && !empty($bookset_products_for_weight)) {
+                foreach ($bookset_products_for_weight as $bookset_product) {
+                    $product_weight = 0;
+                    $product_qty = isset($bookset_product->quantity) ? intval($bookset_product->quantity) : 1;
+                    
+                    // First, try to get weight from tbl_order_bookset_products
+                    if (isset($bookset_product->weight) && !empty($bookset_product->weight) && floatval($bookset_product->weight) > 0) {
+                        $product_weight = floatval($bookset_product->weight);
+                    } else {
+                        // If weight not in order table, fetch from product tables
+                        $product_id = isset($bookset_product->product_id) ? $bookset_product->product_id : 0;
+                        $product_type = isset($bookset_product->product_type) ? $bookset_product->product_type : '';
+                        
+                        if (!empty($product_id) && !empty($product_type)) {
+                            if ($product_type == 'textbook' && $this->db->table_exists('erp_textbooks')) {
+                                $textbook = $this->db->select('packaging_weight')
+                                    ->from('erp_textbooks')
+                                    ->where('id', $product_id)
+                                    ->limit(1)
+                                    ->get()
+                                    ->row();
+                                if (!empty($textbook) && !empty($textbook->packaging_weight)) {
+                                    $product_weight = floatval($textbook->packaging_weight);
+                                }
+                            } elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebooks')) {
+                                $notebook = $this->db->select('packaging_weight')
+                                    ->from('erp_notebooks')
+                                    ->where('id', $product_id)
+                                    ->limit(1)
+                                    ->get()
+                                    ->row();
+                                if (!empty($notebook) && !empty($notebook->packaging_weight)) {
+                                    $product_weight = floatval($notebook->packaging_weight);
+                                }
+                            } elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery')) {
+                                $stationery = $this->db->select('packaging_weight')
+                                    ->from('erp_stationery')
+                                    ->where('id', $product_id)
+                                    ->limit(1)
+                                    ->get()
+                                    ->row();
+                                if (!empty($stationery) && !empty($stationery->packaging_weight)) {
+                                    $product_weight = floatval($stationery->packaging_weight);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Add to total (weight * quantity)
+                    // Note: If weight is in grams, convert to kg by dividing by 1000
+                    // If weight is already in kg, use as is
+                    if ($product_weight > 0) {
+                        // Assume weight is in grams if > 100, otherwise assume kg
+                        if ($product_weight > 100) {
+                            $product_weight = $product_weight / 1000; // Convert grams to kg
+                        }
+                        $total_weight += ($product_weight * $product_qty);
+                    }
+                }
+            } else {
+                // For individual orders, calculate from items_arr
+                foreach ($items_arr as $item) {
+                    $item_weight = isset($item->weight) ? floatval($item->weight) : 0;
+                    $item_qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
+                    
+                    // If weight is in grams (> 100), convert to kg
+                    if ($item_weight > 100) {
+                        $item_weight = $item_weight / 1000;
+                    }
+                    
+                    $total_weight += ($item_weight * $item_qty);
+                }
             }
-            if ($total_weight == 0) {
-                $total_weight = 5.50; // Default weight if not available
+            
+            // If weight is still 0, use default
+            if ($total_weight == 0 || $total_weight < 0.1) {
+                $total_weight = 5.50; // Default weight if not available (in kg)
             }
             
             // Payment Type
@@ -348,16 +799,16 @@ class Pdf_model extends CI_Model
                     <tr>
                     <th class="text-left" style="width: 25%; padding: 10px;">
                         <p style="font-size: 14px; margin: 5px 0;"><b>Sold On: </b><b style="text-decoration: underline;">' . htmlspecialchars($vendor_domain) . '</b></p>
-                    </th>
+                </th>
                     <th class="text-left" style="width: 25%; padding: 10px;">
                         <p style="font-size: 14px; margin: 5px 0;"><b>Weight: </b><b>' . number_format($total_weight, 2) . ' KG</b></p>
-                    </th>
+                </th>				
                     <th class="text-left" style="width: 25%; padding: 10px;">
                         <p style="font-size: 14px; margin: 5px 0;"><b>Payment Type: </b><b>' . $payment_type . '</b></p>
-                    </th>
+                </th>				
                     
-                    </tr>
-                    </table>';
+                </tr>
+                </table>';
 
             $output .= ' </body>
             </section>';
@@ -3135,14 +3586,21 @@ class Pdf_model extends CI_Model
 	function get_picqer_barcode($code, $id, $field) {
 		$awb_number = $code; // This is the order number
 		
-		// Generate QR code instead of barcode
-		$qrCode = QrCode::create($awb_number)
-			->setSize(300)
-			->setMargin(10);
+		// Include phpqrcode library
+		include_once APPPATH . 'libraries/phpqrcode/qrlib.php';
 		
-		$writer = new PngWriter();
-		$result = $writer->write($qrCode);
-		$qrCodeData = $result->getString();
+		// Override QR config to prevent database connection errors
+		if (!defined('QR_CACHEABLE')) {
+			define('QR_CACHEABLE', false);
+		}
+		
+		if (!defined('QR_TEMP_DIR')) {
+			$temp_dir = FCPATH . 'uploads/qrtemp/';
+			if (!is_dir($temp_dir)) {
+				@mkdir($temp_dir, 0777, true);
+			}
+			define('QR_TEMP_DIR', $temp_dir);
+		}
 		
 		// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
 		$date_folder = date('Y_m_d');
@@ -3166,7 +3624,10 @@ class Pdf_model extends CI_Model
 			. $date_folder . '/'
 			. $file_name;
 
-		@file_put_contents($pngAbsoluteFilePath, $qrCodeData);
+		// Generate QR code using phpqrcode
+		if (!file_exists($pngAbsoluteFilePath)) {
+			QRcode::png($awb_number, $pngAbsoluteFilePath, QR_ECLEVEL_Q, 15, 2);
+		}
 
 		$data_order = array(
 			$field => $relative_path
@@ -3181,14 +3642,21 @@ class Pdf_model extends CI_Model
     function get_picqer_barcode_refresh($code, $id, $field) {
 		$awb_number = $code; // This is the order number
 		
-		// Generate QR code instead of barcode
-		$qrCode = QrCode::create($awb_number)
-			->setSize(300)
-			->setMargin(10);
+		// Include phpqrcode library
+		include_once APPPATH . 'libraries/phpqrcode/qrlib.php';
 		
-		$writer = new PngWriter();
-		$result = $writer->write($qrCode);
-		$qrCodeData = $result->getString();
+		// Override QR config to prevent database connection errors
+		if (!defined('QR_CACHEABLE')) {
+			define('QR_CACHEABLE', false);
+		}
+		
+		if (!defined('QR_TEMP_DIR')) {
+			$temp_dir = FCPATH . 'uploads/qrtemp/';
+			if (!is_dir($temp_dir)) {
+				@mkdir($temp_dir, 0777, true);
+			}
+			define('QR_TEMP_DIR', $temp_dir);
+		}
 		
 		// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
 		$date_folder = date('Y_m_d');
@@ -3212,7 +3680,8 @@ class Pdf_model extends CI_Model
 			. $date_folder . '/'
 			. $file_name;
 
-		@file_put_contents($pngAbsoluteFilePath, $qrCodeData);
+		// Generate QR code using phpqrcode (always regenerate)
+		QRcode::png($awb_number, $pngAbsoluteFilePath, QR_ECLEVEL_Q, 15, 2);
 
 		$data_order = array(
 			$field => $relative_path
