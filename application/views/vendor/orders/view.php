@@ -57,8 +57,8 @@
 }
 
 .order-page .product-image {
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   object-fit: cover;
   border: 1px solid #eee;
   border-radius: 4px;
@@ -285,6 +285,28 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
           <div class="d-flex align-items-center gap-2">
             <span class="badge <?= $status_badge ?>"><?= $status_text ?></span>
+            <?php
+            $order_type_display = 'Individual';
+            if (isset($order_type) && $order_type == 'bookset') {
+              $order_type_display = 'Bookset';
+            }
+            ?>
+            <span class="badge badge-secondary"><?= $order_type_display ?> Order</span>
+            <?php if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_info)): ?>
+              <?php if (!empty($bookset_info->school_name)): ?>
+                <span class="badge badge-info">
+                  <i class="fa fa-school"></i> <?= htmlspecialchars($bookset_info->school_name) ?>
+                  <?php if (!empty($bookset_info->board_name)): ?>
+                    (<?= htmlspecialchars($bookset_info->board_name) ?>)
+                  <?php endif; ?>
+                </span>
+              <?php elseif (!empty($bookset_info->board_name)): ?>
+                <span class="badge badge-success"><i class="fa fa-book"></i> <?= htmlspecialchars($bookset_info->board_name) ?></span>
+              <?php endif; ?>
+              <?php if (!empty($bookset_info->grade_name)): ?>
+                <span class="badge badge-warning"><i class="fa fa-graduation-cap"></i> Class: <?= htmlspecialchars($bookset_info->grade_name) ?></span>
+              <?php endif; ?>
+            <?php endif; ?>
             <?php if ($order_data[0]->order_status != 5): ?>
               <?php if (!empty($order_data[0]->invoice_url)): ?>
                 <a href="<?php echo base_url($order_data[0]->invoice_url); ?>" class="btn btn-sm btn-success" target="_blank">
@@ -310,7 +332,7 @@ if($order_data[0]->payment_method == 'cod'){
             <table class="table table-hover mb-0">
               <thead class="table-light">
                 <tr>
-                  <th style="width: 60px;"></th>
+                  <th style="width: 100px;"></th>
                   <th>Product</th>
                   <th width="100" class="text-center">SKU</th>
                   <th width="80" class="text-center">Qty</th>
@@ -321,29 +343,129 @@ if($order_data[0]->payment_method == 'cod'){
                         <?php
                         // Display bookset products if order type is bookset
                 if (isset($order_type) && $order_type == 'bookset') {
-                  // If bookset_products is empty, try to get from items_arr
-                  if (empty($bookset_products) && !empty($items_arr)) {
-                    foreach ($items_arr as $item) {
-                      if (isset($item->order_type) && $item->order_type == 'bookset') {
-                        // Create a bookset product entry from order item
-                        $bookset_products[] = (object)array(
-                          'package_id' => 0,
-                          'package_name' => 'Bookset Order',
-                          'package_price' => isset($item->product_price) ? $item->product_price : 0,
-                          'product_id' => isset($item->product_id) ? $item->product_id : 0,
-                          'product_type' => 'bookset',
-                          'product_name' => isset($item->product_title) ? $item->product_title : 'Bookset',
-                          'product_sku' => isset($item->product_sku) ? $item->product_sku : '',
-                          'quantity' => isset($item->product_qty) ? $item->product_qty : 1,
-                          'unit_price' => isset($item->product_price) ? $item->product_price : 0,
-                          'total_price' => isset($item->total_price) ? $item->total_price : 0,
-                        );
-                        break; // Only use first bookset item
+                  // Use the new structure from items_arr (packages and books arrays)
+                  $bookset_found = false;
+                  foreach ($items_arr as $item) {
+                    if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->packages)) {
+                      $bookset_found = true;
+
+                      // Display each package and its books
+                      foreach ($item->packages as $package) {
+                        $pkg_has_products = !empty($package['books']);
+                        ?>
+                        <tr>
+                          <td colspan="5" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">
+                            Package: <?= htmlspecialchars($package['package_name']) ?>
+                            <?php if (!$pkg_has_products): ?>
+                              (<?= $currency_code . ' ' . number_format($package['package_price'], 2) ?>)
+                            <?php endif; ?>
+                          </td>
+                        </tr>
+                        <?php
+
+                        // Display each book in this package
+                        foreach ($package['books'] as $book) {
+                          // Get product image
+                          $product_image = '';
+                          if (!empty($book['product_id'])) {
+                            $product_id = $book['product_id'];
+                            $product_type = $book['product_type'];
+
+                            $img_query = null;
+                            if ($product_type == 'textbook' && $this->db->table_exists('erp_textbook_images')) {
+                              $img_query = $this->db->select('image_path')
+                                ->from('erp_textbook_images')
+                                ->where('textbook_id', $product_id)
+                                ->where('is_main', 1)
+                                ->limit(1)
+                                ->get();
+                              if ($img_query->num_rows() == 0) {
+                                $img_query = $this->db->select('image_path')
+                                  ->from('erp_textbook_images')
+                                  ->where('textbook_id', $product_id)
+                                  ->order_by('image_order', 'ASC')
+                                  ->limit(1)
+                                  ->get();
+                              }
+                            } elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebook_images')) {
+                              $img_query = $this->db->select('image_path')
+                                ->from('erp_notebook_images')
+                                ->where('notebook_id', $product_id)
+                                ->where('is_main', 1)
+                                ->limit(1)
+                                ->get();
+                              if ($img_query->num_rows() == 0) {
+                                $img_query = $this->db->select('image_path')
+                                  ->from('erp_notebook_images')
+                                  ->where('notebook_id', $product_id)
+                                  ->order_by('image_order', 'ASC')
+                                  ->limit(1)
+                                  ->get();
+                              }
+                            } elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery_images')) {
+                              $img_query = $this->db->select('image_path')
+                                ->from('erp_stationery_images')
+                                ->where('stationery_id', $product_id)
+                                ->where('is_main', 1)
+                                ->limit(1)
+                                ->get();
+                              if ($img_query->num_rows() == 0) {
+                                $img_query = $this->db->select('image_path')
+                                  ->from('erp_stationery_images')
+                                  ->where('stationery_id', $product_id)
+                                  ->order_by('image_order', 'ASC')
+                                  ->limit(1)
+                                  ->get();
+                              }
+                            }
+
+                            if ($img_query && $img_query->num_rows() > 0) {
+                              $product_image = $img_query->row()->image_path;
+                            }
+                          }
+                          ?>
+                          <tr>
+                            <td>
+                              <?php if (!empty($product_image)):
+                                $stored_path = trim($product_image);
+                                if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+                                  $img_url = $stored_path;
+                                } else {
+                                  $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
+                                }
+                              ?>
+                                <img src="<?= $img_url ?>" alt="Product Image" class="product-image">
+                              <?php else: ?>
+                                <img src="<?= base_url('assets/images/no-image.png') ?>" alt="No Image" class="product-image">
+                              <?php endif; ?>
+                            </td>
+                            <td>
+                              <strong><?= htmlspecialchars($book['product_name']) ?></strong><br>
+                              <?php if (!empty($book['sku'])): ?>
+                                <small class="text-muted">SKU: <?= htmlspecialchars($book['sku']) ?></small><br>
+                              <?php endif; ?>
+                              <?php if (!empty($book['isbn'])): ?>
+                                <small class="text-muted">ISBN: <?= htmlspecialchars($book['isbn']) ?></small>
+                              <?php endif; ?>
+                            </td>
+                            <td>Qty: <?= (int)$book['quantity'] ?></td>
+                            <td>
+                              <?= $currency_code . ' ' . number_format($book['unit_price'], 2) ?>
+                              <?php if ($book['quantity'] > 1): ?>
+                                <br><small class="text-muted">(<?= $currency_code . ' ' . number_format($book['total_price'], 2) ?> total)</small>
+                              <?php endif; ?>
+                            </td>
+                          </tr>
+                          <?php
+                        }
                       }
+
+                      break; // Only process first bookset item
                     }
                   }
-                  
-                  if (!empty($bookset_products)) {
+
+                  // Fallback to old bookset_products structure if new structure not found
+                  if (!$bookset_found && !empty($bookset_products)) {
                           // Group bookset products by package
                           $packages = array();
                           foreach ($bookset_products as $bookset_product) {
@@ -357,14 +479,46 @@ if($order_data[0]->payment_method == 'cod'){
                             }
                             $packages[$package_id]['products'][] = $bookset_product;
                           }
+
+                          // Calculate package prices based on products or stored price
+                          foreach ($packages as $package_id => &$package_data) {
+                            $calculated_package_price = 0;
+                            $has_products = !empty($package_data['products']);
+
+                            if ($has_products) {
+                              // Calculate total from products: sum of (quantity * unit_price or discounted_mrp)
+                              foreach ($package_data['products'] as $product) {
+                                $product_price = 0;
+                                if (isset($product->unit_price) && $product->unit_price > 0) {
+                                  $product_price = (float)$product->unit_price;
+                                } elseif (isset($product->discounted_mrp) && $product->discounted_mrp > 0) {
+                                  $product_price = (float)$product->discounted_mrp;
+                                } elseif (isset($product->total_price) && $product->total_price > 0) {
+                                  $product_price = (float)$product->total_price;
+                                }
+
+                                $quantity = isset($product->quantity) ? (int)$product->quantity : 1;
+                                $calculated_package_price += $product_price * $quantity;
+                              }
+                            } else {
+                              // No products, use the stored package price
+                              $calculated_package_price = (float)$package_data['package_price'];
+                            }
+
+                            // Update the package price
+                            $package_data['package_price'] = $calculated_package_price;
+                          }
                           
                           // Display each package and its products
                           foreach ($packages as $package_id => $package_data) {
+                            $pkg_has_products = !empty($package_data['products']);
                             ?>
                             <tr>
                       <td colspan="5" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">
-                                Package: <?= htmlspecialchars($package_data['package_name']) ?> 
-                                (<?= $currency_code . ' ' . number_format($package_data['package_price'], 2) ?>)
+                                Package: <?= htmlspecialchars($package_data['package_name']) ?>
+                                <?php if (!$pkg_has_products): ?>
+                                  (<?= $currency_code . ' ' . number_format($package_data['package_price'], 2) ?>)
+                                <?php endif; ?>
                               </td>
                             </tr>
                             <?php
@@ -476,8 +630,7 @@ if($order_data[0]->payment_method == 'cod'){
                             <?php
                             }
                           }
-                          
-                  } // Close if (!empty($bookset_products))
+                        } // Close fallback if (!$bookset_found && !empty($bookset_products))
                   
                   // Display bookset information (student details) if available
                           if (!empty($bookset_info)) {
@@ -507,9 +660,10 @@ if($order_data[0]->payment_method == 'cod'){
                             </tr>
                             <?php
                           }
-                        } else {
-                          // Display regular order items
-                          foreach ($items_arr as $key => $val) {
+                } // Close main bookset if condition
+                else {
+                  // Display regular order items
+                  foreach ($items_arr as $key => $val) {
                           // Get product image based on product type
                           $product_image = '';
                           if (isset($val->product_id) && !empty($val->product_id)) {
@@ -724,7 +878,7 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
             </div>
           </div>
-      
+                } // Close main if-else block for order type
         </div>
 
     <!-- RIGHT PANEL (30%) - Sticky -->

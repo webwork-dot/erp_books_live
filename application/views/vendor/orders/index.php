@@ -306,9 +306,7 @@
                               <?php if ($order_status == 'all' || $order_status == ''): ?>
                                  <th>Status</th>
                               <?php endif; ?>
-                              <th>Source</th>
-                              <th>User Name</th>
-                              <th>User Phone</th>
+                              <th>User Details</th>
                               <th>Product Name</th>
                               <th>Address</th>
                               <th>School</th>
@@ -333,7 +331,6 @@
                                  ?>
                               </th>
                               <th>Payment Method</th>
-                              <th>Payment Id</th>
                               <th>Invoice Number</th>
                               <th class="cat_action_list">Action</th>
                            </tr>
@@ -393,20 +390,20 @@
                                     <?php elseif ($order_status == 'all' || $order_status == ''): ?>
                                        <td></td>
                                     <?php endif; ?>
-                                    <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>"><?php echo $item['order_unique_id']; ?></a></td>
+                                    <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="text-primary fw-bold" style="text-decoration: underline;"><?php echo $item['order_unique_id']; ?></a></td>
                                     <?php if ($order_status == 'all' || $order_status == ''): ?>
                                        <td><span class="label <?php echo $status_class; ?>"><?php echo $status_label; ?></span></td>
                                     <?php endif; ?>
-                                    <td><?php echo $item['source']; ?></td>
-                                    <td><?php echo $item['user_name']; ?></td>
-                                    <td><?php echo $item['user_phone']; ?></td>
+                                    <td>
+                                       <div><?php echo $item['user_name']; ?></div>
+                                       <small class="text-muted"><?php echo $item['user_phone']; ?></small>
+                                    </td>
                                     <td><?php echo isset($item['product_name']) ? $item['product_name'] : '-'; ?></td>
                                     <td><?php echo isset($item['address']) ? $item['address'] : '-'; ?></td>
                                     <td><?php echo isset($item['school_name']) ? $item['school_name'] : '-'; ?></td>
                                     <td><?php echo isset($item['grade_name']) ? $item['grade_name'] : '-'; ?></td>
                                     <td><?php echo $item['date']; ?></td>
                                     <td><?php echo $item['payment_method']; ?></td>
-                                    <td><?php echo $item['payment_id']; ?></td>
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
@@ -416,12 +413,12 @@
                               <?php endforeach; 
                            else: ?>
                               <tr>
-                                 <td colspan="<?php 
-                                    $colspan = 14;
+                                 <td colspan="<?php
+                                    $colspan = 12;
                                     if ($order_status == 'all' || $order_status == '') {
-                                       $colspan = 16; // checkbox + status column + product + address + school + grade
+                                       $colspan = 14; // checkbox + status column + product + address + school + grade
                                     } elseif ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'out_for_delivery') {
-                                       $colspan = 15; // checkbox column + product + address + school + grade
+                                       $colspan = 13; // checkbox column + product + address + school + grade
                                     }
                                     echo $colspan;
                                  ?>">

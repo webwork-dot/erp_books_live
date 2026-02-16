@@ -212,51 +212,293 @@ class Orders extends Vendor_base
 			->get()
 			->result();
 		
-		// Add school and branch information for each item from erp_uniforms
+		// Add school, branch, and bookset information for each item
 		foreach ($items_arr as $item) {
 			$item->school_name = '';
 			$item->branch_name = '';
 			$item->size_name = '';
-			
-			if (!empty($item->product_id)) {
-				// Check if it's a uniform (has erp_uniforms table with school_id and branch_id)
-				$uniform_query = $this->db->query("SELECT u.school_id, u.branch_id, usp.size_id FROM erp_uniforms u LEFT JOIN erp_uniform_size_prices usp ON u.id = usp.uniform_id WHERE u.id = '" . (int)$item->product_id . "' LIMIT 1");
-				if ($uniform_query->num_rows() > 0) {
-					$uniform = $uniform_query->row();
-					
-					// Get school name if school_id exists
-					if (!empty($uniform->school_id)) {
-						$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . (int)$uniform->school_id . "' LIMIT 1");
-						if ($school_query->num_rows() > 0) {
-							$item->school_name = $school_query->row()->school_name;
+			$item->grade_name = '';
+			$item->order_type = isset($item->order_type) ? $item->order_type : 'individual';
+			$item->packages = array();
+			$item->books = array();
+
+			// Handle bookset items
+			if ($item->order_type === 'bookset') {
+				// Get school name
+				if (isset($item->school_id) && !empty($item->school_id)) {
+					$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . (int)$item->school_id . "' LIMIT 1");
+					if ($school_query->num_rows() > 0) {
+						$item->school_name = $school_query->row()->school_name;
+					}
+				}
+
+				// Get grade name from bookset or package
+				if (empty($item->grade_name)) {
+					$bookset_id = isset($item->product_id) ? $item->product_id : 0;
+					if (!empty($bookset_id) && $this->db->table_exists('erp_booksets')) {
+						$grade_query = $this->db->query("
+							SELECT tg.name as grade_name
+							FROM erp_booksets bs
+							LEFT JOIN erp_textbook_grades tg ON tg.id = bs.grade_id
+							WHERE bs.id = '" . (int)$bookset_id . "'
+							LIMIT 1
+						");
+						if ($grade_query->num_rows() > 0) {
+							$item->grade_name = $grade_query->row()->grade_name;
 						}
 					}
-					
-					// Get branch name if branch_id exists
-					if (!empty($uniform->branch_id)) {
-						$branch_query = $this->db->query("SELECT branch_name FROM erp_school_branches WHERE id = '" . (int)$uniform->branch_id . "' LIMIT 1");
-						if ($branch_query->num_rows() > 0) {
-							$item->branch_name = $branch_query->row()->branch_name;
+
+					// If still no grade, try from package
+					if (empty($item->grade_name) && isset($item->package_id) && !empty($item->package_id)) {
+						$package_ids = explode(',', $item->package_id);
+						$first_package_id = trim($package_ids[0]);
+						if (!empty($first_package_id) && $this->db->table_exists('erp_bookset_packages')) {
+							$grade_query = $this->db->query("
+								SELECT tg.name as grade_name
+								FROM erp_bookset_packages bp
+								LEFT JOIN erp_textbook_grades tg ON tg.id = bp.grade_id
+								WHERE bp.id = '" . (int)$first_package_id . "'
+								LIMIT 1
+							");
+							if ($grade_query->num_rows() > 0) {
+								$item->grade_name = $grade_query->row()->grade_name;
+							}
 						}
 					}
-					
-					// Get size name if size_id exists
-					if (!empty($uniform->size_id)) {
-						$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . (int)$uniform->size_id . "' LIMIT 1");
-						if ($size_query->num_rows() > 0) {
-							$item->size_name = $size_query->row()->name;
+				}
+
+				// Get packages and books for this bookset
+				$order_item_id = isset($item->id) ? $item->id : 0;
+
+				if ($order_item_id > 0) {
+					// Check if erp_bookset_order_products exists (the table we're using)
+					if ($this->db->table_exists('erp_bookset_order_products')) {
+						// Get packages and products from order table
+						$order_products_query = $this->db->query("
+							SELECT
+								eop.package_id,
+								eop.package_name,
+								eop.unit_price as package_price,
+								eop.product_type,
+								eop.product_id,
+								eop.product_name,
+								eop.product_sku as sku,
+								'' as isbn,
+								eop.quantity,
+								eop.unit_price,
+								eop.total_price,
+								0 as weight
+							FROM erp_bookset_order_products eop
+							WHERE eop.order_id = '" . (int)$order_id . "'
+							ORDER BY eop.package_id, eop.id ASC
+						");
+
+						if ($order_products_query->num_rows() > 0) {
+							$order_products = $order_products_query->result_array();
+							$packages_map = array();
+
+							// Group products by package
+							foreach ($order_products as $prod) {
+								$pkg_id = $prod['package_id'];
+								if (!isset($packages_map[$pkg_id])) {
+									$packages_map[$pkg_id] = array(
+										'package_id' => $pkg_id,
+										'package_name' => $prod['package_name'],
+										'package_price' => isset($prod['package_price']) ? $prod['package_price'] : 0,
+										'category' => '',
+										'is_it' => '',
+										'books' => array()
+									);
+								}
+								$packages_map[$pkg_id]['books'][] = array(
+									'product_type' => $prod['product_type'],
+									'product_id' => $prod['product_id'],
+									'product_name' => $prod['product_name'],
+									'display_name' => $prod['product_name'],
+									'sku' => $prod['sku'],
+									'product_sku' => $prod['sku'],
+									'isbn' => $prod['isbn'],
+									'quantity' => $prod['quantity'],
+									'unit_price' => $prod['unit_price'],
+									'total_price' => $prod['total_price'],
+									'weight' => $prod['weight']
+								);
+							}
+
+							$item->packages = array_values($packages_map);
+							foreach ($item->packages as $pkg) {
+								foreach ($pkg['books'] as $book) {
+									$item->books[] = $book;
+								}
+							}
 						}
 					}
-				} else {
-					// Check if it's a regular product (has product_variations table)
-					$variation_query = $this->db->query("SELECT pvar.size FROM products p INNER JOIN product_variations pvar ON p.id = pvar.product_id WHERE p.id = '" . (int)$item->product_id . "' LIMIT 1");
-					if ($variation_query->num_rows() > 0) {
-						$variation = $variation_query->row();
-						if (!empty($variation->size)) {
-							// Get size name from oc_attribute_values
-							$size_query = $this->db->query("SELECT name FROM oc_attribute_values WHERE attribute_id = '" . (int)$variation->size . "' LIMIT 1");
+
+					// Also check tbl_order_bookset_products (old table name, if exists)
+					if (empty($item->packages) && $this->db->table_exists('tbl_order_bookset_products')) {
+						// Get packages and products from order table
+						$order_products_query = $this->db->query("
+							SELECT
+								tobp.package_id,
+								tobp.package_name,
+								tobp.package_price,
+								tobp.product_type,
+								tobp.product_id,
+								COALESCE(tobp.product_name, bpp.display_name) as product_name,
+								COALESCE(tobp.product_sku, bpp.display_name) as sku,
+								tobp.product_isbn as isbn,
+								tobp.quantity,
+								-- Priority: Use discounted_mrp from erp_bookset_package_products, then unit_price from order table
+								COALESCE(
+									bpp.discounted_mrp,
+									tobp.unit_price,
+									0
+								) as unit_price,
+								-- Calculate total_price using the correct unit_price
+								(COALESCE(
+									bpp.discounted_mrp,
+									tobp.unit_price,
+									0
+								) * tobp.quantity) as total_price,
+								tobp.weight
+							FROM tbl_order_bookset_products tobp
+							LEFT JOIN erp_bookset_package_products bpp ON bpp.package_id = tobp.package_id
+								AND bpp.product_type = tobp.product_type
+								AND bpp.product_id = tobp.product_id
+								AND bpp.status = 'active'
+							WHERE tobp.order_item_id = '" . (int)$order_item_id . "'
+							ORDER BY tobp.package_id, tobp.id ASC
+						");
+
+						if ($order_products_query->num_rows() > 0) {
+							$order_products = $order_products_query->result_array();
+							$packages_map = array();
+
+							// Group products by package
+							foreach ($order_products as $prod) {
+								$pkg_id = $prod['package_id'];
+								if (!isset($packages_map[$pkg_id])) {
+									$packages_map[$pkg_id] = array(
+										'package_id' => $pkg_id,
+										'package_name' => $prod['package_name'],
+										'package_price' => isset($prod['package_price']) ? $prod['package_price'] : 0,
+										'books' => array()
+									);
+								}
+								$packages_map[$pkg_id]['books'][] = array(
+									'product_type' => $prod['product_type'],
+									'product_id' => $prod['product_id'],
+									'product_name' => $prod['product_name'],
+									'sku' => $prod['sku'],
+									'isbn' => $prod['isbn'],
+									'quantity' => $prod['quantity'],
+									'unit_price' => $prod['unit_price'],
+									'total_price' => $prod['total_price'],
+									'weight' => $prod['weight']
+								);
+							}
+
+							$item->packages = array_values($packages_map);
+							foreach ($item->packages as $pkg) {
+								foreach ($pkg['books'] as $book) {
+									$item->books[] = $book;
+								}
+							}
+						}
+					}
+				}
+
+				// Fallback: Get from package products table if order products not found
+				if (empty($item->packages) && isset($item->package_id) && !empty($item->package_id)) {
+					$package_ids = explode(',', $item->package_id);
+					$package_ids = array_filter(array_map('trim', $package_ids));
+
+					foreach ($package_ids as $package_id) {
+						if (empty($package_id)) continue;
+
+						// Get package details
+						$package_query = $this->db->query("SELECT id, package_name, package_price, package_offer_price, category, is_it FROM erp_bookset_packages WHERE id = '" . (int)$package_id . "' LIMIT 1");
+						if ($package_query->num_rows() > 0) {
+							$package = $package_query->row_array();
+
+							// Use offer price if available, otherwise regular price
+							$package_price = ($package['package_offer_price'] > 0) ? $package['package_offer_price'] : $package['package_price'];
+							$package['package_price'] = $package_price;
+
+							// Get books/products in this package
+							$books_query = $this->db->query("
+								SELECT
+									bpp.id,
+									bpp.product_type,
+									bpp.product_id,
+									bpp.quantity,
+									bpp.display_name,
+									bpp.display_name as product_name,
+									bpp.discounted_mrp,
+									bpp.discounted_mrp as unit_price,
+									(bpp.discounted_mrp * bpp.quantity) as total_price,
+									bpp.weight,
+									'' as sku,
+									'' as isbn,
+									bpp.weight as product_weight
+								FROM erp_bookset_package_products bpp
+								WHERE bpp.package_id = '" . (int)$package_id . "'
+								AND bpp.status = 'active'
+								ORDER BY bpp.id ASC
+							");
+
+							$package['books'] = $books_query->result_array();
+							$item->packages[] = $package;
+
+							// Also add to flat books array for easy access
+							foreach ($package['books'] as $book) {
+								$item->books[] = $book;
+							}
+						}
+					}
+				}
+			} else {
+				// Handle regular products and uniforms
+				if (!empty($item->product_id)) {
+					// Check if it's a uniform (has erp_uniforms table with school_id and branch_id)
+					$uniform_query = $this->db->query("SELECT u.school_id, u.branch_id, usp.size_id FROM erp_uniforms u LEFT JOIN erp_uniform_size_prices usp ON u.id = usp.uniform_id WHERE u.id = '" . (int)$item->product_id . "' LIMIT 1");
+					if ($uniform_query->num_rows() > 0) {
+						$uniform = $uniform_query->row();
+
+						// Get school name if school_id exists
+						if (!empty($uniform->school_id)) {
+							$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . (int)$uniform->school_id . "' LIMIT 1");
+							if ($school_query->num_rows() > 0) {
+								$item->school_name = $school_query->row()->school_name;
+							}
+						}
+
+						// Get branch name if branch_id exists
+						if (!empty($uniform->branch_id)) {
+							$branch_query = $this->db->query("SELECT branch_name FROM erp_school_branches WHERE id = '" . (int)$uniform->branch_id . "' LIMIT 1");
+							if ($branch_query->num_rows() > 0) {
+								$item->branch_name = $branch_query->row()->branch_name;
+							}
+						}
+
+						// Get size name if size_id exists
+						if (!empty($uniform->size_id)) {
+							$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . (int)$uniform->size_id . "' LIMIT 1");
 							if ($size_query->num_rows() > 0) {
 								$item->size_name = $size_query->row()->name;
+							}
+						}
+					} else {
+						// Check if it's a regular product (has product_variations table)
+						$variation_query = $this->db->query("SELECT pvar.size FROM products p INNER JOIN product_variations pvar ON p.id = pvar.product_id WHERE p.id = '" . (int)$item->product_id . "' LIMIT 1");
+						if ($variation_query->num_rows() > 0) {
+							$variation = $variation_query->row();
+							if (!empty($variation->size)) {
+								// Get size name from oc_attribute_values
+								$size_query = $this->db->query("SELECT name FROM oc_attribute_values WHERE attribute_id = '" . (int)$variation->size . "' LIMIT 1");
+								if ($size_query->num_rows() > 0) {
+									$item->size_name = $size_query->row()->name;
+								}
 							}
 						}
 					}
@@ -394,6 +636,39 @@ class Orders extends Vendor_base
 						$bookset_info->school_id = isset($item->school_id) ? $item->school_id : null;
 						$bookset_info->grade_id = isset($item->grade_id) ? $item->grade_id : null;
 						$bookset_info->board_id = isset($item->board_id) ? $item->board_id : null;
+
+						// If IDs are not set in direct fields, try to get them from bookset_packages_json
+						if ((empty($bookset_info->school_id) || empty($bookset_info->grade_id) || empty($bookset_info->board_id)) &&
+							isset($item->bookset_packages_json) && !empty($item->bookset_packages_json)) {
+							$json_data = json_decode($item->bookset_packages_json, true);
+
+							if (empty($bookset_info->school_id)) {
+								if (is_array($json_data) && isset($json_data['school_id'])) {
+									$bookset_info->school_id = $json_data['school_id'];
+								} elseif (is_object($json_data) && isset($json_data->school_id)) {
+									$bookset_info->school_id = $json_data->school_id;
+								}
+							}
+
+							if (empty($bookset_info->grade_id)) {
+								if (is_array($json_data) && isset($json_data['grade_id'])) {
+									$bookset_info->grade_id = $json_data['grade_id'];
+								} elseif (is_object($json_data) && isset($json_data->grade_id)) {
+									$bookset_info->grade_id = $json_data->grade_id;
+								}
+							}
+
+							if (empty($bookset_info->board_id)) {
+								if (is_array($json_data) && isset($json_data['board_id'])) {
+									$bookset_info->board_id = $json_data['board_id'];
+								} elseif (is_object($json_data) && isset($json_data->board_id)) {
+									$bookset_info->board_id = $json_data->board_id;
+								}
+							}
+						}
+
+						// DEBUG: Log what we found
+						// error_log("Bookset Info - School: " . $bookset_info->school_id . ", Grade: " . $bookset_info->grade_id . ", Board: " . $bookset_info->board_id);
 						$bookset_info->f_name = isset($item->f_name) ? $item->f_name : '';
 						$bookset_info->m_name = isset($item->m_name) ? $item->m_name : '';
 						$bookset_info->s_name = isset($item->s_name) ? $item->s_name : '';

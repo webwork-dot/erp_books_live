@@ -8,10 +8,7 @@
 
 <style>
 	.packages-container {
-		max-height: 70vh;
-		overflow-y: auto !important;
-		overscroll-behavior: contain;
-		-webkit-overflow-scrolling: touch;
+		min-height: 200px;
 		padding-right: 10px;
 		position: relative;
 		display: block;
@@ -32,21 +29,6 @@
 	.package-status-badge {
 		font-size: 0.75rem;
 		padding: 0.25rem 0.5rem;
-	}
-	/* Scrollbar styling for packages container */
-	.packages-container::-webkit-scrollbar {
-		width: 6px;
-	}
-	.packages-container::-webkit-scrollbar-track {
-		background: #f1f1f1;
-		border-radius: 10px;
-	}
-	.packages-container::-webkit-scrollbar-thumb {
-		background: #888;
-		border-radius: 10px;
-	}
-	.packages-container::-webkit-scrollbar-thumb:hover {
-		background: #555;
 	}
 	/* Validation error styling */
 	.is-invalid {
@@ -134,18 +116,25 @@
 	<div class="col-12">
 		<div class="card">
 			<div class="card-body">
-				<div class="d-flex justify-content-between align-items-center mb-4">
-					<h2 class="mb-0">Add Packages</h2>
-					<button type="button" class="btn btn-primary btn-sm" id="add_package_btn">
-						<i class="isax isax-add"></i> Add Package
-					</button>
-				</div>
-					
+				<h2 class="mb-4">Add Packages</h2>
+
 				<div id="packages_area" class="packages-container row g-3">
 					<!-- Packages will be added here dynamically -->
 				</div>
-				<div class="mt-3">
-					<small class="text-muted">Click "Add Package" button above to add your first package</small>
+
+				<!-- Initial Add Package Button -->
+				<div id="initial_add_package" class="mt-3 text-center" style="display: block;">
+					<button type="button" class="btn btn-primary btn-lg" id="add_first_package_btn">
+						<i class="isax isax-add"></i> Add First Package
+					</button>
+					<div class="mt-2">
+						<small class="text-muted">Click to add your first package. Additional packages can be added from each package's bottom.</small>
+					</div>
+				</div>
+
+				<!-- Hidden when packages exist -->
+				<div id="packages_help_text" class="mt-3 text-center" style="display: none;">
+					<small class="text-muted">Packages will be added one by one. Each package has an "Add Next Package" button at the bottom.</small>
 				</div>
 			</div>
 		</div>
@@ -296,8 +285,8 @@
 							<span class="badge bg-danger rounded-pill">Package ${packageIndex + 1}</span>
 							<span class="package-status-badge badge bg-secondary" data-package-id="${packageCounter}">Incomplete</span>
 						</div>
-						<button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removePackage(${packageCounter})" title="Remove Package">
-							<i class="isax isax-trash"></i>
+						<button type="button" class="btn btn-sm btn-outline-danger" onclick="removePackage(${packageCounter})" title="Remove Package">
+							<i class="isax isax-trash me-1"></i> Delete Package
 						</button>
 					</div>
 					<div class="card-body p-3">
@@ -343,13 +332,24 @@
 								<input type="text" class="form-control form-control-sm package-note-input" data-package-id="${packageCounter}" placeholder="Optional note">
 							</div>
 						</div>
+
+						<!-- Add Package Button at bottom of each package -->
+						<div class="text-center mt-3 pt-3 border-top">
+							<button type="button" class="btn btn-primary btn-sm add-next-package-btn" data-package-id="${packageCounter}">
+								<i class="isax isax-add"></i> Add Next Package
+							</button>
+						</div>
 					</div>
 				</div>
 				</div>
 			`;
 			
 			$('#packages_area').append(packageHtml);
-			
+
+			// Hide "Add Next Package" button from all packages except the last one
+			$('.add-next-package-btn').hide();
+			$('.package-card').last().find('.add-next-package-btn').show();
+
 			// Initialize Select2 for the new package dropdowns
 			$('.package-isit-select[data-package-id="' + packageCounter + '"]').select2();
 			
@@ -382,17 +382,27 @@
 				alert('At least one package is required');
 				return;
 			}
-			
+
 			if (confirm('Are you sure you want to remove this package?')) {
 				$('#package_' + packageId).fadeOut(300, function() {
 					$(this).remove();
 					packages = packages.filter(function(pkg) {
 						return pkg.id !== packageId;
 					});
-					
+
 					// Renumber packages
 					renumberPackages();
 					updatePackageSummary();
+
+					// Show initial button if no packages left
+					if (packages.length === 0) {
+						$('#initial_add_package').show();
+						$('#packages_help_text').hide();
+					} else {
+						// Hide "Add Next Package" button from all packages except the last one
+						$('.add-next-package-btn').hide();
+						$('.package-card').last().find('.add-next-package-btn').show();
+					}
 				});
 			}
 		};
@@ -547,6 +557,15 @@
 			var mandatory = packages.filter(function(p) { return p.is_it === 'mandatory'; }).length;
 			var optional = packages.filter(function(p) { return p.is_it === 'optional'; }).length;
 			var mandatoryOptional = packages.filter(function(p) { return p.is_it === 'mandatory+optional'; }).length;
+
+			// Show/hide initial add package button based on package count
+			if (total === 0) {
+				$('#initial_add_package').show();
+				$('#packages_help_text').hide();
+			} else {
+				$('#initial_add_package').hide();
+				$('#packages_help_text').show();
+			}
 			
 			var mandatoryOptionalTotal = mandatoryOptional;
 			
@@ -741,10 +760,16 @@
 			$('#packages_data').val(JSON.stringify(packages));
 		});
 		
-		// Bind add package button
-		$('#add_package_btn').on('click', function(e) {
+		// Bind add package buttons (both old and new style for compatibility)
+		$(document).on('click', '#add_package_btn, #add_first_package_btn, .add-next-package-btn', function(e) {
 			e.preventDefault();
 			window.addPackage();
+
+			// Hide initial button and show help text after adding first package
+			if ($(this).attr('id') === 'add_first_package_btn') {
+				$('#initial_add_package').hide();
+				$('#packages_help_text').show();
+			}
 		});
 		
 		// Initialize Select2 for existing selects
