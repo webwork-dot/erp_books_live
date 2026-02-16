@@ -849,12 +849,12 @@ class Products extends Vendor_base
 			return;
 		}
 		
-		// Manual validation: selling price must be less than MRP
+		// Manual validation: selling price must be less than or equal to MRP
 		$mrp = $this->input->post('mrp');
 		$selling_price = $this->input->post('selling_price');
-		if (!$has_variations && !empty($mrp) && !empty($selling_price) && $selling_price >= $mrp)
+		if (!$has_variations && !empty($mrp) && !empty($selling_price) && $selling_price > $mrp)
 		{
-			$this->session->set_flashdata('error', 'Selling price must be less than MRP.');
+			$this->session->set_flashdata('error', 'Selling price must be less than or equal to MRP.');
 			$this->load->helper('common');
 			$vendor_domain = $this->getVendorDomainForUrl();
 			redirect(vendor_url('products/individual-products/add', $vendor_domain));
@@ -1238,12 +1238,12 @@ class Products extends Vendor_base
 			$this->form_validation->set_rules('mrp', 'MRP', 'required|numeric|greater_than_equal_to[0]');
 			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required|numeric|greater_than_equal_to[0]|callback_validate_selling_price_less_than_mrp');
 			
-			// Manual validation: selling price must be less than MRP (backup check)
+			// Manual validation: selling price must be less than or equal to MRP (backup check)
 			$mrp = $this->input->post('mrp');
 			$selling_price = $this->input->post('selling_price');
-			if (!empty($mrp) && !empty($selling_price) && $selling_price >= $mrp)
+			if (!empty($mrp) && !empty($selling_price) && $selling_price > $mrp)
 			{
-				$this->form_validation->set_message('selling_price', 'Selling price must be less than MRP.');
+				$this->form_validation->set_message('selling_price', 'Selling price must be less than or equal to MRP.');
 				$this->form_validation->set_rules('selling_price', 'Selling Price', 'callback_validate_selling_price_less_than_mrp');
 			}
 		}
@@ -4528,36 +4528,38 @@ class Products extends Vendor_base
 			
 			// Combine and format results
 			$products = array();
-			foreach ($textbooks as $textbook)
-			{
-				$products[] = array(
-					'id' => 'textbook_' . $textbook['id'],
-					'product_id' => $textbook['id'],
-					'product_type' => 'textbook',
-					'product_name' => $textbook['product_name'],
-					'sku' => $textbook['sku'],
-					'isbn' => $textbook['isbn'],
-					'packaging_weight' => isset($textbook['packaging_weight']) ? $textbook['packaging_weight'] : NULL,
-					'main_image' => isset($textbook['main_image']) ? $textbook['main_image'] : NULL,
-					'publisher_name' => $textbook['publisher_name'],
-					'board_name' => $textbook['board_name']
-				);
-			}
-			foreach ($notebooks as $notebook)
-			{
-				$products[] = array(
-					'id' => 'notebook_' . $notebook['id'],
-					'product_id' => $notebook['id'],
-					'product_type' => 'notebook',
-					'product_name' => $notebook['product_name'],
-					'sku' => $notebook['sku'],
-					'isbn' => $notebook['isbn'],
-					'packaging_weight' => isset($notebook['packaging_weight']) ? $notebook['packaging_weight'] : NULL,
-					'main_image' => isset($notebook['main_image']) ? $notebook['main_image'] : NULL,
-					'publisher_name' => isset($notebook['publisher_name']) ? $notebook['publisher_name'] : NULL,
-					'board_name' => NULL
-				);
-			}
+				foreach ($textbooks as $textbook)
+				{
+					$products[] = array(
+						'id' => 'textbook_' . $textbook['id'],
+						'product_id' => $textbook['id'],
+						'product_type' => 'textbook',
+						'product_name' => $textbook['product_name'],
+						'sku' => $textbook['sku'],
+						'isbn' => $textbook['isbn'],
+						'packaging_weight' => isset($textbook['packaging_weight']) ? (float)$textbook['packaging_weight'] : 0,
+						'main_image' => isset($textbook['main_image']) ? $textbook['main_image'] : NULL,
+						'publisher_name' => $textbook['publisher_name'],
+						'board_name' => $textbook['board_name'],
+						'selling_price' => isset($textbook['selling_price']) ? (float)$textbook['selling_price'] : 0
+					);
+				}
+				foreach ($notebooks as $notebook)
+				{
+					$products[] = array(
+						'id' => 'notebook_' . $notebook['id'],
+						'product_id' => $notebook['id'],
+						'product_type' => 'notebook',
+						'product_name' => $notebook['product_name'],
+						'sku' => $notebook['sku'],
+						'isbn' => $notebook['isbn'],
+						'packaging_weight' => isset($notebook['packaging_weight']) ? (float)$notebook['packaging_weight'] : 0,
+						'main_image' => isset($notebook['main_image']) ? $notebook['main_image'] : NULL,
+						'publisher_name' => isset($notebook['publisher_name']) ? $notebook['publisher_name'] : NULL,
+						'board_name' => NULL,
+						'selling_price' => isset($notebook['selling_price']) ? (float)$notebook['selling_price'] : 0
+					);
+				}
 			
 			echo json_encode(array('success' => true, 'products' => $products));
 		}
@@ -4573,10 +4575,12 @@ class Products extends Vendor_base
 	public function bookset_package_get_products_by_type()
 	{
 		header('Content-Type: application/json');
-		
+
 		try {
 			$category = $this->input->get('category');
-			
+			$board_id = $this->input->get('board_id');
+			$grade_id = $this->input->get('grade_id');
+
 			if (empty($category) || !in_array($category, array('textbook', 'notebook', 'stationery')))
 			{
 				echo json_encode(array('success' => false, 'message' => 'Invalid category', 'products' => array()));
@@ -4587,8 +4591,7 @@ class Products extends Vendor_base
 			
 			if ($category == 'textbook')
 			{
-				// Get all textbooks with is_set = 1 (no type filtering, but include type names for display)
-				$this->db->select('t.id, t.product_name, t.sku, t.isbn, t.packaging_weight, p.name as publisher_name, b.board_name, ti.image_path as main_image, GROUP_CONCAT(DISTINCT tt.name ORDER BY tt.name SEPARATOR ", ") as type_names');
+				$this->db->select('t.id, t.product_name, t.sku, t.isbn, t.packaging_weight, t.selling_price, p.name as publisher_name, b.board_name, ti.image_path as main_image, GROUP_CONCAT(DISTINCT tt.name ORDER BY tt.name SEPARATOR ", ") as type_names');
 				$this->db->from('erp_textbooks t');
 				$this->db->join('erp_textbook_publishers p', 'p.id = t.publisher_id', 'left');
 				$this->db->join('erp_school_boards b', 'b.id = t.board_id', 'left');
@@ -4598,6 +4601,20 @@ class Products extends Vendor_base
 				$this->db->where('t.vendor_id', $this->current_vendor['id']);
 				$this->db->where('t.is_set', 1);
 				$this->db->where('t.status', 'active');
+
+				// Filter by board_id if provided
+				if (!empty($board_id))
+				{
+					$this->db->where('t.board_id', $board_id);
+				}
+
+				// Filter by grade_id if provided (using grade mapping table)
+				if (!empty($grade_id))
+				{
+					$this->db->join('erp_textbook_grade_mapping tgm', 'tgm.textbook_id = t.id', 'inner');
+					$this->db->where('tgm.grade_id', $grade_id);
+				}
+
 				$this->db->group_by('t.id');
 				$this->db->order_by('t.product_name', 'ASC');
 				$textbooks = $this->db->get()->result_array();
@@ -4627,25 +4644,35 @@ class Products extends Vendor_base
 						'packaging_weight' => isset($textbook['packaging_weight']) ? $textbook['packaging_weight'] : NULL,
 						'main_image' => isset($textbook['main_image']) ? $textbook['main_image'] : NULL,
 						'publisher_name' => $textbook['publisher_name'],
-						'board_name' => $textbook['board_name']
+						'board_name' => $textbook['board_name'],
+						'selling_price' => isset($textbook['selling_price']) ? (float)$textbook['selling_price'] : 0
 					);
 				}
 			}
 			elseif ($category == 'notebook')
 			{
-				// Get all notebooks with is_set = 1 (no type filtering, but include type names for display)
-				$this->db->select('n.id, n.product_name, n.sku, n.isbn, n.packaging_weight, p.name as publisher_name, ni.image_path as main_image, GROUP_CONCAT(DISTINCT tt.name ORDER BY tt.name SEPARATOR ", ") as type_names');
-				$this->db->from('erp_notebooks n');
-				$this->db->join('erp_textbook_publishers p', 'p.id = n.brand_id', 'left');
-				$this->db->join('erp_notebook_images ni', 'ni.notebook_id = n.id AND ni.is_main = 1', 'left');
-				$this->db->join('erp_notebook_type_mapping ntm', 'ntm.notebook_id = n.id', 'left');
-				$this->db->join('erp_textbook_types tt', 'tt.id = ntm.type_id', 'left');
-				$this->db->where('n.vendor_id', $this->current_vendor['id']);
-				$this->db->where('n.is_set', 1);
-				$this->db->where('n.status', 'active');
-				$this->db->group_by('n.id');
-				$this->db->order_by('n.product_name', 'ASC');
-				$notebooks = $this->db->get()->result_array();
+				// Notebooks don't have board/grade relationships, so only show them if no filtering is applied
+				if (empty($board_id) && empty($grade_id))
+				{
+					// Get all notebooks with is_set = 1 (no type filtering, but include type names for display)
+					$this->db->select('n.id, n.product_name, n.sku, n.isbn, n.packaging_weight, n.selling_price, p.name as publisher_name, ni.image_path as main_image, GROUP_CONCAT(DISTINCT tt.name ORDER BY tt.name SEPARATOR ", ") as type_names');
+					$this->db->from('erp_notebooks n');
+					$this->db->join('erp_textbook_publishers p', 'p.id = n.brand_id', 'left');
+					$this->db->join('erp_notebook_images ni', 'ni.notebook_id = n.id AND ni.is_main = 1', 'left');
+					$this->db->join('erp_notebook_type_mapping ntm', 'ntm.notebook_id = n.id', 'left');
+					$this->db->join('erp_textbook_types tt', 'tt.id = ntm.type_id', 'left');
+					$this->db->where('n.vendor_id', $this->current_vendor['id']);
+					$this->db->where('n.is_set', 1);
+					$this->db->where('n.status', 'active');
+					$this->db->group_by('n.id');
+					$this->db->order_by('n.product_name', 'ASC');
+					$notebooks = $this->db->get()->result_array();
+				}
+				else
+				{
+					// No notebooks match board/grade criteria
+					$notebooks = array();
+				}
 				
 				foreach ($notebooks as $notebook)
 				{
@@ -4672,23 +4699,33 @@ class Products extends Vendor_base
 						'packaging_weight' => isset($notebook['packaging_weight']) ? $notebook['packaging_weight'] : NULL,
 						'main_image' => isset($notebook['main_image']) ? $notebook['main_image'] : NULL,
 						'publisher_name' => isset($notebook['publisher_name']) ? $notebook['publisher_name'] : NULL,
-						'board_name' => NULL
+						'board_name' => NULL,
+						'selling_price' => isset($notebook['selling_price']) ? (float)$notebook['selling_price'] : 0
 					);
 				}
 			}
 			elseif ($category == 'stationery')
 			{
-				// Get all stationery products with is_set = 1
-				$this->db->select('s.id, s.product_name, s.sku, s.isbn, s.packaging_weight, si.image_path as main_image, c.name as category_name');
-				$this->db->from('erp_stationery s');
-				$this->db->join('erp_stationery_images si', 'si.stationery_id = s.id AND si.is_main = 1', 'left');
-				$this->db->join('erp_stationery_categories c', 'c.id = s.category_id', 'left');
-				$this->db->where('s.vendor_id', $this->current_vendor['id']);
-				$this->db->where('s.is_set', 1);
-				$this->db->where('s.status', 'active');
-				$this->db->group_by('s.id');
-				$this->db->order_by('s.product_name', 'ASC');
-				$stationery_products = $this->db->get()->result_array();
+				// Stationery doesn't have board/grade relationships, so only show them if no filtering is applied
+				if (empty($board_id) && empty($grade_id))
+				{
+					// Get all stationery products with is_set = 1
+					$this->db->select('s.id, s.product_name, s.sku, s.isbn, s.packaging_weight, s.selling_price, si.image_path as main_image, c.name as category_name');
+					$this->db->from('erp_stationery s');
+					$this->db->join('erp_stationery_images si', 'si.stationery_id = s.id AND si.is_main = 1', 'left');
+					$this->db->join('erp_stationery_categories c', 'c.id = s.category_id', 'left');
+					$this->db->where('s.vendor_id', $this->current_vendor['id']);
+					$this->db->where('s.is_set', 1);
+					$this->db->where('s.status', 'active');
+					$this->db->group_by('s.id');
+					$this->db->order_by('s.product_name', 'ASC');
+					$stationery_products = $this->db->get()->result_array();
+				}
+				else
+				{
+					// No stationery matches board/grade criteria
+					$stationery_products = array();
+				}
 				
 				foreach ($stationery_products as $stationery)
 				{
@@ -4712,10 +4749,11 @@ class Products extends Vendor_base
 						'product_name' => $stationery['product_name'],
 						'sku' => $stationery['sku'],
 						'isbn' => isset($stationery['isbn']) ? $stationery['isbn'] : '',
-						'packaging_weight' => isset($stationery['packaging_weight']) ? $stationery['packaging_weight'] : NULL,
+						'packaging_weight' => isset($stationery['packaging_weight']) ? (float)$stationery['packaging_weight'] : 0,
 						'main_image' => isset($stationery['main_image']) ? $stationery['main_image'] : NULL,
 						'publisher_name' => NULL,
-						'board_name' => NULL
+						'board_name' => NULL,
+						'selling_price' => isset($stationery['selling_price']) ? (float)$stationery['selling_price'] : 0
 					);
 				}
 			}
@@ -4735,14 +4773,14 @@ class Products extends Vendor_base
 	{
 		$this->load->library('form_validation');
 		$this->load->model('School_board_model');
-		
+
 		// Handle form submission
 		if ($this->input->method() == 'post')
 		{
 			// Get packages data first to check if mandatory_packages is needed
 			$packages_data_json = $this->input->post('packages_data');
 			$packages_data = json_decode($packages_data_json, TRUE);
-			
+
 			// Check if there are any mandatory+optional packages
 			$has_mandatory_optional = FALSE;
 			if (!empty($packages_data) && is_array($packages_data))
@@ -4756,16 +4794,16 @@ class Products extends Vendor_base
 					}
 				}
 			}
-			
+
 			// Set validation rules
 			$this->form_validation->set_rules('school_id', 'School', 'required');
 			$this->form_validation->set_rules('board_id', 'Board', 'required');
 			$this->form_validation->set_rules('grade_id', 'Grade', 'required');
-			
+
 			// Only require mandatory_packages if there are mandatory+optional packages
 			if ($has_mandatory_optional)
 			{
-				$this->form_validation->set_rules('mandatory_packages', 'Mandatory Packages', 'required|numeric');
+				$this->form_validation->set_rules('mandatory_packages', 'Mandatory Packages', 'required|numeric|greater_than[0]');
 			}
 			else
 			{
@@ -5032,14 +5070,14 @@ class Products extends Vendor_base
 	{
 		$this->load->library('form_validation');
 		$this->load->model('School_board_model');
-		
+
 		// Handle form submission
 		if ($this->input->method() == 'post')
 		{
 			// Get packages data first to check if mandatory_packages is needed
 			$packages_data_json = $this->input->post('packages_data');
 			$packages_data = json_decode($packages_data_json, TRUE);
-			
+
 			// Check if there are any mandatory+optional packages
 			$has_mandatory_optional = FALSE;
 			if (!empty($packages_data) && is_array($packages_data))
@@ -5053,16 +5091,16 @@ class Products extends Vendor_base
 					}
 				}
 			}
-			
+
 			// Set validation rules
 			$this->form_validation->set_rules('school_id', 'School', 'required');
 			$this->form_validation->set_rules('board_id', 'Board', 'required');
 			$this->form_validation->set_rules('grade_id', 'Grade', 'required');
-			
+
 			// Only require mandatory_packages if there are mandatory+optional packages
 			if ($has_mandatory_optional)
 			{
-				$this->form_validation->set_rules('mandatory_packages', 'Mandatory Packages', 'required|numeric');
+				$this->form_validation->set_rules('mandatory_packages', 'Mandatory Packages', 'required|numeric|greater_than[0]');
 			}
 			else
 			{
@@ -5412,11 +5450,11 @@ class Products extends Vendor_base
 			$this->form_validation->set_rules('school_id', 'School', 'required');
 			$this->form_validation->set_rules('board_id', 'Board', 'required');
 			$this->form_validation->set_rules('grade_id', 'Grade', 'required');
-			
+
 			// Only require mandatory_packages if there are mandatory+optional packages
 			if ($has_mandatory_optional)
 			{
-				$this->form_validation->set_rules('mandatory_packages', 'Mandatory Packages', 'required|numeric');
+				$this->form_validation->set_rules('mandatory_packages', 'Mandatory Packages', 'required|numeric|greater_than[0]');
 			}
 			else
 			{
@@ -5424,10 +5462,10 @@ class Products extends Vendor_base
 				$_POST['mandatory_packages'] = 0;
 				$this->form_validation->set_rules('mandatory_packages', 'Mandatory Packages', 'numeric');
 			}
-			
+
 			$this->form_validation->set_rules('status', 'Status', 'required|in_list[active,inactive]');
 			$this->form_validation->set_rules('packages_data', 'Packages', 'required');
-			
+
 			if ($this->form_validation->run() == FALSE)
 			{
 				$this->session->set_flashdata('error', validation_errors());
@@ -6665,5 +6703,33 @@ class Products extends Vendor_base
 		}
 		
 		return $slug;
+	}
+
+	/**
+	 * Callback function to validate that selling price is less than or equal to MRP
+	 *
+	 * @param	float	$value	Selling price value
+	 * @return	bool
+	 */
+	public function validate_selling_price_less_than_mrp($value)
+	{
+		$mrp = $this->input->post('mrp');
+
+		// If MRP is not provided, skip validation (will be caught by required rule)
+		if (empty($mrp)) {
+			return TRUE;
+		}
+
+		// Convert to float for comparison
+		$mrp_float = (float) $mrp;
+		$value_float = (float) $value;
+
+		// Selling price must be less than or equal to MRP
+		if ($value_float > $mrp_float) {
+			$this->form_validation->set_message('validate_selling_price_less_than_mrp', 'Selling price must be less than or equal to MRP.');
+			return FALSE;
+		}
+
+		return TRUE;
 	}
 }

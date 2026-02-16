@@ -1225,7 +1225,7 @@ function addSizePriceRow(sizeId, sizeName) {
 		<div class="col-lg-5 col-md-4">
 			<label class="form-label">MRP <span class="text-danger">*</span></label>
 			<input type="number" name="size_prices[${sizeId}][mrp]" id="mrp_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" data-size-id="${sizeId}">
-			<small class="text-danger mrp-error" id="mrp_error_${sizeId}" style="display:none;">MRP must be higher than Selling Price</small>
+			<small class="text-danger mrp-error" id="mrp_error_${sizeId}" style="display:none;">MRP must be higher than or equal to Selling Price</small>
 		</div>
 		<div class="col-lg-6 col-md-4">
 			<label class="form-label">Selling Price <span class="text-danger">*</span></label>
@@ -1235,7 +1235,7 @@ function addSizePriceRow(sizeId, sizeName) {
 					<i class="isax isax-close-circle"></i>
 				</button>
 			</div>
-			<small class="text-danger selling-price-error" id="selling_price_error_${sizeId}" style="display:none;">Selling Price must be lower than MRP</small>
+			<small class="text-danger selling-price-error" id="selling_price_error_${sizeId}" style="display:none;">Selling Price must be lower than or equal to MRP</small>
 		</div>
 	`;
 	container.appendChild(row);
@@ -1274,7 +1274,7 @@ function validatePriceRow(e) {
 	
 	// Validate only if both values are entered
 	if (mrp > 0 && sellingPrice > 0) {
-		if (mrp <= sellingPrice) {
+		if (mrp < sellingPrice) {
 			if (mrpError) mrpError.style.display = 'block';
 			if (sellingPriceError) sellingPriceError.style.display = 'block';
 			mrpInput.classList.add('is-invalid');

@@ -1773,18 +1773,17 @@ class Orders extends Vendor_base
 		// Generate shipping number (tracking ID) - use order_unique_id as slot_no for compatibility
 		$shipping_number = $order_no; // Use order_unique_id as shipping number
 		
-		// Generate unique ship_order_id for this shipping label generation (BEFORE barcode generation)
-		// Format: SHIP + YYYYMMDD + HHMMSS + random 4 digits
-		$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%04d', mt_rand(0, 9999));
-		
-		// Ensure uniqueness by checking if it exists
-		$check_unique = $this->db->where('ship_order_id', $unique_ship_order_id)
-			->get('tbl_order_details')
-			->num_rows();
-		if ($check_unique > 0) {
-			// If exists, add more random digits
-			$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%06d', mt_rand(0, 999999));
-		}
+		// Generate unique ship_order_id - 8 characters only (alphanumeric)
+		$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+		do {
+			$unique_ship_order_id = '';
+			for ($i = 0; $i < 8; $i++) {
+				$unique_ship_order_id .= $chars[mt_rand(0, strlen($chars) - 1)];
+			}
+			$check_unique = $this->db->where('ship_order_id', $unique_ship_order_id)
+				->get('tbl_order_details')
+				->num_rows();
+		} while ($check_unique > 0);
 		
 		// Check if shipping label already exists in vendor_shipping_label table
 		$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
@@ -2112,19 +2111,6 @@ class Orders extends Vendor_base
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		$old_error_reporting = error_reporting();
 		error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
-		
-		// Generate unique ship_order_id for this shipping label generation
-		// Format: SHIP + YYYYMMDD + HHMMSS + random 4 digits
-		$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%04d', mt_rand(0, 9999));
-		
-		// Ensure uniqueness by checking if it exists
-		$check_unique = $this->db->where('ship_order_id', $unique_ship_order_id)
-			->get('tbl_order_details')
-			->num_rows();
-		if ($check_unique > 0) {
-			// If exists, add more random digits
-			$unique_ship_order_id = 'SHIP' . date('YmdHis') . sprintf('%06d', mt_rand(0, 999999));
-		}
 		
 		// Use kirtiBook design - fetch shipping label HTML from model
 		$address_obj = !empty($address_arr) ? $address_arr[0] : null;

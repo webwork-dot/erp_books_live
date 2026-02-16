@@ -328,7 +328,7 @@
 								<div class="col-lg-4 col-md-4">
 									<label class="form-label">MRP <span class="text-danger">*</span></label>
 									<input type="number" name="size_prices[<?php echo $price['size_id']; ?>][mrp]" id="mrp_<?php echo $price['size_id']; ?>" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" value="<?php echo $price['mrp']; ?>" data-size-id="<?php echo $price['size_id']; ?>">
-									<small class="text-danger mrp-error" id="mrp_error_<?php echo $price['size_id']; ?>" style="display:none;">MRP must be higher than Selling Price</small>
+									<small class="text-danger mrp-error" id="mrp_error_<?php echo $price['size_id']; ?>" style="display:none;">MRP must be higher than or equal to Selling Price</small>
 								</div>
 								<div class="col-lg-4 col-md-4">
 									<label class="form-label">Selling Price <span class="text-danger">*</span></label>
@@ -338,7 +338,7 @@
 											<i class="isax isax-close-circle"></i>
 										</button>
 									</div>
-									<small class="text-danger selling-price-error" id="selling_price_error_<?php echo $price['size_id']; ?>" style="display:none;">Selling Price must be lower than MRP</small>
+									<small class="text-danger selling-price-error" id="selling_price_error_<?php echo $price['size_id']; ?>" style="display:none;">Selling Price must be lower than or equal to MRP</small>
 								</div>
 							</div>
 						<?php 
@@ -1401,7 +1401,7 @@ function validatePriceRow(e) {
 	
 	// Validate only if both values are entered
 	if (mrp > 0 && sellingPrice > 0) {
-		if (mrp <= sellingPrice) {
+		if (mrp < sellingPrice) {
 			if (mrpError) mrpError.style.display = 'block';
 			if (sellingPriceError) sellingPriceError.style.display = 'block';
 			mrpInput.classList.add('is-invalid');

@@ -8,8 +8,6 @@
 
 <style>
 	.packages-container {
-		max-height: 70vh;
-		overflow-y: auto;
 		padding-right: 10px;
 	}
 	.package-card {
@@ -167,7 +165,7 @@
 					</button>
 				</div>
 					
-				<div id="packages_area" class="packages-container">
+				<div id="packages_area" class="packages-container row g-3">
 					<!-- Packages will be added here dynamically -->
 				</div>
 			</div>
@@ -335,7 +333,20 @@
 				if ($('#board_id').hasClass('select')) {
 					$('#board_id').select2();
 				}
+				// Clear grade selection and reload products when school is cleared
+				$('#grade_id').val('');
+				reloadAllPackageProducts();
 			}
+		});
+
+		// Bind board change event to reload products
+		$('#board_id').off('change').on('change', function() {
+			reloadAllPackageProducts();
+		});
+
+		// Bind grade change event to reload products
+		$('#grade_id').off('change').on('change', function() {
+			reloadAllPackageProducts();
 		});
 		
 		
@@ -345,7 +356,8 @@
 			var packageIndex = packages.length;
 			
 			var packageHtml = `
-				<div class="package-card mb-3 border border-danger rounded" id="package_${packageCounter}" data-package-status="incomplete">
+				<div class="col-12 mb-3">
+					<div class="package-card border border-danger rounded" id="package_${packageCounter}" data-package-status="incomplete">
 					<div class="card-header bg-danger bg-opacity-10 border-bottom border-danger d-flex justify-content-between align-items-center py-2">
 						<div class="d-flex align-items-center gap-2">
 							<span class="badge bg-danger rounded-pill">Package ${packageIndex + 1}</span>
@@ -383,7 +395,12 @@
 							</div>
 							<div class="col-md-6 col-sm-6">
 								<label class="form-label small fw-semibold mb-1">Weight (gm) <span class="text-danger">*</span></label>
-								<input type="number" class="form-control form-control-sm package-weight-input" data-package-id="${packageCounter}" step="0.01" min="0" placeholder="0.00" required value="${existingPackage ? (existingPackage.weight || '') : ''}">
+								<div class="input-group input-group-sm">
+									<input type="number" class="form-control form-control-sm package-weight-input" data-package-id="${packageCounter}" step="0.01" min="0" placeholder="0.00" required value="${existingPackage ? (existingPackage.weight || '') : ''}">
+									<span class="input-group-text bg-light">
+										<small class="text-muted"><i class="isax isax-calculator me-1"></i>Auto</small>
+									</span>
+								</div>
 							</div>
 						</div>
 						
@@ -416,6 +433,7 @@
 							</table>
 						</div>
 					</div>
+				</div>
 				</div>
 			`;
 			
@@ -672,13 +690,15 @@
 								type_names: productData.type_names || '',
 								display_name: existingProduct ? existingProduct.display_name : productData.product_name,
 								quantity: existingProduct ? existingProduct.quantity : 1,
-								discounted_mrp: existingProduct && existingProduct.discounted_mrp != null ? existingProduct.discounted_mrp : 0
+								discounted_mrp: existingProduct && existingProduct.discounted_mrp != null ? existingProduct.discounted_mrp : (productData.selling_price || 0),
+								packaging_weight: productData.packaging_weight || 0
 							});
 						}
 					});
 				}
 				
 				renderPackageProducts(packageId);
+				updatePackageWeight(packageId); // Recalculate weight when products are added
 				updatePackageStatus(packageId);
 			});
 			
@@ -726,7 +746,9 @@
 				url: '<?php echo base_url("products/bookset/package/get_products_by_type"); ?>',
 				type: 'GET',
 				data: {
-					category: category
+					category: category,
+					board_id: $('#board_id').val(),
+					grade_id: $('#grade_id').val()
 				},
 				dataType: 'json',
 				success: function(response) {
@@ -795,7 +817,16 @@
 				}
 			});
 		}
-		
+
+		// Function to reload products for all packages when board/grade changes
+		function reloadAllPackageProducts() {
+			packages.forEach(function(package) {
+				if (package.category) {
+					loadProductsForPackage(package.id, package.category, package.products);
+				}
+			});
+		}
+
 		// Render products table for a package
 		function renderPackageProducts(packageId) {
 			var packageObj = packages.find(function(p) { return p.id === packageId; });
@@ -873,6 +904,7 @@
 				var index = parseInt($(this).data('product-index'));
 				if (packageObj && packageObj.products[index]) {
 					packageObj.products[index].quantity = parseInt($(this).val()) || 1;
+					updatePackageWeight(packageId); // Recalculate weight when quantity changes
 					updatePackageStatus(packageId);
 				}
 			});
@@ -900,13 +932,46 @@
 					var currentVal = $select.val() || [];
 					currentVal = currentVal.filter(function(id) { return id !== productId; });
 					$select.val(currentVal).trigger('change');
-					
+
 					renderPackageProducts(packageId);
+					updatePackageWeight(packageId); // Recalculate weight when product is removed
 					updatePackageStatus(packageId);
 				}
 			});
 		}
 		
+		// Calculate package weight based on products
+		function calculatePackageWeight(packageId) {
+			var packageObj = packages.find(function(p) { return p.id === packageId; });
+			if (!packageObj || !packageObj.products || packageObj.products.length === 0) {
+				return 0;
+			}
+
+			var totalWeight = 0;
+			packageObj.products.forEach(function(product) {
+				var weight = parseFloat(product.packaging_weight) || 0;
+				var quantity = parseInt(product.quantity) || 1;
+				totalWeight += (weight * quantity);
+			});
+
+			return totalWeight;
+		}
+
+		// Update package weight input with calculated value
+		function updatePackageWeight(packageId) {
+			var calculatedWeight = calculatePackageWeight(packageId);
+			var $weightInput = $('.package-weight-input[data-package-id="' + packageId + '"]');
+			if (calculatedWeight > 0) {
+				$weightInput.val(calculatedWeight.toFixed(2));
+				// Update the package object
+				var packageObj = packages.find(function(p) { return p.id === packageId; });
+				if (packageObj) {
+					packageObj.weight = calculatedWeight.toFixed(2);
+				}
+				updatePackageStatus(packageId);
+			}
+		}
+
 		// Update package summary
 		function updatePackageSummary() {
 			var total = packages.length;
@@ -925,9 +990,15 @@
 			
 			if (mandatoryOptionalTotal > 0) {
 				$mandatoryPackagesInput.attr('required', 'required');
+				$mandatoryPackagesInput.attr('min', 1);
 				$requiredIndicator.show();
+				// Ensure value is at least 1 when there are mandatory+optional packages
+				if (parseInt($mandatoryPackagesInput.val()) < 1) {
+					$mandatoryPackagesInput.val(1);
+				}
 			} else {
 				$mandatoryPackagesInput.removeAttr('required');
+				$mandatoryPackagesInput.attr('min', 0);
 				$requiredIndicator.hide();
 				// Set to 0 if no mandatory+optional packages
 				if (!$mandatoryPackagesInput.val() || $mandatoryPackagesInput.val() == '') {
@@ -1169,6 +1240,10 @@
 					pkg.category = pkg.products[0].product_type || 'textbook';
 				}
 				window.addPackage(pkg);
+			// Calculate initial weight for existing packages
+			setTimeout(function() {
+				updatePackageWeight(pkg.id || packageCounter);
+			}, 100);
 			});
 		} else {
 			// Initialize first package if none exist

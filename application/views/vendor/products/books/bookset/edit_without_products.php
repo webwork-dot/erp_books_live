@@ -571,9 +571,15 @@
 			
 			if (mandatoryOptionalTotal > 0) {
 				$mandatoryPackagesInput.attr('required', 'required');
+				$mandatoryPackagesInput.attr('min', 1);
 				$requiredIndicator.show();
+				// Ensure value is at least 1 when there are mandatory+optional packages
+				if (parseInt($mandatoryPackagesInput.val()) < 1) {
+					$mandatoryPackagesInput.val(1);
+				}
 			} else {
 				$mandatoryPackagesInput.removeAttr('required');
+				$mandatoryPackagesInput.attr('min', 0);
 				$requiredIndicator.hide();
 				if (!$mandatoryPackagesInput.val() || $mandatoryPackagesInput.val() == '') {
 					$mandatoryPackagesInput.val(0);

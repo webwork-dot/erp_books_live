@@ -310,9 +310,9 @@
 						<div class="mb-3">
 							<label class="form-label">Selling Price <span class="text-danger">*</span></label>
 							<input type="number" name="selling_price" id="selling_price" class="form-control" form="individual-product-form" value="<?php echo set_value('selling_price', isset($product['selling_price']) ? $product['selling_price'] : ''); ?>" step="0.01" min="0" max="" required>
-							<small class="text-muted fs-12">Must be less than MRP</small>
+							<small class="text-muted fs-12">Must be less than or equal to MRP</small>
 							<?php echo form_error('selling_price', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
-							<div id="selling_price_error" class="text-danger fs-13 mt-1" style="display: none;">Selling price must be less than MRP</div>
+							<div id="selling_price_error" class="text-danger fs-13 mt-1" style="display: none;">Selling price must be less than or equal to MRP</div>
 						</div>
 					</div>
 				</div>
@@ -583,16 +583,16 @@ function handleVariationTypeChange() {
 			var sellingPrice = parseFloat(sellingPriceField.value) || 0;
 			var errorDiv = document.getElementById('selling_price_error');
 			
-			if (mrp > 0 && sellingPrice > 0 && sellingPrice >= mrp) {
+			if (mrp > 0 && sellingPrice > 0 && sellingPrice > mrp) {
 				if (errorDiv) {
 					errorDiv.style.display = 'block';
 				}
 				if (sellingPriceField) {
-					sellingPriceField.setCustomValidity('Selling price must be less than MRP');
+					sellingPriceField.setCustomValidity('Selling price must be less than or equal to MRP');
 					sellingPriceField.classList.add('is-invalid');
 				}
 				if (mrpField) {
-					mrpField.setAttribute('max', sellingPrice - 0.01);
+					mrpField.setAttribute('max', sellingPrice);
 				}
 			} else {
 				if (errorDiv) {
@@ -783,7 +783,7 @@ function bulkSetPrices() {
 			'<label class="form-label">Selling Price</label>' +
 			'<input type="number" id="swal-selling-price" class="swal2-input" step="0.01" min="0" placeholder="Enter Selling Price">' +
 			'</div>' +
-			'<small class="text-muted">Selling price must be less than MRP</small>' +
+			'<small class="text-muted">Selling price must be less than or equal to MRP</small>' +
 			'</div>',
 		showCancelButton: true,
 		confirmButtonText: 'Apply',
@@ -791,19 +791,19 @@ function bulkSetPrices() {
 		preConfirm: () => {
 			var mrp = parseFloat(document.getElementById('swal-mrp').value) || 0;
 			var sellingPrice = parseFloat(document.getElementById('swal-selling-price').value) || 0;
-			
+
 			if (!mrp || mrp <= 0) {
 				Swal.showValidationMessage('Please enter a valid MRP');
 				return false;
 			}
-			
+
 			if (!sellingPrice || sellingPrice <= 0) {
 				Swal.showValidationMessage('Please enter a valid Selling Price');
 				return false;
 			}
-			
-			if (sellingPrice >= mrp) {
-				Swal.showValidationMessage('Selling price must be less than MRP');
+
+			if (sellingPrice > mrp) {
+				Swal.showValidationMessage('Selling price must be less than or equal to MRP');
 				return false;
 			}
 			
@@ -1469,12 +1469,12 @@ document.addEventListener('DOMContentLoaded', function() {
 					var mrp = parseFloat($('#mrp').val()) || 0;
 					var sellingPrice = parseFloat($('#selling_price').val()) || 0;
 					
-					if (sellingPrice >= mrp) {
+					if (sellingPrice > mrp) {
 						e.preventDefault();
 						Swal.fire({
 							icon: 'error',
 							title: 'Validation Error',
-							text: 'Selling price must be less than MRP.',
+							text: 'Selling price must be less than or equal to MRP.',
 							confirmButtonText: 'OK'
 						});
 						return false;
@@ -1490,17 +1490,17 @@ document.addEventListener('DOMContentLoaded', function() {
 						var sellingPriceInput = document.querySelector('.combo-selling-price[data-index="' + index + '"]');
 						var sellingPrice = sellingPriceInput ? (parseFloat(sellingPriceInput.value) || 0) : 0;
 						
-						if (sellingPrice >= mrp) {
+						if (sellingPrice > mrp) {
 							hasError = true;
 						}
 					});
-					
+
 					if (hasError) {
 						e.preventDefault();
 						Swal.fire({
 							icon: 'error',
 							title: 'Validation Error',
-							text: 'Selling price must be less than MRP for all variation combinations.',
+							text: 'Selling price must be less than or equal to MRP for all variation combinations.',
 							confirmButtonText: 'OK'
 						});
 						return false;

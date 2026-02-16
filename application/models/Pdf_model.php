@@ -80,8 +80,8 @@ class Pdf_model extends CI_Model
                 }
             }
             
-            // If grade_name is not set, try to get it from order items (booksets/packages)
-            if (empty($order->grade_name) && !empty($items_arr)) {
+            // If grade_name or board_name is not set, try to get from order items (booksets/packages)
+            if ((empty($order->grade_name) || empty($order->board_name)) && !empty($items_arr)) {
                 foreach ($items_arr as $item) {
                     // First, try to get grade_id directly from order item (if it exists in tbl_order_items)
                     // Note: tbl_order_items might not have grade_id field, so we'll get it from bookset/package
@@ -101,11 +101,12 @@ class Pdf_model extends CI_Model
                         }
                     }
                     
-                    // Try to get grade from bookset
+                    // Try to get grade and board from bookset
                     if (!empty($bookset_id) && $this->db->table_exists('erp_booksets')) {
-                        $bookset_row = $this->db->select('bs.grade_id, tg.name as grade_name, bs.school_id')
+                        $bookset_row = $this->db->select('bs.grade_id, bs.board_id, bs.school_id, tg.name as grade_name, sb.board_name')
                             ->from('erp_booksets bs')
                             ->join('erp_textbook_grades tg', 'tg.id = bs.grade_id', 'left')
+                            ->join('erp_school_boards sb', 'sb.id = bs.board_id', 'left')
                             ->where('bs.id', $bookset_id)
                             ->limit(1)
                             ->get()
@@ -113,6 +114,9 @@ class Pdf_model extends CI_Model
                         if (!empty($bookset_row)) {
                             if (!empty($bookset_row->grade_name)) {
                                 $order->grade_name = $bookset_row->grade_name;
+                            }
+                            if (!empty($bookset_row->board_name)) {
+                                $order->board_name = $bookset_row->board_name;
                             }
                             // Also set school_id if not already set
                             if (empty($order->school_id) && !empty($bookset_row->school_id)) {
@@ -132,23 +136,27 @@ class Pdf_model extends CI_Model
                         }
                     }
                     
-                    // Try to get grade from package (if package_id is a single value or first value from comma-separated)
-                    if (empty($order->grade_name) && !empty($package_id) && $this->db->table_exists('erp_bookset_packages')) {
+                    // Try to get grade and board from package (if package_id is a single value or first value from comma-separated)
+                    if ((empty($order->grade_name) || empty($order->board_name)) && !empty($package_id) && $this->db->table_exists('erp_bookset_packages')) {
                         // Handle comma-separated package_ids
                         $package_ids_array = explode(',', $package_id);
                         $first_package_id = trim($package_ids_array[0]);
                         
                         if (!empty($first_package_id)) {
-                            $package_row = $this->db->select('bp.grade_id, tg.name as grade_name, bp.school_id')
+                            $package_row = $this->db->select('bp.grade_id, bp.board_id, bp.school_id, tg.name as grade_name, sb.board_name')
                                 ->from('erp_bookset_packages bp')
                                 ->join('erp_textbook_grades tg', 'tg.id = bp.grade_id', 'left')
+                                ->join('erp_school_boards sb', 'sb.id = bp.board_id', 'left')
                                 ->where('bp.id', $first_package_id)
                                 ->limit(1)
                                 ->get()
                                 ->row();
                             if (!empty($package_row)) {
-                                if (!empty($package_row->grade_name)) {
+                                if (empty($order->grade_name) && !empty($package_row->grade_name)) {
                                     $order->grade_name = $package_row->grade_name;
+                                }
+                                if (empty($order->board_name) && !empty($package_row->board_name)) {
+                                    $order->board_name = $package_row->board_name;
                                 }
                                 // Also set school_id if not already set
                                 if (empty($order->school_id) && !empty($package_row->school_id)) {
@@ -170,18 +178,59 @@ class Pdf_model extends CI_Model
                     }
                 }
             }
+            
+            // If board_name is still not set, try to get from order items (board_id)
+            if (empty($order->board_name) && !empty($items_arr) && $this->db->table_exists('erp_school_boards')) {
+                foreach ($items_arr as $item) {
+                    $is_bookset_item = isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package');
+                    if ($is_bookset_item && !empty($item->board_id)) {
+                        $board_row = $this->db->select('board_name')
+                            ->from('erp_school_boards')
+                            ->where('id', $item->board_id)
+                            ->limit(1)
+                            ->get()
+                            ->row();
+                        if (!empty($board_row) && !empty($board_row->board_name)) {
+                            $order->board_name = $board_row->board_name;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If board_name is still not set, get from tbl_order_bookset_products -> package -> erp_bookset_packages
+            if (empty($order->board_name) && !empty($order->id) && $this->db->table_exists('tbl_order_bookset_products') && $this->db->table_exists('erp_bookset_packages')) {
+                $first_product = $this->db->select('package_id')
+                    ->from('tbl_order_bookset_products')
+                    ->where('order_id', $order->id)
+                    ->limit(1)
+                    ->get()
+                    ->row();
+                if (!empty($first_product) && !empty($first_product->package_id)) {
+                    $package_row = $this->db->select('bp.board_id, sb.board_name')
+                        ->from('erp_bookset_packages bp')
+                        ->join('erp_school_boards sb', 'sb.id = bp.board_id', 'left')
+                        ->where('bp.id', $first_product->package_id)
+                        ->limit(1)
+                        ->get()
+                        ->row();
+                    if (!empty($package_row) && !empty($package_row->board_name)) {
+                        $order->board_name = $package_row->board_name;
+                    }
+                }
+            }
         }
         
-        // Generate QR codes on-the-fly
+        // Generate QR codes on-the-fly - use shipping number (ship_order_id) when available, not order number
+        $shipping_number_for_qr = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $shipping_no);
         if ($type == "self") {
-            $barcode_no = $shipping_no;
+            $barcode_no = $shipping_number_for_qr;
             $barcode = $this->generate_qr_base64($barcode_no);
         } elseif ($type == "bigship" && !empty($shipping_label) && !empty($shipping_label->awb_number)) {
             $barcode_no = $shipping_label->awb_number;
             $barcode = $this->generate_qr_base64($barcode_no);
         } else {
-            // Fallback: use shipping_no
-            $barcode_no = $shipping_no;
+            $barcode_no = $shipping_number_for_qr;
             $barcode = $this->generate_qr_base64($barcode_no);
         }
     
@@ -229,14 +278,17 @@ class Pdf_model extends CI_Model
                      <th colspan="2" class="text-left head order_no" style="width: 70%!important; white-space: normal; word-break: break-word;">
                      <h4 class="mb-0 mt-0 text-right school">';
             
-            // If order type is Bookset, show school name and grade on the right
+            // If order type is Bookset, show school name, board and grade on the right
             if ($order_type_label == 'Bookset') {
                 if (!empty($order->school_name)) {
                     $output .= '<b>' . htmlspecialchars($order->school_name) . '</b>';
                 }
-                    if (!empty($order->grade_name)) {
+                if (!empty($order->board_name)) {
+                    $output .= ' <br/> <b>Board: ' . htmlspecialchars($order->board_name) . '</b>';
+                }
+                if (!empty($order->grade_name)) {
                     $output .= ' <br/> <b>Grade: ' . htmlspecialchars($order->grade_name) . '</b><br/>';
-                } elseif (!empty($order->school_name)) {
+                } elseif (!empty($order->school_name) || !empty($order->board_name)) {
                     $output .= '<br/>';
                 }
             } else {
@@ -434,20 +486,54 @@ class Pdf_model extends CI_Model
             
             // For bookset orders, fetch products from tbl_order_bookset_products
             if ($order_type_label == 'Bookset' && $this->db->table_exists('tbl_order_bookset_products')) {
+                // Get bookset name from order item (product_title) or erp_booksets
+                $bookset_display_name = '';
+                if (!empty($items_arr)) {
+                    foreach ($items_arr as $item) {
+                        if (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package') && !empty($item->product_title)) {
+                            $bookset_display_name = trim($item->product_title);
+                            break;
+                        }
+                    }
+                }
+                if (empty($bookset_display_name) && !empty($items_arr)) {
+                    foreach ($items_arr as $item) {
+                        if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->product_id) && $this->db->table_exists('erp_booksets')) {
+                            $bs_row = $this->db->select('bs.bookset_name, s.school_name, b.board_name, tg.name as grade_name')
+                                ->from('erp_booksets bs')
+                                ->join('erp_schools s', 's.id = bs.school_id', 'left')
+                                ->join('erp_school_boards b', 'b.id = bs.board_id', 'left')
+                                ->join('erp_textbook_grades tg', 'tg.id = bs.grade_id', 'left')
+                                ->where('bs.id', $item->product_id)
+                                ->limit(1)
+                                ->get()
+                                ->row();
+                            if (!empty($bs_row)) {
+                                if (!empty($bs_row->bookset_name)) {
+                                    $bookset_display_name = $bs_row->bookset_name;
+                                } else {
+                                    $parts = array_filter(array($bs_row->school_name, $bs_row->board_name, $bs_row->grade_name));
+                                    $bookset_display_name = !empty($parts) ? implode(' - ', $parts) : 'Bookset';
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (empty($bookset_display_name)) {
+                    $bookset_display_name = 'Bookset';
+                }
+                
                 // Get order_id from order object
                 $order_id_for_bookset = isset($order->id) ? $order->id : null;
                 if (empty($order_id_for_bookset) && !empty($items_arr)) {
-                    // Try to get order_id from first item
-            foreach ($items_arr as $item) {
+                    foreach ($items_arr as $item) {
                         if (isset($item->order_id)) {
                             $order_id_for_bookset = $item->order_id;
                             break;
                         }
                     }
                 }
-                
-                // Debug: Log order_id being used
-                // error_log("Shipping Label - Order ID for bookset: " . $order_id_for_bookset);
                 
                 if (!empty($order_id_for_bookset)) {
                     // Fetch bookset products grouped by package
@@ -461,9 +547,6 @@ class Pdf_model extends CI_Model
                     
                     // Store for weight calculation
                     $bookset_products_for_weight = $bookset_products;
-                    
-                    // Debug: Log number of products found
-                    // error_log("Shipping Label - Bookset products found: " . count($bookset_products));
                     
                     if (!empty($bookset_products) && count($bookset_products) > 0) {
                         // Group by package
@@ -481,10 +564,17 @@ class Pdf_model extends CI_Model
                             $packages[$package_id]['products'][] = $bookset_product;
                         }
                         
+                        // Bookset name header row
+                        $output .= '<tr>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px; background-color: #e0e0e0; font-weight: bold; font-size: 1.05em;" colspan="5">
+                                        Bookset: ' . htmlspecialchars($bookset_display_name) . '
+                                    </td>
+                                </tr>';
+                        
                         // Display packages and their products
                         foreach ($packages as $package_id => $package_data) {
                             // Package header row
-                $output .= '<tr>
+                            $output .= '<tr>
                                     <td class="text-left" style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold;" colspan="5">
                                         Package: ' . htmlspecialchars($package_data['package_name']) . '
                                     </td>
@@ -521,7 +611,40 @@ class Pdf_model extends CI_Model
                             }
                         }
                     } else {
-                        // Fallback to items_arr if no bookset products found
+                        // No products in tbl_order_bookset_products - show bookset name and packages from order items
+                        $output .= '<tr>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px; background-color: #e0e0e0; font-weight: bold; font-size: 1.05em;" colspan="5">
+                                        Bookset: ' . htmlspecialchars($bookset_display_name) . '
+                                    </td>
+                                </tr>';
+                        
+                        // Get package names from erp_bookset_packages using package_id from order item
+                        $package_ids_from_item = array();
+                        foreach ($items_arr as $item) {
+                            if (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package') && !empty($item->package_id)) {
+                                $pids = array_filter(array_map('trim', explode(',', $item->package_id)));
+                                $package_ids_from_item = array_merge($package_ids_from_item, $pids);
+                            }
+                        }
+                        $package_ids_from_item = array_unique($package_ids_from_item);
+                        
+                        if (!empty($package_ids_from_item) && $this->db->table_exists('erp_bookset_packages')) {
+                            $packages_from_db = $this->db->select('id, package_name')
+                                ->from('erp_bookset_packages')
+                                ->where_in('id', $package_ids_from_item)
+                                ->order_by('id', 'ASC')
+                                ->get()
+                                ->result();
+                            foreach ($packages_from_db as $pkg) {
+                                $output .= '<tr>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold;" colspan="5">
+                                        Package: ' . htmlspecialchars($pkg->package_name) . '
+                                    </td>
+                                </tr>';
+                            }
+                        }
+                        
+                        // Fallback to items_arr for product display
                         $item_count = count($items_arr);
                         $invoice_value_per_item = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
                         
@@ -552,7 +675,37 @@ class Pdf_model extends CI_Model
                         }
                     }
                 } else {
-                    // Fallback to items_arr if order_id not found
+                    // Fallback to items_arr if order_id not found - still show bookset name and packages
+                    $output .= '<tr>
+                                    <td class="text-left" style="border: 1px solid #000; padding: 8px; background-color: #e0e0e0; font-weight: bold; font-size: 1.05em;" colspan="5">
+                                        Bookset: ' . htmlspecialchars($bookset_display_name) . '
+                                    </td>
+                                </tr>';
+                    
+                    $package_ids_from_item = array();
+                    foreach ($items_arr as $item) {
+                        if (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package') && !empty($item->package_id)) {
+                            $pids = array_filter(array_map('trim', explode(',', $item->package_id)));
+                            $package_ids_from_item = array_merge($package_ids_from_item, $pids);
+                        }
+                    }
+                    $package_ids_from_item = array_unique($package_ids_from_item);
+                    if (!empty($package_ids_from_item) && $this->db->table_exists('erp_bookset_packages')) {
+                        $packages_from_db = $this->db->select('id, package_name')
+                            ->from('erp_bookset_packages')
+                            ->where_in('id', $package_ids_from_item)
+                            ->order_by('id', 'ASC')
+                            ->get()
+                            ->result();
+                        foreach ($packages_from_db as $pkg) {
+                            $output .= '<tr>
+                                <td class="text-left" style="border: 1px solid #000; padding: 8px; background-color: #f0f0f0; font-weight: bold;" colspan="5">
+                                    Package: ' . htmlspecialchars($pkg->package_name) . '
+                                </td>
+                            </tr>';
+                        }
+                    }
+                    
                     $item_count = count($items_arr);
                     $invoice_value_per_item = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
                     

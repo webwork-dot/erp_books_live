@@ -57,8 +57,8 @@
 }
 
 .order-page .product-image {
-  width: 60px;
-  height: 60px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
   border: 1px solid #eee;
   border-radius: 4px;
@@ -369,76 +369,73 @@ if($order_data[0]->payment_method == 'cod'){
                             </tr>
                             <?php
                             foreach ($package_data['products'] as $bookset_product) {
-                      // Get product image
+                          // Get product image - fetch from legacy tables with fallback to first image when is_main not set
                               $product_image = '';
                               if (!empty($bookset_product->product_id)) {
                                 $product_id = $bookset_product->product_id;
                                 $product_type = $bookset_product->product_type;
-                                
-                                if ($product_type == 'textbook') {
+
+                                $img_query = null;
+                                if ($product_type == 'textbook' && $this->db->table_exists('erp_textbook_images')) {
                                   $img_query = $this->db->select('image_path')
                                     ->from('erp_textbook_images')
                                     ->where('textbook_id', $product_id)
                                     ->where('is_main', 1)
                                     ->limit(1)
                                     ->get();
-                                  if ($img_query->num_rows() > 0) {
-                                    $image_path = $img_query->row()->image_path;
-                                    if (strpos($image_path, 'http://') === 0 || strpos($image_path, 'https://') === 0) {
-                                      $product_image = $image_path;
-                                    } elseif (strpos($image_path, 'assets/uploads/') === 0) {
-                                      $product_image = $image_path;
-                                    } else {
-                                      $product_image = 'assets/uploads/' . ltrim($image_path, '/');
-                                    }
+                                  if ($img_query->num_rows() == 0) {
+                                    $img_query = $this->db->select('image_path')
+                                      ->from('erp_textbook_images')
+                                      ->where('textbook_id', $product_id)
+                                      ->order_by('image_order', 'ASC')
+                                      ->limit(1)
+                                      ->get();
                                   }
-                                } elseif ($product_type == 'notebook') {
+                                } elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebook_images')) {
                                   $img_query = $this->db->select('image_path')
                                     ->from('erp_notebook_images')
                                     ->where('notebook_id', $product_id)
                                     ->where('is_main', 1)
                                     ->limit(1)
                                     ->get();
-                                  if ($img_query->num_rows() > 0) {
-                                    $image_path = $img_query->row()->image_path;
-                                    if (strpos($image_path, 'http://') === 0 || strpos($image_path, 'https://') === 0) {
-                                      $product_image = $image_path;
-                                    } elseif (strpos($image_path, 'assets/uploads/') === 0) {
-                                      $product_image = $image_path;
-                                    } else {
-                                      $product_image = 'assets/uploads/' . ltrim($image_path, '/');
-                                    }
+                                  if ($img_query->num_rows() == 0) {
+                                    $img_query = $this->db->select('image_path')
+                                      ->from('erp_notebook_images')
+                                      ->where('notebook_id', $product_id)
+                                      ->order_by('image_order', 'ASC')
+                                      ->limit(1)
+                                      ->get();
                                   }
-                                } elseif ($product_type == 'stationery') {
-                                  // Check if stationery images table exists
-                                  if ($this->db->table_exists('erp_stationery_images')) {
+                                } elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery_images')) {
+                                  $img_query = $this->db->select('image_path')
+                                    ->from('erp_stationery_images')
+                                    ->where('stationery_id', $product_id)
+                                    ->where('is_main', 1)
+                                    ->limit(1)
+                                    ->get();
+                                  if ($img_query->num_rows() == 0) {
                                     $img_query = $this->db->select('image_path')
                                       ->from('erp_stationery_images')
                                       ->where('stationery_id', $product_id)
-                                      ->where('is_main', 1)
+                                      ->order_by('image_order', 'ASC')
                                       ->limit(1)
                                       ->get();
-                                    if ($img_query->num_rows() > 0) {
-                                      $image_path = $img_query->row()->image_path;
-                                      if (strpos($image_path, 'http://') === 0 || strpos($image_path, 'https://') === 0) {
-                                        $product_image = $image_path;
-                                      } elseif (strpos($image_path, 'assets/uploads/') === 0) {
-                                        $product_image = $image_path;
-                                      } else {
-                                        $product_image = 'assets/uploads/' . ltrim($image_path, '/');
-                                      }
-                                    }
                                   }
+                                }
+
+                                if ($img_query && $img_query->num_rows() > 0) {
+                                  $product_image = $img_query->row()->image_path;
                                 }
                               }
                             ?>
                             <tr>
                         <td>
                                 <?php if (!empty($product_image)): 
-                                  if (strpos($product_image, 'http://') === 0 || strpos($product_image, 'https://') === 0) {
-                                    $img_url = $product_image;
+                                  $stored_path = trim($product_image);
+                                  if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+                                    $img_url = $stored_path;
                                   } else {
-                                    $img_url = base_url($product_image);
+                                    $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
                                   }
                                 ?>
                             <img src="<?= $img_url ?>" class="product-image" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />
@@ -513,37 +510,112 @@ if($order_data[0]->payment_method == 'cod'){
                         } else {
                           // Display regular order items
                           foreach ($items_arr as $key => $val) {
-                          // Get product image
+                          // Get product image based on product type
                           $product_image = '';
                           if (isset($val->product_id) && !empty($val->product_id)) {
                             $product_id = $val->product_id;
+
+                            // Determine product type from order_type or check tables
+                            $product_type = '';
+                            if (isset($val->order_type)) {
+                              if ($val->order_type == 'uniform') {
+                                $product_type = 'uniform';
+                              } elseif ($val->order_type == 'textbook' || $val->order_type == 'notebook' || $val->order_type == 'stationery') {
+                                $product_type = $val->order_type;
+                              }
+                            }
+
+                            // If we couldn't determine from order_type, try to detect from tables
+                            if (empty($product_type)) {
+                              // Check if it's a uniform
+                              if ($this->db->table_exists('erp_uniforms')) {
+                                $uniform_check = $this->db->select('id')->from('erp_uniforms')->where('id', $product_id)->limit(1)->get();
+                                if ($uniform_check->num_rows() > 0) {
+                                  $product_type = 'uniform';
+                                }
+                              }
+
+                              // Check if it's a textbook
+                              if (empty($product_type) && $this->db->table_exists('erp_textbooks')) {
+                                $textbook_check = $this->db->select('id')->from('erp_textbooks')->where('id', $product_id)->limit(1)->get();
+                                if ($textbook_check->num_rows() > 0) {
+                                  $product_type = 'textbook';
+                                }
+                              }
+
+                              // Check if it's a notebook
+                              if (empty($product_type) && $this->db->table_exists('erp_notebooks')) {
+                                $notebook_check = $this->db->select('id')->from('erp_notebooks')->where('id', $product_id)->limit(1)->get();
+                                if ($notebook_check->num_rows() > 0) {
+                                  $product_type = 'notebook';
+                                }
+                              }
+
+                              // Check if it's stationery
+                              if (empty($product_type) && $this->db->table_exists('erp_stationery')) {
+                                $stationery_check = $this->db->select('id')->from('erp_stationery')->where('id', $product_id)->limit(1)->get();
+                                if ($stationery_check->num_rows() > 0) {
+                                  $product_type = 'stationery';
+                                }
+                              }
+                            }
+
+                            // Fetch image based on product type
+                            if ($product_type == 'uniform') {
                               $img_query = $this->db->select('image_path')
                                 ->from('erp_uniform_images')
                                 ->where('uniform_id', $product_id)
                                 ->where('is_main', 1)
                                 ->limit(1)
                                 ->get();
-                            if ($img_query->num_rows() > 0) {
-                              $image_path = $img_query->row()->image_path;
-                              if (strpos($image_path, 'http://') === 0 || strpos($image_path, 'https://') === 0) {
-                                $product_image = $image_path;
-                              } elseif (strpos($image_path, 'assets/uploads/') === 0) {
-                                $product_image = $image_path;
-                              } elseif (strpos($image_path, 'vendors/') === 0) {
-                                $product_image = 'assets/uploads/' . $image_path;
+                            } elseif ($product_type == 'textbook') {
+                              $img_query = $this->db->select('image_path')
+                                ->from('erp_textbook_images')
+                                ->where('textbook_id', $product_id)
+                                ->where('is_main', 1)
+                                ->limit(1)
+                                ->get();
+                            } elseif ($product_type == 'notebook') {
+                              $img_query = $this->db->select('image_path')
+                                ->from('erp_notebook_images')
+                                ->where('notebook_id', $product_id)
+                                ->where('is_main', 1)
+                                ->limit(1)
+                                ->get();
+                            } elseif ($product_type == 'stationery') {
+                              if ($this->db->table_exists('erp_stationery_images')) {
+                                $img_query = $this->db->select('image_path')
+                                  ->from('erp_stationery_images')
+                                  ->where('stationery_id', $product_id)
+                                  ->where('is_main', 1)
+                                  ->limit(1)
+                                  ->get();
                               } else {
-                                $product_image = 'assets/uploads/' . ltrim($image_path, '/');
+                                $img_query = null;
                               }
+                            } else {
+                              // For individual products, check the main products table
+                              $img_query = $this->db->select('image_path')
+                                ->from('product_images')
+                                ->where('product_id', $product_id)
+                                ->where('is_main', 1)
+                                ->limit(1)
+                                ->get();
+                            }
+
+                            if (isset($img_query) && $img_query && $img_query->num_rows() > 0) {
+                              $product_image = $img_query->row()->image_path;
                             }
                           }
                         ?>
                         <tr>
                       <td>
                             <?php if (!empty($product_image)): 
-                              if (strpos($product_image, 'http://') === 0 || strpos($product_image, 'https://') === 0) {
-                                $img_url = $product_image;
+                              $stored_path = trim($product_image);
+                              if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+                                $img_url = $stored_path;
                               } else {
-                                $img_url = base_url($product_image);
+                                $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
                               }
                             ?>
                           <img src="<?= $img_url ?>" class="product-image" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />

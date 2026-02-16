@@ -8,7 +8,6 @@
 
 <style>
 	.packages-container {
-		height: 70vh;
 		max-height: 70vh;
 		overflow-y: auto !important;
 		overscroll-behavior: contain;
@@ -142,7 +141,7 @@
 					</button>
 				</div>
 					
-				<div id="packages_area" class="packages-container" data-simplebar>
+				<div id="packages_area" class="packages-container row g-3">
 					<!-- Packages will be added here dynamically -->
 				</div>
 				<div class="mt-3">
@@ -290,7 +289,8 @@
 			var packageIndex = packages.length;
 			
 			var packageHtml = `
-				<div class="package-card mb-3 border border-danger rounded" id="package_${packageCounter}" data-package-status="incomplete">
+				<div class="col-12 mb-3">
+					<div class="package-card border border-danger rounded" id="package_${packageCounter}" data-package-status="incomplete">
 					<div class="card-header bg-danger bg-opacity-10 border-bottom border-danger d-flex justify-content-between align-items-center py-2">
 						<div class="d-flex align-items-center gap-2">
 							<span class="badge bg-danger rounded-pill">Package ${packageIndex + 1}</span>
@@ -344,6 +344,7 @@
 							</div>
 						</div>
 					</div>
+				</div>
 				</div>
 			`;
 			
@@ -558,9 +559,15 @@
 			
 			if (mandatoryOptionalTotal > 0) {
 				$mandatoryPackagesInput.attr('required', 'required');
+				$mandatoryPackagesInput.attr('min', 1);
 				$requiredIndicator.show();
+				// Ensure value is at least 1 when there are mandatory+optional packages
+				if (parseInt($mandatoryPackagesInput.val()) < 1) {
+					$mandatoryPackagesInput.val(1);
+				}
 			} else {
 				$mandatoryPackagesInput.removeAttr('required');
+				$mandatoryPackagesInput.attr('min', 0);
 				$requiredIndicator.hide();
 				$mandatoryPackagesInput.val(0);
 			}
