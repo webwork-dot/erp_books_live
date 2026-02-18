@@ -529,6 +529,10 @@ $config['csrf_exclude_uris'] = array(
 	'schools/toggle_status',
 	'schools/delete_image/.*',
 	'branches/get_cities',
+	'schools/toggle_payment_required',
+	'schools/toggle_deliver_at_school',
+	'branches/toggle_payment_required',
+	'branches/toggle_deliver_at_school',
 	'customers/get_customer_details/.*'
 );
 

@@ -220,6 +220,29 @@ class Pdf_model extends CI_Model
                 }
             }
         }
+
+        // Fetch school/branch for Individual orders when items have school_id or branch_id (display on top right)
+        if ($order_type_label == 'Individual' && empty($order->school_name) && !empty($items_arr)) {
+            foreach ($items_arr as $item) {
+                if (!empty($item->branch_id)) {
+                    $br = $this->db->select('sb.branch_name, s.school_name')
+                        ->from('erp_school_branches sb')
+                        ->join('erp_schools s', 's.id = sb.school_id', 'left')
+                        ->where('sb.id', (int)$item->branch_id)
+                        ->limit(1)->get()->row();
+                    if ($br) {
+                        $order->school_name = $br->branch_name . (!empty($br->school_name) ? ' (' . $br->school_name . ')' : '');
+                        break;
+                    }
+                } elseif (!empty($item->school_id)) {
+                    $sch = $this->db->select('school_name')->from('erp_schools')->where('id', (int)$item->school_id)->limit(1)->get()->row();
+                    if ($sch) {
+                        $order->school_name = $sch->school_name;
+                        break;
+                    }
+                }
+            }
+        }
         
         // Generate QR codes on-the-fly - use shipping number (ship_order_id) when available, not order number
         $shipping_number_for_qr = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $shipping_no);
@@ -291,6 +314,12 @@ class Pdf_model extends CI_Model
                 } elseif (!empty($order->school_name) || !empty($order->board_name)) {
                     $output .= '<br/>';
                 }
+            } elseif ($order_type_label == 'Uniform' && !empty($order->school_name)) {
+                // For uniform orders, show school/branch on top right
+                $output .= '<b>' . htmlspecialchars($order->school_name) . '</b><br/>';
+            } elseif ($order_type_label == 'Individual' && !empty($order->school_name)) {
+                // Individual order but items have school_id/branch_id - show school/branch on top right
+                $output .= '<b>' . htmlspecialchars($order->school_name) . '</b><br/>';
             } else {
                 // For other order types, show category
                 if (!empty($order->category_name)) {
@@ -318,12 +347,15 @@ class Pdf_model extends CI_Model
                         $is_bookset_item = true;
                     }
                     
-                    if ($is_bookset_item) {
+                    $is_deliver_at_school = isset($order->is_deliver_at_school) && (int)$order->is_deliver_at_school === 1;
+                    if ($is_bookset_item || $is_deliver_at_school) {
                         // Get student name from order item fields
                         if (empty($student_name)) {
                             $f_name = isset($item->f_name) ? trim($item->f_name) : '';
                             $m_name = isset($item->m_name) ? trim($item->m_name) : '';
                             $s_name = isset($item->s_name) ? trim($item->s_name) : '';
+                            $roll_number = isset($item->roll_number) ? trim($item->roll_number) : '';
+                            $remarks = isset($item->remarks) ? trim($item->remarks) : '';
                             
                             // Build full name
                             $name_parts = array();
@@ -853,86 +885,11 @@ class Pdf_model extends CI_Model
                 $vendor_domain = 'www.kirtibook.in'; // Default fallback
             }
             
-            // Calculate total weight
-            $total_weight = 0;
-            
-            // For bookset orders, calculate weight from tbl_order_bookset_products
-            if ($order_type_label == 'Bookset' && !empty($bookset_products_for_weight)) {
-                foreach ($bookset_products_for_weight as $bookset_product) {
-                    $product_weight = 0;
-                    $product_qty = isset($bookset_product->quantity) ? intval($bookset_product->quantity) : 1;
-                    
-                    // First, try to get weight from tbl_order_bookset_products
-                    if (isset($bookset_product->weight) && !empty($bookset_product->weight) && floatval($bookset_product->weight) > 0) {
-                        $product_weight = floatval($bookset_product->weight);
-                    } else {
-                        // If weight not in order table, fetch from product tables
-                        $product_id = isset($bookset_product->product_id) ? $bookset_product->product_id : 0;
-                        $product_type = isset($bookset_product->product_type) ? $bookset_product->product_type : '';
-                        
-                        if (!empty($product_id) && !empty($product_type)) {
-                            if ($product_type == 'textbook' && $this->db->table_exists('erp_textbooks')) {
-                                $textbook = $this->db->select('packaging_weight')
-                                    ->from('erp_textbooks')
-                                    ->where('id', $product_id)
-                                    ->limit(1)
-                                    ->get()
-                                    ->row();
-                                if (!empty($textbook) && !empty($textbook->packaging_weight)) {
-                                    $product_weight = floatval($textbook->packaging_weight);
-                                }
-                            } elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebooks')) {
-                                $notebook = $this->db->select('packaging_weight')
-                                    ->from('erp_notebooks')
-                                    ->where('id', $product_id)
-                                    ->limit(1)
-                                    ->get()
-                                    ->row();
-                                if (!empty($notebook) && !empty($notebook->packaging_weight)) {
-                                    $product_weight = floatval($notebook->packaging_weight);
-                                }
-                            } elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery')) {
-                                $stationery = $this->db->select('packaging_weight')
-                                    ->from('erp_stationery')
-                                    ->where('id', $product_id)
-                                    ->limit(1)
-                                    ->get()
-                                    ->row();
-                                if (!empty($stationery) && !empty($stationery->packaging_weight)) {
-                                    $product_weight = floatval($stationery->packaging_weight);
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Add to total (weight * quantity)
-                    // Note: If weight is in grams, convert to kg by dividing by 1000
-                    // If weight is already in kg, use as is
-                    if ($product_weight > 0) {
-                        // Assume weight is in grams if > 100, otherwise assume kg
-                        if ($product_weight > 100) {
-                            $product_weight = $product_weight / 1000; // Convert grams to kg
-                        }
-                        $total_weight += ($product_weight * $product_qty);
-                    }
-                }
+            // Weight: only from tbl_order_details.total_weight_gm (in grams)
+            $total_weight_gm = isset($order->total_weight_gm) ? floatval($order->total_weight_gm) : 0;
+            if ($total_weight_gm > 0) {
+                $total_weight = $total_weight_gm / 1000; // Convert grams to kg for display
             } else {
-                // For individual orders, calculate from items_arr
-                foreach ($items_arr as $item) {
-                    $item_weight = isset($item->weight) ? floatval($item->weight) : 0;
-                    $item_qty = isset($item->product_qty) ? intval($item->product_qty) : 1;
-                    
-                    // If weight is in grams (> 100), convert to kg
-                    if ($item_weight > 100) {
-                        $item_weight = $item_weight / 1000;
-                    }
-                    
-                    $total_weight += ($item_weight * $item_qty);
-                }
-            }
-            
-            // If weight is still 0, use default
-            if ($total_weight == 0 || $total_weight < 0.1) {
                 $total_weight = 5.50; // Default weight if not available (in kg)
             }
             

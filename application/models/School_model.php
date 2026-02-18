@@ -435,5 +435,111 @@ class School_model extends CI_Model
 		
 		return implode(', ', $board_names);
 	}
+
+	/**
+	 * Toggle payment required status for school
+	 *
+	 * @param	int		$school_id	School ID
+	 * @param	int		$status		New status (1 = payment required, 0 = payment not required)
+	 * @param	int		$vendor_id	Vendor ID (for security)
+	 * @return	array	Result array with status and message
+	 */
+	public function togglePaymentRequired($school_id, $status, $vendor_id = NULL)
+	{
+		// Validate status
+		if (!in_array($status, [0, 1]))
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Invalid status value. Must be 0 or 1.'
+			);
+		}
+
+		// Verify school exists and belongs to vendor
+		$school = $this->getSchoolById($school_id, $vendor_id);
+		if (!$school)
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'School not found or you do not have permission to edit it.'
+			);
+		}
+
+		// Update payment required status
+		$update_data = array(
+			'is_payment_required' => (int)$status
+		);
+
+		$this->db->where('id', $school_id);
+		if ($this->db->update('erp_schools', $update_data))
+		{
+			$message = $status == 1 ? 'Payment is now required.' : 'Payment is now not required.';
+			return array(
+				'status' => 'success',
+				'message' => $message,
+				'data' => array('is_payment_required' => (int)$status)
+			);
+		}
+		else
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Failed to update payment required status.'
+			);
+		}
+	}
+
+	/**
+	 * Toggle deliver at school status for school
+	 *
+	 * @param	int		$school_id	School ID
+	 * @param	int		$status		New status (1 = deliver at school/address required, 0 = no address required)
+	 * @param	int		$vendor_id	Vendor ID (for security)
+	 * @return	array	Result array with status and message
+	 */
+	public function toggleDeliverAtSchool($school_id, $status, $vendor_id = NULL)
+	{
+		// Validate status
+		if (!in_array($status, [0, 1]))
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Invalid status value. Must be 0 or 1.'
+			);
+		}
+
+		// Verify school exists and belongs to vendor
+		$school = $this->getSchoolById($school_id, $vendor_id);
+		if (!$school)
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'School not found or you do not have permission to edit it.'
+			);
+		}
+
+		// Update deliver at school status
+		$update_data = array(
+			'deliver_at_school' => (int)$status
+		);
+
+		$this->db->where('id', $school_id);
+		if ($this->db->update('erp_schools', $update_data))
+		{
+			$message = $status == 1 ? 'Delivery at school is now enabled (address required).' : 'Delivery at school is now disabled (no address required).';
+			return array(
+				'status' => 'success',
+				'message' => $message,
+				'data' => array('deliver_at_school' => (int)$status)
+			);
+		}
+		else
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Failed to update deliver at school status.'
+			);
+		}
+	}
 }
 

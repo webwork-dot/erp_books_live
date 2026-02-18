@@ -79,6 +79,14 @@
   padding-left: 5px;
   padding-right: 5px;
 }
+
+.badge-payment-school, .badge-deliver-school {
+    background-color: #ef1e1e29 !important;
+    border: 2px solid #ef1e1e;
+    color: #ef1e1e !important;
+    font-size: 14px !important;
+    border-radius: 14px;
+}
 </style>
 
 <?php 
@@ -258,8 +266,10 @@ if($order_data[0]->payment_method == 'cod'){
   $payment_method_display = 'Cashfree'; 
 } elseif($order_data[0]->payment_method == 'razorpay'){ 
   $payment_method_display = 'Razorpay'; 
+} elseif($order_data[0]->payment_method == 'payment_at_school' || $order_data[0]->payment_method == 'payment_at_scho'){ 
+  $payment_method_display = 'Payment at School'; 
 } else{ 
-  $payment_method_display = ucfirst($order_data[0]->payment_method); 
+  $payment_method_display = ucfirst(str_replace('_', ' ', $order_data[0]->payment_method)); 
 }
 ?>
 
@@ -283,29 +293,16 @@ if($order_data[0]->payment_method == 'cod'){
             <h5 class="mb-1">Order #<?= $order_data[0]->order_unique_id ?></h5>
             <small class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></small>
               </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge <?= $status_badge ?>"><?= $status_text ?></span>
-            <?php
-            $order_type_display = 'Individual';
-            if (isset($order_type) && $order_type == 'bookset') {
-              $order_type_display = 'Bookset';
-            }
-            ?>
-            <span class="badge badge-secondary"><?= $order_type_display ?> Order</span>
-            <?php if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_info)): ?>
-              <?php if (!empty($bookset_info->school_name)): ?>
-                <span class="badge badge-info">
-                  <i class="fa fa-school"></i> <?= htmlspecialchars($bookset_info->school_name) ?>
-                  <?php if (!empty($bookset_info->board_name)): ?>
-                    (<?= htmlspecialchars($bookset_info->board_name) ?>)
-                  <?php endif; ?>
-                </span>
-              <?php elseif (!empty($bookset_info->board_name)): ?>
-                <span class="badge badge-success"><i class="fa fa-book"></i> <?= htmlspecialchars($bookset_info->board_name) ?></span>
-              <?php endif; ?>
-              <?php if (!empty($bookset_info->grade_name)): ?>
-                <span class="badge badge-warning"><i class="fa fa-graduation-cap"></i> Class: <?= htmlspecialchars($bookset_info->grade_name) ?></span>
-              <?php endif; ?>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge <?= $status_badge ?>">Order Status: <?= $status_text ?></span>
+            <?php if (isset($order_type) && $order_type == 'bookset'): ?>
+              <span class="badge badge-info">Bookset Order</span>
+            <?php endif; ?>
+            <?php if (isset($is_payment_at_school) && $is_payment_at_school): ?>
+              <span class="badge badge-pill badge-payment-school">Payment at School</span>
+            <?php endif; ?>
+            <?php if (isset($is_deliver_at_school) && $is_deliver_at_school): ?>
+              <span class="badge badge-pill badge-deliver-school">Deliver at School</span>
             <?php endif; ?>
             <?php if ($order_data[0]->order_status != 5): ?>
               <?php if (!empty($order_data[0]->invoice_url)): ?>
@@ -318,9 +315,78 @@ if($order_data[0]->payment_method == 'cod'){
                 </a>
               <?php endif; ?>
             <?php endif; ?>
+            <a href="<?php echo base_url('orders/test_invoice/' . $order_data[0]->order_unique_id); ?>" class="btn btn-sm btn-outline-secondary" target="_blank" title="Test invoice generation">
+              <i class="fa fa-file-pdf-o"></i> Test Invoice
+            </a>
                 </div>
               </div>
             </div>
+
+      <!-- UNIFORM: School/Branch & Student Details (show for all uniform orders with school/branch, or deliver-at-school with student details) -->
+      <?php 
+      $show_deliver_school_card = !empty($uniform_info) || !empty($uniform_student_details) || ((isset($is_deliver_at_school) && $is_deliver_at_school) && (isset($address_arr[0]) && !empty($address_arr[0]->address)));
+      if ($show_deliver_school_card): ?>
+      <div class="card mb-3 border-danger">
+        <div class="card-header bg-danger text-white">
+          <strong><i class="fa fa-school me-2"></i> Order - School/Branch & Student Details</strong>
+        </div>
+        <div class="card-body">
+          <?php if (!empty($uniform_info) && (!empty($uniform_info->school_name) || !empty($uniform_info->branch_name) || !empty($uniform_info->display_name))): ?>
+          <div class="mb-4">
+            <h6 class="text-muted mb-2"><?= (isset($is_deliver_at_school) && $is_deliver_at_school) ? 'Delivery Location' : 'School/Branch'; ?></h6>
+            <?php if (!empty($uniform_info->school_name)): ?>
+            <p class="mb-1"><strong>School:</strong> <?= htmlspecialchars($uniform_info->school_name) ?></p>
+            <?php endif; ?>
+            <?php if (!empty($uniform_info->branch_name)): ?>
+            <p class="mb-1"><strong>Branch:</strong> <?= htmlspecialchars($uniform_info->branch_name) ?></p>
+            <?php endif; ?>
+            <?php if (empty($uniform_info->school_name) && empty($uniform_info->branch_name) && !empty($uniform_info->display_name)): ?>
+            <h5 class="text-danger mb-0"><?= htmlspecialchars($uniform_info->display_name) ?></h5>
+            <?php endif; ?>
+            <?php if (!empty($uniform_info->address)): ?>
+            <p class="mb-0 text-muted mt-1"><?= htmlspecialchars($uniform_info->address) ?></p>
+            <?php endif; ?>
+          </div>
+          <?php elseif (!empty($address_arr[0]->address) && isset($is_deliver_at_school) && $is_deliver_at_school): ?>
+          <div class="mb-4">
+            <h6 class="text-muted mb-2">Delivery Location</h6>
+            <h5 class="text-danger"><?= htmlspecialchars($address_arr[0]->address) ?></h5>
+          </div>
+          <?php endif; ?>
+          <?php if ((isset($is_deliver_at_school) && $is_deliver_at_school) || !empty($uniform_student_details)): ?>
+          <div>
+            <h6 class="text-muted mb-2">Student Details</h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-sm">
+                <thead class="table-light">
+                  <tr>
+                    <th>Name</th>
+                    <th>Grade</th>
+                    <th>Roll Number</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php if (!empty($uniform_student_details)): ?>
+                    <?php foreach ($uniform_student_details as $stu): ?>
+                    <tr>
+                      <td><?= htmlspecialchars(!empty($stu->f_name) ? $stu->f_name : '-') ?></td>
+                      <td><?= htmlspecialchars(!empty($stu->grade) ? $stu->grade : '-') ?></td>
+                      <td><?= htmlspecialchars(!empty($stu->roll_number) ? $stu->roll_number : '-') ?></td>
+                      <td><?= htmlspecialchars(!empty($stu->remarks) ? $stu->remarks : '-') ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                  <?php else: ?>
+                    <tr><td colspan="4" class="text-muted text-center">No student details</td></tr>
+                  <?php endif; ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
 
       <!-- PRODUCTS CARD -->
       <div class="card">
@@ -348,6 +414,17 @@ if($order_data[0]->payment_method == 'cod'){
                   foreach ($items_arr as $item) {
                     if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->packages)) {
                       $bookset_found = true;
+
+                      // Display bookset SKU row first
+                      if (!empty($item->product_sku)) {
+                        ?>
+                        <tr>
+                          <td colspan="5" style="background-color: #e8f4f8; font-weight: bold; padding: 10px;">
+                            Bookset SKU: <?= htmlspecialchars($item->product_sku) ?>
+                          </td>
+                        </tr>
+                        <?php
+                      }
 
                       // Display each package and its books
                       foreach ($item->packages as $package) {
@@ -441,15 +518,13 @@ if($order_data[0]->payment_method == 'cod'){
                             </td>
                             <td>
                               <strong><?= htmlspecialchars($book['product_name']) ?></strong><br>
-                              <?php if (!empty($book['sku'])): ?>
-                                <small class="text-muted">SKU: <?= htmlspecialchars($book['sku']) ?></small><br>
-                              <?php endif; ?>
                               <?php if (!empty($book['isbn'])): ?>
                                 <small class="text-muted">ISBN: <?= htmlspecialchars($book['isbn']) ?></small>
                               <?php endif; ?>
                             </td>
-                            <td>Qty: <?= (int)$book['quantity'] ?></td>
-                            <td>
+                            <td class="text-center"><?= !empty($book['sku']) ? htmlspecialchars($book['sku']) : '-' ?></td>
+                            <td class="text-center"><?= (int)$book['quantity'] ?></td>
+                            <td class="text-end">
                               <?= $currency_code . ' ' . number_format($book['unit_price'], 2) ?>
                               <?php if ($book['quantity'] > 1): ?>
                                 <br><small class="text-muted">(<?= $currency_code . ' ' . number_format($book['total_price'], 2) ?> total)</small>
@@ -507,6 +582,24 @@ if($order_data[0]->payment_method == 'cod'){
 
                             // Update the package price
                             $package_data['package_price'] = $calculated_package_price;
+                          }
+                          
+                          // Display bookset SKU row first (from tbl_order_items)
+                          $bookset_sku = '';
+                          foreach ($items_arr as $item) {
+                            if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->product_sku)) {
+                              $bookset_sku = $item->product_sku;
+                              break;
+                            }
+                          }
+                          if (!empty($bookset_sku)) {
+                            ?>
+                            <tr>
+                              <td colspan="5" style="background-color: #e8f4f8; font-weight: bold; padding: 10px;">
+                                Bookset SKU: <?= htmlspecialchars($bookset_sku) ?>
+                              </td>
+                            </tr>
+                            <?php
                           }
                           
                           // Display each package and its products
@@ -603,9 +696,6 @@ if($order_data[0]->payment_method == 'cod'){
                           <div>
                             <b><?= htmlspecialchars($bookset_product->product_name) ?></b>
                             <br><small class="text-muted">Type: <?= ucfirst($bookset_product->product_type) ?></small>
-                                <?php if (!empty($bookset_product->product_sku)): ?>
-                            <br><small class="text-muted">SKU: <?= htmlspecialchars($bookset_product->product_sku) ?></small>
-                                <?php endif; ?>
                           </div>
                               </td>
                         <td class="text-center"><?= !empty($bookset_product->product_sku) ? htmlspecialchars($bookset_product->product_sku) : '-' ?></td>
@@ -648,7 +738,7 @@ if($order_data[0]->payment_method == 'cod'){
                         <strong>Board:</strong> <?= htmlspecialchars($bookset_info->board_name) ?><br>
                                 <?php endif; ?>
                                 <?php if (!empty($bookset_info->f_name) || !empty($bookset_info->m_name) || !empty($bookset_info->s_name)): ?>
-                        <strong>Student Name:</strong> <?= trim(htmlspecialchars(($bookset_info->f_name ?? '') . ' ' . ($bookset_info->m_name ?? '') . ' ' . ($bookset_info->s_name ?? ''))) ?><br>
+                        <strong>Student Name:</strong> <?= trim(htmlspecialchars((isset($bookset_info->f_name) ? $bookset_info->f_name : '') . ' ' . (isset($bookset_info->m_name) ? $bookset_info->m_name : '') . ' ' . (isset($bookset_info->s_name) ? $bookset_info->s_name : ''))) ?><br>
                         <?php endif; ?>
                         <?php if (!empty($bookset_info->roll_number)): ?>
                         <strong>Roll Number:</strong> <?= htmlspecialchars($bookset_info->roll_number) ?><br>
@@ -664,12 +754,15 @@ if($order_data[0]->payment_method == 'cod'){
                 else {
                   // Display regular order items
                   foreach ($items_arr as $key => $val) {
-                          // Get product image based on product type
+                          // Get product image - for individual products, use product_image set in controller
                           $product_image = '';
-                          if (isset($val->product_id) && !empty($val->product_id)) {
+                          if ($val->order_type == 'individual' && isset($val->product_image) && !empty($val->product_image)) {
+                            // Use thumbnail_img from tbl_order_items for individual products
+                            $product_image = $val->product_image;
+                          } elseif (isset($val->product_id) && !empty($val->product_id)) {
                             $product_id = $val->product_id;
 
-                            // Determine product type from order_type or check tables
+                            // Fallback: Determine product type from order_type or check tables
                             $product_type = '';
                             if (isset($val->order_type)) {
                               if ($val->order_type == 'uniform') {
@@ -714,7 +807,7 @@ if($order_data[0]->payment_method == 'cod'){
                               }
                             }
 
-                            // Fetch image based on product type
+                            // Fetch image based on product type (fallback only)
                             if ($product_type == 'uniform') {
                               $img_query = $this->db->select('image_path')
                                 ->from('erp_uniform_images')
@@ -878,7 +971,6 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
             </div>
           </div>
-                } // Close main if-else block for order type
         </div>
 
     <!-- RIGHT PANEL (30%) - Sticky -->
@@ -903,7 +995,7 @@ if($order_data[0]->payment_method == 'cod'){
           <!-- Status 1: Pending - Show Move to Process button -->
           <?php if ($current_status == '1' || $current_status == 1): ?>
             <div class="d-grid">
-              <button type="button" class="btn btn-primary btn-lg" onclick="moveToProcessing('<?= $order_data[0]->order_unique_id ?>')">
+              <button type="button" class="btn btn-primary btn-lg" onclick="moveToProcessing('<?= $order_data[0]->order_unique_id ?>', this)">
                 <i class="fa fa-arrow-right me-2"></i> Move to Processing
               </button>
     </div>
@@ -917,7 +1009,7 @@ if($order_data[0]->payment_method == 'cod'){
                 <p class="text-muted mb-3 text-center"><strong>Select Shipping Method</strong></p>
                 <div class="row" style="margin: 0;">
                   <div class="col-5" style="padding: 5px;">
-                    <button type="button" class="btn btn-outline-primary btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->order_unique_id ?>', 'manual')" style="width: 100%;">
+                    <button type="button" class="btn btn-outline-primary btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->order_unique_id ?>', 'manual', this)" style="width: 100%;">
                       <i class="fa fa-truck"></i> Self Delivery
                     </button>
   </div>
@@ -925,7 +1017,7 @@ if($order_data[0]->payment_method == 'cod'){
                     <span class="text-muted" style="font-weight: bold;">OR</span>
 </div>
                   <div class="col-5" style="padding: 5px;">
-                    <button type="button" class="btn btn-outline-info btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->order_unique_id ?>', 'shiprocket')" style="width: 100%;">
+                    <button type="button" class="btn btn-outline-info btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->order_unique_id ?>', 'shiprocket', this)" style="width: 100%;">
                       <i class="fa fa-shipping-fast"></i> 3rd Party
                     </button>
                   </div>
@@ -961,7 +1053,7 @@ if($order_data[0]->payment_method == 'cod'){
                     </a>
                   </div>
                   <div class="col-6" style="padding: 5px;">
-                    <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>')" style="width: 100%;">
+                    <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
                       <i class="fa fa-truck"></i> Out for Delivery
                     </button>
                   </div>
@@ -985,7 +1077,7 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
               <?php if ($has_shipping_label): ?>
                 <div class="d-grid">
-                  <button type="button" class="btn btn-success btn-lg" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>')">
+                  <button type="button" class="btn btn-success btn-lg" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)">
                     <i class="fa fa-truck me-2"></i> Move to Out for Delivery
                   </button>
                 </div>
@@ -998,7 +1090,7 @@ if($order_data[0]->payment_method == 'cod'){
             <?php if ($has_shipping_label): ?>
               <div class="row" style="margin: 0;">
                 <div class="col-6" style="padding: 5px;">
-                  <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>')" style="width: 100%;">
+                  <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
                     <i class="fa fa-check-circle"></i> Delivered
                   </button>
                 </div>
@@ -1010,7 +1102,7 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
             <?php else: ?>
               <div class="d-grid">
-                <button type="button" class="btn btn-success btn-lg" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>')">
+                <button type="button" class="btn btn-success btn-lg" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)">
                   <i class="fa fa-check-circle me-2"></i> Mark as Delivered
                 </button>
               </div>
@@ -1057,6 +1149,146 @@ if($order_data[0]->payment_method == 'cod'){
         </div>
       </div>
       
+      <!-- PACKAGE WEIGHT & BOOKSET INFO CARD -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <b>Package Information</b>
+        </div>
+        <div class="card-body">
+          <?php 
+          // Display total package weight
+          $total_weight_gm = isset($order_data[0]->total_weight_gm) ? (float)$order_data[0]->total_weight_gm : 0;
+          if ($total_weight_gm > 0) {
+            $total_weight_kg = $total_weight_gm / 1000;
+            ?>
+            <div class="mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fa fa-weight me-2 text-primary"></i>
+                <div>
+                  <strong>Total Package Weight:</strong><br>
+                  <span class="text-muted">
+                    <?= number_format($total_weight_gm, 2) ?> gm 
+                    (<?= number_format($total_weight_kg, 2) ?> kg)
+                  </span>
+                </div>
+              </div>
+            </div>
+            <?php
+          } else {
+            ?>
+            <div class="mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fa fa-weight me-2 text-muted"></i>
+                <div>
+                  <strong>Total Package Weight:</strong><br>
+                  <span class="text-muted">Not available</span>
+                </div>
+              </div>
+            </div>
+            <?php
+          }
+          
+          // Display bookset information if order is bookset
+          if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_info)) {
+            ?>
+            <hr class="my-3">
+            <div>
+              <strong class="mb-2 d-block">Bookset Details:</strong>
+              <?php if (!empty($bookset_info->school_name)): ?>
+                <div class="mb-2">
+                  <i class="fa fa-school me-2 text-info"></i>
+                  <strong>School:</strong> <?= htmlspecialchars($bookset_info->school_name) ?>
+                </div>
+              <?php endif; ?>
+              <?php if (!empty($bookset_info->board_name)): ?>
+                <div class="mb-2">
+                  <i class="fa fa-book me-2 text-success"></i>
+                  <strong>Board:</strong> <?= htmlspecialchars($bookset_info->board_name) ?>
+                </div>
+              <?php endif; ?>
+              <?php if (!empty($bookset_info->grade_name)): ?>
+                <div class="mb-2">
+                  <i class="fa fa-graduation-cap me-2 text-warning"></i>
+                  <strong>Grade:</strong> <?= htmlspecialchars($bookset_info->grade_name) ?>
+                </div>
+              <?php endif; ?>
+            </div>
+            <?php
+          }
+
+          // Display uniform order school/branch information (like bookset)
+          if (isset($order_type) && $order_type == 'uniform' && !empty($uniform_info) && (!empty($uniform_info->school_name) || !empty($uniform_info->branch_name))) {
+            ?>
+            <hr class="my-3">
+            <div>
+              <strong class="mb-2 d-block">Uniform Order Details:</strong>
+              <?php if (!empty($uniform_info->school_name)): ?>
+                <div class="mb-2">
+                  <i class="fa fa-school me-2 text-info"></i>
+                  <strong>School:</strong> <?= htmlspecialchars($uniform_info->school_name) ?>
+                </div>
+              <?php endif; ?>
+              <?php if (!empty($uniform_info->branch_name)): ?>
+                <div class="mb-2">
+                  <i class="fa fa-building me-2 text-primary"></i>
+                  <strong>Branch:</strong> <?= htmlspecialchars($uniform_info->branch_name) ?>
+                </div>
+              <?php endif; ?>
+              <?php if (!empty($uniform_info->address)): ?>
+                <div class="mb-2 text-muted small">
+                  <i class="fa fa-map-marker-alt me-2"></i>
+                  <?= htmlspecialchars($uniform_info->address) ?>
+                </div>
+              <?php endif; ?>
+            </div>
+            <?php
+          }
+
+          // Deliver at School: School/Branch with address
+          if (isset($is_deliver_at_school) && $is_deliver_at_school && ((!empty($uniform_info) && !empty($uniform_info->display_name)) || !empty($address_arr[0]->address))) {
+            ?>
+            <hr class="my-3">
+            <div>
+              <strong class="mb-2 d-block">Delivery (School/Branch):</strong>
+              <div class="mb-2">
+                <i class="fa fa-school me-2 text-danger"></i>
+                <strong><?= htmlspecialchars((!empty($uniform_info) && !empty($uniform_info->display_name)) ? $uniform_info->display_name : $address_arr[0]->address) ?></strong>
+              </div>
+              <?php if (!empty($uniform_info) && !empty($uniform_info->address)): ?>
+              <div class="mb-2 text-muted small">
+                <i class="fa fa-map-marker-alt me-2"></i>
+                <?= htmlspecialchars($uniform_info->address) ?>
+              </div>
+              <?php endif; ?>
+            </div>
+            <?php
+          }
+
+          // Student details for all deliver at school
+          if (isset($is_deliver_at_school) && $is_deliver_at_school) {
+            ?>
+            <hr class="my-3">
+            <div>
+              <strong class="mb-2 d-block">Student Details (Deliver at School):</strong>
+              <?php if (!empty($uniform_student_details)): ?>
+                <?php foreach ($uniform_student_details as $stu): ?>
+                <div class="mb-3 p-2 rounded" style="background: #fff3cd; border: 1px solid #ffc107;">
+                  <?php if (!empty($stu->f_name)): ?><div><strong>Name:</strong> <?= htmlspecialchars($stu->f_name) ?></div><?php endif; ?>
+                  <?php if (!empty($stu->grade)): ?><div><strong>Grade:</strong> <?= htmlspecialchars($stu->grade) ?></div><?php endif; ?>
+                  <?php if (!empty($stu->roll_number)): ?><div><strong>Roll Number:</strong> <?= htmlspecialchars($stu->roll_number) ?></div><?php endif; ?>
+                  <?php if (!empty($stu->remarks)): ?><div><strong>Remarks:</strong> <?= htmlspecialchars($stu->remarks) ?></div><?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <div class="text-muted small">No student details</div>
+              <?php endif; ?>
+            </div>
+            <?php
+          }
+          ?>
+        </div>
+      </div>
+      
       <!-- CUSTOMER CARD -->
       <div class="card mb-3">
         <div class="card-header">
@@ -1076,21 +1308,29 @@ if($order_data[0]->payment_method == 'cod'){
         <div class="card-body">
           <?php if (isset($address_arr[0])): 
             $addr = $address_arr[0];
+            $use_school_address = (isset($is_deliver_at_school) && $is_deliver_at_school && !empty($uniform_info) && !empty($uniform_info->display_name));
           ?>
             <div><b><?= htmlspecialchars($addr->name) ?></b></div>
             <div class="text-muted"><?= htmlspecialchars($addr->mobile_no) ?></div>
             <div class="mt-2">
               <?php 
-              $address_parts = array();
-              if (!empty($addr->address)) $address_parts[] = htmlspecialchars($addr->address);
-              if (!empty($addr->city)) $address_parts[] = htmlspecialchars($addr->city);
-              if (!empty($addr->state)) $address_parts[] = htmlspecialchars($addr->state);
-              if (!empty($addr->pincode)) $address_parts[] = htmlspecialchars($addr->pincode);
-              if (!empty($addr->country)) $address_parts[] = htmlspecialchars($addr->country);
-              echo implode(', ', $address_parts);
+              if ($use_school_address) { 
+                echo htmlspecialchars($uniform_info->display_name);
+                if (!empty($uniform_info->address)) {
+                  echo '<br><span class="text-muted">' . htmlspecialchars($uniform_info->address) . '</span>';
+                }
+              } else {
+                $address_parts = array();
+                if (!empty($addr->address)) $address_parts[] = htmlspecialchars($addr->address);
+                if (!empty($addr->city)) $address_parts[] = htmlspecialchars($addr->city);
+                if (!empty($addr->state)) $address_parts[] = htmlspecialchars($addr->state);
+                if (!empty($addr->pincode)) $address_parts[] = htmlspecialchars($addr->pincode);
+                if (!empty($addr->country)) $address_parts[] = htmlspecialchars($addr->country);
+                echo implode(', ', $address_parts);
+              }
               ?>
             </div>
-            <?php if(!empty($addr->landmark)): ?>
+            <?php if(!$use_school_address && !empty($addr->landmark)): ?>
             <div class="mt-1 text-muted">
               <small>Landmark: <?= htmlspecialchars($addr->landmark) ?></small>
             </div>
@@ -1107,7 +1347,11 @@ if($order_data[0]->payment_method == 'cod'){
           <b>Payment</b>
         </div>
         <div class="card-body">
+          <?php if (isset($is_payment_at_school) && $is_payment_at_school): ?>
+          <div><span class="badge badge-payment-school"><?= htmlspecialchars($payment_method_display) ?></span></div>
+          <?php else: ?>
           <div><b><?= htmlspecialchars($payment_method_display) ?></b></div>
+          <?php endif; ?>
           <div class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></div>
           <?php if (!empty($order_data[0]->txn_id)): ?>
           <div class="mt-2">
@@ -1403,107 +1647,123 @@ function showRegenerateLoading(btn) {
   }, 30000);
 }
 
-function moveToProcessing(orderUniqueId) {
-  if (confirm('Are you sure you want to move this order to Processing?')) {
-    $.ajax({
-      url: '<?php echo base_url("orders/move_to_processing_single"); ?>',
-      type: 'POST',
-      data: {
-        order_unique_id: orderUniqueId
-      },
-      dataType: 'json',
-      success: function(response) {
-        if (response.status == '200') {
-          alert(response.message);
-          location.reload();
-        } else {
-          alert(response.message || 'Error updating order status');
-        }
-      },
-      error: function() {
-        alert('Error updating order status. Please try again.');
+function moveToProcessing(orderUniqueId, btnElement) {
+  // Disable button and show loading state
+  var $btn = $(btnElement);
+  var originalText = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+  $.ajax({
+    url: '<?php echo base_url("orders/move_to_processing_single"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueId
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        location.reload();
+      } else {
+        alert(response.message || 'Error updating order status');
+        $btn.prop('disabled', false).html(originalText);
       }
-    });
-  }
+    },
+    error: function() {
+      alert('Error updating order status. Please try again.');
+      $btn.prop('disabled', false).html(originalText);
+    }
+  });
 }
 
-function selectShipper(orderUniqueId, courierType) {
-  if (confirm('Set shipper to ' + (courierType == 'manual' ? 'Self Delivery' : '3rd Party (Shiprocket)') + '?')) {
-    $.ajax({
-      url: '<?php echo base_url("orders/set_shipper"); ?>',
-      type: 'POST',
-      data: {
-        order_unique_id: orderUniqueId,
-        courier: courierType,
-        <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
-      },
-      dataType: 'json',
-      success: function(response) {
-        if (response.status == '200') {
-          alert(response.message);
-          location.reload();
-        } else {
-          alert(response.message || 'Error setting shipper');
-        }
-      },
-      error: function(xhr, status, error) {
-        console.error('Error:', error);
-        console.error('Response:', xhr.responseText);
-        if (xhr.responseJSON && xhr.responseJSON.message) {
-          alert(xhr.responseJSON.message);
-        } else {
-          alert('Error setting shipper. Please try again.');
-        }
+function selectShipper(orderUniqueId, courierType, btnElement) {
+  // Disable button and show loading state
+  var $btn = $(btnElement);
+  var originalText = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+  $.ajax({
+    url: '<?php echo base_url("orders/set_shipper"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueId,
+      courier: courierType,
+      <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        location.reload();
+      } else {
+        alert(response.message || 'Error setting shipper');
+        $btn.prop('disabled', false).html(originalText);
       }
-    });
-  }
+    },
+    error: function(xhr, status, error) {
+      console.error('Error:', error);
+      console.error('Response:', xhr.responseText);
+      if (xhr.responseJSON && xhr.responseJSON.message) {
+        alert(xhr.responseJSON.message);
+      } else {
+        alert('Error setting shipper. Please try again.');
+      }
+      $btn.prop('disabled', false).html(originalText);
+    }
+  });
 }
 
-function moveToOutForDelivery(orderUniqueId) {
-  if (confirm('Are you sure you want to move this order to Out for Delivery?')) {
-    $.ajax({
-      url: '<?php echo base_url("orders/move_to_out_for_delivery_single"); ?>',
-      type: 'POST',
-      data: {
-        order_unique_id: orderUniqueId
-      },
-      dataType: 'json',
-      success: function(response) {
-        if (response.status == '200') {
-          alert(response.message);
-          location.reload();
-        } else {
-          alert(response.message || 'Error updating order status');
-        }
-      },
-      error: function() {
-        alert('Error updating order status. Please try again.');
+function moveToOutForDelivery(orderUniqueId, btnElement) {
+  // Disable button and show loading state
+  var $btn = $(btnElement);
+  var originalText = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+  $.ajax({
+    url: '<?php echo base_url("orders/move_to_out_for_delivery_single"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueId
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        location.reload();
+      } else {
+        alert(response.message || 'Error updating order status');
+        $btn.prop('disabled', false).html(originalText);
       }
-    });
-  }
+    },
+    error: function() {
+      alert('Error updating order status. Please try again.');
+      $btn.prop('disabled', false).html(originalText);
+    }
+  });
 }
 
-function moveToDelivered(orderUniqueId) {
-  if (confirm('Are you sure you want to mark this order as Delivered?')) {
-    $.ajax({
-      url: '<?php echo base_url("orders/move_to_delivered_single"); ?>',
-      type: 'POST',
-      data: {
-        order_unique_id: orderUniqueId
-      },
-      dataType: 'json',
-      success: function(response) {
-        if (response.status == '200') {
-          alert(response.message);
-          location.reload();
-        } else {
-          alert(response.message || 'Error updating order status');
-        }
-      },
-      error: function() {
-        alert('Error updating order status. Please try again.');
+function moveToDelivered(orderUniqueId, btnElement) {
+  // Disable button and show loading state
+  var $btn = $(btnElement);
+  var originalText = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+  $.ajax({
+    url: '<?php echo base_url("orders/move_to_delivered_single"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueId
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        location.reload();
+      } else {
+        alert(response.message || 'Error updating order status');
+        $btn.prop('disabled', false).html(originalText);
       }
-    });
-  }
+    },
+    error: function() {
+      alert('Error updating order status. Please try again.');
+      $btn.prop('disabled', false).html(originalText);
+    }
+  });
 }
 </script>

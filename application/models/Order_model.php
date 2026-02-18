@@ -441,6 +441,7 @@ class Order_model extends CI_Model
 		$pincode_filter = "";
 		$school_filter = "";
 		$grade_filter = "";
+		$payment_method_filter = "";
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
 		if ($order_status == 'all') {
@@ -504,12 +505,28 @@ class Order_model extends CI_Model
 		if (isset($filter_data['grade']) && $filter_data['grade'] != "") :
 			$grade_id = (int)$filter_data['grade'];
 			$grade_filter = " AND EXISTS (
-				SELECT 1 FROM tbl_order_items oi3 
+				SELECT 1 FROM tbl_order_items oi3
 				LEFT JOIN erp_booksets bs ON (bs.id = oi3.product_id AND oi3.order_type = 'bookset')
 				LEFT JOIN erp_bookset_packages bp ON (bp.id = oi3.product_id AND oi3.order_type = 'package')
-				WHERE oi3.order_id = d.id 
+				WHERE oi3.order_id = d.id
 				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
 			)";
+		endif;
+
+		// Payment method filter
+		if (isset($filter_data['payment_method']) && $filter_data['payment_method'] != "") :
+			$payment_method = $this->db->escape_str($filter_data['payment_method']);
+			$payment_method_filter = " AND (d.payment_method = '{$payment_method}' OR d.payment_status = '{$payment_method}')";
+		endif;
+
+		// Delivery type filter (deliver at school vs deliver at address) - use tbl_order_details.is_deliver_at_school
+		$delivery_type_filter = "";
+		if (isset($filter_data['delivery_type']) && $filter_data['delivery_type'] != "") :
+			if ($filter_data['delivery_type'] == 'school') {
+				$delivery_type_filter = " AND COALESCE(d.is_deliver_at_school, 0) = 1";
+			} elseif ($filter_data['delivery_type'] == 'address') {
+				$delivery_type_filter = " AND (d.is_deliver_at_school IS NULL OR d.is_deliver_at_school = 0)";
+			}
 		endif;
 
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
@@ -528,7 +545,7 @@ class Order_model extends CI_Model
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE (d.id <> '')
-					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_method='cod')
+					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
 					$keyword_filter
 					$order_status_filter
 					$order_date_filter
@@ -536,6 +553,8 @@ class Order_model extends CI_Model
 					$pincode_filter
 					$school_filter
 					$grade_filter
+					$payment_method_filter
+					$delivery_type_filter
 				GROUP BY d.id
 				ORDER BY d.id ASC
 		");
@@ -563,6 +582,7 @@ class Order_model extends CI_Model
 		$pincode_filter = "";
 		$school_filter = "";
 		$grade_filter = "";
+		$payment_method_filter = "";
 		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : 'pending';
 
 		if ($order_status == 'all') {
@@ -626,12 +646,28 @@ class Order_model extends CI_Model
 		if (isset($filter_data['grade']) && $filter_data['grade'] != "") :
 			$grade_id = (int)$filter_data['grade'];
 			$grade_filter = " AND EXISTS (
-				SELECT 1 FROM tbl_order_items oi3 
+				SELECT 1 FROM tbl_order_items oi3
 				LEFT JOIN erp_booksets bs ON (bs.id = oi3.product_id AND oi3.order_type = 'bookset')
 				LEFT JOIN erp_bookset_packages bp ON (bp.id = oi3.product_id AND oi3.order_type = 'package')
-				WHERE oi3.order_id = d.id 
+				WHERE oi3.order_id = d.id
 				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
 			)";
+		endif;
+
+		// Payment method filter
+		if (isset($filter_data['payment_method']) && $filter_data['payment_method'] != "") :
+			$payment_method = $this->db->escape_str($filter_data['payment_method']);
+			$payment_method_filter = " AND (d.payment_method = '{$payment_method}' OR d.payment_status = '{$payment_method}')";
+		endif;
+
+		// Delivery type filter (deliver at school vs deliver at address) - use tbl_order_details.is_deliver_at_school
+		$delivery_type_filter = "";
+		if (isset($filter_data['delivery_type']) && $filter_data['delivery_type'] != "") :
+			if ($filter_data['delivery_type'] == 'school') {
+				$delivery_type_filter = " AND COALESCE(d.is_deliver_at_school, 0) = 1";
+			} elseif ($filter_data['delivery_type'] == 'address') {
+				$delivery_type_filter = " AND (d.is_deliver_at_school IS NULL OR d.is_deliver_at_school = 0)";
+			}
 		endif;
 
 		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") :
@@ -648,11 +684,11 @@ class Order_model extends CI_Model
 
 		$resultdata = array();
 		$query = $this->db->query("
-				SELECT d.id, d.checkout_type, d.payment_method, d.razorpay_order_id, d.payment_id, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.tracking_id, d.shipping_label, d.track_url, d.courier, d.order_type, d.order_token, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.coupon_code, d.source
+				SELECT d.id, d.checkout_type, d.payment_method, d.razorpay_order_id, d.payment_id, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.tracking_id, d.shipping_label, d.track_url, d.courier, d.order_type, d.order_token, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.coupon_code, d.source, d.is_deliver_at_school
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
-				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_method='cod')
-					AND d.order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter $pincode_filter $school_filter $grade_filter
+				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
+					AND d.order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter $pincode_filter $school_filter $grade_filter $payment_method_filter $delivery_type_filter
 				GROUP BY d.id
 				ORDER BY d.id DESC
 				LIMIT $offset, $per_page
@@ -727,24 +763,27 @@ class Order_model extends CI_Model
 					$address = !empty($address_parts) ? implode(', ', $address_parts) : '-';
 				}
 
-				// Get school name
+				// Get school/branch name from order items (for bookset, uniform - deliver at school)
 				$school_name = '-';
 				$school_query = $this->db->query("
 					SELECT 
 						CASE 
-							WHEN sb.id IS NOT NULL THEN CONCAT(sb.branch_name, ' (', s.school_name, ')')
-							WHEN s.id IS NOT NULL THEN s.school_name
+							WHEN oi.branch_id IS NOT NULL THEN (SELECT CONCAT(sb.branch_name, ' (', s.school_name, ')') FROM erp_school_branches sb LEFT JOIN erp_schools s ON s.id = sb.school_id WHERE sb.id = oi.branch_id LIMIT 1)
+							WHEN oi.school_id IS NOT NULL THEN (SELECT school_name FROM erp_schools WHERE id = oi.school_id LIMIT 1)
 							ELSE NULL
 						END as school_name
 					FROM tbl_order_items oi
-					LEFT JOIN erp_schools s ON s.id = oi.school_id
-					LEFT JOIN erp_school_branches sb ON sb.id = oi.school_id
 					WHERE oi.order_id = '" . (int)$item['id'] . "'
-					AND oi.school_id IS NOT NULL
+					AND (oi.school_id IS NOT NULL OR oi.branch_id IS NOT NULL)
+					ORDER BY oi.id ASC
 					LIMIT 1
 				");
 				if ($school_query->num_rows() > 0 && !empty($school_query->row()->school_name)) {
 					$school_name = $school_query->row()->school_name;
+					// When deliver at school/branch: use school/branch as delivery address if tbl_order_address was empty
+					if ($address == '-') {
+						$address = $school_name;
+					}
 				}
 
 				// Get grade name
@@ -772,6 +811,8 @@ class Order_model extends CI_Model
 
 				$invoice_url_path = !empty($item['invoice_url']) ? $item['invoice_url'] : '';
 				$invoice_no = !empty($invoice_url_path) ? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
+				$is_payment_at_school = ($item['payment_method'] == 'payment_at_school' || $item['payment_method'] == 'payment_at_scho');
+				$is_deliver_at_school = (isset($item['is_deliver_at_school']) && (int)$item['is_deliver_at_school'] === 1);
 				$resultdata[] = array(
 					"id"              => $item['id'],
 					"order_type"      => $item['order_type'],
@@ -793,6 +834,8 @@ class Order_model extends CI_Model
 					"payment_id"      => $item['payment_id'],
 					"invoice_no"      => $invoice_no,
 					"payment_method"      => $item['payment_method'],
+					"is_payment_at_school" => $is_payment_at_school,
+					"is_deliver_at_school" => $is_deliver_at_school,
 					"checkout_type"      => $checkout_type,
 					"processing_date" => date("d M, Y H:i:s", strtotime($item['processing_date'])),
 					"shipment_date"   => date("d M, Y H:i:s", strtotime($item['shipment_date'])),
@@ -824,17 +867,17 @@ class Order_model extends CI_Model
 		);
 
 		// Get pending orders count (status = 1)
-		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status='1' AND order_status!='5'");
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='1' AND order_status!='5'");
 		$result = $query->row();
 		$counts['pending'] = isset($result->count) ? (int)$result->count : 0;
 
 		// Get processing orders count (status = 2)
-		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status='2' AND order_status!='5'");
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='2' AND order_status!='5'");
 		$result = $query->row();
 		$counts['processing'] = isset($result->count) ? (int)$result->count : 0;
 
 		// Get out for delivery orders count (status = 3)
-		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_method='cod') AND order_status='3' AND order_status!='5'");
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='3' AND order_status!='5'");
 		$result = $query->row();
 		$counts['out_for_delivery'] = isset($result->count) ? (int)$result->count : 0;
 
@@ -973,7 +1016,7 @@ class Order_model extends CI_Model
 			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
 		}
 
-		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_method,payment_status,order_date FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') and payment_method<>'cod') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id desc LIMIT $offset,$per_page");
+		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_method,payment_status,order_date,is_deliver_at_school FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') and payment_method<>'cod') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id desc LIMIT $offset,$per_page");
 		
 		if (!empty($query)) {
 			foreach ($query->result_array() as $item) {
@@ -1003,24 +1046,27 @@ class Order_model extends CI_Model
 					$address = !empty($address_parts) ? implode(', ', $address_parts) : '-';
 				}
 
-				// Get school name
+				// Get school/branch name from order items (for bookset, uniform - deliver at school)
 				$school_name = '-';
 				$school_query = $this->db->query("
 					SELECT 
 						CASE 
-							WHEN sb.id IS NOT NULL THEN CONCAT(sb.branch_name, ' (', s.school_name, ')')
-							WHEN s.id IS NOT NULL THEN s.school_name
+							WHEN oi.branch_id IS NOT NULL THEN (SELECT CONCAT(sb.branch_name, ' (', s.school_name, ')') FROM erp_school_branches sb LEFT JOIN erp_schools s ON s.id = sb.school_id WHERE sb.id = oi.branch_id LIMIT 1)
+							WHEN oi.school_id IS NOT NULL THEN (SELECT school_name FROM erp_schools WHERE id = oi.school_id LIMIT 1)
 							ELSE NULL
 						END as school_name
 					FROM tbl_order_items oi
-					LEFT JOIN erp_schools s ON s.id = oi.school_id
-					LEFT JOIN erp_school_branches sb ON sb.id = oi.school_id
 					WHERE oi.order_id = '" . (int)$item['id'] . "'
-					AND oi.school_id IS NOT NULL
+					AND (oi.school_id IS NOT NULL OR oi.branch_id IS NOT NULL)
+					ORDER BY oi.id ASC
 					LIMIT 1
 				");
 				if ($school_query->num_rows() > 0 && !empty($school_query->row()->school_name)) {
 					$school_name = $school_query->row()->school_name;
+					// When deliver at school/branch: use school/branch as delivery address if tbl_order_address was empty
+					if ($address == '-') {
+						$address = $school_name;
+					}
 				}
 
 				// Get grade name
@@ -1039,6 +1085,7 @@ class Order_model extends CI_Model
 					$grade_name = $grade_query->row()->grade_name;
 				}
 
+				$is_deliver_at_school = (isset($item['is_deliver_at_school']) && (int)$item['is_deliver_at_school'] === 1);
 				$resultdata[] = array(
 					"id"             => $item['id'],
 					"order_type"     => $item['order_type'],
@@ -1056,6 +1103,7 @@ class Order_model extends CI_Model
 					"address"         => $address,
 					"school_name"     => $school_name,
 					"grade_name"      => $grade_name,
+					"is_deliver_at_school" => $is_deliver_at_school,
 				);
 			}
 		}
@@ -1135,7 +1183,7 @@ class Order_model extends CI_Model
 					FROM tbl_order_details d
 					INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 					WHERE d.is_refund = '" . $this->db->escape_str($is_refund) . "'
-						AND d.payment_status = 'success'
+						AND (d.payment_status = 'success' OR d.payment_status = 'payment_at_school' OR d.payment_method = 'payment_at_school')
 						AND d.order_status = '" . $this->db->escape_str($order_status) . "'
 						$keyword_filter
 						$machine_filter
@@ -1238,7 +1286,7 @@ class Order_model extends CI_Model
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE d.is_refund = '" . $this->db->escape_str($is_refund) . "'
-					AND (d.payment_status='success' OR d.payment_status='cod')
+					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
 					AND d.order_status = '" . $this->db->escape_str($order_status) . "'
 					$keyword_filter
 					$machine_filter
@@ -1282,24 +1330,27 @@ class Order_model extends CI_Model
 					$address = !empty($address_parts) ? implode(', ', $address_parts) : '-';
 				}
 
-				// Get school name
+				// Get school/branch name from order items (for bookset, uniform - deliver at school)
 				$school_name = '-';
 				$school_query = $this->db->query("
 					SELECT 
 						CASE 
-							WHEN sb.id IS NOT NULL THEN CONCAT(sb.branch_name, ' (', s.school_name, ')')
-							WHEN s.id IS NOT NULL THEN s.school_name
+							WHEN oi.branch_id IS NOT NULL THEN (SELECT CONCAT(sb.branch_name, ' (', s.school_name, ')') FROM erp_school_branches sb LEFT JOIN erp_schools s ON s.id = sb.school_id WHERE sb.id = oi.branch_id LIMIT 1)
+							WHEN oi.school_id IS NOT NULL THEN (SELECT school_name FROM erp_schools WHERE id = oi.school_id LIMIT 1)
 							ELSE NULL
 						END as school_name
 					FROM tbl_order_items oi
-					LEFT JOIN erp_schools s ON s.id = oi.school_id
-					LEFT JOIN erp_school_branches sb ON sb.id = oi.school_id
 					WHERE oi.order_id = '" . (int)$item['id'] . "'
-					AND oi.school_id IS NOT NULL
+					AND (oi.school_id IS NOT NULL OR oi.branch_id IS NOT NULL)
+					ORDER BY oi.id ASC
 					LIMIT 1
 				");
 				if ($school_query->num_rows() > 0 && !empty($school_query->row()->school_name)) {
 					$school_name = $school_query->row()->school_name;
+					// When deliver at school/branch: use school/branch as delivery address if tbl_order_address was empty
+					if ($address == '-') {
+						$address = $school_name;
+					}
 				}
 
 				// Get grade name

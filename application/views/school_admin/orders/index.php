@@ -249,7 +249,17 @@
                               <td><?php echo $item['user_name']; ?></td>
                               <td><?php echo $item['user_phone']; ?></td>
                               <td><?php echo $item['date']; ?></td>
-                              <td><?php echo $item['payment_method']; ?></td>
+                              <td><?php 
+                                  $payment_method_display = $item['payment_method'];
+                                  if($payment_method_display == 'payment_at_school' || $payment_method_display == 'payment_at_scho') {
+                                      $payment_method_display = 'Payment at School';
+                                  } elseif($payment_method_display == 'cod') {
+                                      $payment_method_display = 'Cash On Delivery';
+                                  } else {
+                                      $payment_method_display = ucfirst(str_replace('_', ' ', $payment_method_display));
+                                  }
+                                  echo $payment_method_display;
+                              ?></td>
                               <td><?php echo $item['payment_id']; ?></td>
                               <td><?php echo $item['coupon_code']; ?></td>
                               <td><?php echo $item['invoice_no']; ?></td>

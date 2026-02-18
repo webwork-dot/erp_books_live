@@ -71,6 +71,8 @@
 						<th>Branch Name</th>
 						<th>Address</th>
 						<th>Location</th>
+						<th>Payment Required?</th>
+						<th>Deliver at School?</th>
 						<th>Status</th>
 						<th>Created</th>
 						<th class="text-end">Actions</th>
@@ -95,6 +97,20 @@
 									<br><small class="text-muted"><?php echo htmlspecialchars($branch['pincode']); ?></small>
 								</td>
 								<td>
+									<div class="form-check form-switch">
+										<input class="form-check-input payment-required-toggle border-primary" type="checkbox"
+											data-branch-id="<?php echo $branch['id']; ?>"
+											<?php echo (isset($branch['is_payment_required']) && $branch['is_payment_required'] == 1) ? 'checked' : ''; ?>>
+									</div>
+								</td>
+								<td>
+									<div class="form-check form-switch">
+										<input class="form-check-input deliver-at-school-toggle border-primary" type="checkbox"
+											data-branch-id="<?php echo $branch['id']; ?>"
+											<?php echo (!isset($branch['deliver_at_school']) || $branch['deliver_at_school'] == 1) ? 'checked' : ''; ?>>
+									</div>
+								</td>
+								<td>
 									<span class="badge badge-<?php echo $branch['status'] == 'active' ? 'success' : 'danger'; ?>">
 										<?php echo ucfirst($branch['status']); ?>
 									</span>
@@ -112,7 +128,7 @@
 						<?php endforeach; ?>
 					<?php else: ?>
 						<tr>
-							<td colspan="8" class="text-center text-muted py-4">
+							<td colspan="9" class="text-center text-muted py-4">
 								<i class="isax isax-building fs-48 mb-2"></i>
 								<p>No branches found. <a href="<?php echo base_url('branches/add'); ?>">Add your first branch</a></p>
 							</td>
@@ -165,4 +181,68 @@
 		<?php endif; ?>
 	</div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+	// Payment Required Toggle for Branches
+	document.querySelectorAll('.payment-required-toggle').forEach(function(toggle) {
+		toggle.addEventListener('change', function() {
+			const branchId = this.getAttribute('data-branch-id');
+			const isRequired = this.checked ? 1 : 0;
+
+			fetch('<?php echo base_url('branches/toggle_payment_required'); ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'branch_id=' + branchId + '&status=' + isRequired
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.status === 'success') {
+					console.log(data.message);
+				} else {
+					this.checked = !this.checked;
+					alert(data.message || 'Failed to update payment required status');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				this.checked = !this.checked;
+				alert('An error occurred. Please try again.');
+			});
+		});
+	});
+
+	// Deliver at School Toggle for Branches
+	document.querySelectorAll('.deliver-at-school-toggle').forEach(function(toggle) {
+		toggle.addEventListener('change', function() {
+			const branchId = this.getAttribute('data-branch-id');
+			const isEnabled = this.checked ? 1 : 0;
+
+			fetch('<?php echo base_url('branches/toggle_deliver_at_school'); ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'branch_id=' + branchId + '&status=' + isEnabled
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.status === 'success') {
+					console.log(data.message);
+				} else {
+					this.checked = !this.checked;
+					alert(data.message || 'Failed to update deliver at school status');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				this.checked = !this.checked;
+				alert('An error occurred. Please try again.');
+			});
+		});
+	});
+});
+</script>
 

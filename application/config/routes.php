@@ -134,11 +134,15 @@ $route['schools/delete_board'] = 'Vendor/schools/delete_board';
 $route['schools/get_school_details/(:num)'] = 'Vendor/schools/get_school_details/$1';
 $route['schools/toggle_payment_block'] = 'Vendor/schools/toggle_payment_block';
 $route['schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block';
+$route['schools/toggle_payment_required'] = 'Vendor/schools/toggle_payment_required';
+$route['schools/toggle_deliver_at_school'] = 'Vendor/schools/toggle_deliver_at_school';
 $route['schools/toggle_status'] = 'Vendor/schools/toggle_status';
 $route['branches'] = 'Vendor/branches/index';
 $route['branches/add'] = 'Vendor/branches/add';
 $route['branches/edit/(:num)'] = 'Vendor/branches/edit/$1';
 $route['branches/delete/(:num)'] = 'Vendor/branches/delete/$1';
+$route['branches/toggle_payment_required'] = 'Vendor/branches/toggle_payment_required';
+$route['branches/toggle_deliver_at_school'] = 'Vendor/branches/toggle_deliver_at_school';
 $route['branches/get_cities'] = 'Vendor/branches/get_cities';
 
 // Orders routes
@@ -162,6 +166,7 @@ $route['orders/set_shipper'] = 'Vendor/orders/set_shipper';
 $route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$1';
 $route['orders/view/(:any)'] = 'Vendor/orders/view/$1';
 $route['orders/download_invoice/(:any)'] = 'Vendor/orders/download_invoice/$1';
+$route['orders/test_invoice/(:any)'] = 'Vendor/orders/test_invoice/$1';
 $route['orders/generate_shipping_label/(:any)'] = 'Vendor/orders/generate_shipping_label/$1';
 $route['orders/download_shipping_label/(:any)'] = 'Vendor/orders/download_shipping_label/$1';
 $route['orders/test_shipping_label/(:any)'] = 'Vendor/Orders/test_shipping_label/$1';

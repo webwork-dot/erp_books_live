@@ -232,5 +232,207 @@ class Branch_model extends CI_Model
 		
 		return $query->result_array();
 	}
+
+	/**
+	 * Toggle payment required status for branch
+	 *
+	 * @param	int		$branch_id	Branch ID
+	 * @param	int		$status		New status (1 = payment required, 0 = payment not required)
+	 * @param	int		$vendor_id	Vendor ID (for security)
+	 * @return	array	Result array with status and message
+	 */
+	public function togglePaymentRequired($branch_id, $status, $vendor_id = NULL)
+	{
+		// Validate status
+		if (!in_array($status, [0, 1]))
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Invalid status value. Must be 0 or 1.'
+			);
+		}
+
+		// Verify branch exists and belongs to vendor
+		$branch = $this->getBranchById($branch_id, $vendor_id);
+		if (!$branch)
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Branch not found or you do not have permission to edit it.'
+			);
+		}
+
+		// Update payment required status
+		$update_data = array(
+			'is_payment_required' => (int)$status
+		);
+
+		$this->db->where('id', $branch_id);
+		if ($this->db->update('erp_school_branches', $update_data))
+		{
+			$message = $status == 1 ? 'Payment is now required.' : 'Payment is now not required.';
+			return array(
+				'status' => 'success',
+				'message' => $message,
+				'data' => array('is_payment_required' => (int)$status)
+			);
+		}
+		else
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Failed to update payment required status.'
+			);
+		}
+	}
+
+	/**
+	 * Update payment required status for all branches of a school
+	 *
+	 * @param	int		$school_id	School ID
+	 * @param	int		$status		New status (1 = payment required, 0 = payment not required)
+	 * @param	int		$vendor_id	Vendor ID (for security)
+	 * @return	array	Result array with status and message
+	 */
+	public function updatePaymentRequiredForSchoolBranches($school_id, $status, $vendor_id = NULL)
+	{
+		// Validate status
+		if (!in_array($status, [0, 1]))
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Invalid status value. Must be 0 or 1.'
+			);
+		}
+
+		// Update all branches for this school
+		$this->db->where('school_id', $school_id);
+		if ($vendor_id !== NULL)
+		{
+			$this->db->where('vendor_id', $vendor_id);
+		}
+
+		$update_data = array(
+			'is_payment_required' => (int)$status
+		);
+
+		if ($this->db->update('erp_school_branches', $update_data))
+		{
+			$message = $status == 1 ? 'Payment is now required for all branches.' : 'Payment is now not required for all branches.';
+			return array(
+				'status' => 'success',
+				'message' => $message,
+				'affected_rows' => $this->db->affected_rows()
+			);
+		}
+		else
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Failed to update payment required status for branches.'
+			);
+		}
+	}
+
+	/**
+	 * Toggle deliver at school status for branch
+	 *
+	 * @param	int		$branch_id	Branch ID
+	 * @param	int		$status		New status (1 = deliver at school/address required, 0 = no address required)
+	 * @param	int		$vendor_id	Vendor ID (for security)
+	 * @return	array	Result array with status and message
+	 */
+	public function toggleDeliverAtSchool($branch_id, $status, $vendor_id = NULL)
+	{
+		// Validate status
+		if (!in_array($status, [0, 1]))
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Invalid status value. Must be 0 or 1.'
+			);
+		}
+
+		// Verify branch exists and belongs to vendor
+		$branch = $this->getBranchById($branch_id, $vendor_id);
+		if (!$branch)
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Branch not found or you do not have permission to edit it.'
+			);
+		}
+
+		// Update deliver at school status
+		$update_data = array(
+			'deliver_at_school' => (int)$status
+		);
+
+		$this->db->where('id', $branch_id);
+		if ($this->db->update('erp_school_branches', $update_data))
+		{
+			$message = $status == 1 ? 'Delivery at school is now enabled (address required).' : 'Delivery at school is now disabled (no address required).';
+			return array(
+				'status' => 'success',
+				'message' => $message,
+				'data' => array('deliver_at_school' => (int)$status)
+			);
+		}
+		else
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Failed to update deliver at school status.'
+			);
+		}
+	}
+
+	/**
+	 * Update deliver at school status for all branches of a school
+	 *
+	 * @param	int		$school_id	School ID
+	 * @param	int		$status		New status (1 = deliver at school, 0 = no address required)
+	 * @param	int		$vendor_id	Vendor ID (for security)
+	 * @return	array	Result array with status and message
+	 */
+	public function updateDeliverAtSchoolForSchoolBranches($school_id, $status, $vendor_id = NULL)
+	{
+		// Validate status
+		if (!in_array($status, [0, 1]))
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Invalid status value. Must be 0 or 1.'
+			);
+		}
+
+		// Update all branches for this school
+		$this->db->where('school_id', $school_id);
+		if ($vendor_id !== NULL)
+		{
+			$this->db->where('vendor_id', $vendor_id);
+		}
+
+		$update_data = array(
+			'deliver_at_school' => (int)$status
+		);
+
+		if ($this->db->update('erp_school_branches', $update_data))
+		{
+			$message = $status == 1 ? 'Delivery at school is now enabled for all branches.' : 'Delivery at school is now disabled for all branches.';
+			return array(
+				'status' => 'success',
+				'message' => $message,
+				'affected_rows' => $this->db->affected_rows()
+			);
+		}
+		else
+		{
+			return array(
+				'status' => 'error',
+				'message' => 'Failed to update deliver at school status for branches.'
+			);
+		}
+	}
 }
 

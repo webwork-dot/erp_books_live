@@ -308,5 +308,63 @@ class Branches extends Vendor_base
 			echo json_encode(array());
 		}
 	}
+
+	/**
+	 * Toggle payment required status for branch (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function toggle_payment_required()
+	{
+		$branch_id = $this->input->post('branch_id');
+		$status = $this->input->post('status'); // 1 for payment required, 0 for payment not required
+
+		if (empty($branch_id))
+		{
+			$response = array(
+				'status' => 'error',
+				'message' => 'Branch ID is required.'
+			);
+		}
+		else
+		{
+			// Toggle payment required status for branch
+			$result = $this->Branch_model->togglePaymentRequired($branch_id, $status, $this->current_vendor['id']);
+
+			$response = $result;
+		}
+
+		header('Content-Type: application/json');
+		echo json_encode($response);
+	}
+
+	/**
+	 * Toggle deliver at school status for branch (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function toggle_deliver_at_school()
+	{
+		$branch_id = $this->input->post('branch_id');
+		$status = $this->input->post('status'); // 1 for deliver at school (address required), 0 for no address required
+
+		if (empty($branch_id))
+		{
+			$response = array(
+				'status' => 'error',
+				'message' => 'Branch ID is required.'
+			);
+		}
+		else
+		{
+			// Toggle deliver at school status for branch
+			$result = $this->Branch_model->toggleDeliverAtSchool($branch_id, $status, $this->current_vendor['id']);
+
+			$response = $result;
+		}
+
+		header('Content-Type: application/json');
+		echo json_encode($response);
+	}
 }
 

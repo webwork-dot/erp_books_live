@@ -51,6 +51,11 @@
       border-color: #dee2e6;
       opacity: 0.6;
    }
+   /* Deliver at School tag */
+   .badge-deliver-school {
+      background-color: #dc3545 !important;
+      color: #fff !important;
+   }
 </style>
 
 <div class="mobile_view home">
@@ -180,6 +185,7 @@
                         <th>Address</th>
                         <th>School</th>
                         <th>Grade</th>
+                        <th>Delivery</th>
                         <th>Order Date</th>
                         <th>Payment Method</th>
                         <th>Payment Status</th>
@@ -201,8 +207,29 @@
                               <td><?php echo isset($item['address']) ? $item['address'] : '-'; ?></td>
                               <td><?php echo isset($item['school_name']) ? $item['school_name'] : '-'; ?></td>
                               <td><?php echo isset($item['grade_name']) ? $item['grade_name'] : '-'; ?></td>
+                              <td><?php 
+                                  if (isset($item['is_deliver_at_school']) && $item['is_deliver_at_school']) {
+                                      echo '<span class="badge badge-deliver-school">Deliver at School</span>';
+                                  } else {
+                                      echo 'Address';
+                                  }
+                              ?></td>
                               <td><?php echo $item['date']; ?></td>
-                              <td><?php echo isset($item['payment_method']) ? ucfirst($item['payment_method']) : '-'; ?></td>
+                              <td><?php 
+                                  if(isset($item['payment_method'])) {
+                                      $payment_method_display = $item['payment_method'];
+                                      if($payment_method_display == 'payment_at_school' || $payment_method_display == 'payment_at_scho') {
+                                          $payment_method_display = 'Payment at School';
+                                      } elseif($payment_method_display == 'cod') {
+                                          $payment_method_display = 'Cash On Delivery';
+                                      } else {
+                                          $payment_method_display = ucfirst(str_replace('_', ' ', $payment_method_display));
+                                      }
+                                      echo $payment_method_display;
+                                  } else {
+                                      echo '-';
+                                  }
+                              ?></td>
                               <td>
                                  <span class="badge badge-<?php echo ($item['payment_status'] == 'pending') ? 'warning' : 'danger'; ?>">
                                     <?php echo strtoupper($item['payment_status']); ?>
@@ -217,7 +244,7 @@
                         <?php endforeach; 
                      else: ?>
                         <tr>
-                           <td colspan="13">
+                           <td colspan="14">
                               <p class="notf">
                                  <?php 
                                  $has_filters = !empty($filter_data['keywords']) || !empty($filter_data['pincode']) || !empty($filter_data['school']) || !empty($filter_data['grade']);

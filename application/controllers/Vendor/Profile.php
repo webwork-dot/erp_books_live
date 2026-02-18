@@ -26,11 +26,10 @@ class Profile extends Vendor_base
 	{
 		parent::__construct();
 		$this->load->model('Erp_client_model');
-		$this->load->library('form_validation');
 	}
 
 	/**
-	 * Get profile data (AJAX)
+	 * Get profile data (AJAX) - reads directly from erp_clients
 	 *
 	 * @return	void
 	 */
@@ -38,32 +37,25 @@ class Profile extends Vendor_base
 	{
 		header('Content-Type: application/json');
 		
-		if (!$this->input->is_ajax_request()) {
-			echo json_encode(array('success' => false, 'message' => 'Invalid request'));
-			return;
-		}
-
-		$vendor_id = $this->current_vendor['id'];
-		$vendor = $this->Erp_client_model->getClientById($vendor_id);
-
-		if ($vendor) {
-			// Return only the profile fields
-			$profile_data = array(
-				'name' => isset($vendor['name']) ? $vendor['name'] : '',
-				'address' => isset($vendor['address']) ? $vendor['address'] : '',
-				'pincode' => isset($vendor['pincode']) ? $vendor['pincode'] : '',
-				'pan' => isset($vendor['pan']) ? $vendor['pan'] : '',
-				'gstin' => isset($vendor['gstin']) ? $vendor['gstin'] : ''
-			);
-			
-			echo json_encode(array('success' => true, 'data' => $profile_data));
+		$client = $this->Erp_client_model->getFirstClient();
+		if ($client) {
+			echo json_encode(array(
+				'success' => true,
+				'data' => array(
+					'name' => isset($client['name']) ? $client['name'] : '',
+					'address' => isset($client['address']) ? $client['address'] : '',
+					'pincode' => isset($client['pincode']) ? $client['pincode'] : '',
+					'pan' => isset($client['pan']) ? $client['pan'] : '',
+					'gstin' => isset($client['gstin']) ? $client['gstin'] : ''
+				)
+			));
 		} else {
-			echo json_encode(array('success' => false, 'message' => 'Vendor not found'));
+			echo json_encode(array('success' => false, 'message' => 'No client found in erp_clients'));
 		}
 	}
 
 	/**
-	 * Update profile (AJAX)
+	 * Update profile (AJAX) - updates erp_clients directly
 	 *
 	 * @return	void
 	 */
@@ -71,59 +63,21 @@ class Profile extends Vendor_base
 	{
 		header('Content-Type: application/json');
 		
-		if (!$this->input->is_ajax_request()) {
-			echo json_encode(array('success' => false, 'message' => 'Invalid request'));
-			return;
-		}
-
-		// Set validation rules
-		$this->form_validation->set_rules('name', 'Name', 'required|trim|max_length[255]');
-		$this->form_validation->set_rules('address', 'Address', 'trim');
-		$this->form_validation->set_rules('pincode', 'Pincode', 'trim|max_length[10]');
-		$this->form_validation->set_rules('pan', 'PAN', 'trim|max_length[20]');
-		$this->form_validation->set_rules('gstin', 'GSTIN', 'trim|max_length[20]');
-
-		if ($this->form_validation->run() == FALSE) {
-			echo json_encode(array(
-				'success' => false,
-				'message' => 'Validation failed',
-				'errors' => $this->form_validation->error_array()
-			));
-			return;
-		}
-
-		$vendor_id = $this->current_vendor['id'];
-		
-		// Prepare update data
 		$update_data = array(
-			'name' => $this->input->post('name'),
-			'address' => $this->input->post('address'),
-			'pincode' => $this->input->post('pincode'),
-			'pan' => strtoupper($this->input->post('pan')), // PAN is usually uppercase
-			'gstin' => strtoupper($this->input->post('gstin')) // GSTIN is usually uppercase
+			'name' => $this->input->post('name') ? trim($this->input->post('name')) : '',
+			'address' => $this->input->post('address') ? trim($this->input->post('address')) : '',
+			'pincode' => $this->input->post('pincode') ? trim($this->input->post('pincode')) : '',
+			'pan' => $this->input->post('pan') ? strtoupper(trim($this->input->post('pan'))) : '',
+			'gstin' => $this->input->post('gstin') ? strtoupper(trim($this->input->post('gstin'))) : ''
 		);
 
-		// Update vendor profile
-		$result = $this->Erp_client_model->updateClient($vendor_id, $update_data);
-
-		if ($result) {
-			// Reload vendor data to get updated info
-			$this->current_vendor = $this->Erp_client_model->getClientById($vendor_id);
-			
-			echo json_encode(array(
-				'success' => true,
-				'message' => 'Profile updated successfully',
-				'data' => array(
-					'name' => $this->current_vendor['name'],
-					'address' => isset($this->current_vendor['address']) ? $this->current_vendor['address'] : '',
-					'pincode' => isset($this->current_vendor['pincode']) ? $this->current_vendor['pincode'] : '',
-					'pan' => isset($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '',
-					'gstin' => isset($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : ''
-				)
-			));
-		} else {
-			echo json_encode(array('success' => false, 'message' => 'Failed to update profile'));
-		}
+		$this->Erp_client_model->updateFirstClient($update_data);
+		
+		echo json_encode(array(
+			'success' => true,
+			'message' => 'Profile updated successfully',
+			'data' => $update_data
+		));
 	}
 }
 

@@ -121,6 +121,37 @@
       background-color: #dc3545;
       color: #fff;
    }
+
+   /* Payment at School tag */
+   .badge-payment-school {
+      background-color: #dc3545 !important;
+      color: #fff !important;
+   }
+   /* Deliver at School tag */
+   .badge-deliver-school {
+      background-color: #dc3545 !important;
+      color: #fff !important;
+   }
+   /* Address tag */
+   .badge-address {
+      background-color: #007bff !important;
+      color: #fff !important;
+   }
+   /* Payment at School tag */
+   .badge-payment-school {
+      background-color: #dc3545 !important;
+      color: #fff !important;
+   }
+   /* Payment at School tag */
+   .badge-payment-cod {
+      background-color: #007bff !important;
+      color: #fff !important;
+   }
+   /* Payment at School tag */
+   .badge-payment-other {
+      background-color: #6c757d !important;
+      color: #fff !important;
+   }
 </style>
 
 <div class="mobile_view home">
@@ -181,13 +212,9 @@
          <div class="card brtop0">
             <div class="card-body">
                <form method="get" action="<?php echo base_url('orders/' . $order_status); ?>" class="row">
-                  <div class="col-md-3">
+                  <div class="col-md-2">
                      <label>Keywords</label>
                      <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone, Invoice Number...">
-                  </div>
-                  <div class="col-md-2">
-                     <label>Pincode</label>
-                     <input type="text" name="pincode" class="form-control" value="<?php echo isset($filter_data['pincode']) ? htmlspecialchars($filter_data['pincode']) : ''; ?>" placeholder="Enter Pincode">
                   </div>
                   <div class="col-md-2">
                      <label>School</label>
@@ -215,11 +242,32 @@
                         <?php endif; ?>
                      </select>
                   </div>
-                  <div class="col-md-3">
+                  <div class="col-md-2">
+                     <label>Payment Method</label>
+                     <select name="payment_method" class="form-control">
+                        <option value="">All Payment Methods</option>
+                        <option value="cod" <?php echo (isset($filter_data['payment_method']) && $filter_data['payment_method'] == 'cod') ? 'selected' : ''; ?>>Cash On Delivery</option>
+                        <option value="razorpay" <?php echo (isset($filter_data['payment_method']) && $filter_data['payment_method'] == 'razorpay' || $filter_data['payment_method'] == 'Cashfree') ? 'selected' : ''; ?>>Online Payment</option>
+                        <option value="payment_at_school" <?php echo (isset($filter_data['payment_method']) && $filter_data['payment_method'] == 'payment_at_school') ? 'selected' : ''; ?>>Payment at School</option>
+                     </select>
+                  </div>
+                  <div class="col-md-2">
+                     <label>Delivery Type</label>
+                     <select name="delivery_type" class="form-control">
+                        <option value="">All</option>
+                        <option value="school" <?php echo (isset($filter_data['delivery_type']) && $filter_data['delivery_type'] == 'school') ? 'selected' : ''; ?>>Deliver at School</option>
+                        <option value="address" <?php echo (isset($filter_data['delivery_type']) && $filter_data['delivery_type'] == 'address') ? 'selected' : ''; ?>>Deliver at Address</option>
+                     </select>
+                  </div>
+                  <div class="col-md-2">
+                     <label>Pincode</label>
+                     <input type="text" name="pincode" class="form-control" value="<?php echo isset($filter_data['pincode']) ? htmlspecialchars($filter_data['pincode']) : ''; ?>" placeholder="Enter Pincode">
+                  </div>
+                  <div class="col-md-2">
                      <label>&nbsp;</label>
                      <div>
-                        <button type="submit" class="btn btn-primary">Search</button>
-                        <a href="<?php echo base_url('orders/' . $order_status); ?>" class="btn btn-secondary">Clear</a>
+                        <button type="submit" class="btn btn-primary btn-sm">Search</button>
+                        <a href="<?php echo base_url('orders/' . $order_status); ?>" class="btn btn-secondary btn-sm ms-1">Clear</a>
                      </div>
                   </div>
                </form>
@@ -311,6 +359,7 @@
                               <th>Address</th>
                               <th>School</th>
                               <th>Grade</th>
+                              <th>Delivery</th>
                               <th nowrap="">
                                  <?php
                                  if ($order_status == 'all' || $order_status == '') {
@@ -378,6 +427,8 @@
                                        $status_class = 'label-default';
                                        break;
                                  }
+                                 $is_payment_at_school = isset($item['is_payment_at_school']) && $item['is_payment_at_school'];
+                                 $is_deliver_at_school = isset($item['is_deliver_at_school']) && $item['is_deliver_at_school'];
                               ?>
                                  <tr class="item_holder">
                                     <?php if ($is_actionable): ?>
@@ -402,8 +453,27 @@
                                     <td><?php echo isset($item['address']) ? $item['address'] : '-'; ?></td>
                                     <td><?php echo isset($item['school_name']) ? $item['school_name'] : '-'; ?></td>
                                     <td><?php echo isset($item['grade_name']) ? $item['grade_name'] : '-'; ?></td>
+                                    <td><?php 
+                                        if ($is_deliver_at_school) {
+                                            echo '<span class="badge badge-deliver-school">Deliver at School</span>';
+                                        } else {
+                                            echo '<span class="badge badge-address">Deliver at Address</span>';
+                                        }
+                                    ?></td>
                                     <td><?php echo $item['date']; ?></td>
-                                    <td><?php echo $item['payment_method']; ?></td>
+                                    <td><?php 
+                                        $payment_method_display = $item['payment_method'];
+                                        if($payment_method_display == 'payment_at_school' || $payment_method_display == 'payment_at_scho') {
+                                            $payment_method_display = 'Payment at School';
+                                            echo '<span class="badge badge-payment-school">' . htmlspecialchars($payment_method_display) . '</span>';
+                                        } elseif($payment_method_display == 'cod') {
+                                            $payment_method_display = 'Cash On Delivery';
+                                            echo '<span class="badge badge-payment-cod">' . htmlspecialchars($payment_method_display) . '</span>';
+                                        } else {
+                                            $payment_method_display = ucfirst(str_replace('_', ' ', $payment_method_display));
+                                            echo '<span class="badge badge-payment-other">' . htmlspecialchars($payment_method_display) . '</span>';
+                                        }
+                                    ?></td>
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
@@ -414,18 +484,18 @@
                            else: ?>
                               <tr>
                                  <td colspan="<?php
-                                    $colspan = 12;
+                                    $colspan = 13;
                                     if ($order_status == 'all' || $order_status == '') {
-                                       $colspan = 14; // checkbox + status column + product + address + school + grade
+                                       $colspan = 15; // checkbox + status + product + address + school + grade + delivery
                                     } elseif ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'out_for_delivery') {
-                                       $colspan = 13; // checkbox column + product + address + school + grade
+                                       $colspan = 14; // checkbox + product + address + school + grade + delivery
                                     }
                                     echo $colspan;
                                  ?>">
                                     <p class="notf">
-                                       <?php 
-                                       $has_filters = !empty($filter_data['keywords']) || !empty($filter_data['pincode']) || !empty($filter_data['school']) || !empty($filter_data['grade']);
-                                       if ($has_filters): 
+                                       <?php
+                                       $has_filters = !empty($filter_data['keywords']) || !empty($filter_data['pincode']) || !empty($filter_data['school']) || !empty($filter_data['grade']) || !empty($filter_data['payment_method']);
+                                       if ($has_filters):
                                        ?>
                                           No orders found with the current filters. Please try changing your filter criteria.
                                        <?php else: ?>

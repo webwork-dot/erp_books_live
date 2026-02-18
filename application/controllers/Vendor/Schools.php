@@ -1188,4 +1188,76 @@ class Schools extends Vendor_base
 		header('Content-Type: application/json');
 		echo json_encode($response);
 	}
+
+	/**
+	 * Toggle payment required status (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function toggle_payment_required()
+	{
+		$school_id = $this->input->post('school_id');
+		$status = $this->input->post('status'); // 1 for payment required, 0 for payment not required
+
+		if (empty($school_id))
+		{
+			$response = array(
+				'status' => 'error',
+				'message' => 'School ID is required.'
+			);
+		}
+		else
+		{
+			// Toggle payment required status for school
+			$result = $this->School_model->togglePaymentRequired($school_id, $status, $this->current_vendor['id']);
+
+			if ($result['status'] === 'success')
+			{
+				// When school payment required is toggled, sync all branches to the same status
+				$this->load->model('Branch_model');
+				$this->Branch_model->updatePaymentRequiredForSchoolBranches($school_id, $status, $this->current_vendor['id']);
+			}
+
+			$response = $result;
+		}
+
+		header('Content-Type: application/json');
+		echo json_encode($response);
+	}
+
+	/**
+	 * Toggle deliver at school status (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function toggle_deliver_at_school()
+	{
+		$school_id = $this->input->post('school_id');
+		$status = $this->input->post('status'); // 1 for deliver at school (address required), 0 for no address required
+
+		if (empty($school_id))
+		{
+			$response = array(
+				'status' => 'error',
+				'message' => 'School ID is required.'
+			);
+		}
+		else
+		{
+			// Toggle deliver at school status for school
+			$result = $this->School_model->toggleDeliverAtSchool($school_id, $status, $this->current_vendor['id']);
+
+			if ($result['status'] === 'success')
+			{
+				// When school deliver at school is toggled, sync all branches to the same status
+				$this->load->model('Branch_model');
+				$this->Branch_model->updateDeliverAtSchoolForSchoolBranches($school_id, $status, $this->current_vendor['id']);
+			}
+
+			$response = $result;
+		}
+
+		header('Content-Type: application/json');
+		echo json_encode($response);
+	}
 }

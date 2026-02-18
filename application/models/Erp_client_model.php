@@ -90,6 +90,38 @@ class Erp_client_model extends CI_Model
 	}
 	
 	/**
+	 * Get first client from erp_clients (simple, no ID check)
+	 *
+	 * @return	array|NULL	Client data or NULL if table empty
+	 */
+	public function getFirstClient()
+	{
+		$query = $this->db->select('id, name, address, pincode, pan, gstin')
+			->from('erp_clients')
+			->limit(1)
+			->get();
+		return ($query->num_rows() > 0) ? $query->row_array() : NULL;
+	}
+
+	/**
+	 * Update first client in erp_clients (simple, no ID check)
+	 *
+	 * @param	array	$data	Fields to update (name, address, pincode, pan, gstin)
+	 * @return	bool	TRUE on success
+	 */
+	public function updateFirstClient($data)
+	{
+		$allowed = array('name', 'address', 'pincode', 'pan', 'gstin');
+		$update_data = array_intersect_key($data, array_flip($allowed));
+		if (empty($update_data)) return TRUE;
+		$first = $this->db->select('id')->from('erp_clients')->limit(1)->get()->row();
+		if (!$first) return FALSE;
+		$this->db->where('id', $first->id);
+		$this->db->update('erp_clients', $update_data);
+		return TRUE;
+	}
+
+	/**
 	 * Get client by ID
 	 *
 	 * @param	int	$client_id	Client ID

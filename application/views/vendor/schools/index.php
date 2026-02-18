@@ -58,8 +58,10 @@
 						<th>School Image</th>
 						<th>School Name</th>
 						<th>Board</th>
-						<th>Payment Block?</th>
+						<th>Order Block?</th>
 						<th>National Delivery Block?</th>
+						<th>Payment Required?</th>
+						<th>Deliver at School?</th>
 						<th>Status</th>
 						<th>Created</th>
 						<th class="text-end">Actions</th>
@@ -110,9 +112,23 @@
 								</td>
 								<td>
 									<div class="form-check form-switch">
-										<input class="form-check-input national-block-toggle border-primary" type="checkbox" 
+										<input class="form-check-input national-block-toggle border-primary" type="checkbox"
 											data-school-id="<?php echo $school['id']; ?>"
 											<?php echo (isset($school['is_national_block']) && $school['is_national_block'] == 1) ? 'checked' : ''; ?>>
+									</div>
+								</td>
+								<td>
+									<div class="form-check form-switch">
+										<input class="form-check-input payment-required-toggle border-primary" type="checkbox"
+											data-school-id="<?php echo $school['id']; ?>"
+											<?php echo (isset($school['is_payment_required']) && $school['is_payment_required'] == 1) ? 'checked' : ''; ?>>
+									</div>
+								</td>
+								<td>
+									<div class="form-check form-switch">
+										<input class="form-check-input deliver-at-school-toggle border-primary" type="checkbox"
+											data-school-id="<?php echo $school['id']; ?>"
+											<?php echo (!isset($school['deliver_at_school']) || $school['deliver_at_school'] == 1) ? 'checked' : ''; ?>>
 									</div>
 								</td>
 								<td>
@@ -138,7 +154,7 @@
 						<?php endforeach; ?>
 					<?php else: ?>
 						<tr>
-							<td colspan="9" class="text-center text-muted py-4">
+							<td colspan="10" class="text-center text-muted py-4">
 								<i class="isax isax-school fs-48 mb-2"></i>
 								<p>No schools found. <a href="<?php echo base_url('schools/add'); ?>">Add your first school</a></p>
 							</td>
@@ -278,6 +294,68 @@ document.addEventListener('DOMContentLoaded', function() {
 					// Revert toggle on error
 					this.checked = !this.checked;
 					alert(data.message || 'Failed to update national delivery block status');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				this.checked = !this.checked;
+				alert('An error occurred. Please try again.');
+			});
+		});
+	});
+
+	// Payment Required Toggle
+	document.querySelectorAll('.payment-required-toggle').forEach(function(toggle) {
+		toggle.addEventListener('change', function() {
+			const schoolId = this.getAttribute('data-school-id');
+			const isRequired = this.checked ? 1 : 0;
+
+			fetch('<?php echo base_url('schools/toggle_payment_required'); ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'school_id=' + schoolId + '&status=' + isRequired
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.status === 'success') {
+					// Show success message if needed
+					console.log(data.message);
+				} else {
+					// Revert toggle on error
+					this.checked = !this.checked;
+					alert(data.message || 'Failed to update payment required status');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				this.checked = !this.checked;
+				alert('An error occurred. Please try again.');
+			});
+		});
+	});
+
+	// Deliver at School Toggle
+	document.querySelectorAll('.deliver-at-school-toggle').forEach(function(toggle) {
+		toggle.addEventListener('change', function() {
+			const schoolId = this.getAttribute('data-school-id');
+			const isEnabled = this.checked ? 1 : 0;
+
+			fetch('<?php echo base_url('schools/toggle_deliver_at_school'); ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'school_id=' + schoolId + '&status=' + isEnabled
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.status === 'success') {
+					console.log(data.message);
+				} else {
+					this.checked = !this.checked;
+					alert(data.message || 'Failed to update deliver at school status');
 				}
 			})
 			.catch(error => {
