@@ -1960,6 +1960,102 @@ class Orders extends Vendor_base
 	}
 
 	/**
+	 * Get logo as base64 for invoice (like shipping label - from erp_clients)
+	 *
+	 * @return	string	Base64 data URL or empty string
+	 */
+	private function _get_invoice_logo_base64()
+	{
+		$logo_path = !empty($this->current_vendor['logo']) ? trim($this->current_vendor['logo']) : '';
+		if (empty($logo_path)) return '';
+		$full_path = FCPATH . ltrim($logo_path, '/');
+		if (file_exists($full_path)) {
+			$file_size = @filesize($full_path);
+			if ($file_size > 200000) return ''; // Skip if > 200KB to avoid dompdf memory exhaustion
+			$logo_data = file_get_contents($full_path);
+			if ($logo_data !== false) {
+				$image_info = @getimagesize($full_path);
+				$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+				return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+			}
+		}
+		// Fallback: try vendor frontend folder
+		$vendor_folder = !empty($this->current_vendor['domain']) ? $this->current_vendor['domain'] : '';
+		if (preg_match('/shivambook/i', $vendor_folder)) {
+			$alt_path = FCPATH . 'shivam_book_frontend/' . ltrim($logo_path, '/');
+			if (file_exists($alt_path) && @filesize($alt_path) <= 200000) {
+				$logo_data = file_get_contents($alt_path);
+				if ($logo_data !== false) {
+					$image_info = @getimagesize($alt_path);
+					$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+					return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+				}
+			}
+		}
+		$alt_path = FCPATH . 'book_erp_frontend/' . ltrim($logo_path, '/');
+		if (file_exists($alt_path) && @filesize($alt_path) <= 200000) {
+			$logo_data = file_get_contents($alt_path);
+			if ($logo_data !== false) {
+				$image_info = @getimagesize($alt_path);
+				$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+				return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Get order type label (Bookset, Individual, Uniform)
+	 */
+	private function _get_order_type_label($order_id, $order_row)
+	{
+		$type_order = isset($order_row['type_order']) ? strtolower($order_row['type_order']) : '';
+		if (!empty($type_order)) return ucfirst($type_order);
+		$items = $this->db->select('order_type')->from('tbl_order_items')->where('order_id', $order_id)->get()->result();
+		foreach ($items as $item) {
+			if (isset($item->order_type)) {
+				if ($item->order_type == 'bookset' || $item->order_type == 'package') return 'Bookset';
+				if ($item->order_type == 'uniform') return 'Uniform';
+			}
+		}
+		return 'Individual';
+	}
+
+	/**
+	 * Get items array for invoice (as objects)
+	 */
+	private function _get_invoice_items_arr($order_id)
+	{
+		return $this->db->select('*')->from('tbl_order_items')->where('order_id', $order_id)->order_by('id', 'ASC')->get()->result();
+	}
+
+	/**
+	 * Get bookset products for invoice
+	 */
+	private function _get_invoice_bookset_products($order_id, $order_type_label)
+	{
+		if ($order_type_label != 'Bookset') return array();
+		if ($this->db->table_exists('tbl_order_bookset_products')) {
+			return $this->db->select('*')->from('tbl_order_bookset_products')->where('order_id', $order_id)->order_by('package_id', 'ASC')->order_by('id', 'ASC')->get()->result();
+		}
+		if ($this->db->table_exists('erp_bookset_order_products')) {
+			return $this->db->select('*')->from('erp_bookset_order_products')->where('order_id', $order_id)->order_by('id', 'ASC')->get()->result();
+		}
+		return array();
+	}
+
+	/**
+	 * Get school name for order
+	 */
+	private function _get_order_school_name($order_id, $order_row)
+	{
+		if (!empty($order_row['school_name'])) return $order_row['school_name'];
+		if (!$this->db->table_exists('erp_schools')) return '';
+		$item = $this->db->select('oi.school_id, s.school_name')->from('tbl_order_items oi')->join('erp_schools s', 's.id = oi.school_id', 'left')->where('oi.order_id', $order_id)->where('oi.school_id IS NOT NULL')->limit(1)->get()->row();
+		return !empty($item) && !empty($item->school_name) ? $item->school_name : '';
+	}
+
+	/**
 	 * Download invoice for an order
 	 *
 	 * @param	string	$order_no	Order unique ID
@@ -2068,6 +2164,9 @@ class Orders extends Vendor_base
 			$order_details['invoice_no'] = $invoice_no;
 		}
 		
+		// Increase memory for PDF generation (dompdf can exhaust default limit with images)
+		@ini_set('memory_limit', '256M');
+
 		// Load helpers for invoice (price_format_decimal, rupees_word)
 		$this->load->helper('common');
 		
@@ -2077,14 +2176,18 @@ class Orders extends Vendor_base
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		error_reporting(E_ALL & ~E_DEPRECATED);
 
-		// Vendor/company info for invoice branding
-		$vendor_domain = !empty($this->current_vendor['domain']) ? $this->current_vendor['domain'] : '';
-		$vendor_domain = preg_match('#^https?://#', $vendor_domain) ? $vendor_domain : 'https://' . $vendor_domain;
-		$order_details['logo_url'] = rtrim($vendor_domain, '/') . '/assets/images/logo.png';
+		// Vendor/company info from erp_clients (like shipping label)
+		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$order_details['company_name'] = !empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books';
 		$order_details['company_address'] = !empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '';
 		$order_details['company_gstin'] = !empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-';
 		$order_details['company_pan'] = !empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-';
+
+		// Fetch order_type, items_arr, bookset_products for product display (like shipping label)
+		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
+		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
+		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
+		$order_details['order_obj'] = (object)array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
 
 		// Prepare data for invoice view
 		$page_data['data'] = $order_details;
@@ -2235,17 +2338,20 @@ class Orders extends Vendor_base
 			$order_details['invoice_no'] = $invoice_no;
 		}
 
+		@ini_set('memory_limit', '256M');
 		$this->load->helper('common');
 		$this->load->library('pdf');
 		error_reporting(E_ALL & ~E_DEPRECATED);
 
-		$vendor_domain = !empty($this->current_vendor['domain']) ? $this->current_vendor['domain'] : '';
-		$vendor_domain = preg_match('#^https?://#', $vendor_domain) ? $vendor_domain : 'https://' . $vendor_domain;
-		$order_details['logo_url'] = rtrim($vendor_domain, '/') . '/assets/images/logo.png';
+		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$order_details['company_name'] = !empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books';
 		$order_details['company_address'] = !empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '';
 		$order_details['company_gstin'] = !empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-';
 		$order_details['company_pan'] = !empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-';
+		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
+		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
+		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
+		$order_details['order_obj'] = (object)array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
 
 		$page_data['data'] = $order_details;
 		$invoice_view_path = APPPATH . 'views/invoice/invoice_bill.php';
