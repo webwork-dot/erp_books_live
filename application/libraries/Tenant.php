@@ -130,7 +130,10 @@ class Tenant
 						if (class_exists('Feature_access'))
 						{
 							$this->CI->load->library('Feature_access');
-							$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+							if (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+							{
+								$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+							}
 						}
 						
 						log_message('debug', 'Switched to tenant database: ' . $tenant['database_name']);
@@ -185,7 +188,10 @@ class Tenant
 		if (class_exists('Feature_access'))
 		{
 			$this->CI->load->library('Feature_access');
-			$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+			if (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+			{
+				$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+			}
 		}
 		
 		log_message('debug', 'Switched to tenant database: ' . $tenant['database_name']);

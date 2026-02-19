@@ -5230,7 +5230,7 @@ class Products extends Vendor_base
 						else
 						{
 							$this->session->set_flashdata('success', 'Bookset without products added successfully.');
-							redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=without_product'));
+							redirect(base_url('products/bookset?tab=without_product'));
 							return;
 						}
 					}
