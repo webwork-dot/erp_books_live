@@ -116,6 +116,7 @@ $route['login'] = 'auth/login'; // Unified login - will detect Vendor from domai
 $route['logout'] = 'auth/logout'; // Unified logout
 $route['dashboard'] = 'Vendor/dashboard/index';
 $route['dashboard/(:any)'] = 'Vendor/dashboard/$1';
+$route['search'] = 'Vendor/search/index';
 $route['profile/get_profile'] = 'Vendor/profile/get_profile';
 $route['profile/update_profile'] = 'Vendor/profile/update_profile';
 $route['profile/get_profile'] = 'Vendor/profile/get_profile';
@@ -162,7 +163,16 @@ $route['orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';
 $route['orders/move_to_processing_single'] = 'Vendor/orders/move_to_processing_single';
 $route['orders/move_to_out_for_delivery_single'] = 'Vendor/orders/move_to_out_for_delivery_single';
 $route['orders/move_to_delivered_single'] = 'Vendor/orders/move_to_delivered_single';
+$route['orders/mark_ready_to_ship'] = 'Vendor/orders/mark_ready_to_ship';
+$route['orders/unmark_ready_to_ship'] = 'Vendor/orders/unmark_ready_to_ship';
+$route['orders/move_back_to_processing_single'] = 'Vendor/orders/move_back_to_processing_single';
+$route['orders/move_back_to_pending_single'] = 'Vendor/orders/move_back_to_pending_single';
 $route['orders/set_shipper'] = 'Vendor/orders/set_shipper';
+$route['orders/get_order_couriers'] = 'Vendor/orders/get_order_couriers';
+$route['orders/save_order_courier_awb'] = 'Vendor/orders/save_order_courier_awb';
+$route['orders/get_vendor_address'] = 'Vendor/orders/get_vendor_address';
+$route['orders/save_third_party_shipping'] = 'Vendor/orders/save_third_party_shipping';
+$route['orders/get_order_timeline/(:any)'] = 'Vendor/orders/get_order_timeline/$1';
 $route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$1';
 $route['orders/view/(:any)'] = 'Vendor/orders/view/$1';
 $route['orders/download_invoice/(:any)'] = 'Vendor/orders/download_invoice/$1';
@@ -240,6 +250,21 @@ $route['products/bookset/package/get_boards'] = 'Vendor/products/bookset_package
 $route['features'] = 'Vendor/features/index';
 $route['features/upload_image'] = 'Vendor/features/upload_image';
 $route['features/delete_image'] = 'Vendor/features/delete_image';
+
+// Vendor reports routes
+$route['reports'] = 'Vendor/reports/index';
+$route['reports/get_data'] = 'Vendor/reports/get_data';
+$route['reports/export/(:any)'] = 'Vendor/reports/export/$1';
+
+// Vendor courier routes
+$route['couriers'] = 'Vendor/couriers/index';
+$route['couriers/add'] = 'Vendor/couriers/add';
+$route['couriers/edit/(:num)'] = 'Vendor/couriers/edit/$1';
+$route['couriers/delete/(:num)'] = 'Vendor/couriers/delete/$1';
+$route['couriers/get_couriers'] = 'Vendor/couriers/get_couriers';
+$route['couriers/get_courier_details/(:num)'] = 'Vendor/couriers/get_courier_details/$1';
+$route['couriers/get_courier_orders/(:num)'] = 'Vendor/couriers/get_courier_orders/$1';
+$route['couriers/toggle_status/(:num)'] = 'Vendor/couriers/toggle_status/$1';
 
 // Site Settings routes
 $route['site-settings'] = 'Vendor/SiteSettings/index';

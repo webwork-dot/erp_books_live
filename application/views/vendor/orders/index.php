@@ -84,73 +84,85 @@
       color: white !important;
    }
    
-   /* Status labels */
+   /* Status labels - base */
    .label {
       display: inline-block;
-      padding: 0.25em 0.6em;
-      font-size: 0.875rem;
+      padding: 0.35em 0.65em;
+      font-size: 12px;
       font-weight: 600;
       line-height: 1;
       text-align: center;
       white-space: nowrap;
       vertical-align: baseline;
-      border-radius: 0.25rem;
+      border-radius: 4px;
+      border: 1px solid transparent;
    }
    
+   /* Order status labels - outline style */
    .label-default {
-      background-color: #6c757d;
-      color: #fff;
+    background-color: #6c757d !important;
+    color: white;
+    
    }
    
    .label-warning {
-      background-color: #ffc107;
-      color: #000;
+    background-color: rgb(255 133 0) !important;
+    color: white;
    }
-   
+
+   .label-primary {
+    background-color: #007bff !important;
+    color: white;
+   }
    .label-info {
-      background-color: #17a2b8;
-      color: #fff;
+    background-color: #17a2b8 !important;
+    color: white;
    }
    
    .label-success {
-      background-color: #28a745;
-      color: #fff;
-   }
-   
-   .label-danger {
-      background-color: #dc3545;
-      color: #fff;
+    background-color: #28a745 !important;
+    color: white;
    }
 
-   /* Payment at School tag */
+
    .badge-payment-school {
-      background-color: #dc3545 !important;
+     
+      background-color: #007bff !important;
       color: #fff !important;
+      padding: 0.35em 0.65em;
+      border-radius: 4px;
    }
-   /* Deliver at School tag */
-   .badge-deliver-school {
-      background-color: #dc3545 !important;
-      color: #fff !important;
+
+   .badge-deliver-school, .badge-payment-school {
+    background-color: #ef1e36;
+    color: #fff !important;
+    padding: 0.35em 0.65em;
+    border-radius: 4px;
    }
-   /* Address tag */
+   /* Deliver at Address - outline style */
    .badge-address {
-      background-color: #007bff !important;
-      color: #fff !important;
+      background-color: rgb(239 30 54 / 9%) !important;
+      border: 1px solid #ef1e36;
+      color: #ef1e36 !important;
+      padding: 0.35em 0.65em;
+      border-radius: 4px;
    }
-   /* Payment at School tag */
-   .badge-payment-school {
-      background-color: #dc3545 !important;
-      color: #fff !important;
-   }
-   /* Payment at School tag */
+   /* Cash On Delivery - outline style */
    .badge-payment-cod {
-      background-color: #007bff !important;
-      color: #fff !important;
+      background-color: rgb(0 123 255 / 9%) !important;
+      border: 1px solid #007bff;
+      color: #007bff !important;
+      font-size: 12px !important;
+      border-radius: 4px;
+      padding: 0.35em 0.65em;
    }
-   /* Payment at School tag */
+   /* Other payment methods - outline style */
    .badge-payment-other {
-      background-color: #6c757d !important;
-      color: #fff !important;
+      background-color: rgba(108, 117, 125, 0.15) !important;
+      border: 1px solid #6c757d;
+      color: #6c757d !important;
+      padding: 0.35em 0.65em;
+      border-radius: 4px;
    }
 </style>
 
@@ -455,9 +467,9 @@
                                     <td><?php echo isset($item['grade_name']) ? $item['grade_name'] : '-'; ?></td>
                                     <td><?php 
                                         if ($is_deliver_at_school) {
-                                            echo '<span class="badge badge-deliver-school">Deliver at School</span>';
+                                            echo '<span class="badge badge-pill badge-deliver-school">Deliver at School</span>';
                                         } else {
-                                            echo '<span class="badge badge-address">Deliver at Address</span>';
+                                            echo '<span class="badge badge-pill badge-address">Deliver at Address</span>';
                                         }
                                     ?></td>
                                     <td><?php echo $item['date']; ?></td>
@@ -465,19 +477,20 @@
                                         $payment_method_display = $item['payment_method'];
                                         if($payment_method_display == 'payment_at_school' || $payment_method_display == 'payment_at_scho') {
                                             $payment_method_display = 'Payment at School';
-                                            echo '<span class="badge badge-payment-school">' . htmlspecialchars($payment_method_display) . '</span>';
+                                            echo '<span class="badge badge-pill badge-payment-school">' . htmlspecialchars($payment_method_display) . '</span>';
                                         } elseif($payment_method_display == 'cod') {
                                             $payment_method_display = 'Cash On Delivery';
-                                            echo '<span class="badge badge-payment-cod">' . htmlspecialchars($payment_method_display) . '</span>';
+                                            echo '<span class="badge badge-pill badge-payment-cod">' . htmlspecialchars($payment_method_display) . '</span>';
                                         } else {
                                             $payment_method_display = ucfirst(str_replace('_', ' ', $payment_method_display));
-                                            echo '<span class="badge badge-payment-other">' . htmlspecialchars($payment_method_display) . '</span>';
+                                            echo '<span class="badge badge-pill badge-payment-other">' . htmlspecialchars($payment_method_display) . '</span>';
                                         }
                                     ?></td>
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
                                        <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                       <button type="button" class="btn btn-outline-primary btn-sm btn-timeline ms-1" data-order-id="<?php echo htmlspecialchars($item['order_unique_id']); ?>" data-toggle="tooltip" title="Order Timeline"><i class="fa fa-history"></i></button>
                                     </td>
                                  </tr>
                               <?php endforeach; 
@@ -536,6 +549,21 @@
    </div>
 </div>
 
+<!-- Order Timeline Modal -->
+<div class="modal fade" id="orderTimelineListModal" tabindex="-1" aria-labelledby="orderTimelineListModalLabel" aria-hidden="true">
+   <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+         <div class="modal-header">
+            <h5 class="modal-title" id="orderTimelineListModalLabel">Order Timeline</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+         </div>
+         <div class="modal-body" id="orderTimelineListModalBody">
+            <div class="text-center py-4"><i class="fa fa-spinner fa-spin fa-2x text-muted"></i></div>
+         </div>
+      </div>
+   </div>
+</div>
+
 <script>
    $(document).ready(function() {
       // Date range picker
@@ -550,6 +578,28 @@
             console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
          });
       }
+
+      // Order Timeline button - load timeline via AJAX and show modal
+      $('.btn-timeline').on('click', function() {
+         var orderId = $(this).data('order-id');
+         var $modal = $('#orderTimelineListModal');
+         var $body = $('#orderTimelineListModalBody');
+         $body.html('<div class="text-center py-4"><i class="fa fa-spinner fa-spin fa-2x text-muted"></i></div>');
+         $modal.find('.modal-title').text('Order Timeline - ' + orderId);
+         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = new bootstrap.Modal($modal[0]);
+            modal.show();
+         } else {
+            $modal.modal('show');
+         }
+         $.get('<?php echo base_url("orders/get_order_timeline/"); ?>' + encodeURIComponent(orderId))
+            .done(function(html) {
+               $body.html(html);
+            })
+            .fail(function() {
+               $body.html('<p class="text-danger">Failed to load timeline.</p>');
+            });
+      });
 
       // Check all checkbox
       $("#checkAll_order").click(function() {

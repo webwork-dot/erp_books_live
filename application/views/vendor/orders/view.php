@@ -82,10 +82,28 @@
 
 .badge-payment-school, .badge-deliver-school {
     background-color: #ef1e1e29 !important;
-    border: 2px solid #ef1e1e;
+    border: 1px solid #ef1e1e;
     color: #ef1e1e !important;
     font-size: 14px !important;
-    border-radius: 14px;
+    border-radius: 4px;
+}
+
+.btn-outline-warning {
+  color: var(--warning);
+  background-color: var(--white);
+  border-color: var(--warning) !important;
+}
+
+.btn-outline-secondary {
+    color: #ef1e1e !important;
+    background-color: var(--white);
+    border-color: #ef1e1e !important;
+}
+
+.btn-outline-secondary:hover {
+    color:rgb(255, 255, 255) !important;
+    background-color: #ef1e1e !important;
+    border-color: #ef1e1e !important;
 }
 </style>
 
@@ -274,12 +292,30 @@ if($order_data[0]->payment_method == 'cod'){
 ?>
 
 <div class="container-fluid order-page" style="padding: 20px;">
-  <!-- BACK BUTTON -->
-  <div class="mb-3">
-    <a href="<?php echo base_url('orders'); ?>" class="btn btn-secondary btn-sm">
-      <i class="fa fa-arrow-left"></i> Back to Orders
-    </a>
-                </div>
+  <!-- BACK BUTTON, TIMELINE & MOVE BACK -->
+  <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex gap-2">
+      <a href="<?php echo base_url('orders'); ?>" class="btn btn-secondary btn-sm">
+        <i class="fa fa-arrow-left"></i> Back to Orders
+      </a>
+      <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#orderTimelineModal">
+        <i class="fa fa-history"></i> Order Timeline
+      </button>
+    </div>
+    <div class="d-flex gap-2">
+      <?php $os = $order_data[0]->order_status; ?>
+      <?php if ($os == '2' || $os == 2): ?>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveBackToPending('<?= $order_data[0]->order_unique_id ?>', this)">
+          <i class="fa fa-arrow-left me-1"></i> Move Back to New Order
+        </button>
+      <?php endif; ?>
+      <?php if ($os == '3' || $os == 3): ?>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveBackToProcessing('<?= $order_data[0]->order_unique_id ?>', this)">
+          <i class="fa fa-arrow-left me-1"></i> Move Back to Processing
+        </button>
+      <?php endif; ?>
+    </div>
+  </div>
   
   <div class="row">
     
@@ -322,71 +358,7 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
             </div>
 
-      <!-- UNIFORM: School/Branch & Student Details (show for all uniform orders with school/branch, or deliver-at-school with student details) -->
-      <?php 
-      $show_deliver_school_card = !empty($uniform_info) || !empty($uniform_student_details) || ((isset($is_deliver_at_school) && $is_deliver_at_school) && (isset($address_arr[0]) && !empty($address_arr[0]->address)));
-      if ($show_deliver_school_card): ?>
-      <div class="card mb-3 border-danger">
-        <div class="card-header bg-danger text-white">
-          <strong><i class="fa fa-school me-2"></i> Order - School/Branch & Student Details</strong>
-        </div>
-        <div class="card-body">
-          <?php if (!empty($uniform_info) && (!empty($uniform_info->school_name) || !empty($uniform_info->branch_name) || !empty($uniform_info->display_name))): ?>
-          <div class="mb-4">
-            <h6 class="text-muted mb-2"><?= (isset($is_deliver_at_school) && $is_deliver_at_school) ? 'Delivery Location' : 'School/Branch'; ?></h6>
-            <?php if (!empty($uniform_info->school_name)): ?>
-            <p class="mb-1"><strong>School:</strong> <?= htmlspecialchars($uniform_info->school_name) ?></p>
-            <?php endif; ?>
-            <?php if (!empty($uniform_info->branch_name)): ?>
-            <p class="mb-1"><strong>Branch:</strong> <?= htmlspecialchars($uniform_info->branch_name) ?></p>
-            <?php endif; ?>
-            <?php if (empty($uniform_info->school_name) && empty($uniform_info->branch_name) && !empty($uniform_info->display_name)): ?>
-            <h5 class="text-danger mb-0"><?= htmlspecialchars($uniform_info->display_name) ?></h5>
-            <?php endif; ?>
-            <?php if (!empty($uniform_info->address)): ?>
-            <p class="mb-0 text-muted mt-1"><?= htmlspecialchars($uniform_info->address) ?></p>
-            <?php endif; ?>
-          </div>
-          <?php elseif (!empty($address_arr[0]->address) && isset($is_deliver_at_school) && $is_deliver_at_school): ?>
-          <div class="mb-4">
-            <h6 class="text-muted mb-2">Delivery Location</h6>
-            <h5 class="text-danger"><?= htmlspecialchars($address_arr[0]->address) ?></h5>
-          </div>
-          <?php endif; ?>
-          <?php if ((isset($is_deliver_at_school) && $is_deliver_at_school) || !empty($uniform_student_details)): ?>
-          <div>
-            <h6 class="text-muted mb-2">Student Details</h6>
-            <div class="table-responsive">
-              <table class="table table-bordered table-sm">
-                <thead class="table-light">
-                  <tr>
-                    <th>Name</th>
-                    <th>Grade</th>
-                    <th>Roll Number</th>
-                    <th>Remarks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php if (!empty($uniform_student_details)): ?>
-                    <?php foreach ($uniform_student_details as $stu): ?>
-                    <tr>
-                      <td><?= htmlspecialchars(!empty($stu->f_name) ? $stu->f_name : '-') ?></td>
-                      <td><?= htmlspecialchars(!empty($stu->grade) ? $stu->grade : '-') ?></td>
-                      <td><?= htmlspecialchars(!empty($stu->roll_number) ? $stu->roll_number : '-') ?></td>
-                      <td><?= htmlspecialchars(!empty($stu->remarks) ? $stu->remarks : '-') ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                  <?php else: ?>
-                    <tr><td colspan="4" class="text-muted text-center">No student details</td></tr>
-                  <?php endif; ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <?php endif; ?>
-        </div>
-      </div>
-      <?php endif; ?>
+    
 
       <!-- PRODUCTS CARD -->
       <div class="card">
@@ -990,6 +962,9 @@ if($order_data[0]->payment_method == 'cod'){
             $has_shipping_label = true;
           }
           $courier = isset($order_data[0]->courier) ? $order_data[0]->courier : '';
+          $erp_courier_id = isset($order_data[0]->erp_courier_id) ? (int)$order_data[0]->erp_courier_id : 0;
+          $awb_no = isset($order_data[0]->awb_no) ? trim($order_data[0]->awb_no) : '';
+          $has_courier_selected = ($courier == 'manual' && $erp_courier_id > 0);
           ?>
           
           <!-- Status 1: Pending - Show Move to Process button -->
@@ -1017,14 +992,14 @@ if($order_data[0]->payment_method == 'cod'){
                     <span class="text-muted" style="font-weight: bold;">OR</span>
 </div>
                   <div class="col-5" style="padding: 5px;">
-                    <button type="button" class="btn btn-outline-info btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->order_unique_id ?>', 'shiprocket', this)" style="width: 100%;">
+                    <button type="button" class="btn btn-outline-info btn-lg w-100" data-bs-toggle="modal" data-bs-target="#thirdPartyShippingModal" style="width: 100%;">
                       <i class="fa fa-shipping-fast"></i> 3rd Party
                     </button>
                   </div>
                 </div>
               </div>
             <?php elseif ($courier == 'manual'): ?>
-              <!-- Self Delivery - Show Generate Label button -->
+              <!-- Self Delivery - Flow: 1) Generate Label, 2) Select Courier, 3) Ready to Ship -->
               <div class="mb-3">
                 <div class="alert alert-light border d-flex align-items-center mb-3">
                   <i class="fa fa-truck text-primary me-2"></i>
@@ -1032,6 +1007,7 @@ if($order_data[0]->payment_method == 'cod'){
                 </div>
               </div>
               <?php if (!$has_shipping_label): ?>
+                <!-- Step 1: Generate shipping label first -->
                 <div class="d-grid">
                   <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>" 
                      class="btn btn-primary btn-lg" 
@@ -1045,7 +1021,30 @@ if($order_data[0]->payment_method == 'cod'){
                     </span>
                   </a>
                 </div>
+              <?php elseif (!$has_courier_selected): ?>
+                <!-- Step 2: After label generated, select courier -->
+                <div class="alert alert-light border mb-2 small">
+                  <i class="fa fa-check-circle text-success me-1"></i> Shipping label generated
+                </div>
+                <div class="row" style="margin: 0;">
+                  <div class="col-6" style="padding: 5px;">
+                    <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>" class="btn btn-info btn-lg w-100" target="_blank" style="width: 100%;">
+                      <i class="fa fa-download me-2"></i> Download Label
+                    </a>
+                  </div>
+                  <div class="col-6" style="padding: 5px;">
+                    <button type="button" class="btn btn-primary btn-lg w-100" data-bs-toggle="modal" data-bs-target="#selectCourierModal" style="width: 100%;">
+                      <i class="fa fa-truck me-2"></i> Select Courier
+                    </button>
+                  </div>
+                </div>
               <?php else: ?>
+                <!-- Step 3: Label + Courier selected - Ready to Ship or Out for Delivery -->
+                <div class="alert alert-light border mb-2 small">
+                  <strong>Courier:</strong> <?= htmlspecialchars(isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-') ?>
+                  <?php if (!empty($awb_no)): ?><br><strong>AWB:</strong> <code><?= htmlspecialchars($awb_no) ?></code><?php endif; ?>
+                  <a href="#" class="ms-2" data-bs-toggle="modal" data-bs-target="#selectCourierModal">Edit</a>
+                </div>
                 <div class="row" style="margin: 0;">
                   <div class="col-6" style="padding: 5px;">
                     <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>" class="btn btn-info btn-lg w-100" target="_blank" style="width: 100%;">
@@ -1053,39 +1052,92 @@ if($order_data[0]->payment_method == 'cod'){
                     </a>
                   </div>
                   <div class="col-6" style="padding: 5px;">
-                    <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
-                      <i class="fa fa-truck"></i> Out for Delivery
+                    <?php
+                    $is_ready_to_ship = isset($order_data[0]->ready_to_ship) && $order_data[0]->ready_to_ship == 1;
+                    if (!$is_ready_to_ship): ?>
+                      <button type="button" class="btn btn-warning btn-lg w-100" onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                        <i class="fa fa-check-square-o"></i> Ready to Ship
+                      </button>
+                    <?php else: ?>
+                      <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                        <i class="fa fa-truck"></i> Out for Delivery
+                      </button>
+                    <?php endif; ?>
+                  </div>
+                </div>
+                <?php if ($is_ready_to_ship): ?>
+                <div class="row" style="margin: 0; margin-top: 10px;">
+                  <div class="col-12" style="padding: 5px;">
+                    <button type="button" class="btn btn-outline-warning btn-lg w-100" onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                      <i class="fa fa-undo"></i> Unmark Ready
                     </button>
                   </div>
                 </div>
+                <?php endif; ?>
               <?php endif; ?>
-            <?php elseif ($courier == 'shiprocket'): ?>
-              <!-- 3rd Party - Show Shiprocket info -->
+            <?php elseif ($courier == '3rd_party' || $courier == 'shiprocket'): ?>
+              <!-- 3rd Party - Show provider info -->
+              <?php 
+              $third_party_provider = isset($order_data[0]->third_party_provider) ? $order_data[0]->third_party_provider : 'shiprocket';
+              $provider_label = ucfirst($third_party_provider);
+              if ($provider_label == 'Bigship') $provider_label = 'Big Ship';
+              ?>
               <div class="mb-3">
                 <div class="alert alert-info border-0 mb-3">
                   <div class="d-flex align-items-center mb-2">
                     <i class="fa fa-shipping-fast me-2"></i>
                     <strong>3rd Party Shipping</strong>
                   </div>
-                  <small class="text-muted">Shiprocket</small>
-                  <?php if (!empty($order_data[0]->awb_number)): ?>
+                  <small class="text-muted"><?= htmlspecialchars($provider_label) ?></small>
+                  <?php if (!empty($order_data[0]->pkg_length_cm) || !empty($order_data[0]->pkg_weight_kg)): ?>
+                    <div class="mt-2 small">
+                      <strong>Dimensions:</strong> 
+                      L: <?= htmlspecialchars($order_data[0]->pkg_length_cm ?? '-') ?> cm × 
+                      B: <?= htmlspecialchars($order_data[0]->pkg_breadth_cm ?? '-') ?> cm × 
+                      H: <?= htmlspecialchars($order_data[0]->pkg_height_cm ?? '-') ?> cm, 
+                      W: <?= htmlspecialchars($order_data[0]->pkg_weight_kg ?? '-') ?> kg
+                    </div>
+                  <?php endif; ?>
+                  <?php if (!empty($order_data[0]->awb_no)): ?>
                     <div class="mt-2">
-                      <strong>AWB:</strong> <code><?= htmlspecialchars($order_data[0]->awb_number) ?></code>
+                      <strong>AWB:</strong> <code><?= htmlspecialchars($order_data[0]->awb_no) ?></code>
                     </div>
                   <?php endif; ?>
                 </div>
               </div>
               <?php if ($has_shipping_label): ?>
-                <div class="d-grid">
-                  <button type="button" class="btn btn-success btn-lg" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)">
-                    <i class="fa fa-truck me-2"></i> Move to Out for Delivery
-                  </button>
+                <?php
+                $is_ready_to_ship = isset($order_data[0]->ready_to_ship) && $order_data[0]->ready_to_ship == 1;
+                ?>
+                <div class="row" style="margin: 0;">
+                  <div class="col-6" style="padding: 5px;">
+                    <?php if (!$is_ready_to_ship): ?>
+                      <button type="button" class="btn btn-warning btn-lg w-100" onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                        <i class="fa fa-check-square-o"></i> Ready to Ship
+                      </button>
+                    <?php else: ?>
+                      <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                        <i class="fa fa-truck"></i> Out for Delivery
+                      </button>
+                    <?php endif; ?>
+                  </div>
+                  <div class="col-6" style="padding: 5px;">
+                    <?php if ($is_ready_to_ship): ?>
+                      <button type="button" class="btn btn-outline-warning btn-lg w-100" onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                        <i class="fa fa-undo"></i> Unmark Ready
+                      </button>
+                    <?php else: ?>
+                      <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>" class="btn btn-outline-info btn-lg w-100" target="_blank" style="width: 100%;">
+                        <i class="fa fa-download"></i> Download
+                      </a>
+                    <?php endif; ?>
+                  </div>
                 </div>
               <?php endif; ?>
             <?php endif; ?>
           <?php endif; ?>
           
-          <!-- Status 3: Out for Delivery - Show Delivered button -->
+          <!-- Status 3: Out for Delivery - Show Delivered button + Move back to Processing -->
           <?php if ($current_status == '3' || $current_status == 3): ?>
             <?php if ($has_shipping_label): ?>
               <div class="row" style="margin: 0;">
@@ -1148,6 +1200,52 @@ if($order_data[0]->payment_method == 'cod'){
           </div>
         </div>
       </div>
+      
+      <?php 
+      // Courier Information - show for self delivery when shipping label generated
+      $show_courier_block = ($courier == 'manual' && $has_shipping_label && $erp_courier_id > 0);
+      $courier_name_display = isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-';
+      ?>
+      <?php if ($show_courier_block): ?>
+      <?php $shipping_no = isset($order_data[0]->ship_order_id) ? trim($order_data[0]->ship_order_id) : ''; ?>
+      <!-- COURIER INFORMATION CARD (Self Delivery) - Compact -->
+      <div class="card mb-3">
+        <div class="card-header py-2">
+          <b class="small"><i class="fa fa-truck me-1"></i>Courier</b>
+        </div>
+        <div class="card-body py-2 small">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-primary fw-bold"><?= htmlspecialchars($courier_name_display) ?></span>
+            <?php if (!empty($shipping_no)): ?>
+            <span>·</span>
+            <span><strong>Shipping #:</strong> <code class="px-1"><?= htmlspecialchars($shipping_no) ?></code></span>
+            <?php endif; ?>
+            <?php if (!empty($awb_no)): ?>
+            <span>·</span>
+            <span><strong>AWB:</strong> <code class="px-1"><?= htmlspecialchars($awb_no) ?></code></span>
+            <?php endif; ?>
+          </div>
+          <?php if (!empty($order_data[0]->track_url)): 
+            $track_url_display = $order_data[0]->track_url;
+            $track_url_href = $track_url_display;
+            if (!empty($awb_no)) {
+              $track_url_href = str_replace(array('{{tracking_id}}', '{tracking_id}', '{{awb}}', '{awb}'), $awb_no, $track_url_display);
+            }
+          ?>
+          <div class="mt-1">
+            <a href="<?= htmlspecialchars($track_url_href) ?>" target="_blank" rel="noopener" class="text-break" style="font-size: 0.8rem;">
+              <?= htmlspecialchars(strlen($track_url_display) > 45 ? substr($track_url_display, 0, 45) . '…' : $track_url_display) ?>
+            </a>
+          </div>
+          <?php endif; ?>
+          <?php if (!empty($order_data[0]->track_date)): ?>
+          <div class="mt-1 text-muted" style="font-size: 0.75rem;">
+            <i class="fa fa-clock-o me-1"></i><?= date('d M Y, h:i A', strtotime($order_data[0]->track_date)) ?>
+          </div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
       
       <!-- PACKAGE WEIGHT & BOOKSET INFO CARD -->
       <div class="card mb-3">
@@ -1377,17 +1475,35 @@ if($order_data[0]->payment_method == 'cod'){
         </div>
       </div>
 
-      <!-- TIMELINE CARD -->
-      <div class="card">
-        <div class="card-header">
-          <b>Order Timeline</b>
-        </div>
-        <div class="card-body">
+      
+    </div>
+    
+  </div>
+</div>
+
+<!-- Order Timeline Modal -->
+<div class="modal fade" id="orderTimelineModal" tabindex="-1" aria-labelledby="orderTimelineModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="orderTimelineModalLabel">Order Timeline</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
           <?php
-          // Build timeline from actual order dates and status history
+          // Helper to map tbl_order_status.status_title to display name
+          $status_title_map = array(
+            '1' => 'New Order / Pending',
+            '2' => 'Processing',
+            '3' => 'Out for Delivery',
+            '4' => 'Delivered',
+            '7' => 'Return'
+          );
+          
+          // Build timeline from tbl_order_status (all data where order_id = tbl_order_details.id)
           $timeline_items = array();
           
-          // 1. Order Placed - Always show
+          // 1. Order Placed - from tbl_order_details.order_date (initial state)
           $timeline_items[] = array(
             'status' => 'Order Placed',
             'date' => $order_data[0]->order_date,
@@ -1395,86 +1511,74 @@ if($order_data[0]->payment_method == 'cod'){
             'notes' => ''
           );
           
-          // 2. Processing - Use processing_date from tbl_order_details
-          if (!empty($order_data[0]->processing_date)) {
-            $timeline_items[] = array(
-              'status' => 'Processing',
-              'date' => $order_data[0]->processing_date,
-              'completed' => true,
-              'notes' => 'Order moved to processing'
-            );
-          }
-          
-          // 3. Shipping Label Generated - Check from tbl_order_status first, then fallback to shipping_label field
-          $label_generated_date = null;
+          // 2. Add ALL entries from tbl_order_status (order_id = tbl_order_details.id)
           if (!empty($additional_status)) {
             foreach ($additional_status as $status) {
-              if (stripos($status->status_title, 'Shipping Label Generated') !== false || 
-                  stripos($status->status_title, 'label') !== false) {
-                $label_generated_date = $status->created_at;
-                break;
-              }
+              $display_status = isset($status_title_map[$status->status_title]) 
+                ? $status_title_map[$status->status_title] 
+                : $status->status_title;
+              $timeline_items[] = array(
+                'status' => $display_status,
+                'date' => $status->created_at,
+                'completed' => true,
+                'notes' => isset($status->status_desc) ? $status->status_desc : ''
+              );
             }
           }
           
-          if (!empty($label_generated_date)) {
-            $timeline_items[] = array(
-              'status' => 'Shipping Label Generated',
-              'date' => $label_generated_date,
-              'completed' => true,
-              'notes' => 'Shipping label has been generated'
-            );
-          } elseif (!empty($order_data[0]->shipping_label)) {
-            // Fallback: if label exists but no status entry, use processing_date or order_date
-            $timeline_items[] = array(
-              'status' => 'Shipping Label Generated',
-              'date' => !empty($order_data[0]->processing_date) ? $order_data[0]->processing_date : $order_data[0]->order_date,
-              'completed' => true,
-              'notes' => 'Shipping label has been generated'
-            );
-          }
-          
-          // 4. Out for Delivery - Use shipment_date from tbl_order_details
-          if (!empty($order_data[0]->shipment_date)) {
-            $timeline_items[] = array(
-              'status' => 'Out for Delivery',
-              'date' => $order_data[0]->shipment_date,
-              'completed' => true,
-              'notes' => 'Order moved to out for delivery'
-            );
-          }
-          
-          // 5. Delivered - Use delivery_date from tbl_order_details
-          if (!empty($order_data[0]->delivery_date)) {
-            $timeline_items[] = array(
-              'status' => 'Delivered',
-              'date' => $order_data[0]->delivery_date,
-              'completed' => true,
-              'notes' => 'Order delivered successfully'
-            );
-          }
-          
-          // 6. Add additional entries from tbl_order_status (for custom notes)
-          if (!empty($additional_status)) {
-            foreach ($additional_status as $status) {
-              // Only add if it's not already in timeline (check by status title)
-              $exists = false;
-              foreach ($timeline_items as $item) {
-                if (stripos($item['status'], $status->status_title) !== false || 
-                    stripos($status->status_title, $item['status']) !== false) {
-                  $exists = true;
-                  break;
-                }
+          // 3. Add tbl_order_details entries that may not have tbl_order_status records
+          // Courier Assigned - track_date (when erp_courier_id set)
+          if (!empty($order_data[0]->track_date) && !empty($order_data[0]->erp_courier_id)) {
+            $has_courier = false;
+            foreach ($timeline_items as $item) {
+              if (stripos($item['status'], 'Courier') !== false || stripos($item['status'], 'Shipper') !== false) {
+                $has_courier = true;
+                break;
               }
-              
-              if (!$exists) {
-                $timeline_items[] = array(
-                  'status' => $status->status_title,
-                  'date' => $status->created_at,
-                  'completed' => true,
-                  'notes' => $status->status_desc
-                );
+            }
+            if (!$has_courier) {
+              $timeline_items[] = array(
+                'status' => 'Courier Assigned',
+                'date' => $order_data[0]->track_date,
+                'completed' => true,
+                'notes' => 'Courier and tracking details added'
+              );
+            }
+          }
+          // Ready to Ship - ready_to_ship_time
+          if (!empty($order_data[0]->ready_to_ship_time)) {
+            $has_ready = false;
+            foreach ($timeline_items as $item) {
+              if (stripos($item['status'], 'Ready to Ship') !== false) {
+                $has_ready = true;
+                break;
               }
+            }
+            if (!$has_ready) {
+              $timeline_items[] = array(
+                'status' => 'Ready to Ship',
+                'date' => $order_data[0]->ready_to_ship_time,
+                'completed' => true,
+                'notes' => 'Order marked as ready to ship'
+              );
+            }
+          }
+          // Shipping Label - fallback if no tbl_order_status entry
+          if (!empty($order_data[0]->shipping_label)) {
+            $has_label = false;
+            foreach ($timeline_items as $item) {
+              if (stripos($item['status'], 'Label') !== false || stripos($item['status'], 'label') !== false) {
+                $has_label = true;
+                break;
+              }
+            }
+            if (!$has_label) {
+              $timeline_items[] = array(
+                'status' => 'Shipping Label Generated',
+                'date' => !empty($order_data[0]->processing_date) ? $order_data[0]->processing_date : $order_data[0]->order_date,
+                'completed' => true,
+                'notes' => 'Shipping label has been generated'
+              );
             }
           }
           
@@ -1594,11 +1698,103 @@ if($order_data[0]->payment_method == 'cod'){
             <?php
           }
           ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3rd Party Shipping Modal (Shiprocket, Big Ship) -->
+<div class="modal fade" id="thirdPartyShippingModal" tabindex="-1" aria-labelledby="thirdPartyShippingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="thirdPartyShippingModalLabel">3rd Party Shipping</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-4">
+          <label class="form-label fw-bold">Select 3rd Party Provider</label>
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-outline-primary third-party-option" data-provider="shiprocket">
+              <i class="fa fa-shipping-fast me-1"></i> Shiprocket
+            </button>
+            <button type="button" class="btn btn-outline-primary third-party-option" data-provider="bigship">
+              <i class="fa fa-truck me-1"></i> Big Ship
+            </button>
+          </div>
+          <input type="hidden" id="thirdPartyProvider" value="">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-bold">Pickup Address (from your profile)</label>
+          <div id="vendorAddressDisplay" class="alert alert-light border small py-2">
+            <span class="text-muted">Loading...</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Package Dimensions</label>
+          <div class="row g-2">
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Length (cm)</label>
+              <input type="number" id="pkgLength" class="form-control" placeholder="0" min="0" step="0.01">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Breadth (cm)</label>
+              <input type="number" id="pkgBreadth" class="form-control" placeholder="0" min="0" step="0.01">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Height (cm)</label>
+              <input type="number" id="pkgHeight" class="form-control" placeholder="0" min="0" step="0.01">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Weight (kg)</label>
+              <input type="number" id="pkgWeight" class="form-control" placeholder="0" min="0" step="0.01">
+            </div>
+          </div>
         </div>
       </div>
-      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveThirdPartyBtn" onclick="saveThirdPartyShipping()" disabled>
+          <i class="fa fa-save me-1"></i> Save & Continue
+        </button>
+      </div>
     </div>
-    
+  </div>
+</div>
+
+<!-- Select Courier & AWB Modal (Self Delivery) -->
+<div class="modal fade" id="selectCourierModal" tabindex="-1" aria-labelledby="selectCourierModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="selectCourierModalLabel">Select Courier</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="courierStep1" class="courier-step">
+          <p class="text-muted mb-3">Select the courier for this order:</p>
+          <div id="courierListContainer" class="list-group">
+            <div id="courierListLoading" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+              <p class="mt-2 text-muted">Loading couriers...</p>
+            </div>
+            <div id="courierListEmpty" class="alert alert-warning" style="display: none;">No couriers found. Please add couriers in <a href="<?php echo base_url('couriers'); ?>">Couriers</a> first.</div>
+          </div>
+        </div>
+        <div id="courierStep2" class="courier-step mt-3" style="display: none;">
+          <hr>
+          <p class="text-muted mb-2">AWB / Tracking Number <small class="text-muted">(optional - leave blank to skip)</small>:</p>
+          <input type="text" id="awbNumberInput" class="form-control form-control-lg" placeholder="e.g. 123456789012" maxlength="50">
+          <input type="hidden" id="selectedCourierId" value="">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveCourierAwbBtn" onclick="saveCourierAndAwb()" disabled>
+          <i class="fa fa-save me-1"></i> Save & Continue
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1764,6 +1960,278 @@ function moveToDelivered(orderUniqueId, btnElement) {
       alert('Error updating order status. Please try again.');
       $btn.prop('disabled', false).html(originalText);
     }
+  });
+}
+
+// 3rd Party Shipping Modal
+var orderUniqueIdForThirdParty = '<?= $order_data[0]->order_unique_id ?>';
+$('#thirdPartyShippingModal').on('show.bs.modal', function() {
+  $('#thirdPartyProvider').val('');
+  $('#thirdPartyShippingModal .third-party-option').removeClass('active');
+  $('#pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight').val('');
+  $('#saveThirdPartyBtn').prop('disabled', true);
+  $('#vendorAddressDisplay').html('<span class="text-muted">Loading...</span>');
+  $.get('<?php echo base_url("orders/get_vendor_address"); ?>', function(data) {
+    if (data.success && data.address_full) {
+      $('#vendorAddressDisplay').html('<span>' + (data.address_full || 'Please add address in Profile.') + '</span>');
+    } else {
+      $('#vendorAddressDisplay').html('<span class="text-warning">Please add address in Profile.</span>');
+    }
+  }).fail(function() {
+    $('#vendorAddressDisplay').html('<span class="text-warning">Could not load address.</span>');
+  });
+});
+$('#thirdPartyShippingModal .third-party-option').on('click', function() {
+  var provider = $(this).data('provider');
+  $('#thirdPartyProvider').val(provider);
+  $('#thirdPartyShippingModal .third-party-option').removeClass('active');
+  $(this).addClass('active');
+  $('#saveThirdPartyBtn').prop('disabled', false);
+});
+function saveThirdPartyShipping() {
+  var provider = $('#thirdPartyProvider').val();
+  var length = parseFloat($('#pkgLength').val()) || 0;
+  var breadth = parseFloat($('#pkgBreadth').val()) || 0;
+  var height = parseFloat($('#pkgHeight').val()) || 0;
+  var weight = parseFloat($('#pkgWeight').val()) || 0;
+  if (!provider) {
+    alert('Please select a 3rd party provider (Shiprocket or Big Ship).');
+    return;
+  }
+  $('#saveThirdPartyBtn').prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...');
+  $.ajax({
+    url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueIdForThirdParty,
+      third_party_provider: provider,
+      length: length,
+      breadth: breadth,
+      height: height,
+      weight: weight,
+      <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        $('#thirdPartyShippingModal').modal('hide');
+        location.reload();
+      } else {
+        alert(response.message || 'Failed to save.');
+        $('#saveThirdPartyBtn').prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
+      }
+    },
+    error: function() {
+      alert('Error saving. Please try again.');
+      $('#saveThirdPartyBtn').prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
+    }
+  });
+}
+
+// Select Courier Modal - load couriers when modal opens
+var orderUniqueIdForCourier = '<?= $order_data[0]->order_unique_id ?>';
+var existingCourierId = '<?= isset($order_data[0]->erp_courier_id) && $order_data[0]->erp_courier_id ? (int)$order_data[0]->erp_courier_id : 0 ?>';
+var existingAwbNo = '<?= isset($order_data[0]->awb_no) ? addslashes(trim($order_data[0]->awb_no)) : "" ?>';
+$('#selectCourierModal').on('show.bs.modal', function() {
+  $('#courierListLoading').show();
+  $('#courierListEmpty').hide();
+  $('#courierStep2').hide();
+  $('#selectedCourierId').val('');
+  $('#awbNumberInput').val(existingAwbNo);
+  $('#saveCourierAwbBtn').prop('disabled', true);
+  $('#courierListContainer .list-group-item-action').remove();
+  
+  $.get('<?php echo base_url("orders/get_order_couriers"); ?>', function(data) {
+    $('#courierListLoading').hide();
+    if (data.success && data.couriers && data.couriers.length > 0) {
+      data.couriers.forEach(function(c) {
+        var item = $('<a href="#" class="list-group-item list-group-item-action courier-item" data-id="' + c.id + '" data-name="' + (c.courier_name || '').replace(/"/g, '&quot;') + '">' + (c.courier_name || 'Courier #' + c.id) + '</a>');
+        $('#courierListContainer').append(item);
+      });
+      if (existingCourierId > 0) {
+        $('#selectedCourierId').val(existingCourierId);
+        $('#courierListContainer .courier-item[data-id="' + existingCourierId + '"]').addClass('active');
+        $('#courierStep2').show();
+        $('#saveCourierAwbBtn').prop('disabled', false);
+      }
+      $('#courierListContainer .courier-item').on('click', function(e) {
+        e.preventDefault();
+        var id = $(this).data('id');
+        $('#selectedCourierId').val(id);
+        $('#courierListContainer .courier-item').removeClass('active');
+        $(this).addClass('active');
+        $('#courierStep2').show();
+        $('#awbNumberInput').focus();
+        $('#saveCourierAwbBtn').prop('disabled', false);
+      });
+    } else {
+      $('#courierListEmpty').show();
+    }
+  }).fail(function() {
+    $('#courierListLoading').hide();
+    $('#courierListEmpty').text('Failed to load couriers.').show();
+  });
+});
+
+function saveCourierAndAwb() {
+  var courierId = $('#selectedCourierId').val();
+  var awbNo = $('#awbNumberInput').val().trim();
+  if (!courierId || courierId == '0') {
+    alert('Please select a courier.');
+    return;
+  }
+  var $btn = $('#saveCourierAwbBtn');
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...');
+  
+  $.ajax({
+    url: '<?php echo base_url("orders/save_order_courier_awb"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueIdForCourier,
+      erp_courier_id: courierId,
+      awb_no: awbNo,
+      <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        $('#selectCourierModal').modal('hide');
+        location.reload();
+      } else {
+        alert(response.message || 'Failed to save.');
+        $btn.prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
+      }
+    },
+    error: function() {
+      alert('Error saving. Please try again.');
+      $btn.prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
+    }
+  });
+}
+
+function markReadyToShip(orderUniqueId, btnElement) {
+  // Disable button and show loading state
+  var $btn = $(btnElement);
+  var originalText = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+  $.ajax({
+    url: '<?php echo base_url("orders/mark_ready_to_ship"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueId
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        location.reload();
+      } else {
+        alert(response.message || 'Error marking order ready to ship');
+        $btn.prop('disabled', false).html(originalText);
+      }
+    },
+    error: function() {
+      alert('Error marking order ready to ship. Please try again.');
+      $btn.prop('disabled', false).html(originalText);
+    }
+  });
+}
+
+function unmarkReadyToShip(orderUniqueId, btnElement) {
+  // Disable button and show loading state
+  var $btn = $(btnElement);
+  var originalText = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+  $.ajax({
+    url: '<?php echo base_url("orders/unmark_ready_to_ship"); ?>',
+    type: 'POST',
+    data: {
+      order_unique_id: orderUniqueId
+    },
+    dataType: 'json',
+    success: function(response) {
+      if (response.status == '200') {
+        location.reload();
+      } else {
+        alert(response.message || 'Error unmarking order ready to ship');
+        $btn.prop('disabled', false).html(originalText);
+      }
+    },
+    error: function() {
+      alert('Error unmarking order ready to ship. Please try again.');
+      $btn.prop('disabled', false).html(originalText);
+    }
+  });
+}
+
+function moveBackToProcessing(orderUniqueId, btnElement) {
+  Swal.fire({
+    title: 'Move back to Processing?',
+    text: 'This will move the order back to Processing and reset all shipping details (label, courier, AWB, tracking). Continue?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, move back'
+  }).then(function(result) {
+    if (!result.isConfirmed) return;
+    var $btn = $(btnElement);
+    var originalText = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+    $.ajax({
+      url: '<?php echo base_url("orders/move_back_to_processing_single"); ?>',
+      type: 'POST',
+      data: { order_unique_id: orderUniqueId },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          Swal.fire({ title: 'Success', text: response.message || 'Order moved back to Processing.', icon: 'success' }).then(function() { location.reload(); });
+        } else {
+          Swal.fire({ title: 'Error', text: response.message || 'Error moving order back.', icon: 'error' });
+          $btn.prop('disabled', false).html(originalText);
+        }
+      },
+      error: function() {
+        Swal.fire({ title: 'Error', text: 'Error moving order back. Please try again.', icon: 'error' });
+        $btn.prop('disabled', false).html(originalText);
+      }
+    });
+  });
+}
+
+function moveBackToPending(orderUniqueId, btnElement) {
+  Swal.fire({
+    title: 'Move back to New Order?',
+    text: 'This will move the order back to New Order and reset all processing/shipping details (including 3rd party shipping). Continue?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, move back'
+  }).then(function(result) {
+    if (!result.isConfirmed) return;
+    var $btn = $(btnElement);
+    var originalText = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+    $.ajax({
+      url: '<?php echo base_url("orders/move_back_to_pending_single"); ?>',
+      type: 'POST',
+      data: { order_unique_id: orderUniqueId },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          Swal.fire({ title: 'Success', text: response.message || 'Order moved back to New Order.', icon: 'success' }).then(function() { location.reload(); });
+        } else {
+          Swal.fire({ title: 'Error', text: response.message || 'Error moving order back.', icon: 'error' });
+          $btn.prop('disabled', false).html(originalText);
+        }
+      },
+      error: function() {
+        Swal.fire({ title: 'Error', text: 'Error moving order back. Please try again.', icon: 'error' });
+        $btn.prop('disabled', false).html(originalText);
+      }
+    });
   });
 }
 </script>

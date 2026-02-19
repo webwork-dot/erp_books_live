@@ -213,7 +213,7 @@
 				</a>
 
 				<div class="header-user">
-					<div class="nav user-menu nav-list">
+					<div class="nav user-menu nav-list d-flex align-items-center w-100">
 						<div class="me-auto d-flex align-items-center" id="header-search">
 
 							<!-- Breadcrumb -->
@@ -263,23 +263,24 @@
 
 						</div>
 
-						<div class="d-flex align-items-center">
-
-							<!-- Search -->
-							<div class="input-icon-end position-relative me-2">
+						<!-- Search - centered, wider -->
+						<div class="d-flex align-items-center justify-content-center flex-grow-1 px-3">
+							<div class="input-icon-end position-relative" style="width: 100%; min-width: 320px; max-width: 420px;">
 								<?php 
 								$this->load->helper('common');
 								$search_url = base_url('search');
 								?>
 								<form method="get" action="<?php echo $search_url; ?>" class="d-flex">
-									<input type="text" name="q" class="form-control" placeholder="Search..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" style="min-width: 200px;">
+									<input type="text" name="q" class="form-control" placeholder="Order #, Shipping #, AWB, or Phone..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>">
 									<span class="input-icon-addon">
 										<i class="isax isax-search-normal"></i>
 									</span>
 								</form>
 							</div>
-							<!-- /Search -->
+						</div>
+						<!-- /Search -->
 
+						<div class="d-flex align-items-center">
 							<!-- User Dropdown -->
 							<div class="dropdown profile-dropdown">
 								<a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center" data-bs-toggle="dropdown" data-bs-auto-close="outside">

@@ -178,6 +178,16 @@
 											<i class="isax isax-profile-2user5"></i><span>Customers</span>
 										</a>
 									</li>
+									<li>
+										<a href="<?php echo base_url('couriers'); ?>" class="<?php echo (strpos(uri_string(), 'couriers') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-truck"></i><span>Couriers</span>
+										</a>
+									</li>
+									<li>
+										<a href="<?php echo base_url('reports'); ?>" class="<?php echo (strpos(uri_string(), 'reports') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-chart-2"></i><span>Reports</span>
+										</a>
+									</li>
 									<?php /* Hidden: Feature Images
 									<li>
 										<a href="<?php echo base_url('features'); ?>" class="<?php echo (strpos(uri_string(), 'features') !== false && strpos(uri_string(), 'products/') === false) ? 'active' : ''; ?>">

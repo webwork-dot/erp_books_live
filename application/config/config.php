@@ -503,6 +503,10 @@ $config['csrf_exclude_uris'] = array(
 	'orders/move_to_out_for_delivery_single',
 	'orders/move_to_delivered_single',
 	'orders/set_shipper',
+	'orders/mark_ready_to_ship',
+	'orders/unmark_ready_to_ship',
+	'orders/move_back_to_processing_single',
+	'orders/move_back_to_pending_single',
 	'products/variations/delete_type/.*',
 	'products/variations/get_values',
 	'products/variations/add_value',
@@ -533,7 +537,15 @@ $config['csrf_exclude_uris'] = array(
 	'schools/toggle_deliver_at_school',
 	'branches/toggle_payment_required',
 	'branches/toggle_deliver_at_school',
-	'customers/get_customer_details/.*'
+	'customers/get_customer_details/.*',
+	'orders/get_order_couriers',
+	'orders/save_order_courier_awb',
+	'orders/get_vendor_address',
+	'orders/save_third_party_shipping',
+	'couriers/get_courier_orders/.*',
+	'couriers/get_courier_details/.*',
+	'couriers/toggle_status/.*',
+	'orders/get_order_timeline/.*'
 );
 
 /*
@@ -569,7 +581,7 @@ $config['compress_output'] = FALSE;
 | helper' page of the user guide for information regarding date handling.
 |
 */
-$config['time_reference'] = 'local';
+$config['time_reference'] = 'Asia/Kolkata';
 
 /*
 |--------------------------------------------------------------------------

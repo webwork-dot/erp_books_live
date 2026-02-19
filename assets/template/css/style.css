@@ -2676,7 +2676,7 @@
 .btn-outline-warning {
   color: var(--warning);
   background-color: var(--white);
-  border-color: var(--warning);
+  border-color: var(--warning) !important;
 }
 .btn-outline-warning:hover, .btn-outline-warning:active, .btn-outline-warning.active, .btn-outline-warning.disabled, .btn-outline-warning:disabled {
   color: var(--white) !important;

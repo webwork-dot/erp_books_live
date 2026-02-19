@@ -31,10 +31,13 @@ class Vendor_base extends CI_Controller
 		parent::__construct();
 		$this->load->helper('url');
 		$this->load->model('Erp_client_model');
-		
+
+		// Set timezone to IST for all vendor operations
+		date_default_timezone_set('Asia/Kolkata');
+
 		// Check authentication
 		$this->checkAuth();
-		
+
 		// Load current vendor
 		$this->loadCurrentVendor();
 	}

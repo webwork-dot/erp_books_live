@@ -29,6 +29,7 @@ class Orders extends Vendor_base
 		$this->load->model('School_model');
 		$this->load->model('Uniform_model');
 		$this->load->model('Pdf_model');
+		$this->load->model('Courier_model');
 	}
 	
 	/**
@@ -945,16 +946,12 @@ class Orders extends Vendor_base
 			}
 		}
 		
-		// Get additional status entries from tbl_order_status
+		// Get ALL status entries from tbl_order_status (order_id = tbl_order_details.id)
 		$additional_status = array();
 		if (!empty($order_data[0]->id)) {
 			$additional_status = $this->db->select('*')
 				->from('tbl_order_status')
 				->where('order_id', $order_data[0]->id)
-				->where('status_title !=', '1') // Exclude order placed
-				->where('status_title !=', '2') // Exclude processing (we use processing_date)
-				->where('status_title !=', '3') // Exclude out for delivery (we use shipment_date)
-				->where('status_title !=', '4') // Exclude delivered (we use delivery_date)
 				->order_by('created_at', 'ASC')
 				->get()
 				->result();
@@ -994,11 +991,170 @@ class Orders extends Vendor_base
 		$data['additional_status'] = $additional_status;
 		$data['order_id'] = isset($order_data[0]->id) ? $order_data[0]->id : 0;
 		
+		// Courier info for self-delivery orders (from erp_master_courier)
+		$data['courier_info'] = null;
+		$erp_courier_id = isset($order_data[0]->erp_courier_id) ? (int)$order_data[0]->erp_courier_id : 0;
+		if ($erp_courier_id > 0) {
+			$data['courier_info'] = $this->Courier_model->get_courier_by_id($erp_courier_id, $this->current_vendor['id']);
+		}
+		
 		// Load content view
 		$data['content'] = $this->load->view('vendor/orders/view', $data, TRUE);
 		
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
+	}
+	
+	/**
+	 * Get order timeline HTML (AJAX) for display in orders list modal
+	 *
+	 * @param	string	$order_no	Order unique ID
+	 * @return	void
+	 */
+	public function get_order_timeline($order_no)
+	{
+		$order_data = $this->Order_model->get_order($order_no);
+		if (!$order_data || empty($order_data)) {
+			header('Content-Type: text/html; charset=utf-8');
+			echo '<p class="text-muted">Order not found.</p>';
+			return;
+		}
+		
+		$order_id = $order_data[0]->id;
+		
+		// Get status history from erp_order_status_history
+		$status_history = array();
+		if ($this->db->table_exists('erp_order_status_history')) {
+			$erp_order = $this->db->select('id')->from('erp_orders')->where('order_number', $order_no)->limit(1)->get()->row();
+			$erp_order_id = !empty($erp_order) ? $erp_order->id : null;
+			if (!empty($erp_order_id)) {
+				$status_history = $this->db->select('*')->from('erp_order_status_history')
+					->where('order_id', $erp_order_id)->order_by('created_at', 'ASC')->get()->result();
+			}
+		}
+		
+		// Get ALL status entries from tbl_order_status (order_id = tbl_order_details.id)
+		$additional_status = array();
+		if (!empty($order_id)) {
+			$additional_status = $this->db->select('*')->from('tbl_order_status')
+				->where('order_id', $order_id)
+				->order_by('created_at', 'ASC')->get()->result();
+		}
+		
+		// Build timeline items (same logic as order view)
+		$timeline_items = $this->_build_timeline_items($order_data, $additional_status, $status_history);
+		
+		$data['order_data'] = $order_data;
+		$data['timeline_items'] = $timeline_items;
+		$data['order_no'] = $order_no;
+		
+		$this->load->view('vendor/orders/timeline_partial', $data);
+	}
+	
+	/**
+	 * Build timeline items array from order data and status history
+	 *
+	 * @param	array	$order_data		Order data
+	 * @param	array	$additional_status	Additional status entries
+	 * @param	array	$status_history		Status history
+	 * @return	array	Timeline items
+	 */
+	private function _build_timeline_items($order_data, $additional_status, $status_history)
+	{
+		$status_title_map = array(
+			'1' => 'New Order / Pending',
+			'2' => 'Processing',
+			'3' => 'Out for Delivery',
+			'4' => 'Delivered',
+			'7' => 'Return'
+		);
+		
+		$timeline_items = array();
+		$od = $order_data[0];
+		
+		$timeline_items[] = array('status' => 'Order Placed', 'date' => $od->order_date, 'completed' => true, 'notes' => '');
+		
+		// Add ALL entries from tbl_order_status (order_id = tbl_order_details.id)
+		if (!empty($additional_status)) {
+			foreach ($additional_status as $status) {
+				$display_status = isset($status_title_map[$status->status_title]) 
+					? $status_title_map[$status->status_title] 
+					: $status->status_title;
+				$timeline_items[] = array('status' => $display_status, 'date' => $status->created_at, 'completed' => true, 'notes' => isset($status->status_desc) ? $status->status_desc : '');
+			}
+		}
+		
+		// Add tbl_order_details entries that may not have tbl_order_status records
+		if (!empty($od->track_date) && !empty($od->erp_courier_id)) {
+			$has_courier = false;
+			foreach ($timeline_items as $item) {
+				if (stripos($item['status'], 'Courier') !== false || stripos($item['status'], 'Shipper') !== false) {
+					$has_courier = true;
+					break;
+				}
+			}
+			if (!$has_courier) {
+				$timeline_items[] = array('status' => 'Courier Assigned', 'date' => $od->track_date, 'completed' => true, 'notes' => 'Courier and tracking details added');
+			}
+		}
+		if (!empty($od->ready_to_ship_time)) {
+			$has_ready = false;
+			foreach ($timeline_items as $item) {
+				if (stripos($item['status'], 'Ready to Ship') !== false) {
+					$has_ready = true;
+					break;
+				}
+			}
+			if (!$has_ready) {
+				$timeline_items[] = array('status' => 'Ready to Ship', 'date' => $od->ready_to_ship_time, 'completed' => true, 'notes' => 'Order marked as ready to ship');
+			}
+		}
+		if (!empty($od->shipping_label)) {
+			$has_label = false;
+			foreach ($timeline_items as $item) {
+				if (stripos($item['status'], 'Label') !== false || stripos($item['status'], 'label') !== false) {
+					$has_label = true;
+					break;
+				}
+			}
+			if (!$has_label) {
+				$timeline_items[] = array('status' => 'Shipping Label Generated', 'date' => !empty($od->processing_date) ? $od->processing_date : $od->order_date, 'completed' => true, 'notes' => 'Shipping label has been generated');
+			}
+		}
+		
+		if (!empty($status_history)) {
+			foreach ($status_history as $history) {
+				if (isset($history->status_type) && $history->status_type == 'order_status') {
+					$status_label = '';
+					switch (isset($history->new_status) ? $history->new_status : '') {
+						case '1': $status_label = 'Pending'; break;
+						case '2': $status_label = 'Processing'; break;
+						case '3': $status_label = 'Out for Delivery'; break;
+						case '4': $status_label = 'Delivered'; break;
+						case 'label_generated': $status_label = 'Shipping Label Generated'; break;
+						case 'shipper_selected': $status_label = 'Shipper Selected'; break;
+						case '7': $status_label = 'Return'; break;
+						default: $status_label = ucfirst(isset($history->new_status) ? $history->new_status : '');
+					}
+					$exists = false;
+					foreach ($timeline_items as $item) {
+						if (stripos($item['status'], $status_label) !== false || stripos($status_label, $item['status']) !== false) {
+							$exists = true;
+							break;
+						}
+					}
+					if (!$exists) {
+						$timeline_items[] = array('status' => $status_label, 'date' => $history->created_at, 'completed' => true, 'notes' => isset($history->notes) ? $history->notes : '');
+					}
+				}
+			}
+		}
+		
+		usort($timeline_items, function($a, $b) {
+			return strtotime($a['date']) - strtotime($b['date']);
+		});
+		
+		return $timeline_items;
 	}
 	
 	/**
@@ -1405,6 +1561,303 @@ class Orders extends Vendor_base
 	}
 	
 	/**
+	 * Get couriers for order (self delivery - vendor's erp_master_couriers)
+	 * AJAX endpoint for courier selection modal
+	 *
+	 * @return	void
+	 */
+	public function get_order_couriers()
+	{
+		header('Content-Type: application/json');
+		$vendor_id = $this->current_vendor['id'];
+		$couriers = $this->Courier_model->get_couriers($vendor_id);
+		// Filter only active couriers
+		$active_couriers = array_filter($couriers, function($c) { return isset($c['status']) && $c['status'] == 1; });
+		echo json_encode(array('success' => true, 'couriers' => array_values($active_couriers)));
+	}
+	
+	/**
+	 * Save courier selection and AWB for self-delivery order
+	 * Saves erp_courier_id, awb_no, track_url to tbl_order_details
+	 *
+	 * @return	void
+	 */
+	public function save_order_courier_awb()
+	{
+		header('Content-Type: application/json');
+		$order_unique_id = $this->input->post('order_unique_id');
+		$erp_courier_id = (int) $this->input->post('erp_courier_id');
+		$awb_no = trim($this->input->post('awb_no'));
+		
+		if (empty($order_unique_id) || empty($erp_courier_id)) {
+			echo json_encode(array('status' => '400', 'message' => 'Order ID and courier selection are required.'));
+			return;
+		}
+		
+		$order = $this->Order_model->get_order($order_unique_id);
+		if (empty($order)) {
+			echo json_encode(array('status' => '400', 'message' => 'Order not found.'));
+			return;
+		}
+		
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+		
+		if ($order_data->courier != 'manual') {
+			echo json_encode(array('status' => '400', 'message' => 'Order must have Self Delivery selected.'));
+			return;
+		}
+		
+		$vendor_id = $this->current_vendor['id'];
+		$courier = $this->Courier_model->get_courier_by_id($erp_courier_id, $vendor_id);
+		if (empty($courier)) {
+			echo json_encode(array('status' => '400', 'message' => 'Invalid courier selected.'));
+			return;
+		}
+		
+		// Save raw tracking_link from courier to track_url (no AWB replacement)
+		$track_url = !empty($courier['tracking_link']) ? $courier['tracking_link'] : null;
+		
+		$update_data = array(
+			'erp_courier_id' => $erp_courier_id,
+			'awb_no' => $awb_no ?: null,
+			'track_url' => $track_url,
+			'track_date' => date('Y-m-d H:i:s')
+		);
+		
+		// Check if erp_courier_id column exists (for backward compatibility)
+		if (!$this->db->field_exists('erp_courier_id', 'tbl_order_details')) {
+			unset($update_data['erp_courier_id']);
+		}
+		
+		$this->db->where('id', $order_id);
+		$result = $this->db->update('tbl_order_details', $update_data);
+		
+		if ($result) {
+			// Add tbl_order_status entry for timeline
+			$courier_name = isset($courier['courier_name']) ? $courier['courier_name'] : 'Courier';
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => isset($this->current_vendor['id']) ? $this->current_vendor['id'] : 0,
+				'product_id' => 0,
+				'status_title' => 'Courier Assigned',
+				'status_desc' => 'Courier selected: ' . $courier_name . (!empty($awb_no) ? ' (AWB: ' . $awb_no . ')' : ''),
+				'created_at' => date('Y-m-d H:i:s')
+			));
+			echo json_encode(array('status' => '200', 'message' => 'Courier saved successfully.'));
+		} else {
+			echo json_encode(array('status' => '400', 'message' => 'Failed to save.'));
+		}
+	}
+	
+	/**
+	 * Get vendor address from erp_clients (for 3rd party shipping pickup)
+	 * Fetches from tenant DB erp_clients (same as Profile - vendor's synced client data)
+	 *
+	 * @return	void
+	 */
+	public function get_vendor_address()
+	{
+		header('Content-Type: application/json');
+		// Use tenant DB ($this->db) - erp_clients in tenant has vendor's address (synced from master)
+		// Same approach as Profile::get_profile and Pdf_model
+		$row = $this->db->select('address, pincode')
+			->from('erp_clients')
+			->limit(1)
+			->get()
+			->row_array();
+		if (empty($row)) {
+			echo json_encode(array('success' => false, 'message' => 'Vendor not found in erp_clients.'));
+			return;
+		}
+		$addr = isset($row['address']) ? trim($row['address']) : '';
+		$pincode = isset($row['pincode']) ? trim($row['pincode']) : '';
+		$parts = array_filter(array($addr, $pincode));
+		$address_full = implode(', ', $parts);
+		echo json_encode(array(
+			'success' => true,
+			'address' => $addr,
+			'state' => '',
+			'country' => '',
+			'pincode' => $pincode,
+			'address_full' => $address_full ?: 'Please add address in Profile.'
+		));
+	}
+	
+	/**
+	 * Save 3rd party shipping details (Shiprocket, Big Ship)
+	 * Saves to tbl_order_details and tbl_order_third_party_shipping
+	 *
+	 * @return	void
+	 */
+	public function save_third_party_shipping()
+	{
+		header('Content-Type: application/json');
+		$order_unique_id = $this->input->post('order_unique_id');
+		$third_party_provider = trim($this->input->post('third_party_provider')); // shiprocket, bigship
+		$length = (float) $this->input->post('length');
+		$breadth = (float) $this->input->post('breadth');
+		$height = (float) $this->input->post('height');
+		$weight = (float) $this->input->post('weight');
+		
+		if (empty($order_unique_id) || empty($third_party_provider)) {
+			echo json_encode(array('status' => '400', 'message' => 'Order ID and 3rd party provider are required.'));
+			return;
+		}
+		if (!in_array($third_party_provider, array('shiprocket', 'bigship'))) {
+			echo json_encode(array('status' => '400', 'message' => 'Invalid provider. Use Shiprocket or Big Ship.'));
+			return;
+		}
+		
+		$order = $this->Order_model->get_order($order_unique_id);
+		if (empty($order)) {
+			echo json_encode(array('status' => '400', 'message' => 'Order not found.'));
+			return;
+		}
+		
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+		
+		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+			echo json_encode(array('status' => '400', 'message' => 'Order must be in processing status.'));
+			return;
+		}
+		
+		// Build delivery address from tbl_order_address (same logic as order view)
+		$addr_row = $this->db->select('*')->from('tbl_order_address')
+			->where('order_id', $order_id)->order_by('id', 'ASC')->limit(1)->get()->row();
+		$delivery_address_full = '';
+		if ($addr_row) {
+			$addr = isset($addr_row->address) ? trim($addr_row->address) : '';
+			$city = isset($addr_row->city) ? trim($addr_row->city) : '';
+			$state = isset($addr_row->state) ? trim($addr_row->state) : '';
+			$pincode = isset($addr_row->pincode) ? trim($addr_row->pincode) : '';
+			$country = isset($addr_row->country) ? trim($addr_row->country) : '';
+			$parts = array_filter(array($addr, $city, $state, $pincode, $country));
+			$delivery_address_full = implode(', ', $parts);
+		}
+		// Fallback: deliver-at-school - address may come from school/branch in order items
+		if (empty($delivery_address_full)) {
+			$items = $this->db->select('branch_id, school_id')->from('tbl_order_items')
+				->where('order_id', $order_id)->get()->result();
+			foreach ($items as $oi) {
+				if (!empty($oi->branch_id)) {
+					$br = $this->db->select('sb.branch_name, sb.address, sb.pincode, s.school_name, c.name as city_name, st.name as state_name')
+						->from('erp_school_branches sb')
+						->join('erp_schools s', 's.id = sb.school_id', 'left')
+						->join('cities c', 'c.id = sb.city_id', 'left')
+						->join('states st', 'st.id = sb.state_id', 'left')
+						->where('sb.id', (int)$oi->branch_id)->limit(1)->get()->row();
+					if ($br) {
+						$p = array_filter(array(
+							$br->branch_name . (!empty($br->school_name) ? ' (' . $br->school_name . ')' : ''),
+							isset($br->address) ? $br->address : '',
+							isset($br->city_name) ? $br->city_name : '',
+							isset($br->state_name) ? $br->state_name : '',
+							isset($br->pincode) ? $br->pincode : ''
+						));
+						$delivery_address_full = implode(', ', $p);
+						break;
+					}
+				}
+				if (!empty($oi->school_id) && empty($delivery_address_full)) {
+					$sch = $this->db->select('s.school_name, s.address, s.pincode, c.name as city_name, st.name as state_name')
+						->from('erp_schools s')
+						->join('cities c', 'c.id = s.city_id', 'left')
+						->join('states st', 'st.id = s.state_id', 'left')
+						->where('s.id', (int)$oi->school_id)->limit(1)->get()->row();
+					if ($sch) {
+						$p = array_filter(array(
+							isset($sch->school_name) ? $sch->school_name : '',
+							isset($sch->address) ? $sch->address : '',
+							isset($sch->city_name) ? $sch->city_name : '',
+							isset($sch->state_name) ? $sch->state_name : '',
+							isset($sch->pincode) ? $sch->pincode : ''
+						));
+						$delivery_address_full = implode(', ', $p);
+						break;
+					}
+				}
+			}
+		}
+		
+		// Vendor pickup address from erp_clients (tenant DB - same as get_vendor_address)
+		$pickup_row = $this->db->select('address, pincode')->from('erp_clients')->limit(1)->get()->row_array();
+		$pickup_address = isset($pickup_row['address']) ? trim($pickup_row['address']) : '';
+		$pickup_pincode = isset($pickup_row['pincode']) ? trim($pickup_row['pincode']) : '';
+		$pickup_state = '';
+		$pickup_country = '';
+		$pickup_parts = array_filter(array($pickup_address, $pickup_pincode));
+		$pickup_address_full = implode(', ', $pickup_parts);
+		
+		// Update tbl_order_details
+		$update_data = array(
+			'courier' => '3rd_party',
+			'third_party_provider' => $third_party_provider,
+			'pkg_length_cm' => $length > 0 ? $length : null,
+			'pkg_breadth_cm' => $breadth > 0 ? $breadth : null,
+			'pkg_height_cm' => $height > 0 ? $height : null,
+			'pkg_weight_kg' => $weight > 0 ? $weight : null
+		);
+		
+		// Check if new columns exist
+		if (!$this->db->field_exists('third_party_provider', 'tbl_order_details')) {
+			unset($update_data['third_party_provider']);
+		}
+		if (!$this->db->field_exists('pkg_length_cm', 'tbl_order_details')) {
+			unset($update_data['pkg_length_cm'], $update_data['pkg_breadth_cm'], $update_data['pkg_height_cm'], $update_data['pkg_weight_kg']);
+		}
+		
+		$this->db->where('id', $order_id);
+		$result = $this->db->update('tbl_order_details', $update_data);
+		
+		if (!$result) {
+			echo json_encode(array('status' => '400', 'message' => 'Failed to update order.'));
+			return;
+		}
+		
+		// Insert or update tbl_order_third_party_shipping
+		if ($this->db->table_exists('tbl_order_third_party_shipping')) {
+			$existing = $this->db->select('id')->from('tbl_order_third_party_shipping')
+				->where('order_id', $order_id)->limit(1)->get()->row();
+			
+			$tp_data = array(
+				'order_id' => $order_id,
+				'order_unique_id' => $order_unique_id,
+				'invoice_number' => isset($order_data->invoice_no) ? $order_data->invoice_no : null,
+				'delivery_address_full' => $delivery_address_full,
+				'pickup_address_full' => $pickup_address_full,
+				'pickup_state' => $pickup_state,
+				'pickup_country' => $pickup_country,
+				'length_cm' => $length > 0 ? $length : null,
+				'breadth_cm' => $breadth > 0 ? $breadth : null,
+				'height_cm' => $height > 0 ? $height : null,
+				'weight_kg' => $weight > 0 ? $weight : null,
+				'third_party_provider' => $third_party_provider
+			);
+			
+			if ($existing) {
+				$this->db->where('id', $existing->id);
+				$this->db->update('tbl_order_third_party_shipping', $tp_data);
+			} else {
+				$this->db->insert('tbl_order_third_party_shipping', $tp_data);
+			}
+		}
+		
+		// Add tbl_order_status entry
+		$this->db->insert('tbl_order_status', array(
+			'order_id' => $order_id,
+			'user_id' => isset($this->current_vendor['id']) ? $this->current_vendor['id'] : 0,
+			'product_id' => 0,
+			'status_title' => '3rd Party Selected',
+			'status_desc' => '3rd party shipping: ' . ucfirst($third_party_provider) . ' (L:' . $length . ' B:' . $breadth . ' H:' . $height . ' W:' . $weight . ' kg)',
+			'created_at' => date('Y-m-d H:i:s')
+		));
+		
+		echo json_encode(array('status' => '200', 'message' => '3rd party shipping saved successfully.'));
+	}
+	
+	/**
 	 * Move single order to out for delivery status
 	 *
 	 * @return	void
@@ -1412,7 +1865,7 @@ class Orders extends Vendor_base
 	public function move_to_out_for_delivery_single()
 	{
 		$order_unique_id = $this->input->post('order_unique_id');
-		
+
 		if (empty($order_unique_id)) {
 			echo json_encode([
 				'status' => '400',
@@ -1420,10 +1873,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Get order by unique_id
 		$order = $this->Order_model->get_order($order_unique_id);
-		
+
 		if (empty($order)) {
 			echo json_encode([
 				'status' => '400',
@@ -1431,10 +1884,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		$order_data = $order[0];
 		$order_id = $order_data->id;
-		
+
 		// Verify order is in processing status
 		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
 			echo json_encode([
@@ -1443,7 +1896,7 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// For self delivery, verify shipping label exists
 		if ($order_data->courier == 'manual' && empty($order_data->shipping_label)) {
 			echo json_encode([
@@ -1452,7 +1905,17 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
+		// Check if order is marked as ready to ship
+		$is_ready_to_ship = isset($order_data->ready_to_ship) && $order_data->ready_to_ship == 1;
+		if (!$is_ready_to_ship) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order must be marked as ready to ship before moving to out for delivery.',
+			]);
+			return;
+		}
+
 		// Update order status
 		$shipment_date = date("Y-m-d H:i:s");
 		$this->db->where('id', $order_id);
@@ -1488,7 +1951,178 @@ class Orders extends Vendor_base
 			]);
 		}
 	}
-	
+
+	/**
+	 * Mark single order as ready to ship
+	 *
+	 * @return	void
+	 */
+	public function mark_ready_to_ship()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+
+		if (empty($order_unique_id)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order ID is required.',
+			]);
+			return;
+		}
+
+		// Get order by unique_id
+		$order = $this->Order_model->get_order($order_unique_id);
+
+		if (empty($order)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order not found.',
+			]);
+			return;
+		}
+
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+
+		// Verify order is in processing status
+		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order must be in processing status to mark as ready to ship.',
+			]);
+			return;
+		}
+
+		// For self delivery, verify shipping label exists
+		if ($order_data->courier == 'manual' && empty($order_data->shipping_label)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Shipping label must be generated before marking order ready to ship.',
+			]);
+			return;
+		}
+
+		// For self delivery, verify courier is selected
+		if ($order_data->courier == 'manual') {
+			$erp_courier_id = isset($order_data->erp_courier_id) ? (int)$order_data->erp_courier_id : 0;
+			if ($erp_courier_id <= 0) {
+				echo json_encode([
+					'status' => '400',
+					'message' => 'Please select a courier before marking order ready to ship.',
+				]);
+				return;
+			}
+		}
+
+		// Update order ready_to_ship status
+		$ready_time = date("Y-m-d H:i:s");
+		$this->db->where('id', $order_id);
+		$this->db->update('tbl_order_details', array(
+			'ready_to_ship' => 1,
+			'ready_to_ship_time' => $ready_time
+		));
+
+		if ($this->db->affected_rows() > 0) {
+			// Add status history
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => 'Ready to Ship',
+				'status_desc' => 'Order marked as ready to ship',
+				'created_at' => $ready_time
+			));
+
+			echo json_encode([
+				'status' => '200',
+				'message' => 'Order marked as ready to ship successfully.',
+			]);
+		} else {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Failed to update order status.',
+			]);
+		}
+	}
+
+	/**
+	 * Unmark single order as ready to ship
+	 *
+	 * @return	void
+	 */
+	public function unmark_ready_to_ship()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+
+		if (empty($order_unique_id)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order ID is required.',
+			]);
+			return;
+		}
+
+		// Get order by unique_id
+		$order = $this->Order_model->get_order($order_unique_id);
+
+		if (empty($order)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order not found.',
+			]);
+			return;
+		}
+
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+
+		// Verify order is in processing status and is marked as ready to ship
+		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order must be in processing status.',
+			]);
+			return;
+		}
+
+		$is_ready_to_ship = isset($order_data->ready_to_ship) && $order_data->ready_to_ship == 1;
+		if (!$is_ready_to_ship) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Order is not marked as ready to ship.',
+			]);
+			return;
+		}
+
+		// Update order ready_to_ship status
+		$this->db->where('id', $order_id);
+		$this->db->update('tbl_order_details', array(
+			'ready_to_ship' => 0,
+			'ready_to_ship_time' => null
+		));
+
+		if ($this->db->affected_rows() > 0) {
+			// Add status history
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => 'Unmarked Ready to Ship',
+				'status_desc' => 'Order unmarked as ready to ship',
+				'created_at' => date("Y-m-d H:i:s")
+			));
+
+			echo json_encode([
+				'status' => '200',
+				'message' => 'Order unmarked as ready to ship successfully.',
+			]);
+		} else {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Failed to update order status.',
+			]);
+		}
+	}
+
 	/**
 	 * Move single order to delivered status
 	 *
@@ -1564,7 +2198,184 @@ class Orders extends Vendor_base
 			]);
 		}
 	}
-	
+
+	/**
+	 * Move single order back from Out for Delivery to Processing
+	 * Resets: shipping_label, courier, awb, track_url, ready_to_ship, etc.
+	 *
+	 * @return	void
+	 */
+	public function move_back_to_processing_single()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+
+		if (empty($order_unique_id)) {
+			echo json_encode(['status' => '400', 'message' => 'Order ID is required.']);
+			return;
+		}
+
+		$order = $this->Order_model->get_order($order_unique_id);
+		if (empty($order)) {
+			echo json_encode(['status' => '400', 'message' => 'Order not found.']);
+			return;
+		}
+
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+
+		if ($order_data->order_status != '3' && $order_data->order_status != 3) {
+			echo json_encode(['status' => '400', 'message' => 'Order must be in out for delivery status to move back.']);
+			return;
+		}
+
+		$reset_data = array(
+			'order_status' => '2',
+			'shipment_date' => null,
+			'shipping_label' => null,
+			'ship_order_id' => null,
+			'erp_courier_id' => null,
+			'awb_no' => null,
+			'track_url' => null,
+			'track_date' => null,
+			'ready_to_ship' => 0,
+			'ready_to_ship_time' => null,
+			'courier' => '',
+			'third_party_provider' => null,
+			'pkg_length_cm' => null,
+			'pkg_breadth_cm' => null,
+			'pkg_height_cm' => null,
+			'pkg_weight_kg' => null
+		);
+
+		if (!$this->db->field_exists('erp_courier_id', 'tbl_order_details')) {
+			unset($reset_data['erp_courier_id']);
+		}
+		if (!$this->db->field_exists('ready_to_ship', 'tbl_order_details')) {
+			unset($reset_data['ready_to_ship'], $reset_data['ready_to_ship_time']);
+		}
+		if (!$this->db->field_exists('ship_order_id', 'tbl_order_details')) {
+			unset($reset_data['ship_order_id']);
+		}
+		if (!$this->db->field_exists('third_party_provider', 'tbl_order_details')) {
+			unset($reset_data['third_party_provider'], $reset_data['pkg_length_cm'], $reset_data['pkg_breadth_cm'], $reset_data['pkg_height_cm'], $reset_data['pkg_weight_kg']);
+		}
+
+		// Remove 3rd party shipping entry if exists
+		if ($this->db->table_exists('tbl_order_third_party_shipping')) {
+			$this->db->where('order_id', $order_id);
+			$this->db->delete('tbl_order_third_party_shipping');
+		}
+
+		$this->db->where('id', $order_id);
+		$this->db->where('order_status', '3');
+		$this->db->update('tbl_order_details', $reset_data);
+
+		if ($this->db->affected_rows() > 0) {
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '2'));
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => 'Moved Back to Processing',
+				'status_desc' => 'Order moved back to processing (shipping details reset)',
+				'created_at' => date("Y-m-d H:i:s")
+			));
+			echo json_encode(['status' => '200', 'message' => 'Order moved back to processing successfully.']);
+		} else {
+			echo json_encode(['status' => '400', 'message' => 'Failed to update order status.']);
+		}
+	}
+
+	/**
+	 * Move single order back from Processing to New Order (Pending)
+	 *
+	 * @return	void
+	 */
+	public function move_back_to_pending_single()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+
+		if (empty($order_unique_id)) {
+			echo json_encode(['status' => '400', 'message' => 'Order ID is required.']);
+			return;
+		}
+
+		$order = $this->Order_model->get_order($order_unique_id);
+		if (empty($order)) {
+			echo json_encode(['status' => '400', 'message' => 'Order not found.']);
+			return;
+		}
+
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+
+		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+			echo json_encode(['status' => '400', 'message' => 'Order must be in processing status to move back.']);
+			return;
+		}
+
+		$reset_data = array(
+			'order_status' => '1',
+			'processing_date' => null,
+			'shipment_date' => null,
+			'shipping_label' => null,
+			'third_party_provider' => null,
+			'pkg_length_cm' => null,
+			'pkg_breadth_cm' => null,
+			'pkg_height_cm' => null,
+			'pkg_weight_kg' => null,
+			'ship_order_id' => null,
+			'erp_courier_id' => null,
+			'awb_no' => null,
+			'track_url' => null,
+			'track_date' => null,
+			'ready_to_ship' => 0,
+			'ready_to_ship_time' => null,
+			'barcode_path' => null,
+			'courier' => ''
+		);
+
+		if (!$this->db->field_exists('erp_courier_id', 'tbl_order_details')) {
+			unset($reset_data['erp_courier_id']);
+		}
+		if (!$this->db->field_exists('ready_to_ship', 'tbl_order_details')) {
+			unset($reset_data['ready_to_ship'], $reset_data['ready_to_ship_time']);
+		}
+		if (!$this->db->field_exists('ship_order_id', 'tbl_order_details')) {
+			unset($reset_data['ship_order_id']);
+		}
+		if (!$this->db->field_exists('third_party_provider', 'tbl_order_details')) {
+			unset($reset_data['third_party_provider'], $reset_data['pkg_length_cm'], $reset_data['pkg_breadth_cm'], $reset_data['pkg_height_cm'], $reset_data['pkg_weight_kg']);
+		}
+
+		// Remove 3rd party shipping entry if exists
+		if ($this->db->table_exists('tbl_order_third_party_shipping')) {
+			$this->db->where('order_id', $order_id);
+			$this->db->delete('tbl_order_third_party_shipping');
+		}
+
+		$this->db->where('id', $order_id);
+		$this->db->where('order_status', '2');
+		$this->db->update('tbl_order_details', $reset_data);
+
+		if ($this->db->affected_rows() > 0) {
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '1'));
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => 'Moved Back to New Order',
+				'status_desc' => 'Order moved back to new order (pending)',
+				'created_at' => date("Y-m-d H:i:s")
+			));
+			echo json_encode(['status' => '200', 'message' => 'Order moved back to new order successfully.']);
+		} else {
+			echo json_encode(['status' => '400', 'message' => 'Failed to update order status.']);
+		}
+	}
+
 	/**
 	 * Pending Orders - List orders with pending/failed payment status
 	 *

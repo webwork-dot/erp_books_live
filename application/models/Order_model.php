@@ -684,7 +684,7 @@ class Order_model extends CI_Model
 
 		$resultdata = array();
 		$query = $this->db->query("
-				SELECT d.id, d.checkout_type, d.payment_method, d.razorpay_order_id, d.payment_id, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.tracking_id, d.shipping_label, d.track_url, d.courier, d.order_type, d.order_token, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.coupon_code, d.source, d.is_deliver_at_school
+				SELECT d.id, d.checkout_type, d.payment_method, d.razorpay_order_id, d.payment_id, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.tracking_id, d.shipping_label, d.track_url, d.courier, d.order_type, d.order_token, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.coupon_code, d.source, d.is_deliver_at_school, d.ready_to_ship, d.ready_to_ship_time
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
@@ -896,6 +896,177 @@ class Order_model extends CI_Model
 		} else {
 				return false;
 		}
+	}
+
+	/**
+	 * Find order(s) by search query - order number, shipping number, AWB, or customer phone
+	 * Used by vendor header search
+	 *
+	 * @param string $query Search term
+	 * @return array|null Array of orders (id, order_unique_id) or null if none
+	 */
+	public function find_order_by_search($query)
+	{
+		$query = trim($query);
+		if (empty($query)) {
+			return null;
+		}
+		$this->db->select('id, order_unique_id');
+		$this->db->from('tbl_order_details');
+		$this->db->where('order_status !=', '5');
+		$this->db->group_start();
+		$this->db->where('order_unique_id', $query);
+		$this->db->or_where('user_phone', $query);
+		if ($this->db->field_exists('ship_order_id', 'tbl_order_details')) {
+			$this->db->or_where('ship_order_id', $query);
+		}
+		if ($this->db->field_exists('awb_no', 'tbl_order_details')) {
+			$this->db->or_where('awb_no', $query);
+		}
+		$this->db->group_end();
+		$this->db->limit(20);
+		$this->db->order_by('id', 'DESC');
+		$result = $this->db->get()->result_array();
+		return !empty($result) ? $result : null;
+	}
+
+	/**
+	 * Get full order list data for search results (product_name, address, school, grade, courier, etc.)
+	 *
+	 * @param array $order_ids Array of order IDs
+	 * @return array Array of orders with same structure as get_paginated_orders
+	 */
+	public function get_orders_for_search_display($order_ids)
+	{
+		if (empty($order_ids)) {
+			return array();
+		}
+		$order_ids = array_map('intval', $order_ids);
+		$ids_str = implode(',', $order_ids);
+
+		$cols = 'd.id, d.checkout_type, d.payment_method, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.order_type, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.is_deliver_at_school';
+		if ($this->db->field_exists('ship_order_id', 'tbl_order_details')) {
+			$cols .= ', d.ship_order_id';
+		}
+		if ($this->db->field_exists('awb_no', 'tbl_order_details')) {
+			$cols .= ', d.awb_no';
+		}
+		if ($this->db->field_exists('erp_courier_id', 'tbl_order_details')) {
+			$cols .= ', d.erp_courier_id';
+		}
+		if ($this->db->field_exists('ready_to_ship', 'tbl_order_details')) {
+			$cols .= ', d.ready_to_ship, d.ready_to_ship_time';
+		}
+
+		$this->db->select($cols);
+		$this->db->from('tbl_order_details d');
+		$this->db->where_in('d.id', $order_ids);
+		$this->db->order_by('d.id', 'DESC');
+		$query = $this->db->get();
+
+		if ($query->num_rows() == 0) {
+			return array();
+		}
+
+		$resultdata = array();
+		foreach ($query->result_array() as $item) {
+			$order_status = $item['order_status'];
+			if ($order_status == '1' || $order_status == 1) {
+				$date = !empty($item['order_date']) ? date("d M, Y H:i:s", strtotime($item['order_date'])) : '-';
+			} elseif ($order_status == '2' || $order_status == 2) {
+				$date = !empty($item['processing_date']) ? date("d M, Y H:i:s", strtotime($item['processing_date'])) : (!empty($item['order_date']) ? date("d M, Y H:i:s", strtotime($item['order_date'])) : '-');
+			} elseif ($order_status == '3' || $order_status == 3) {
+				$date = !empty($item['shipment_date']) ? date("d M, Y H:i:s", strtotime($item['shipment_date'])) : (!empty($item['order_date']) ? date("d M, Y H:i:s", strtotime($item['order_date'])) : '-');
+			} elseif ($order_status == '4' || $order_status == 4) {
+				$date = !empty($item['delivery_date']) ? date("d M, Y H:i:s", strtotime($item['delivery_date'])) : '-';
+			} elseif ($order_status == '7' || $order_status == 7) {
+				$date = !empty($item['return_date']) ? date("d M, Y H:i:s", strtotime($item['return_date'])) : '-';
+			} else {
+				$date = date("d M, Y H:i:s", strtotime($item['order_date']));
+			}
+
+			$product_names = array();
+			$product_query = $this->db->select('product_title')->where('order_id', $item['id'])->get('tbl_order_items');
+			if ($product_query->num_rows() > 0) {
+				foreach ($product_query->result_array() as $prod) {
+					if (!empty($prod['product_title'])) {
+						$product_names[] = $prod['product_title'];
+					}
+				}
+			}
+			$product_name = (count($product_names) > 0) ? implode(', ', $product_names) : '-';
+
+			$address = '-';
+			$address_query = $this->db->select('address, city, state, pincode')->where('order_id', $item['id'])->limit(1)->get('tbl_order_address');
+			if ($address_query->num_rows() > 0) {
+				$addr = $address_query->row_array();
+				$address_parts = array_filter(array($addr['address'], $addr['city'], $addr['state'], $addr['pincode']));
+				$address = !empty($address_parts) ? implode(', ', $address_parts) : '-';
+			}
+
+			$school_name = '-';
+			$school_query = $this->db->query("
+				SELECT CASE
+					WHEN oi.branch_id IS NOT NULL THEN (SELECT CONCAT(sb.branch_name, ' (', s.school_name, ')') FROM erp_school_branches sb LEFT JOIN erp_schools s ON s.id = sb.school_id WHERE sb.id = oi.branch_id LIMIT 1)
+					WHEN oi.school_id IS NOT NULL THEN (SELECT school_name FROM erp_schools WHERE id = oi.school_id LIMIT 1)
+					ELSE NULL END as school_name
+				FROM tbl_order_items oi
+				WHERE oi.order_id = '" . (int)$item['id'] . "' AND (oi.school_id IS NOT NULL OR oi.branch_id IS NOT NULL)
+				ORDER BY oi.id ASC LIMIT 1
+			");
+			if ($school_query->num_rows() > 0 && !empty($school_query->row()->school_name)) {
+				$school_name = $school_query->row()->school_name;
+				if ($address == '-') {
+					$address = $school_name;
+				}
+			}
+
+			$grade_name = '-';
+			$grade_query = $this->db->query("
+				SELECT tg.name as grade_name FROM tbl_order_items oi
+				LEFT JOIN erp_booksets bs ON (bs.id = oi.product_id AND oi.order_type = 'bookset')
+				LEFT JOIN erp_bookset_packages bp ON (bp.id = oi.product_id AND oi.order_type = 'package')
+				LEFT JOIN erp_textbook_grades tg ON (tg.id = bs.grade_id OR tg.id = bp.grade_id)
+				WHERE oi.order_id = '" . (int)$item['id'] . "' AND tg.id IS NOT NULL LIMIT 1
+			");
+			if ($grade_query->num_rows() > 0 && !empty($grade_query->row()->grade_name)) {
+				$grade_name = $grade_query->row()->grade_name;
+			}
+
+			$invoice_url_path = !empty($item['invoice_url']) ? $item['invoice_url'] : '';
+			$invoice_no = !empty($invoice_url_path) ? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
+			$is_payment_at_school = ($item['payment_method'] == 'payment_at_school' || $item['payment_method'] == 'payment_at_scho');
+			$is_deliver_at_school = (isset($item['is_deliver_at_school']) && (int)$item['is_deliver_at_school'] === 1);
+
+			$courier_name = '-';
+			if (!empty($item['erp_courier_id']) && $this->db->table_exists('erp_master_courier')) {
+				$courier_row = $this->db->select('courier_name')->from('erp_master_courier')->where('id', (int)$item['erp_courier_id'])->limit(1)->get()->row();
+				if ($courier_row && !empty($courier_row->courier_name)) {
+					$courier_name = $courier_row->courier_name;
+				}
+			}
+
+			$resultdata[] = array(
+				'id' => $item['id'],
+				'order_unique_id' => $item['order_unique_id'],
+				'user_name' => $item['user_name'],
+				'user_phone' => $item['user_phone'],
+				'status' => $item['order_status'],
+				'date' => $date,
+				'product_name' => $product_name,
+				'address' => $address,
+				'school_name' => $school_name,
+				'grade_name' => $grade_name,
+				'invoice_no' => $invoice_no,
+				'payment_method' => $item['payment_method'],
+				'is_payment_at_school' => $is_payment_at_school,
+				'is_deliver_at_school' => $is_deliver_at_school,
+				'ship_order_id' => isset($item['ship_order_id']) ? $item['ship_order_id'] : '',
+				'awb_no' => isset($item['awb_no']) ? $item['awb_no'] : '',
+				'courier_name' => $courier_name,
+			);
+		}
+		return $resultdata;
 	}
 
 	/**
