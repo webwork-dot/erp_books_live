@@ -117,6 +117,7 @@ $route['logout'] = 'auth/logout'; // Unified logout
 $route['dashboard'] = 'Vendor/dashboard/index';
 $route['dashboard/(:any)'] = 'Vendor/dashboard/$1';
 $route['search'] = 'Vendor/search/index';
+$route['search/export'] = 'Vendor/search/export';
 $route['profile/get_profile'] = 'Vendor/profile/get_profile';
 $route['profile/update_profile'] = 'Vendor/profile/update_profile';
 $route['profile/get_profile'] = 'Vendor/profile/get_profile';

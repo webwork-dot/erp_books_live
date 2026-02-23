@@ -6,10 +6,39 @@
 </div>
 <!-- End Header -->
 
-<?php if (!empty($query)): ?>
+<?php if (!empty($query) || !empty($filters_provided)): ?>
 	<div class="card mb-3">
 		<div class="card-body">
-			<p class="mb-0">Search results for: <strong><?php echo htmlspecialchars($query); ?></strong></p>
+			<?php if (!empty($query)): ?>
+				<p class="mb-0">Search results for: <strong><?php echo htmlspecialchars($query); ?></strong></p>
+			<?php elseif (!empty($filters_provided)): ?>
+				<p class="mb-0">Filtered orders</p>
+				<?php if (!empty($applied_filters)): ?>
+					<small class="text-muted">
+						<?php
+						$filter_parts = array();
+						if (!empty($applied_filters['date_from']) && !empty($applied_filters['date_to'])) {
+							$filter_parts[] = 'Date: ' . $applied_filters['date_from'] . ' to ' . $applied_filters['date_to'];
+						}
+						if (!empty($applied_filters['school_id'])) {
+							$filter_parts[] = 'School ID: ' . $applied_filters['school_id'];
+						}
+						if (!empty($applied_filters['state'])) {
+							$filter_parts[] = 'State: ' . $applied_filters['state'];
+						}
+						if (!empty($applied_filters['city'])) {
+							$filter_parts[] = 'City: ' . $applied_filters['city'];
+						}
+						if (!empty($applied_filters['order_type'])) {
+							$filter_parts[] = 'Order Type: ' . $applied_filters['order_type'];
+						}
+						if (!empty($filter_parts)) {
+							echo 'Filters: ' . implode(', ', $filter_parts);
+						}
+						?>
+					</small>
+				<?php endif; ?>
+			<?php endif; ?>
 		</div>
 	</div>
 	
@@ -70,8 +99,24 @@
 	.search-orders .badge-payment-other { background-color: rgba(108, 117, 125, 0.15) !important; border: 1px solid #6c757d; color: #6c757d !important; padding: 0.35em 0.65em; border-radius: 4px; }
 	</style>
 		<div class="card mb-3 search-orders">
-			<div class="card-header">
+			<div class="card-header d-flex align-items-center justify-content-between py-2">
 				<h6 class="mb-0">Orders (<?php echo count($results['orders']); ?>)</h6>
+				<?php if (!empty($filters_provided)): ?>
+					<?php
+					$export_url = base_url('search/export');
+					$export_params = array();
+					if (!empty($applied_filters['date_from'])) $export_params[] = 'date_from=' . urlencode($applied_filters['date_from']);
+					if (!empty($applied_filters['date_to'])) $export_params[] = 'date_to=' . urlencode($applied_filters['date_to']);
+					if (!empty($applied_filters['school_id'])) $export_params[] = 'school_id=' . urlencode($applied_filters['school_id']);
+					if (!empty($applied_filters['state'])) $export_params[] = 'state=' . urlencode($applied_filters['state']);
+					if (!empty($applied_filters['city'])) $export_params[] = 'city=' . urlencode($applied_filters['city']);
+					if (!empty($applied_filters['order_type'])) $export_params[] = 'order_type=' . urlencode($applied_filters['order_type']);
+					if (!empty($export_params)) {
+						$export_url .= '?' . implode('&', $export_params);
+					}
+					?>
+					<a href="<?php echo $export_url; ?>" class="btn btn-sm btn-outline-primary">Export to Excel</a>
+				<?php endif; ?>
 			</div>
 			<div class="card-body p-0">
 				<div class="table-responsive">
@@ -283,7 +328,15 @@
 	<?php if (empty($results['products']) && empty($results['orders']) && empty($results['schools']) && empty($results['customers'])): ?>
 		<div class="card">
 			<div class="card-body text-center py-5">
-				<p class="text-muted mb-0">No results found for "<?php echo htmlspecialchars($query); ?>"</p>
+				<p class="text-muted mb-0">
+					<?php if (!empty($filters_provided)): ?>
+						No orders found matching the applied filters
+					<?php elseif (!empty($query)): ?>
+						No results found for "<?php echo htmlspecialchars($query); ?>"
+					<?php else: ?>
+						Please enter a search query
+					<?php endif; ?>
+				</p>
 			</div>
 		</div>
 	<?php endif; ?>

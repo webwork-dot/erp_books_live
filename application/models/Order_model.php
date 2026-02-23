@@ -1070,6 +1070,60 @@ class Order_model extends CI_Model
 	}
 
 	/**
+	 * Get orders filtered by date range, school, state, city, order_type (same logic as Reports_model)
+	 * Used for displaying filtered orders from reports page
+	 *
+	 * @param array $filters Array with keys: date_from, date_to, school_id, state, city, order_type
+	 * @return array Array of orders with same structure as get_orders_for_search_display
+	 */
+	public function get_orders_by_filters($filters = array())
+	{
+		// Build date filter
+		$date_filter = '';
+		if (!empty($filters['date_from']) && !empty($filters['date_to'])) {
+			$from = $this->db->escape_str($filters['date_from']);
+			$to = $this->db->escape_str($filters['date_to']);
+			$date_filter = " AND (DATE(d.order_date) BETWEEN '{$from}' AND '{$to}')";
+		}
+
+		// Build additional filters (same logic as Reports_model)
+		$extra_filters = '';
+		if (isset($filters['school_id']) && (int)$filters['school_id'] > 0) {
+			$sid = (int)$filters['school_id'];
+			$extra_filters .= " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.school_id = {$sid})";
+		}
+		if (isset($filters['state']) && trim($filters['state']) !== '') {
+			$s = $this->db->escape_str(trim($filters['state']));
+			$extra_filters .= " AND (EXISTS (SELECT 1 FROM tbl_order_address oa2 WHERE oa2.order_id = d.id AND oa2.state = '{$s}') OR d.del_state = '{$s}')";
+		}
+		if (isset($filters['city']) && trim($filters['city']) !== '') {
+			$c = $this->db->escape_str(trim($filters['city']));
+			$extra_filters .= " AND (EXISTS (SELECT 1 FROM tbl_order_address oa2 WHERE oa2.order_id = d.id AND oa2.city = '{$c}') OR d.del_city = '{$c}')";
+		}
+		if (isset($filters['order_type']) && trim($filters['order_type']) !== '') {
+			$ot = $this->db->escape_str(trim($filters['order_type']));
+			$extra_filters .= " AND EXISTS (SELECT 1 FROM tbl_order_items oi2 WHERE oi2.order_id = d.id AND oi2.order_type = '{$ot}')";
+		}
+
+		// Base where clause (same as Reports_model)
+		$payment_filter = "(d.payment_status IN ('success','cod','payment_at_school') OR d.payment_method IN ('cod','payment_at_school'))";
+		$base_where = "d.id <> '' AND {$payment_filter} AND (d.order_status IS NULL OR d.order_status != '5') {$date_filter} {$extra_filters}";
+
+		// Get order IDs that match the filters
+		$sql = "SELECT DISTINCT d.id FROM tbl_order_details d
+				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+				WHERE {$base_where}
+				ORDER BY d.id DESC
+				LIMIT 100"; // Limit to prevent too many results
+
+		$query = $this->db->query($sql);
+		$order_ids = array_column($query->result_array(), 'id');
+
+		// Use existing method to get full order details
+		return $this->get_orders_for_search_display($order_ids);
+	}
+
+	/**
 	 * Get paginated pending order count
 	 *
 	 * @param	array	$filter_data	Filter data (keywords, date_range, machine)

@@ -257,10 +257,45 @@ $avg_order_value = isset($sales_summary['avg_order_value']) ? (float)$sales_summ
 	<div class="col-8 mb-4">
 		<div class="card h-100">
 			<div class="card-body">
-				<p class="text mb-2" style="font-size: 16px;">
-					<strong>TotalOrders:</strong> <?php echo number_format($total_orders); ?> &nbsp;·&nbsp;
-					<strong>Revenue:</strong> ₹<?php echo number_format($total_revenue, 2); ?> &nbsp;·&nbsp;
-				</p>
+				<div class="row mb-3">
+					<div class="col-md-6 mb-2">
+						<div class="card border-primary">
+							<div class="card-body p-0 text-center" style="display: flex; align-items: center;justify-content: center;">
+								<div class="d-flex align-items-center justify-content-center">
+									<i class="ri-shopping-cart-2-fill text-primary me-2" style="font-size: 20px;"></i>
+									<span style="font-size: 14px;">ORDERS: </span>
+								</div>
+								<?php
+								$search_url = base_url('search');
+								$params = array();
+								if (!empty($date_from)) $params[] = 'date_from=' . urlencode($date_from);
+								if (!empty($date_to)) $params[] = 'date_to=' . urlencode($date_to);
+								if (!empty($filters['school_id'])) $params[] = 'school_id=' . urlencode($filters['school_id']);
+								if (!empty($filters['state'])) $params[] = 'state=' . urlencode($filters['state']);
+								if (!empty($filters['city'])) $params[] = 'city=' . urlencode($filters['city']);
+								if (!empty($filters['order_type'])) $params[] = 'order_type=' . urlencode($filters['order_type']);
+								if (!empty($params)) {
+									$search_url .= '?' . implode('&', $params);
+								}
+								?>
+								<a href="<?php echo $search_url; ?>" style="text-decoration: none; color: inherit;">
+									<h4 style="font-size: 20px; margin-left: 5px;" class="fw-bold text-primary mb-0"><?php echo number_format($total_orders); ?></h4>
+								</a>
+							</div>
+						</div>
+					</div>
+					<div class="col-md-6 mb-2">
+						<div class="card border-success ">
+							<div class="card-body p-0 text-center" style="display: flex; align-items: center;justify-content: center;">
+								<div class="d-flex align-items-center justify-content-center">
+									<i class="ri-money-rupee-circle-fill text-success me-2" style="font-size: 20px;"></i>
+									<span style="font-size: 14px;">REVENUE: </span>
+								</div>
+								<h4 style="font-size: 20px; margin-left: 5px;" class="fw-bold text-success mb-0">₹<?php echo number_format($total_revenue, 2); ?></h4>
+							</div>
+						</div>
+					</div>
+				</div>
 				<?php if (!empty($sales_trend)): ?>
 				<div id="revenueChart" style="min-height: 280px;"></div>
 				<?php else: ?>
