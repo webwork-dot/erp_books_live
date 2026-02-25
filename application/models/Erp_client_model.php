@@ -659,5 +659,110 @@ class Erp_client_model extends CI_Model
 		
 		return $query->result_array();
 	}
+	
+	public function getShippingProviders($client_id){
+		$query=$this->db->where('client_id', $client_id)->get('erp_shipping_providers');			
+		return $query->result_array();
+	}
+
+	
+	public function updateClientShipping($client_id){
+		$shipping_providers = $this->input->post('shipping_providers');
+
+		if (!is_array($shipping_providers)) {
+			$shipping_providers = [];
+		}
+
+		$this->db->where('id', $client_id)
+				 ->update('erp_clients', [
+					 'shipping_providers' => !empty($shipping_providers)
+						 ? implode(',', $shipping_providers)
+						 : NULL
+				 ]);
+
+		$existing_providers = $this->db
+			->where('client_id', $client_id)
+			->get('erp_shipping_providers')
+			->result_array();
+
+		$existing_map = [];
+		foreach ($existing_providers as $row) {
+			$existing_map[$row['provider']] = $row;
+		}
+
+		foreach ($shipping_providers as $provider)
+		{
+			$data = [
+				'client_id'   => $client_id,
+				'provider'    => $provider, 
+				'status'      => 1, 
+				'last_updated'=> date('Y-m-d H:i:s')
+			];
+
+			/* ---------- SHIPROCKET ---------- */
+			if ($provider == 'shiprocket') {
+				$data['name']  = $this->input->post('shiprocket_name');
+				$data['email'] = $this->input->post('shiprocket_email');
+
+				$password = $this->input->post('shiprocket_password');
+				if (!empty($password)) {
+					$data['password'] = $password; // optionally encrypt here
+				}
+			}
+
+			/* ---------- BIGSHIP ---------- */
+			if ($provider == 'bigship') {
+				$data['name']       = $this->input->post('bigship_user_name');
+				$data['company_id'] = $this->input->post('bigship_access_key');
+
+				$password = $this->input->post('bigship_password');
+				if (!empty($password)) {
+					$data['password'] = $password;
+				}
+			}
+
+			/* ---------- VELOCITY ---------- */
+			if ($provider == 'velocity') {
+				$data['name']       = $this->input->post('velocity_username');
+				$data['company_id'] = $this->input->post('velocity_accno');
+				$data['channel_id'] = $this->input->post('velocity_secret_code');
+
+				$password = $this->input->post('velocity_password');
+				if (!empty($password)) {
+					$data['password'] = $password;
+				}
+			}
+
+			/* ---------- UPSERT ---------- */
+			if (isset($existing_map[$provider])) {
+				if (empty($data['password'])) {
+					unset($data['password']);
+				}
+
+				$this->db->where('id', $existing_map[$provider]['id'])
+						 ->update('erp_shipping_providers', $data);
+
+			} else {
+				$data['created_at'] = date('Y-m-d H:i:s');
+				$this->db->insert('erp_shipping_providers', $data);
+			}
+		}
+
+		/* --------------------------------------------------
+		 * 4️⃣ Mark Unchecked Providers as INACTIVE
+		 * -------------------------------------------------- */
+		foreach ($existing_map as $provider => $row) {
+			if (!in_array($provider, $shipping_providers)) {
+				$this->db->where('id', $row['id'])
+						 ->update('erp_shipping_providers', [
+							 'status' => 0,
+							 'last_updated' => date('Y-m-d H:i:s')
+						 ]);
+			}
+		}
+
+		return true;
+	}
+	
 }
 

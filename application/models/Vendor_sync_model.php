@@ -280,7 +280,8 @@ class Vendor_sync_model extends CI_Model
 		
 		
 		$result = $stmt->execute();
-		
+	
+		 
 		if (!$result)
 		{
 			log_message('error', 'Failed to execute vendor sync statement: ' . $stmt->error . '. Vendor ID: ' . $vendor_id);
@@ -291,5 +292,161 @@ class Vendor_sync_model extends CI_Model
 		$stmt->close();
 		return TRUE;
 	}
+	
+	
+	private function getVendorDbConnection($database_name){
+		if (empty($database_name)) {
+			log_message('error', 'Vendor DB name is empty.');
+			return FALSE;
+		}
+
+		// Prevent invalid DB names
+		if (!preg_match('/^[a-zA-Z0-9_]+$/', $database_name)) {
+			log_message('error', 'Invalid database name: ' . $database_name);
+			return FALSE;
+		}
+
+		$db_config = [
+			'dsn'      => '',
+			'hostname' => $this->db->hostname,
+			'username' => $this->db->username,
+			'password' => $this->db->password,
+			'database' => $database_name,
+			'dbdriver' => 'mysqli',
+			'dbprefix' => '',
+			'pconnect' => FALSE,   // Important: prevent persistent conflicts
+			'db_debug' => FALSE,   // Prevent system crash
+			'cache_on' => FALSE,
+			'char_set' => 'utf8mb4',
+			'dbcollat' => 'utf8mb4_general_ci',
+			'swap_pre' => '',
+			'encrypt'  => FALSE,
+			'compress' => FALSE,
+			'stricton' => FALSE,
+			'failover' => [],
+			'save_queries' => FALSE
+		];
+
+		$client_db = $this->load->database($db_config, TRUE);
+
+		if (!$client_db) {
+			log_message('error', 'Failed to connect to vendor database: ' . $database_name);
+			return FALSE;
+		}
+
+		return $client_db;
+	}
+	
+	public function syncShippingProviders($vendor_id){	
+		$this->load->model('Erp_client_model');
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+	 
+
+		if (!$vendor) {
+			log_message('error', 'Vendor not found for shipping sync.');
+			return false;
+		}
+		
+		
+	 
+		/* ==========================================================
+		 * CONNECT USING CI MULTI DATABASE
+		 * ========================================================== */
+		$client_db = $this->getVendorDbConnection($vendor['database_name']);
+
+		if (!$client_db) {
+			log_message('error', 'Client DB connection failed.');
+			return false;
+		}
+
+		if (!$client_db->field_exists('shipping_providers', 'erp_clients')) {
+			$client_db->query("
+				ALTER TABLE `erp_clients`
+				ADD `shipping_providers` VARCHAR(255) NULL AFTER `payment_gateway`
+			");
+		}
+
+		$client_db->where('id', $vendor_id)
+				  ->update('erp_clients', [
+					  'shipping_providers' => $vendor['shipping_providers']
+				  ]);
+
+		/* ==========================================================
+		 * 5️⃣ CREATE erp_shipping_providers TABLE IF NOT EXISTS
+		 * ========================================================== */
+		$client_db->query("
+			CREATE TABLE IF NOT EXISTS `erp_shipping_providers` (
+				`id` INT(11) NOT NULL AUTO_INCREMENT,
+				`client_id` INT(11) NOT NULL,
+				`provider` VARCHAR(50) NULL,
+				`name` VARCHAR(255) NULL,
+				`email` VARCHAR(255) NULL,
+				`password` TEXT NULL,
+				`company_id` VARCHAR(255) NULL COMMENT 'bigship_access_key',
+				`channel_id` VARCHAR(100) NULL COMMENT 'velocity_accno',
+				`token` TEXT NULL,
+				`token_expiry` DATETIME NULL,
+				`status` TINYINT(1) NOT NULL DEFAULT 0,
+				`created_at` DATETIME NULL,
+				`last_updated` DATETIME NULL,
+				PRIMARY KEY (`id`),
+				UNIQUE KEY `unique_provider` (`client_id`,`provider`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+		");
+
+		/* ==========================================================
+		 * 6️⃣ ENSURE REQUIRED COLUMNS EXIST (AUTO ALTER)
+		 * ========================================================== */
+
+		$required_columns = [
+			'email' => "VARCHAR(255) NULL",
+			'company_id' => "VARCHAR(100) NULL",
+			'channel_id' => "VARCHAR(100) NULL",
+			'token' => "TEXT NULL",
+			'token_expiry' => "DATETIME NULL",
+			'status' => "TINYINT(1) NOT NULL DEFAULT 0"
+		];
+
+		foreach ($required_columns as $column => $type) {
+			if (!$client_db->field_exists($column, 'erp_shipping_providers')) {
+				$client_db->query("ALTER TABLE `erp_shipping_providers` ADD `$column` $type");
+			}
+		}
+
+		/* ==========================================================
+		 * 7️⃣ FETCH MAIN DB SHIPPING RECORDS
+		 * ========================================================== */
+
+		$main_records = $this->db
+			->where('client_id', $vendor_id)
+			->get('erp_shipping_providers')
+			->result_array();
+
+		if (empty($main_records)) {
+			return true;
+		}
+
+		foreach ($main_records as $record){
+			$provider = $record['provider'];
+
+			$existing = $client_db
+				->where('client_id', $vendor_id)
+				->where('provider', $provider)
+				->get('erp_shipping_providers')
+				->row_array();
+
+			unset($record['id']);
+
+			if ($existing) {
+				$client_db->where('id', $existing['id'])->update('erp_shipping_providers', $record);
+			} else {
+				$client_db->insert('erp_shipping_providers', $record);
+			}
+		}
+
+		return true;
+	}
+	
+	
 }
 

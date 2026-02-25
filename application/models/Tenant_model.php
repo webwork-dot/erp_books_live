@@ -246,15 +246,43 @@ class Tenant_model extends CI_Model
 		$sql = str_replace('-- Database: `erp_master`', '-- Database: `' . $database_name . '`', $sql);
 		
 		// Remove INSERT statements, but keep certain essential ones
+		// Also remove triggers as they may reference master database tables
 		// Location data (countries, states, cities) will be copied from master database separately
 		// This ensures vendor databases start with essential data but are otherwise empty
 		$lines = explode("\n", $sql);
 		$filtered_lines = array();
 		$in_insert = FALSE;
+		$in_trigger = FALSE;
 		$current_table = '';
-		
+
 		foreach ($lines as $line)
 		{
+			$trimmed_line = trim($line);
+
+			// Skip DELIMITER statements - they cause issues with mysqli multi_query
+			if (preg_match('/^DELIMITER\s+/i', $trimmed_line))
+			{
+				continue;
+			}
+
+			// Check if this is the start of a CREATE TRIGGER statement
+			if (preg_match('/^\s*CREATE\s+TRIGGER\s+/i', $trimmed_line))
+			{
+				$in_trigger = TRUE;
+				continue; // Skip trigger definition lines
+			}
+
+			// If we're inside a trigger definition, skip until END statement
+			if ($in_trigger)
+			{
+				if (preg_match('/^\s*END\s*;/i', $trimmed_line) ||
+					preg_match('/^\s*END\s*\$\$/i', $trimmed_line))
+				{
+					$in_trigger = FALSE;
+				}
+				continue; // Skip all trigger lines
+			}
+
 			// Check if this is the start of an INSERT statement
 			if (preg_match('/^\s*INSERT\s+INTO\s+`?([^`\s]+)/i', $line, $matches))
 			{
@@ -269,7 +297,7 @@ class Tenant_model extends CI_Model
 				// Skip this line
 				continue;
 			}
-			
+
 			// If we're inside an INSERT statement that's not essential, skip until we hit a semicolon
 			if ($in_insert)
 			{
@@ -281,11 +309,11 @@ class Tenant_model extends CI_Model
 				// Skip this line
 				continue;
 			}
-			
+
 			// Keep all other lines (CREATE TABLE, ALTER TABLE, etc.)
 			$filtered_lines[] = $line;
 		}
-		
+
 		$sql = implode("\n", $filtered_lines);
 		
 		// Execute SQL template

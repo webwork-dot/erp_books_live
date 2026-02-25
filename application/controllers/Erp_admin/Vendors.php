@@ -433,6 +433,16 @@ class Vendors extends Erp_base
 			$data['title'] = 'Edit Vendor';
 			$data['current_user'] = $this->current_user;
 			
+			$shipping_records = $this->Erp_client_model->getShippingProviders($vendor_id);
+
+			$provider_data = [];
+			foreach ($shipping_records as $row) {
+				$provider_data[$row['provider']] = $row;
+			}
+
+			$data['provider_data'] = $provider_data;
+						
+			
 			// Load content view
 			$data['content'] = $this->load->view('erp_admin/vendors/edit', $data, TRUE);
 			
@@ -668,8 +678,16 @@ class Vendors extends Erp_base
 					$vendor_data['favicon'] = NULL;
 				}
 				
+				
+				
+
+				
+				
 				// Update vendor
 				$update_result = $this->Erp_client_model->updateClient($vendor_id, $vendor_data);
+				
+				
+				$update_shipping = $this->Erp_client_model->updateClientShipping($vendor_id);
 				
 				// Update vendor user in erp_users table (non-critical, continue even if fails)
 				$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
@@ -861,6 +879,17 @@ class Vendors extends Erp_base
 				} catch (Exception $e) {
 					log_message('error', 'Exception during vendor data sync after update: ' . $e->getMessage());
 				}
+				
+				try {
+					$sync_shipping_result = $this->Vendor_sync_model->syncShippingProviders($vendor_id);
+					if (!$sync_shipping_result) {
+						log_message('warning', 'Vendor Shipping data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
+					}
+				} catch (Exception $e) {
+					log_message('error', 'Exception during vendor Shipping data sync after update: ' . $e->getMessage());
+				}
+				
+				
 				
 				// Consider update successful if:
 				// 1. Main update succeeded, OR

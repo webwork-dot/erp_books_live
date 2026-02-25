@@ -137,6 +137,14 @@
         <i class="isax isax-card"></i>
         <span>Payment Gateway</span>
       </a>
+    </li>  
+
+	<li class="nav-item" role="presentation">
+      <a class="nav-link" id="payment-tab" data-bs-toggle="tab" href="#shipping" role="tab" aria-controls="payment"
+        aria-selected="false">
+        <i class="isax isax-bus"></i>
+        <span>Shipping</span>
+      </a>
     </li>
     <li class="nav-item" role="presentation">
       <a class="nav-link" id="seo-tab" data-bs-toggle="tab" href="#seo" role="tab" aria-controls="seo"
@@ -707,6 +715,198 @@
       </div>
     </div>
   </div>
+
+
+  <div class="tab-pane fade" id="shipping" role="tabpanel" aria-labelledby="payment-tab">
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="mb-3">Shipping Gateway</h6>
+			
+<?php
+$current_shipping = !empty($vendor['shipping_providers'])
+    ? explode(',', $vendor['shipping_providers'])
+    : [];
+
+$provider_data = isset($provider_data) ? $provider_data : [];
+
+/* Shiprocket */
+$shiprocket = isset($provider_data['shiprocket']) ? $provider_data['shiprocket'] : [];
+
+/* Bigship */
+$bigship = isset($provider_data['bigship']) ? $provider_data['bigship'] : [];
+
+/* Velocity */
+$velocity = isset($provider_data['velocity']) ? $provider_data['velocity'] : [];
+?>
+
+<!-- Shipping Providers Selection -->
+<div class="border-top pt-3 mt-3">
+  <h6 class="mb-3">Shipping Providers</h6>
+<div class="d-flex gap-4 flex-wrap">
+
+  <div class="form-check">
+    <input class="form-check-input shipping-provider-checkbox"
+           type="checkbox"
+           name="shipping_providers[]"
+           value="shiprocket"
+           id="shiprocket"
+           <?php echo in_array('shiprocket', $current_shipping) ? 'checked' : ''; ?>>
+    <label class="form-check-label" for="shiprocket">Shiprocket</label>
+  </div>
+
+  <div class="form-check">
+    <input class="form-check-input shipping-provider-checkbox"
+           type="checkbox"
+           name="shipping_providers[]"
+           value="bigship"
+           id="bigship"
+           <?php echo in_array('bigship', $current_shipping) ? 'checked' : ''; ?>>
+    <label class="form-check-label" for="bigship">Bigship</label>
+  </div>
+
+  <div class="form-check">
+    <input class="form-check-input shipping-provider-checkbox"
+           type="checkbox"
+           name="shipping_providers[]"
+           value="velocity"
+           id="velocity"
+           <?php echo in_array('velocity', $current_shipping) ? 'checked' : ''; ?>>
+    <label class="form-check-label" for="velocity">Velocity</label>
+  </div>
+
+</div>
+</div>
+
+<div id="shiprocket_config" class="shipping-config border-top pt-3 mt-3"
+     style="display: <?php echo in_array('shiprocket', $current_shipping) ? 'block' : 'none'; ?>;">
+
+  <h6 class="mb-3">Shiprocket Configuration</h6>
+
+  <div class="row">
+    <div class="col-md-4">
+      <label>Name</label>
+      <input type="text" name="shiprocket_name"
+        class="form-control"
+        value="<?php echo set_value('shiprocket_name', $shiprocket['name'] ?? ''); ?>">
+    </div>
+
+    <div class="col-md-4">
+      <label>Email</label>
+      <input type="email" name="shiprocket_email"
+        class="form-control"
+        value="<?php echo set_value('shiprocket_email', $shiprocket['email'] ?? ''); ?>">
+    </div>
+
+    <div class="col-md-4">
+      <label>Password</label>
+      <input type="password" name="shiprocket_password"
+        class="form-control"
+        value="<?php echo set_value('shiprocket_password', $shiprocket['password'] ?? ''); ?>">
+    </div>
+  </div>
+
+</div>
+<div id="bigship_config" class="shipping-config border-top pt-3 mt-3"
+     style="display: <?php echo in_array('bigship', $current_shipping) ? 'block' : 'none'; ?>;">
+
+  <h6 class="mb-3">Bigship Configuration</h6>
+
+  <div class="row">
+    <div class="col-md-3">
+      <label>User Name</label>
+      <input type="text" name="bigship_user_name"
+        class="form-control"
+        value="<?php echo set_value('bigship_user_name', $bigship['name'] ?? ''); ?>">
+    </div>  
+
+	<div class="col-md-3">
+      <label>Email</label>
+      <input type="text" name="bigship_email"
+        class="form-control"
+        value="<?php echo set_value('bigship_email', $bigship['email'] ?? ''); ?>">
+    </div>
+
+
+    <div class="col-md-3">
+      <label>Password</label>
+      <input type="text" name="bigship_password"
+        class="form-control"
+        value="<?php echo set_value('bigship_password', $bigship['password'] ?? ''); ?>">
+    </div>
+
+    <div class="col-md-3">
+      <label>Access Key</label>
+      <input type="text" name="bigship_access_key"
+        class="form-control"
+        value="<?php echo set_value('bigship_access_key', $bigship['company_id'] ?? ''); ?>">
+    </div>
+  </div>
+
+</div>
+
+<div id="velocity_config" class="shipping-config border-top pt-3 mt-3"
+     style="display: <?php echo in_array('velocity', $current_shipping) ? 'block' : 'none'; ?>;">
+
+  <h6 class="mb-3">Velocity Configuration</h6>
+
+  <div class="row">
+    <div class="col-md-3">
+      <label>Username</label>
+      <input type="text" name="velocity_username"
+        class="form-control"
+        value="<?php echo set_value('velocity_username', $velocity['name'] ?? ''); ?>">
+    </div>
+
+    <div class="col-md-3">
+      <label>Password</label>
+      <input type="text" name="velocity_password"
+        class="form-control"
+        value="<?php echo set_value('velocity_password', $velocity['password'] ?? ''); ?>">
+    </div>
+
+    <div class="col-md-3">
+      <label>Account No</label>
+      <input type="text" name="velocity_accno"
+        class="form-control"
+        value="<?php echo set_value('velocity_accno', $velocity['company_id'] ?? ''); ?>">
+    </div>
+
+    <div class="col-md-3">
+      <label>Secret Code</label>
+      <input type="text" name="velocity_secret_code"
+        class="form-control"
+        value="<?php echo set_value('velocity_secret_code', $velocity['channel_id'] ?? ''); ?>">
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+document.querySelectorAll('.shipping-provider-checkbox').forEach(function(checkbox) {
+    checkbox.addEventListener('change', function() {
+
+        const provider = this.value;
+        const configDiv = document.getElementById(provider + '_config');
+
+        if (this.checked) {
+            configDiv.style.display = 'block';
+        } else {
+            configDiv.style.display = 'none';
+        }
+    });
+});
+</script>
+
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- SEO & Meta Tab -->
   <div class="tab-pane fade" id="seo" role="tabpanel" aria-labelledby="seo-tab">
