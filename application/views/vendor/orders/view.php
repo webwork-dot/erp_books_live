@@ -2481,11 +2481,11 @@ function loadPickupAddresses(provider) {
             csrfHash = res.csrf.hash;
         }
 
-        if (res.success && res.addresses && res.addresses.length > 0) {
+        if (res.success && res.data && res.data.length > 0) {
 
             var options = '<option value="">Select Pickup Address</option>';
 
-            res.addresses.forEach(function (addr) {
+            res.data.forEach(function (addr) {
                 options += '<option value="' + addr.value + '">' +
                                 addr.name +
                            '</option>';
