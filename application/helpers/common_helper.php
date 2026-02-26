@@ -1751,6 +1751,26 @@ if (!function_exists('build_uniform_image_url')) {
     }
 }
 
+
+
+if (!function_exists('jsonResponse')) {
+    function jsonResponse($success = true, $message = '', $data = [], $extra = [])    {
+        $CI =& get_instance();
+        $response = array_merge([
+            'success'   => $success,
+            'message'   => $message,
+            'data'	    => $data,
+            'csrf'      => [
+                'name' => $CI->security->get_csrf_token_name(),
+                'hash' => $CI->security->get_csrf_hash()
+            ]
+        ], $extra);
+
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit;
+    }
+}
 // ------------------------------------------------------------------------
 /* End of file common_helper.php */
 /* Location: ./system/helpers/common.php */

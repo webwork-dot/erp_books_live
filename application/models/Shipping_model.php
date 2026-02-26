@@ -43,7 +43,7 @@ class Shipping_model extends CI_Model {
         $schedule_date = date("d-m-Y", strtotime($data['schedule_date']));
         $from_Time     = date("H:i:s", strtotime($data['from_time']));
         $to_Time       = date("H:i:s", strtotime($data['to_time']));
-				
+		 	
         $payload = [[
             "username"            => $provider->name,
             "password"            => $provider->password,
@@ -69,15 +69,15 @@ class Shipping_model extends CI_Model {
             "drop_Emailid"     => $address->email ?? $order->user_email ?? '',
 
             // ================= PICKUP =================
-            "pickup_City"       => "Mumbai",
-            "pickup_State"      => "Maharashtra",
-            "pickup_Address"    => "Your Warehouse Address",
-            "pickup_Landmark"   => "",
-            "pickup_Pincode"    => "400001",
-            "pickup_Phoneno"    => "9999999999",
-            "pickup_Alt_Phoneno"=> "",
-            "pickup_Name"       => "Warehouse Manager",
-            "pickup_Emailid"    => "warehouse@example.com",
+            "pickup_City"       => $provider->pickup_city,
+            "pickup_State"      => $provider->pickup_state,
+            "pickup_Address"    => $provider->pickup_address,
+            "pickup_Landmark"   => $provider->pickup_landmark,
+            "pickup_Pincode"    => $provider->pickup_pincode,
+            "pickup_Phoneno"    => $provider->pickup_phoneno,
+            "pickup_Alt_Phoneno"=> $provider->pickup_alt_phoneno,
+            "pickup_Name"       => $provider->pickup_name,
+            "pickup_Emailid"    => $provider->pickup_emailid,
 
             "schedule_date" => $schedule_date,
             "from_Time"     => $from_Time,

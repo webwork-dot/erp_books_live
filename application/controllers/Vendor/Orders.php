@@ -1475,10 +1475,10 @@ class Orders extends Vendor_base
 		$order_id = $order_data->id;
 		
 		// Verify order is in processing status
-		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+		if ($order_data->order_status != '1' && $order_data->order_status != 1) {
 			echo json_encode([
 				'status' => '400',
-				'message' => 'Order must be in processing status to set shipper. Current status: ' . $order_data->order_status,
+				'message' => 'Order must be in pending status to set shipper. Current status: ' . $order_data->order_status,
 			]);
 			return;
 		}
@@ -1509,9 +1509,13 @@ class Orders extends Vendor_base
 		log_message('debug', 'Updating order_id=' . $order_id . ' with courier=' . $courier_value . ' (current: ' . $current_courier . ')');
 		
 		// Update courier
+		$processing_date = date("Y-m-d H:i:s");
+		
 		$this->db->where('id', $order_id);
 		$update_result = $this->db->update('tbl_order_details', array(
-			'courier' => $courier_value
+			'courier' => $courier_value,
+			'order_status' => '2',
+			'processing_date' => $processing_date
 		));
 		
 		// Check for database errors
@@ -1690,8 +1694,8 @@ class Orders extends Vendor_base
 	 *
 	 * @return	void
 	 */
-	public function save_third_party_shipping()
-	{
+	/*public function save_third_party_shipping()
+	{ 
 		header('Content-Type: application/json');
 		$order_unique_id = $this->input->post('order_unique_id');
 		$third_party_provider = trim($this->input->post('third_party_provider')); // shiprocket, bigship
@@ -1701,17 +1705,18 @@ class Orders extends Vendor_base
 		$weight = (float) $this->input->post('weight');
 		
 		if (empty($order_unique_id) || empty($third_party_provider)) {
-			echo json_encode(array('status' => '400', 'message' => 'Order ID and 3rd party provider are required.'));
+			echo json_encode(array('status' => '400', 'message' => 'Order ID and 3rd party provider are required.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()
+			]));
 			return;
 		}
 		if (!in_array($third_party_provider, array('shiprocket', 'bigship'))) {
-			echo json_encode(array('status' => '400', 'message' => 'Invalid provider. Use Shiprocket or Big Ship.'));
+			echo json_encode(array('status' => '400', 'message' => 'Invalid provider. Use Shiprocket or Big Ship.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
 		
 		$order = $this->Order_model->get_order($order_unique_id);
 		if (empty($order)) {
-			echo json_encode(array('status' => '400', 'message' => 'Order not found.'));
+			echo json_encode(array('status' => '400', 'message' => 'Order not found.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
 		
@@ -1719,7 +1724,7 @@ class Orders extends Vendor_base
 		$order_id = $order_data->id;
 		
 		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
-			echo json_encode(array('status' => '400', 'message' => 'Order must be in processing status.'));
+			echo json_encode(array('status' => '400', 'message' => 'Order must be in processing status.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
 		
@@ -1812,7 +1817,7 @@ class Orders extends Vendor_base
 		$result = $this->db->update('tbl_order_details', $update_data);
 		
 		if (!$result) {
-			echo json_encode(array('status' => '400', 'message' => 'Failed to update order.'));
+			echo json_encode(array('status' => '400', 'message' => 'Failed to update order.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
 		
@@ -1855,7 +1860,7 @@ class Orders extends Vendor_base
 		));
 		
 		echo json_encode(array('status' => '200', 'message' => '3rd party shipping saved successfully.'));
-	}
+	}*/
 	
 	/**
 	 * Move single order to out for delivery status
@@ -4516,5 +4521,424 @@ class Orders extends Vendor_base
 	}
 
 
+
+	public function get_active_shipping_providers()	{
+		$providers = $this->db
+			->select('provider')
+			->from('erp_shipping_providers')
+			->where('client_id', $this->current_vendor['id'])
+			->where('status', 1)
+			->get()
+			->result_array();
+
+		echo json_encode([
+			'success' => true,
+			'providers' => $providers
+		]);
+	}
+			
+	
+
+	
+	public function get_provider_pickup_addresses(){
+		header('Content-Type: application/json');
+
+		$provider  = strtolower(trim($this->input->post('provider')));
+		$client_id = $this->current_vendor['id'];
+
+		if (empty($provider)) {
+			return jsonResponse(false, 'Provider is required.');
+		}
+	 
+		if ($provider === 'shiprocket' || $provider === 'bigship') {
+			return jsonResponse(true, '', []);
+		}
+	 
+		if ($provider === 'velocity') {
+
+			$row = $this->db->select('pickup_name, pickup_phoneno,
+									  pickup_address, pickup_landmark,
+									  pickup_city, pickup_state, pickup_pincode')
+				->from('erp_shipping_providers')
+				->where('client_id', $client_id)
+				->where('provider', 'velocity')
+				->where('status', 1)
+				->limit(1)
+				->get()
+				->row_array();
+
+			if (!$row) {
+				return jsonResponse(false, 'Velocity pickup not configured.');
+			}
+
+			$city     = ucwords(strtolower(trim($row['pickup_city'] ?? '')));
+			$state    = ucwords(strtolower(trim($row['pickup_state'] ?? '')));
+			$address  = trim($row['pickup_address'] ?? '');
+			$landmark = trim($row['pickup_landmark'] ?? '');
+			$pincode  = trim($row['pickup_pincode'] ?? '');
+			$name     = trim($row['pickup_name'] ?? '');
+			$phone    = trim($row['pickup_phoneno'] ?? '');
+
+			$full_address = implode(', ', array_filter([
+				$name,
+				$phone,
+				$address,
+				$landmark,
+				$city,
+				$state,
+				$pincode
+			]));
+
+			return jsonResponse(true, '', [
+				[
+					'value' => 1,
+					'name'  => $full_address
+				]
+			]);
+		}
+
+		return jsonResponse(true, '', []);
+	}
+	
+	public function save_third_party_shipping(){
+		header('Content-Type: application/json');
+
+		$response = function($status, $message) {
+			echo json_encode([
+				'status'  => $status,
+				'message' => $message,
+				'csrf'    => [
+					'name' => $this->security->get_csrf_token_name(),
+					'hash' => $this->security->get_csrf_hash()
+				]
+			]);
+			exit;
+		};
+	
+		$order_unique_id      = $this->input->post('order_unique_id', true);
+		$third_party_provider = trim($this->input->post('third_party_provider', true));
+		$length  = (float) $this->input->post('length');
+		$breadth = (float) $this->input->post('breadth');
+		$height  = (float) $this->input->post('height');
+		$weight  = (float) $this->input->post('weight');
+		$schedule_date = $this->input->post('schedule_date', true);
+		$from_time     = $this->input->post('from_Time', true);
+		$to_time       = $this->input->post('to_Time', true);
+
+		if (empty($order_unique_id) || empty($third_party_provider)) {
+			$response('400', 'Order ID and provider are required.');
+		}
+
+		$providers = $this->db->select('shipping_providers')->from('erp_clients')->where('id', $this->current_vendor['id'])->get()->row_array();
+		$allowed_providers = explode(",",$providers['shipping_providers']);
+
+		if (!in_array($third_party_provider, $allowed_providers)) {
+			$response('400', 'Invalid provider.');
+		}
+
+		$order = $this->Order_model->get_order($order_unique_id);
+		if (empty($order)) {
+			$response('400', 'Order not found.');
+		}
+
+		$order_data = $order[0];
+		$order_id   = $order_data->id;
+
+		if ($order_data->order_status != 1) {
+			$response('400', 'Order must be in pending status.');
+		}
+		
+		
+		$this->db->trans_begin();
+
+		try {
+
+			// ===============================
+			// DELIVERY ADDRESS (School or Normal)
+			// ===============================
+
+			$is_deliver_at_school = (isset($order_data->is_deliver_at_school) 
+				&& (int)$order_data->is_deliver_at_school === 1);
+
+			$addr_row = null;
+
+			if ($is_deliver_at_school) {
+
+				// Get first order item with branch or school
+				$order_item = $this->db->select('branch_id, school_id')
+					->from('tbl_order_items')
+					->where('order_id', $order_id)
+					->limit(1)
+					->get()
+					->row();
+
+				if ($order_item) {
+
+					// ===============================
+					// BRANCH ADDRESS
+					// ===============================
+					if (!empty($order_item->branch_id)) {
+
+						$addr_row = $this->db->select('
+								sb.branch_name as name,
+								sb.address,
+								sb.pincode,
+								c.name as city,
+								st.name as state
+							')
+							->from('erp_school_branches sb')
+							->join('cities c', 'c.id = sb.city_id', 'left')
+							->join('states st', 'st.id = sb.state_id', 'left')
+							->where('sb.id', (int)$order_item->branch_id)
+							->limit(1)
+							->get()
+							->row();
+
+					} 
+					// ===============================
+					// SCHOOL ADDRESS
+					// ===============================
+					elseif (!empty($order_item->school_id)) {
+
+						$addr_row = $this->db->select('
+								s.school_name as name,
+								s.address,
+								s.pincode,
+								c.name as city,
+								st.name as state
+							')
+							->from('erp_schools s')
+							->join('cities c', 'c.id = s.city_id', 'left')
+							->join('states st', 'st.id = s.state_id', 'left')
+							->where('s.id', (int)$order_item->school_id)
+							->limit(1)
+							->get()
+							->row();
+					}
+				}
+
+			} else {
+
+				// ===============================
+				// NORMAL DELIVERY ADDRESS
+				// ===============================
+				$addr_row = $this->db->select('*')
+					->from('tbl_order_address')
+					->where('order_id', $order_id)
+					->limit(1)
+					->get()
+					->row();
+			}
+
+			// If still empty → fallback error
+			if (!$addr_row) {
+				throw new Exception('Delivery address not found.');
+			}
+				
+						
+			$delivery_address_full = '';
+
+			$parts = array_filter([
+				$addr_row->address ?? '',
+				$addr_row->city ?? '',
+				$addr_row->state ?? '',
+				$addr_row->pincode ?? '',
+				'India'
+			]);
+
+			$delivery_address_full = implode(', ', $parts);
+
+			// ===============================
+			// UPDATE ORDER DETAILS
+			// ===============================
+			$update_data = [
+				'courier'               => '3rd_party',
+				'third_party_provider'  => $third_party_provider,
+				'pkg_length_cm'         => $length ?: null,
+				'pkg_breadth_cm'        => $breadth ?: null,
+				'pkg_height_cm'         => $height ?: null,
+				'pkg_weight_kg'         => $weight ?: null
+			];
+
+			$this->db->where('id', $order_id);
+			$this->db->update('tbl_order_details', $update_data);
+
+			// ===============================
+			// THIRD PARTY TABLE
+			// ===============================
+			if ($this->db->table_exists('tbl_order_third_party_shipping')) {
+
+				$tp_data = [
+					'order_id'               => $order_id,
+					'order_unique_id'        => $order_unique_id,
+					'invoice_number'         => $order_data->invoice_no ?? null,
+					'delivery_address_full'  => $delivery_address_full,
+					'length_cm'              => $length ?: null,
+					'breadth_cm'             => $breadth ?: null,
+					'height_cm'              => $height ?: null,
+					'weight_kg'              => $weight ?: null,
+					'third_party_provider'   => $third_party_provider,
+					'schedule_date'          => $schedule_date ?: null,
+					'from_time'              => $from_time ?: null,
+					'to_time'                => $to_time ?: null
+				];
+
+				$existing = $this->db->select('id')
+					->from('tbl_order_third_party_shipping')
+					->where('order_id', $order_id)
+					->get()
+					->row();
+
+				if ($existing) {
+					$this->db->where('id', $existing->id)
+							 ->update('tbl_order_third_party_shipping', $tp_data);
+				} else {
+					$this->db->insert('tbl_order_third_party_shipping', $tp_data);
+				}
+			}
+
+			// ===============================
+			// STATUS HISTORY
+			// ===============================
+			$this->db->insert('tbl_order_status', [
+				'order_id'    => $order_id,
+				'user_id'     => $this->current_vendor['id'] ?? 0,
+				'product_id'  => 0,
+				'status_title'=> '3rd Party Selected',
+				'status_desc' => ucfirst($third_party_provider) .
+								 " (L:$length B:$breadth H:$height W:$weight kg)",
+				'created_at'  => date('Y-m-d H:i:s')
+			]);
+			
+			
+			// ===============================
+			// CALL PROVIDER API
+			// ===============================
+			
+				
+			$provider = $this->db->select('name,email,password,company_id,channel_id,token,token_expiry,pickup_city, pickup_state, pickup_address, pickup_landmark, pickup_pincode, pickup_phoneno, pickup_alt_phoneno, pickup_name, pickup_emailid')
+			->from('erp_shipping_providers')
+			->where('provider', $third_party_provider)
+			->where('client_id', $this->current_vendor['id'] ?? 0)
+			->limit(1)
+			->get()->row();
+			
+			$this->load->model('Shipping_model');
+
+			$api_response = [];
+
+			switch (strtolower($third_party_provider)) {
+
+				case 'velocity':
+
+					$api_response = $this->Shipping_model->create_velocity_bulk_booking([
+						'provider'     	  => $provider,
+						'order_data'      => $order_data,
+						'address_row'     => $addr_row,
+						'length'          => $length,
+						'breadth'         => $breadth,
+						'height'          => $height,
+						'weight'          => $weight,
+						'schedule_date'   => $schedule_date ?: null,
+						'from_time'       => $from_time ?: null,
+						'to_time'         => $to_time ?: null
+					]);
+
+					if ($api_response['status'] != 'success') {
+						throw new Exception($api_response['message']);
+					}
+
+				break;
+
+				default:
+					throw new Exception('Provider API not implemented.');
+			}
+			
+			
+
+			if ($this->db->trans_status() === FALSE) {
+				throw new Exception('Database error');
+			}
+
+			$this->db->trans_commit();
+
+			$response('200', '3rd party shipping saved successfully.');
+
+		} catch (Exception $e) {
+
+			$this->db->trans_rollback();
+			$response('400', $e->getMessage());
+		}
+	}
+	
+	 
+public function test(){
+	echo 'xxx';
+	exit();
+	$curl = curl_init();
+
+	curl_setopt_array($curl, array(
+	  CURLOPT_URL => 'https://velexp.com/corporate-bulk-booking',
+	  CURLOPT_RETURNTRANSFER => true,
+	  CURLOPT_ENCODING => '',
+	  CURLOPT_MAXREDIRS => 10,
+	  CURLOPT_TIMEOUT => 0,
+	  CURLOPT_FOLLOWLOCATION => true,
+	  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+	  CURLOPT_CUSTOMREQUEST => 'POST',
+	  CURLOPT_POSTFIELDS =>'[{ 
+	"username": "corporate_user", 
+	"password": "test@123", 
+	"accno": "12351", 
+	"secret_code": "TEST20200720", 
+	"CustomerName": "IT-TESTING", 
+	"serviceType": "VELOSKY", 
+	"Product_Description": "Electronics", 
+	"pieces": [ 
+	{ "weight": 5.5, "length": 10, "breadth": 12, "height": 8 }, 
+	{ "weight": 3.2, "length": 15, "breadth": 10, "height": 6 } 
+	], 
+	"drop_City": "pune", 
+	"drop_State": "maharashtra", 
+	"drop_Address": "456 Drop Avenue", 
+	"drop_Landmark": "Near Mall", 
+	"drop_Pincode": "416012", 
+	"drop_Phoneno": "8765432109", 
+	"drop_Alt_Phoneno": "9012345678", 
+	"drop_Name": "Mike Drop", 
+	"drop_Emailid": "mike.drop@example.com", 
+	"pickup_City": "Kolhapur", 
+	"pickup_State": "Maharashtra", 
+	"pickup_Address": "123 Pickup Street", 
+	"pickup_Landmark": "Near Park", 
+	"pickup_Pincode": "416012", 
+	"pickup_Phoneno": "9876543210", 
+	"pickup_Alt_Phoneno": "9123456780", 
+	"pickup_Name": "Jane Pickup", 
+	"pickup_Emailid": "jane.pickup@example.com", 
+	"schedule_date": "29-11-2024", 
+	"from_Time": "09:00:00", 
+	"to_Time": "17:00:00", 
+	"Shipment_value": 100.0, 
+	"cod_amount": 100.0, 
+	"payment_mode": "COD", 
+	"send_otp": "False", 
+	"RTO_vendorname": "Onkar", 
+	"RTO_vendoraddress": "address address address", 
+	"RTO_vendorpincode": "416012", 
+	"RTO_vendorcontactno": "9876543210" 
+	}] 
+	',
+	  CURLOPT_HTTPHEADER => array(
+		'Content-Type: application/json'
+	  ),
+	));
+
+	$response = curl_exec($curl);
+
+	curl_close($curl);
+	echo $response;
+}
+	
 }
 
