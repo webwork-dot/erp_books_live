@@ -382,8 +382,8 @@ class Vendor_sync_model extends CI_Model
 			`name` VARCHAR(255) NULL,
 			`email` VARCHAR(255) NULL,
 			`password` TEXT NULL,
-			`company_id` VARCHAR(255) NULL COMMENT 'bigship_access_key',
-			`channel_id` VARCHAR(100) NULL COMMENT 'velocity_accno',
+			`company_id` VARCHAR(255) NULL COMMENT 'bigship_access_key velocity_accno',
+			`channel_id` VARCHAR(100) NULL COMMENT 'velocity_secret_code',
 
 			/* ================= PICKUP DETAILS ================= */
 			`pickup_city` VARCHAR(100) NULL DEFAULT NULL,

@@ -1771,6 +1771,33 @@ if (!function_exists('jsonResponse')) {
         exit;
     }
 }
+
+
+if (!function_exists('sanitizeAddress')) {
+	function sanitizeAddress($address) {
+		$pattern = '/[^a-zA-Z0-9\s\'.,\-\\\\\/]/';
+		$sanitizedAddress = preg_replace($pattern, '', $address);		
+		return $sanitizedAddress;
+	}  
+}
+
+
+if (!function_exists('sanitizeString')) {
+	function sanitizeString($lastName) {
+		// This pattern allows only alphabets, dots, and spaces
+		$pattern = '/[^a-zA-Z\s.]/';
+		$sanitizedLastName = preg_replace($pattern, '', $lastName);
+		return $sanitizedLastName;
+	} 
+}
+	
+if (!function_exists('sanitize_allowed_chars')) {
+	function sanitize_allowed_chars($input) {
+        $pattern = '/[^A-Za-z0-9\s\-\/\\\\]/';
+        return preg_replace($pattern, '', $input);
+    }
+}
+	
 // ------------------------------------------------------------------------
 /* End of file common_helper.php */
 /* Location: ./system/helpers/common.php */

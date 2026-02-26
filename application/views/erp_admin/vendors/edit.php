@@ -880,11 +880,9 @@ $velocity = isset($provider_data['velocity']) ? $provider_data['velocity'] : [];
         value="<?php echo set_value('velocity_secret_code', $velocity['channel_id'] ?? ''); ?>">
     </div>
   </div>
-  
-  
-  <hr class="my-4">
+   
 
-<h6 class="mb-3">Pickup Details</h6>
+<h6 class="mb-3 mt-4">Pickup Details</h6>
 
 <div class="row g-3">
 

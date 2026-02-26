@@ -713,6 +713,7 @@ class Erp_client_model extends CI_Model
 			/* ---------- BIGSHIP ---------- */
 			if ($provider == 'bigship') {
 				$data['name']       = $this->input->post('bigship_user_name');
+				$data['email'] 		= $this->input->post('bigship_email');
 				$data['company_id'] = $this->input->post('bigship_access_key');
 
 				$password = $this->input->post('bigship_password');

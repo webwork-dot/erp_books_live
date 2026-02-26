@@ -2417,7 +2417,10 @@ function saveThirdPartyShipping() {
         data: ajaxData
     })
     .done(function (res) {
-
+        if (res.csrf && res.csrf.hash) {
+            csrfHash = res.csrf.hash;
+        }
+		
         if (res.status === '200') {
             Swal.fire('Success', res.message, 'success')
                 .then(() => location.reload());

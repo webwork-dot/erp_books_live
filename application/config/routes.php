@@ -184,6 +184,11 @@ $route['orders/test_shipping_label/(:any)'] = 'Vendor/Orders/test_shipping_label
 $route['orders/test_barcode'] = 'Vendor/orders/test_barcode';
 $route['orders/test_barcode/(:any)'] = 'Vendor/orders/test_barcode/$1';
 
+
+// Orders shipping routes
+$route['vendor/orders/get_active_shipping_providers'] = 'Vendor/orders/get_active_shipping_providers';
+$route['shipping/bigship_token/(:any)'] = 'shipping/bigship_token/$1';
+
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';
 $route['orders/get_order_details/(:num)'] = 'Vendor/orders/get_order_details/$1';

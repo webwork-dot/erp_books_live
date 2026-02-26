@@ -7,13 +7,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * Displays shipping details when QR code is scanned
  * This is a public controller (no authentication required)
  */
+
 class Shipping extends CI_Controller {
 
-	public function __construct()
-	{
+	public function __construct(){
 		parent::__construct();
 		$this->load->database();
 		$this->load->model('Order_model');
+		$this->load->model('shipping_model');
 	}
 
 	/**
@@ -72,5 +73,21 @@ class Shipping extends CI_Controller {
 		// Load view
 		$this->load->view('public/shipping_details', $data);
 	}
+	
+	
+	public function bigship_token($token = null){
+		if (!$token) show_error('Unauthorized', 403);
+
+		list($key, $vendor_id) = explode('_', $token);
+
+		if ($key !== SECURE_KEY || !is_numeric($vendor_id)) {
+			show_error('Unauthorized', 403);
+		}
+
+		$this->shipping_model->bigship_token((int)$vendor_id);
+
+		echo "Done";
+	}
+    
 }
 

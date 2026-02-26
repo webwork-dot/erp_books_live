@@ -4550,7 +4550,7 @@ class Orders extends Vendor_base
 			return jsonResponse(false, 'Provider is required.');
 		}
 	 
-		if ($provider === 'shiprocket' || $provider === 'bigship') {
+		if ($provider === 'shiprocket') {
 			return jsonResponse(true, '', []);
 		}
 	 
@@ -4596,6 +4596,28 @@ class Orders extends Vendor_base
 				]
 			]);
 		}
+		elseif ($provider === 'bigship') {
+			$this->load->model('shipping_model');
+			$response = $this->shipping_model->get_bigship_warehouses($client_id);
+
+			if (!$response['status']) {
+				return jsonResponse(false, $response['message']);
+			}
+
+			$data = [];
+			foreach ($response['data'] as $w) {
+				$data[] = [
+					'value' => $w['warehouse_id'],
+					'name'  => $w['warehouse_name'] . ', ' .
+							   $w['address_line1'] . ', ' . 
+							   $w['address_city'] . ', ' .
+							   $w['address_state'] . ' - ' .
+							   $w['address_pincode']
+				];
+			}
+
+			return jsonResponse(true, '', $data);
+		}
 
 		return jsonResponse(true, '', []);
 	}
@@ -4624,6 +4646,7 @@ class Orders extends Vendor_base
 		$schedule_date = $this->input->post('schedule_date', true);
 		$from_time     = $this->input->post('from_Time', true);
 		$to_time       = $this->input->post('to_Time', true);
+		$pickup_address_id = $this->input->post('pickup_address_id', true);
 
 		if (empty($order_unique_id) || empty($third_party_provider)) {
 			$response('400', 'Order ID and provider are required.');
@@ -4826,15 +4849,146 @@ class Orders extends Vendor_base
 			$this->load->model('Shipping_model');
 
 			$api_response = [];
+			
 
+			$consignments = array();
+			$product_details = array();
+			$declared_value=0;
+			$total_weight=0;
+			$total_weight_gm=0;	
+			$order_type = $order_data->type_order;
+		
+
+			$order_id   = $order_data->id;
+			$order_type = strtolower($order_data->type_order);
+
+ 
+		if ($order_type === 'bookset') {
+
+			$order_products = $this->db->select('bookset_packages_json')
+				->from('tbl_order_items')
+				->where('order_id', $order_id)
+				->get()
+				->result();
+				
+				
+		 	/*echo json_encode([
+			'debug' => $order_products,
+			'csrf'  => [
+				'name' => $this->security->get_csrf_token_name(),
+				'hash' => $this->security->get_csrf_hash()
+			]
+		]); exit();*/
+		
+			if (empty($order_products)) {
+				throw new Exception('No bookset items found.');
+			}
+
+			foreach ($order_products as $row) {
+
+				if (empty($row->bookset_packages_json)) {
+					continue;
+				}
+
+				$json = json_decode($row->bookset_packages_json, true);
+				if (!isset($json['packages'])) {
+					continue;
+				}
+
+				foreach ($json['packages'] as $package) {
+
+					if (empty($package['products'])) {
+						continue;
+					}
+
+					foreach ($package['products'] as $product) {
+
+						$product_name = $product['display_name'] ?? 'Book';
+						$qty          = (int) ($product['quantity'] ?? 1);
+						$price_total  = (float) ($product['total_price'] ?? 0);
+						$weight_gm    = (float) ($product['weight'] ?? 0);
+
+						$declared_value += $price_total;
+
+						if ($weight_gm <= 0) {
+							$weight_gm = 500;
+						}
+
+						$total_weight_gm += ($weight_gm * $qty);
+
+						$product_details[] = array(
+							"product_category"               => "Bookset",
+							"product_sub_category"           => $package['package_name'] ?? "",
+							"product_name"                   => sanitize_allowed_chars($product_name),
+							"product_quantity"               => $qty,
+							"each_product_invoice_amount"    => $price_total,
+							"each_product_collectable_amount"=> 0,
+							"hsn"                            => $package['hsn'] ?? ""
+						);
+					}
+				}
+			}
+
+			// Convert gm to kg
+			$total_weight = round($total_weight_gm / 1000, 2);
+		}
+		else {
+
+			$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
+				->from('tbl_order_items')
+				->where('order_id', $order_id)
+				->get()
+				->result();
+
+			if (empty($order_products)) {
+				throw new Exception('No order items found.');
+			}
+
+			foreach ($order_products as $item) {
+
+				$product_name = $item->product_title;
+				$qty          = (int) $item->product_qty;
+				$price_total  = (float) $item->total_price;
+				$weight_gm    = (float) $item->weight;
+
+				$declared_value += $price_total;
+
+				if ($weight_gm <= 0) {
+					$weight_gm = 500;
+				}
+
+				$total_weight_gm += ($weight_gm * $qty);
+
+				$product_details[] = array(
+					"product_category"               => "Others",
+					"product_sub_category"           => "",
+					"product_name"                   => sanitize_allowed_chars($product_name),
+					"product_quantity"               => $qty,
+					"each_product_invoice_amount"    => $price_total / max($qty,1),
+					"each_product_collectable_amount"=> 0,
+					"hsn"                            => $item->hsn ?? ""
+				);
+			}
+
+			$total_weight = round($total_weight_gm / 1000, 2);
+		}
+		 	/*echo json_encode([
+			'debug' => $product_details,
+			'csrf'  => [
+				'name' => $this->security->get_csrf_token_name(),
+				'hash' => $this->security->get_csrf_hash()
+			]
+		]); exit();
+*/
 			switch (strtolower($third_party_provider)) {
 
 				case 'velocity':
 
-					$api_response = $this->Shipping_model->create_velocity_bulk_booking([
+					$api_response = $this->Shipping_model->create_velocity_booking([
 						'provider'     	  => $provider,
 						'order_data'      => $order_data,
 						'address_row'     => $addr_row,
+						'product_details' => $product_details,
 						'length'          => $length,
 						'breadth'         => $breadth,
 						'height'          => $height,
@@ -4848,6 +5002,27 @@ class Orders extends Vendor_base
 						throw new Exception($api_response['message']);
 					}
 
+				case 'bigship':
+				
+					$api_response = $this->Shipping_model->create_bigship_booking([
+						'provider'     	  => $provider,
+						'order_data'      => $order_data,
+						'address_row'     => $addr_row,
+						'product_details' => $product_details,
+						'length'          => $length,
+						'breadth'         => $breadth,
+						'height'          => $height,
+						'weight'          => $weight,
+						'schedule_date'   => $schedule_date ?: null,
+						'from_time'       => $from_time ?: null,
+						'to_time'         => $to_time ?: null,
+						'pickup_address_id'=> $pickup_address_id ?: null
+					]);
+
+					if ($api_response['status'] != 'success') {
+						throw new Exception($api_response['message']);
+					}
+					
 				break;
 
 				default:
