@@ -968,20 +968,16 @@ if($order_data[0]->payment_method == 'cod'){
           ?>
           
           <!-- Status 1: Pending - Show Move to Process button -->
-          <?php if ($current_status == '1' || $current_status == 1): ?>
-            <div class="d-grid">
-              <button type="button" class="btn btn-primary btn-lg" onclick="moveToProcessing('<?= $order_data[0]->order_unique_id ?>', this)">
-                <i class="fa fa-arrow-right me-2"></i> Move to Processing
-              </button>
-    </div>
-          <?php endif; ?>
+
           
           <!-- Status 2: Processing - Show Shipper Selection or Generate Label -->
-          <?php if ($current_status == '2' || $current_status == 2): ?>
+          <?php if ($current_status == '1' || $current_status == 1): ?>
             <?php if (empty($courier)): ?>
               <!-- Shipper Selection -->
               <div class="mb-3">
-                <p class="text-muted mb-3 text-center"><strong>Select Shipping Method</strong></p>
+                <p class="text-muted mb-3 text-center"><strong>Select Shipping Method</strong><br/> 
+				<small class="text-muted mb-3 text-center">Assign a shipper to deliver your order</small></p>
+              
                 <div class="row" style="margin: 0;">
                   <div class="col-5" style="padding: 5px;">
                     <button type="button" class="btn btn-outline-primary btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->order_unique_id ?>', 'manual', this)" style="width: 100%;">
@@ -1702,66 +1698,81 @@ if($order_data[0]->payment_method == 'cod'){
     </div>
   </div>
 </div>
-
-<!-- 3rd Party Shipping Modal (Shiprocket, Big Ship) -->
+<!-- 3rd Party Shipping Modal -->
 <div class="modal fade" id="thirdPartyShippingModal" tabindex="-1" aria-labelledby="thirdPartyShippingModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
+
+      <!-- Header -->
       <div class="modal-header">
-        <h5 class="modal-title" id="thirdPartyShippingModalLabel">3rd Party Shipping</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title" id="thirdPartyShippingModalLabel">
+          3rd Party Shipping
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
+
+      <!-- Body -->
       <div class="modal-body">
+
+        <!-- Provider Selection -->
         <div class="mb-4">
           <label class="form-label fw-bold">Select 3rd Party Provider</label>
-          <div class="d-flex gap-2 flex-wrap">
-            <button type="button" class="btn btn-outline-primary third-party-option" data-provider="shiprocket">
-              <i class="fa fa-shipping-fast me-1"></i> Shiprocket
-            </button>
-            <button type="button" class="btn btn-outline-primary third-party-option" data-provider="bigship">
-              <i class="fa fa-truck me-1"></i> Big Ship
-            </button>
+          <div id="thirdPartyProvidersContainer" class="d-flex gap-2 flex-wrap">
+            <span class="text-muted">Loading providers...</span>
           </div>
-          <input type="hidden" id="thirdPartyProvider" value="">
+          <input type="hidden" id="thirdPartyProvider">
         </div>
-        <div class="mb-4">
-          <label class="form-label fw-bold">Pickup Address (from your profile)</label>
-          <div id="vendorAddressDisplay" class="alert alert-light border small py-2">
-            <span class="text-muted">Loading...</span>
-          </div>
+
+        <!-- Pickup Address -->
+        <div class="mb-4" id="pickupAddressSection" style="display:none;">
+          <label class="form-label fw-bold">Pickup Address</label>
+          <select id="pickupAddressSelect" class="form-select">
+            <option value="">Select Pickup Address</option>
+          </select>
         </div>
+
+        <!-- Package Dimensions -->
         <div class="mb-3">
           <label class="form-label fw-bold">Package Dimensions</label>
           <div class="row g-2">
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Length (cm)</label>
-              <input type="number" id="pkgLength" class="form-control" placeholder="0" min="0" step="0.01">
+              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" placeholder="0">
             </div>
+
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Breadth (cm)</label>
-              <input type="number" id="pkgBreadth" class="form-control" placeholder="0" min="0" step="0.01">
+              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" placeholder="0">
             </div>
+
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Height (cm)</label>
-              <input type="number" id="pkgHeight" class="form-control" placeholder="0" min="0" step="0.01">
+              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01" placeholder="0">
             </div>
+
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Weight (kg)</label>
-              <input type="number" id="pkgWeight" class="form-control" placeholder="0" min="0" step="0.01">
+              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" placeholder="0">
             </div>
           </div>
         </div>
+
       </div>
+
+      <!-- Footer -->
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="saveThirdPartyBtn" onclick="saveThirdPartyShipping()" disabled>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+
+        <button type="button" class="btn btn-primary" id="saveThirdPartyBtn" disabled onclick="saveThirdPartyShipping()">
           <i class="fa fa-save me-1"></i> Save & Continue
         </button>
       </div>
+
     </div>
   </div>
 </div>
-
 <!-- Select Courier & AWB Modal (Self Delivery) -->
 <div class="modal fade" id="selectCourierModal" tabindex="-1" aria-labelledby="selectCourierModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1842,7 +1853,7 @@ function showRegenerateLoading(btn) {
     spinnerSpan.hide();
   }, 30000);
 }
-
+/*
 function moveToProcessing(orderUniqueId, btnElement) {
   // Disable button and show loading state
   var $btn = $(btnElement);
@@ -1869,41 +1880,67 @@ function moveToProcessing(orderUniqueId, btnElement) {
       $btn.prop('disabled', false).html(originalText);
     }
   });
-}
+}*/
 
 function selectShipper(orderUniqueId, courierType, btnElement) {
-  // Disable button and show loading state
-  var $btn = $(btnElement);
-  var originalText = $btn.html();
-  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
 
-  $.ajax({
-    url: '<?php echo base_url("orders/set_shipper"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueId,
-      courier: courierType,
-      <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        location.reload();
-      } else {
-        alert(response.message || 'Error setting shipper');
-        $btn.prop('disabled', false).html(originalText);
-      }
-    },
-    error: function(xhr, status, error) {
-      console.error('Error:', error);
-      console.error('Response:', xhr.responseText);
-      if (xhr.responseJSON && xhr.responseJSON.message) {
-        alert(xhr.responseJSON.message);
-      } else {
-        alert('Error setting shipper. Please try again.');
-      }
-      $btn.prop('disabled', false).html(originalText);
+  Swal.fire({
+    title: 'Are you sure?',
+    text: "You want to assign this courier?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, assign it!'
+  }).then((result) => {
+
+    if (result.isConfirmed) {
+
+      var $btn = $(btnElement);
+      var originalText = $btn.html();
+      $btn.prop('disabled', true)
+          .html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+      $.ajax({
+        url: '<?php echo base_url("orders/set_shipper"); ?>',
+        type: 'POST',
+        data: {
+          order_unique_id: orderUniqueId,
+          courier: courierType,
+          <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+        },
+        dataType: 'json',
+        success: function(response) {
+          if (response.status == '200') {
+
+            Swal.fire({
+              icon: 'success',
+              title: 'Assigned!',
+              text: 'Courier assigned successfully.',
+              timer: 1500,
+              showConfirmButton: false
+            }).then(() => {
+              location.reload();
+            });
+
+          } else {
+            Swal.fire('Error', response.message || 'Error setting shipper', 'error');
+            $btn.prop('disabled', false).html(originalText);
+          }
+        },
+        error: function(xhr) {
+          let msg = 'Error setting shipper. Please try again.';
+          if (xhr.responseJSON && xhr.responseJSON.message) {
+            msg = xhr.responseJSON.message;
+          }
+
+          Swal.fire('Error', msg, 'error');
+          $btn.prop('disabled', false).html(originalText);
+        }
+      });
+
     }
+
   });
 }
 
@@ -1965,6 +2002,7 @@ function moveToDelivered(orderUniqueId, btnElement) {
 
 // 3rd Party Shipping Modal
 var orderUniqueIdForThirdParty = '<?= $order_data[0]->order_unique_id ?>';
+/*
 $('#thirdPartyShippingModal').on('show.bs.modal', function() {
   $('#thirdPartyProvider').val('');
   $('#thirdPartyShippingModal .third-party-option').removeClass('active');
@@ -1981,6 +2019,8 @@ $('#thirdPartyShippingModal').on('show.bs.modal', function() {
     $('#vendorAddressDisplay').html('<span class="text-warning">Could not load address.</span>');
   });
 });
+*/
+
 $('#thirdPartyShippingModal .third-party-option').on('click', function() {
   var provider = $(this).data('provider');
   $('#thirdPartyProvider').val(provider);
@@ -1988,45 +2028,7 @@ $('#thirdPartyShippingModal .third-party-option').on('click', function() {
   $(this).addClass('active');
   $('#saveThirdPartyBtn').prop('disabled', false);
 });
-function saveThirdPartyShipping() {
-  var provider = $('#thirdPartyProvider').val();
-  var length = parseFloat($('#pkgLength').val()) || 0;
-  var breadth = parseFloat($('#pkgBreadth').val()) || 0;
-  var height = parseFloat($('#pkgHeight').val()) || 0;
-  var weight = parseFloat($('#pkgWeight').val()) || 0;
-  if (!provider) {
-    alert('Please select a 3rd party provider (Shiprocket or Big Ship).');
-    return;
-  }
-  $('#saveThirdPartyBtn').prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...');
-  $.ajax({
-    url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueIdForThirdParty,
-      third_party_provider: provider,
-      length: length,
-      breadth: breadth,
-      height: height,
-      weight: weight,
-      <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        $('#thirdPartyShippingModal').modal('hide');
-        location.reload();
-      } else {
-        alert(response.message || 'Failed to save.');
-        $('#saveThirdPartyBtn').prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
-      }
-    },
-    error: function() {
-      alert('Error saving. Please try again.');
-      $('#saveThirdPartyBtn').prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
-    }
-  });
-}
+
 
 // Select Courier Modal - load couriers when modal opens
 var orderUniqueIdForCourier = '<?= $order_data[0]->order_unique_id ?>';
@@ -2234,4 +2236,207 @@ function moveBackToPending(orderUniqueId, btnElement) {
     });
   });
 }
+</script>
+
+<script>
+$('#thirdPartyShippingModal').on('show.bs.modal', function() {
+
+    $('#thirdPartyProvidersContainer').html('<span class="text-muted">Loading providers...</span>');
+    $('#pickupAddressSection').hide();
+    $('#pickupAddressSelect').html('<option value="">Select Pickup Address</option>');
+    $('#saveThirdPartyBtn').prop('disabled', true);
+
+	$.get('<?php echo base_url("vendor/orders/get_active_shipping_providers"); ?>', function(res) {
+
+		if (res.success && res.providers.length > 0) {
+
+			var html = '';
+
+			res.providers.forEach(function(p) {
+				html += `
+					<button type="button"
+							class="btn btn-outline-primary third-party-option"
+							data-provider="${p.provider}">
+						${p.provider.charAt(0).toUpperCase() + p.provider.slice(1)}
+					</button>`;
+			});
+
+			$('#thirdPartyProvidersContainer').html(html);
+
+		} else {
+			$('#thirdPartyProvidersContainer').html(
+				'<span class="text-danger">No active providers found</span>'
+			);
+		}
+
+	}, 'json');  
+});
+
+
+// Provider Click
+$(document).on('click', '.third-party-option', function() {
+
+    var provider = $(this).data('provider');
+
+    $('.third-party-option').removeClass('active');
+    $(this).addClass('active');
+
+    $('#thirdPartyProvider').val(provider);
+
+    loadPickupAddresses(provider);
+});
+
+
+var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
+var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
+
+
+function saveThirdPartyShipping(){
+    var $btn = $('#saveThirdPartyBtn');
+
+    if ($btn.prop('disabled')) return; // Prevent double click
+
+    var provider = $('#thirdPartyProvider').val();
+    var pickup   = $('#pickupAddressSelect').val();
+    var length   = parseFloat($('#pkgLength').val()) || 0;
+    var breadth  = parseFloat($('#pkgBreadth').val()) || 0;
+    var height   = parseFloat($('#pkgHeight').val()) || 0;
+    var weight   = parseFloat($('#pkgWeight').val()) || 0;
+
+    if (!provider || !pickup) {
+        Swal.fire('Error', 'Please select provider and pickup address.', 'warning');
+        return;
+    }
+
+    if (weight <= 0) {
+        Swal.fire('Error', 'Please enter valid package weight.', 'warning');
+        return;
+    }
+
+    var originalText = $btn.html();
+
+    $btn.prop('disabled', true)
+        .html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...');
+
+    var postData = {
+        order_unique_id      : orderUniqueIdForThirdParty,
+        third_party_provider : provider,
+        pickup_address_id    : pickup,
+        length               : length,
+        breadth              : breadth,
+        height               : height,
+        weight               : weight
+    };
+
+    // Attach CSRF dynamically
+    postData[csrfName] = csrfHash;
+
+    $.ajax({
+        url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
+        type: 'POST',
+        data: postData,
+        dataType: 'json'
+    })
+    .done(function(res){
+
+        // Refresh CSRF token automatically
+        if (res.csrf) {
+            csrfName = res.csrf.name;
+            csrfHash = res.csrf.hash;
+        }
+
+        if (res.status == '200') {
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: res.message || 'Shipping details saved successfully.',
+                timer: 1500,
+                showConfirmButton: false
+            }).then(() => {
+                location.reload();
+            });
+
+        } else {
+
+            Swal.fire('Error', res.message || 'Failed to save.', 'error');
+            $btn.prop('disabled', false).html(originalText);
+        }
+
+    })
+    .fail(function(xhr){
+
+        let msg = 'Server error. Please try again.';
+        if (xhr.responseJSON && xhr.responseJSON.message) {
+            msg = xhr.responseJSON.message;
+        }
+
+        Swal.fire('Error', msg, 'error');
+        $btn.prop('disabled', false).html(originalText);
+    });
+}
+
+
+function loadPickupAddresses(provider){
+    $('#pickupAddressSection').show();
+    $('#pickupAddressSelect').html('<option value="">Loading...</option>');
+
+    var postData = {};
+    postData['provider'] = provider;
+    postData[csrfName] = csrfHash;
+
+    $.post('<?php echo base_url("vendor/orders/get_provider_pickup_addresses"); ?>', postData, function(res) {
+
+        if (res.csrf) {
+            csrfName = res.csrf.name;
+            csrfHash = res.csrf.hash;
+        }
+
+        if (res.success && res.addresses && res.addresses.length > 0) {
+
+            var options = '<option value="">Select Pickup Address</option>';
+
+            res.addresses.forEach(function(addr) {
+                options += `<option value="${addr.value}">
+                                ${addr.name}
+                            </option>`;
+            });
+
+            $('#pickupAddressSelect').html(options);
+
+        } else {
+
+            $('#pickupAddressSelect').html(
+                '<option value="">No pickup address found</option>'
+            );
+        }
+    }, 'json');
+}
+
+
+
+
+function validateThirdPartyForm(){
+    var provider = $('#thirdPartyProvider').val();
+    var pickup   = $('#pickupAddressSelect').val();
+    var length   = parseFloat($('#pkgLength').val()) || 0;
+    var breadth  = parseFloat($('#pkgBreadth').val()) || 0;
+    var height   = parseFloat($('#pkgHeight').val()) || 0;
+    var weight   = parseFloat($('#pkgWeight').val()) || 0;
+
+    if (provider && pickup && weight > 0 && length > 0 && breadth > 0 && height > 0) {
+        $('#saveThirdPartyBtn').prop('disabled', false);
+    } else {
+        $('#saveThirdPartyBtn').prop('disabled', true);
+    }
+}
+$(document).on('change keyup', 
+    '#thirdPartyProvider, #pickupAddressSelect, #pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight',
+    function() {
+        validateThirdPartyForm();
+    }
+);
+$('#pickupAddressSelect').on('change', function(){
+    validateThirdPartyForm();
+});
 </script>

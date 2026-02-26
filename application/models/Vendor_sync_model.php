@@ -443,7 +443,6 @@ class Vendor_sync_model extends CI_Model
 				$client_db->insert('erp_shipping_providers', $record);
 			}
 		}
-
 		return true;
 	}
 	
