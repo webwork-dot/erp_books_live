@@ -1475,10 +1475,10 @@ class Orders extends Vendor_base
 		$order_id = $order_data->id;
 		
 		// Verify order is in processing status
-		if ($order_data->order_status != '1' && $order_data->order_status != 1) {
+		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
 			echo json_encode([
 				'status' => '400',
-				'message' => 'Order must be in pending status to set shipper. Current status: ' . $order_data->order_status,
+				'message' => 'Order must be in processing status to set shipper. Current status: ' . $order_data->order_status,
 			]);
 			return;
 		}
@@ -1509,13 +1509,9 @@ class Orders extends Vendor_base
 		log_message('debug', 'Updating order_id=' . $order_id . ' with courier=' . $courier_value . ' (current: ' . $current_courier . ')');
 		
 		// Update courier
-		$processing_date = date("Y-m-d H:i:s");
-		
 		$this->db->where('id', $order_id);
 		$update_result = $this->db->update('tbl_order_details', array(
-			'courier' => $courier_value,
-			'order_status' => '2',
-			'processing_date' => $processing_date
+			'courier' => $courier_value
 		));
 		
 		// Check for database errors
@@ -1694,8 +1690,8 @@ class Orders extends Vendor_base
 	 *
 	 * @return	void
 	 */
-	/*public function save_third_party_shipping()
-	{ 
+	public function save_third_party_shipping()
+	{
 		header('Content-Type: application/json');
 		$order_unique_id = $this->input->post('order_unique_id');
 		$third_party_provider = trim($this->input->post('third_party_provider')); // shiprocket, bigship
@@ -1705,18 +1701,17 @@ class Orders extends Vendor_base
 		$weight = (float) $this->input->post('weight');
 		
 		if (empty($order_unique_id) || empty($third_party_provider)) {
-			echo json_encode(array('status' => '400', 'message' => 'Order ID and 3rd party provider are required.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()
-			]));
+			echo json_encode(array('status' => '400', 'message' => 'Order ID and 3rd party provider are required.'));
 			return;
 		}
 		if (!in_array($third_party_provider, array('shiprocket', 'bigship'))) {
-			echo json_encode(array('status' => '400', 'message' => 'Invalid provider. Use Shiprocket or Big Ship.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
+			echo json_encode(array('status' => '400', 'message' => 'Invalid provider. Use Shiprocket or Big Ship.'));
 			return;
 		}
 		
 		$order = $this->Order_model->get_order($order_unique_id);
 		if (empty($order)) {
-			echo json_encode(array('status' => '400', 'message' => 'Order not found.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
+			echo json_encode(array('status' => '400', 'message' => 'Order not found.'));
 			return;
 		}
 		
@@ -1724,7 +1719,7 @@ class Orders extends Vendor_base
 		$order_id = $order_data->id;
 		
 		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
-			echo json_encode(array('status' => '400', 'message' => 'Order must be in processing status.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
+			echo json_encode(array('status' => '400', 'message' => 'Order must be in processing status.'));
 			return;
 		}
 		
@@ -1817,7 +1812,7 @@ class Orders extends Vendor_base
 		$result = $this->db->update('tbl_order_details', $update_data);
 		
 		if (!$result) {
-			echo json_encode(array('status' => '400', 'message' => 'Failed to update order.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
+			echo json_encode(array('status' => '400', 'message' => 'Failed to update order.'));
 			return;
 		}
 		
@@ -1860,7 +1855,7 @@ class Orders extends Vendor_base
 		));
 		
 		echo json_encode(array('status' => '200', 'message' => '3rd party shipping saved successfully.'));
-	}*/
+	}
 	
 	/**
 	 * Move single order to out for delivery status
@@ -4521,242 +4516,5 @@ class Orders extends Vendor_base
 	}
 
 
-
-	public function get_active_shipping_providers()	{
-			$providers = $this->db
-				->select('provider')
-				->from('erp_shipping_providers')
-				->where('client_id', $this->current_vendor['id'])
-				->where('status', 1)
-				->get()
-				->result_array();
-
-			echo json_encode([
-				'success' => true,
-				'providers' => $providers
-			]);
-		}
-			
-				
-		public function get_provider_pickup_addresses(){
-		header('Content-Type: application/json');
-
-		$provider = $this->input->post('provider');
-
-		if (empty($provider)) {
-			echo json_encode([
-				'success' => false,
-				'message' => 'Provider is required.',
-				'addresses' => [],
-				'csrf' => [
-					'name' => $this->security->get_csrf_token_name(),
-					'hash' => $this->security->get_csrf_hash()
-				]
-			]);
-			return;
-		}
-
-		if ($provider === 'shiprocket') {
-
-			echo json_encode([
-				'success' => true,
-				'addresses' => [], // important
-				'csrf' => [
-					'name' => $this->security->get_csrf_token_name(),
-					'hash' => $this->security->get_csrf_hash()
-				]
-			]);
-			return;
-		}
-
-
-		$row = $this->db->select('address, pincode')
-			->from('erp_clients')
-			->where('id', $this->current_vendor['id'])
-			->limit(1)
-			->get()
-			->row_array();
-
-		if (!$row) {
-			echo json_encode([
-				'success' => false,
-				'message' => 'Vendor address not found.',
-				'addresses' => [],
-				'csrf' => [
-					'name' => $this->security->get_csrf_token_name(),
-					'hash' => $this->security->get_csrf_hash()
-				]
-			]);
-			return;
-		}
-
-		$address = trim($row['address'] ?? '');
-		$pincode = trim($row['pincode'] ?? '');
-
-		$full_address = trim($address . ', ' . $pincode);
-
-		if (empty($full_address)) {
-			$full_address = 'Please add address in Profile.';
-		}
-
-		echo json_encode([
-			'success' => true,
-			'addresses' => [
-				[
-					'value' => 1,
-					'name'  => $full_address
-				]
-			],
-			'csrf' => [
-				'name' => $this->security->get_csrf_token_name(),
-				'hash' => $this->security->get_csrf_hash()
-			]
-		]);
-	}
-	
-	public function save_third_party_shipping(){
-		header('Content-Type: application/json');
-
-		$response = function($status, $message) {
-			echo json_encode([
-				'status'  => $status,
-				'message' => $message,
-				'csrf'    => [
-					'name' => $this->security->get_csrf_token_name(),
-					'hash' => $this->security->get_csrf_hash()
-				]
-			]);
-			exit;
-		};
-
-		$order_unique_id      = $this->input->post('order_unique_id', true);
-		$third_party_provider = trim($this->input->post('third_party_provider', true));
-		$length  = (float) $this->input->post('length');
-		$breadth = (float) $this->input->post('breadth');
-		$height  = (float) $this->input->post('height');
-		$weight  = (float) $this->input->post('weight');
-
-		if (empty($order_unique_id) || empty($third_party_provider)) {
-			$response('400', 'Order ID and provider are required.');
-		}
-
-		$allowed_providers = ['shiprocket', 'bigship', 'velocity'];
-
-		if (!in_array($third_party_provider, $allowed_providers)) {
-			$response('400', 'Invalid provider.');
-		}
-
-		$order = $this->Order_model->get_order($order_unique_id);
-		if (empty($order)) {
-			$response('400', 'Order not found.');
-		}
-
-		$order_data = $order[0];
-		$order_id   = $order_data->id;
-
-		if ($order_data->order_status != 2) {
-			$response('400', 'Order must be in processing status.');
-		}
-
-		$this->db->trans_begin();
-
-		try {
-
-			// ===============================
-			// DELIVERY ADDRESS
-			// ===============================
-			$addr_row = $this->db->select('*')
-				->from('tbl_order_address')
-				->where('order_id', $order_id)
-				->limit(1)
-				->get()
-				->row();
-
-			$delivery_address_full = '';
-			if ($addr_row) {
-				$parts = array_filter([
-					$addr_row->address ?? '',
-					$addr_row->city ?? '',
-					$addr_row->state ?? '',
-					$addr_row->pincode ?? '',
-					$addr_row->country ?? ''
-				]);
-				$delivery_address_full = implode(', ', $parts);
-			}
-
-			// ===============================
-			// UPDATE ORDER DETAILS
-			// ===============================
-			$update_data = [
-				'courier'               => '3rd_party',
-				'third_party_provider'  => $third_party_provider,
-				'pkg_length_cm'         => $length ?: null,
-				'pkg_breadth_cm'        => $breadth ?: null,
-				'pkg_height_cm'         => $height ?: null,
-				'pkg_weight_kg'         => $weight ?: null
-			];
-
-			$this->db->where('id', $order_id);
-			$this->db->update('tbl_order_details', $update_data);
-
-			// ===============================
-			// THIRD PARTY TABLE
-			// ===============================
-			if ($this->db->table_exists('tbl_order_third_party_shipping')) {
-
-				$tp_data = [
-					'order_id'               => $order_id,
-					'order_unique_id'        => $order_unique_id,
-					'invoice_number'         => $order_data->invoice_no ?? null,
-					'delivery_address_full'  => $delivery_address_full,
-					'length_cm'              => $length ?: null,
-					'breadth_cm'             => $breadth ?: null,
-					'height_cm'              => $height ?: null,
-					'weight_kg'              => $weight ?: null,
-					'third_party_provider'   => $third_party_provider
-				];
-
-				$existing = $this->db->select('id')
-					->from('tbl_order_third_party_shipping')
-					->where('order_id', $order_id)
-					->get()
-					->row();
-
-				if ($existing) {
-					$this->db->where('id', $existing->id)
-							 ->update('tbl_order_third_party_shipping', $tp_data);
-				} else {
-					$this->db->insert('tbl_order_third_party_shipping', $tp_data);
-				}
-			}
-
-			// ===============================
-			// STATUS HISTORY
-			// ===============================
-			$this->db->insert('tbl_order_status', [
-				'order_id'    => $order_id,
-				'user_id'     => $this->current_vendor['id'] ?? 0,
-				'product_id'  => 0,
-				'status_title'=> '3rd Party Selected',
-				'status_desc' => ucfirst($third_party_provider) .
-								 " (L:$length B:$breadth H:$height W:$weight kg)",
-				'created_at'  => date('Y-m-d H:i:s')
-			]);
-
-			if ($this->db->trans_status() === FALSE) {
-				throw new Exception('Database error');
-			}
-
-			$this->db->trans_commit();
-
-			$response('200', '3rd party shipping saved successfully.');
-
-		} catch (Exception $e) {
-
-			$this->db->trans_rollback();
-			$response('400', $e->getMessage());
-		}
-	}
-	
 }
 

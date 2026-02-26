@@ -375,33 +375,59 @@ class Vendor_sync_model extends CI_Model
 		 * 5️⃣ CREATE erp_shipping_providers TABLE IF NOT EXISTS
 		 * ========================================================== */
 		$client_db->query("
-			CREATE TABLE IF NOT EXISTS `erp_shipping_providers` (
-				`id` INT(11) NOT NULL AUTO_INCREMENT,
-				`client_id` INT(11) NOT NULL,
-				`provider` VARCHAR(50) NULL,
-				`name` VARCHAR(255) NULL,
-				`email` VARCHAR(255) NULL,
-				`password` TEXT NULL,
-				`company_id` VARCHAR(255) NULL COMMENT 'bigship_access_key',
-				`channel_id` VARCHAR(100) NULL COMMENT 'velocity_accno',
-				`token` TEXT NULL,
-				`token_expiry` DATETIME NULL,
-				`status` TINYINT(1) NOT NULL DEFAULT 0,
-				`created_at` DATETIME NULL,
-				`last_updated` DATETIME NULL,
-				PRIMARY KEY (`id`),
-				UNIQUE KEY `unique_provider` (`client_id`,`provider`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-		");
+		CREATE TABLE IF NOT EXISTS `erp_shipping_providers` (
+			`id` INT(11) NOT NULL AUTO_INCREMENT,
+			`client_id` INT(11) NOT NULL,
+			`provider` VARCHAR(50) NULL,
+			`name` VARCHAR(255) NULL,
+			`email` VARCHAR(255) NULL,
+			`password` TEXT NULL,
+			`company_id` VARCHAR(255) NULL COMMENT 'bigship_access_key',
+			`channel_id` VARCHAR(100) NULL COMMENT 'velocity_accno',
+
+			/* ================= PICKUP DETAILS ================= */
+			`pickup_city` VARCHAR(100) NULL DEFAULT NULL,
+			`pickup_state` VARCHAR(100) NULL DEFAULT NULL,
+			`pickup_address` TEXT NULL DEFAULT NULL,
+			`pickup_landmark` VARCHAR(500) NULL DEFAULT NULL,
+			`pickup_pincode` VARCHAR(10) NULL DEFAULT NULL,
+			`pickup_phoneno` VARCHAR(20) NULL DEFAULT NULL,
+			`pickup_alt_phoneno` VARCHAR(20) NULL DEFAULT NULL,
+			`pickup_name` VARCHAR(150) NULL DEFAULT NULL,
+			`pickup_emailid` VARCHAR(150) NULL DEFAULT NULL,
+
+			/* ================= TOKEN ================= */
+			`token` TEXT NULL,
+			`token_expiry` DATETIME NULL,
+
+			`status` TINYINT(1) NOT NULL DEFAULT 0,
+			`created_at` DATETIME NULL,
+			`last_updated` DATETIME NULL,
+
+			PRIMARY KEY (`id`),
+			UNIQUE KEY `unique_provider` (`client_id`,`provider`)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+	");
+		
 
 		/* ==========================================================
 		 * 6️⃣ ENSURE REQUIRED COLUMNS EXIST (AUTO ALTER)
-		 * ========================================================== */
-
+		 * ========================================================== */ 
 		$required_columns = [
 			'email' => "VARCHAR(255) NULL",
-			'company_id' => "VARCHAR(100) NULL",
+			'company_id' => "VARCHAR(255) NULL",
 			'channel_id' => "VARCHAR(100) NULL",
+
+			'pickup_city' => "VARCHAR(100) NULL",
+			'pickup_state' => "VARCHAR(100) NULL",
+			'pickup_address' => "TEXT NULL",
+			'pickup_landmark' => "VARCHAR(500) NULL",
+			'pickup_pincode' => "VARCHAR(10) NULL",
+			'pickup_phoneno' => "VARCHAR(20) NULL",
+			'pickup_alt_phoneno' => "VARCHAR(20) NULL",
+			'pickup_name' => "VARCHAR(150) NULL",
+			'pickup_emailid' => "VARCHAR(150) NULL",
+
 			'token' => "TEXT NULL",
 			'token_expiry' => "DATETIME NULL",
 			'status' => "TINYINT(1) NOT NULL DEFAULT 0"

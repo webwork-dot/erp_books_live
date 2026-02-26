@@ -1756,6 +1756,23 @@ if($order_data[0]->payment_method == 'cod'){
             </div>
           </div>
         </div>
+		
+		 
+        <div class="mb-3" id="velocityScheduleSection" style="display:none;">
+          <label class="form-label fw-bold">Pickup Schedule (Velocity Only)</label>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <input type="date" id="scheduleDate"  class="form-control">
+            </div>
+            <div class="col-md-4">
+              <input type="time" id="fromTime" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <input type="time" id="toTime" class="form-control">
+            </div>
+          </div>
+        </div>
+		
 
       </div>
 
@@ -2287,38 +2304,97 @@ $(document).on('click', '.third-party-option', function() {
 });
 
 
+/* =========================================
+   GLOBAL CSRF SETUP
+========================================= */
+
 var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
 var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
 
+/* Automatically attach CSRF to all POST requests */
+$.ajaxSetup({
+    beforeSend: function (xhr, settings) {
 
-function saveThirdPartyShipping(){
+        if (settings.type === 'POST') {
+
+            if (typeof settings.data === 'string') {
+                settings.data += '&' + csrfName + '=' + csrfHash;
+            } else if (typeof settings.data === 'object') {
+                settings.data[csrfName] = csrfHash;
+            }
+
+        }
+    }
+});
+
+
+/* =========================================
+   SAVE THIRD PARTY SHIPPING
+========================================= */
+function saveThirdPartyShipping() {
+
     var $btn = $('#saveThirdPartyBtn');
+    if ($btn.prop('disabled')) return;
 
-    if ($btn.prop('disabled')) return; // Prevent double click
-
-    var provider = $('#thirdPartyProvider').val();
-    var pickup   = $('#pickupAddressSelect').val();
-    var length   = parseFloat($('#pkgLength').val()) || 0;
-    var breadth  = parseFloat($('#pkgBreadth').val()) || 0;
-    var height   = parseFloat($('#pkgHeight').val()) || 0;
-    var weight   = parseFloat($('#pkgWeight').val()) || 0;
+    var provider     = $('#thirdPartyProvider').val();
+    var pickup       = $('#pickupAddressSelect').val();
+    var length       = parseFloat($('#pkgLength').val()) || 0;
+    var breadth      = parseFloat($('#pkgBreadth').val()) || 0;
+    var height       = parseFloat($('#pkgHeight').val()) || 0;
+    var weight       = parseFloat($('#pkgWeight').val()) || 0;
+    var scheduleDate = $('#scheduleDate').val();
+    var fromTime     = $('#fromTime').val();
+    var toTime       = $('#toTime').val();
 
     if (!provider || !pickup) {
-        Swal.fire('Error', 'Please select provider and pickup address.', 'warning');
+        Swal.fire('Error', 'Select provider & pickup address.', 'warning');
         return;
     }
 
     if (weight <= 0) {
-        Swal.fire('Error', 'Please enter valid package weight.', 'warning');
+        Swal.fire('Error', 'Enter valid weight.', 'warning');
         return;
     }
+	
 
-    var originalText = $btn.html();
+	if (provider.toLowerCase() === 'velocity') {
+		let scheduleDate = $('#scheduleDate').val();
+		let fromTime     = $('#fromTime').val();
+		let toTime       = $('#toTime').val();
 
-    $btn.prop('disabled', true)
-        .html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...');
+		if (!scheduleDate || !fromTime || !toTime) {
+			Swal.fire('Error', 'Pickup schedule is required for Velocity.', 'warning');
+			return;
+		}
 
-    var postData = {
+		let now = new Date();
+		let selectedDate = new Date(scheduleDate + 'T' + fromTime);
+
+		// Past date check
+		if (selectedDate < now) {
+			Swal.fire('Error', 'Pickup time cannot be in the past.', 'warning');
+			return;
+		}
+
+		// Time comparison
+		if (fromTime >= toTime) {
+			Swal.fire('Error', 'From Time must be earlier than To Time.', 'warning');
+			return;
+		}
+
+		// Optional: Minimum 1 hour window
+		let from = new Date(scheduleDate + 'T' + fromTime);
+		let to   = new Date(scheduleDate + 'T' + toTime);
+
+		let diffMinutes = (to - from) / 60000;
+
+		if (diffMinutes < 30) {
+			Swal.fire('Error', 'Pickup window must be at least 30 minutes.', 'warning');
+			return;
+		}
+	}
+
+    var ajaxData = {
         order_unique_id      : orderUniqueIdForThirdParty,
         third_party_provider : provider,
         pickup_address_id    : pickup,
@@ -2328,67 +2404,80 @@ function saveThirdPartyShipping(){
         weight               : weight
     };
 
-    // Attach CSRF dynamically
-    postData[csrfName] = csrfHash;
+    if (provider.toLowerCase() === 'velocity') {
+        ajaxData.schedule_date = scheduleDate;
+        ajaxData.from_Time     = fromTime;
+        ajaxData.to_Time       = toTime;
+    }
 
     $.ajax({
         url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
         type: 'POST',
-        data: postData,
-        dataType: 'json'
+        dataType: 'json',
+        data: ajaxData
     })
-    .done(function(res){
+    .done(function (res) {
 
-        // Refresh CSRF token automatically
-        if (res.csrf) {
-            csrfName = res.csrf.name;
-            csrfHash = res.csrf.hash;
-        }
-
-        if (res.status == '200') {
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Success',
-                text: res.message || 'Shipping details saved successfully.',
-                timer: 1500,
-                showConfirmButton: false
-            }).then(() => {
-                location.reload();
-            });
-
+        if (res.status === '200') {
+            Swal.fire('Success', res.message, 'success')
+                .then(() => location.reload());
         } else {
-
-            Swal.fire('Error', res.message || 'Failed to save.', 'error');
-            $btn.prop('disabled', false).html(originalText);
+            Swal.fire('Error', res.message, 'error');
         }
-
-    })
-    .fail(function(xhr){
-
-        let msg = 'Server error. Please try again.';
-        if (xhr.responseJSON && xhr.responseJSON.message) {
-            msg = xhr.responseJSON.message;
-        }
-
-        Swal.fire('Error', msg, 'error');
-        $btn.prop('disabled', false).html(originalText);
     });
 }
 
 
-function loadPickupAddresses(provider){
+/* =========================================
+   LOAD PICKUP ADDRESSES
+========================================= */
+
+function loadPickupAddresses(provider) {
+
+    if (!provider) return;
+	
+	if (provider.toLowerCase() === 'velocity') {
+
+		$('#velocityScheduleSection').slideDown();
+
+		let now = new Date();
+
+		let today = now.toISOString().split('T')[0];
+
+		// Set minimum selectable date
+		$('#scheduleDate').attr('min', today);
+
+		$('#scheduleDate').prop('required', true);
+		$('#fromTime').prop('required', true);
+		$('#toTime').prop('required', true);
+
+		$('#scheduleDate').val(today);
+		$('#fromTime').val('09:00');
+		$('#toTime').val('18:00');
+
+	} else {
+
+		$('#velocityScheduleSection').slideUp();
+
+		$('#scheduleDate').prop('required', false).val('').removeAttr('min');
+		$('#fromTime').prop('required', false).val('');
+		$('#toTime').prop('required', false).val('');
+	}
+	
+
     $('#pickupAddressSection').show();
     $('#pickupAddressSelect').html('<option value="">Loading...</option>');
 
-    var postData = {};
-    postData['provider'] = provider;
-    postData[csrfName] = csrfHash;
-
-    $.post('<?php echo base_url("vendor/orders/get_provider_pickup_addresses"); ?>', postData, function(res) {
-
-        if (res.csrf) {
-            csrfName = res.csrf.name;
+    $.ajax({
+        url: '<?php echo base_url("vendor/orders/get_provider_pickup_addresses"); ?>',
+        type: 'POST',
+        dataType: 'json',
+        data: {
+            provider: provider
+        }
+    })
+    .done(function (res) {
+        if (res.csrf && res.csrf.hash) {
             csrfHash = res.csrf.hash;
         }
 
@@ -2396,10 +2485,10 @@ function loadPickupAddresses(provider){
 
             var options = '<option value="">Select Pickup Address</option>';
 
-            res.addresses.forEach(function(addr) {
-                options += `<option value="${addr.value}">
-                                ${addr.name}
-                            </option>`;
+            res.addresses.forEach(function (addr) {
+                options += '<option value="' + addr.value + '">' +
+                                addr.name +
+                           '</option>';
             });
 
             $('#pickupAddressSelect').html(options);
@@ -2410,10 +2499,15 @@ function loadPickupAddresses(provider){
                 '<option value="">No pickup address found</option>'
             );
         }
-    }, 'json');
+
+    })
+    .fail(function () {
+
+        $('#pickupAddressSelect').html(
+            '<option value="">Error loading pickup addresses</option>'
+        );
+    });
 }
-
-
 
 
 function validateThirdPartyForm(){
@@ -2439,4 +2533,5 @@ $(document).on('change keyup',
 $('#pickupAddressSelect').on('change', function(){
     validateThirdPartyForm();
 });
+
 </script>

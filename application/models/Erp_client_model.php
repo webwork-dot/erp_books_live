@@ -731,6 +731,17 @@ class Erp_client_model extends CI_Model
 				if (!empty($password)) {
 					$data['password'] = $password;
 				}
+				$city = trim($this->input->post($provider . '_pickup_city'));
+				$data['pickup_city'] 		= ucwords(strtolower($city));
+				$data['pickup_state']       = $this->input->post($provider.'_pickup_state');
+				$data['pickup_address']     = $this->input->post($provider.'_pickup_address');
+				$data['pickup_landmark']    = $this->input->post($provider.'_pickup_landmark');
+				$data['pickup_pincode']     = $this->input->post($provider.'_pickup_pincode');
+				$data['pickup_phoneno']     = $this->input->post($provider.'_pickup_phoneno');
+				$data['pickup_alt_phoneno'] = $this->input->post($provider.'_pickup_alt_phoneno');
+				$data['pickup_name']        = $this->input->post($provider.'_pickup_name');
+				$data['pickup_emailid']     = $this->input->post($provider.'_pickup_emailid');
+				
 			}
 
 			/* ---------- UPSERT ---------- */
@@ -762,7 +773,13 @@ class Erp_client_model extends CI_Model
 		}
 
 		return true;
+	}	
+	
+	public function getStates(){
+		$query=$this->db->get('states');			
+		return $query->result_array();
 	}
+
 	
 }
 

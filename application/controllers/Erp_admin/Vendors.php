@@ -327,7 +327,6 @@ class Vendors extends Erp_base
 	 */
 	public function edit($vendor_id)
 	{
-		// 🔥 FORCE load upload config
 		$this->config->load('upload', TRUE);
 
 		// Get favicon config
@@ -385,6 +384,63 @@ class Vendors extends Erp_base
 		$this->form_validation->set_rules('firebase_messaging_sender_id', 'Firebase Messaging Sender ID', 'trim');
 		$this->form_validation->set_rules('firebase_app_id', 'Firebase App ID', 'trim');
 		
+		/* =====================================================
+		 * SHIPPING VALIDATION (Velocity Only)
+		 * ===================================================== */
+
+		$shipping_providers = $this->input->post('shipping_providers');
+
+		if (is_array($shipping_providers) && in_array('velocity', $shipping_providers)){
+			$this->form_validation->set_rules(
+				'velocity_pickup_name',
+				'Pickup Name',
+				'required|trim|max_length[150]'
+			);
+
+			$this->form_validation->set_rules(
+				'velocity_pickup_emailid',
+				'Pickup Email',
+				'required|trim|valid_email|max_length[150]'
+			);
+
+			$this->form_validation->set_rules(
+				'velocity_pickup_phoneno',
+				'Pickup Phone',
+				'required|regex_match[/^[6-9][0-9]{9}$/]'
+			);
+
+			$this->form_validation->set_rules(
+				'velocity_pickup_alt_phoneno',
+				'Alternate Phone',
+				'regex_match[/^[6-9][0-9]{9}$/]'
+			);
+
+			$this->form_validation->set_rules(
+				'velocity_pickup_pincode',
+				'Pickup Pincode',
+				'required|regex_match[/^[1-9][0-9]{5}$/]'
+			);
+
+			$this->form_validation->set_rules(
+				'velocity_pickup_city',
+				'Pickup City',
+				'required|trim|max_length[100]'
+			);
+
+			$this->form_validation->set_rules(
+				'velocity_pickup_state',
+				'Pickup State',
+				'required|trim|max_length[100]'
+			);
+
+			$this->form_validation->set_rules(
+				'velocity_pickup_address',
+				'Pickup Address',
+				'required|trim'
+			);
+		}
+				
+		
 		if ($this->form_validation->run() == FALSE)
 		{
 			// Get all features (only main categories for the checkbox list)
@@ -441,6 +497,7 @@ class Vendors extends Erp_base
 			}
 
 			$data['provider_data'] = $provider_data;
+			$data['states'] = $this->Erp_client_model->getStates();
 						
 			
 			// Load content view

@@ -786,23 +786,23 @@ $velocity = isset($provider_data['velocity']) ? $provider_data['velocity'] : [];
 
   <div class="row">
     <div class="col-md-4">
-      <label>Name</label>
+      <label>Name <span class="text-danger required-star">*</span></label>
       <input type="text" name="shiprocket_name"
-        class="form-control"
+        class="form-control shiprocket-required"
         value="<?php echo set_value('shiprocket_name', $shiprocket['name'] ?? ''); ?>">
     </div>
 
     <div class="col-md-4">
-      <label>Email</label>
+      <label>Email <span class="text-danger required-star">*</span></label>
       <input type="email" name="shiprocket_email"
-        class="form-control"
+        class="form-control shiprocket-required"
         value="<?php echo set_value('shiprocket_email', $shiprocket['email'] ?? ''); ?>">
     </div>
 
     <div class="col-md-4">
-      <label>Password</label>
+      <label>Password <span class="text-danger required-star">*</span></label>
       <input type="password" name="shiprocket_password"
-        class="form-control"
+        class="form-control shiprocket-required"
         value="<?php echo set_value('shiprocket_password', $shiprocket['password'] ?? ''); ?>">
     </div>
   </div>
@@ -815,31 +815,31 @@ $velocity = isset($provider_data['velocity']) ? $provider_data['velocity'] : [];
 
   <div class="row">
     <div class="col-md-3">
-      <label>User Name</label>
+      <label>User Name <span class="text-danger required-star">*</span></label>
       <input type="text" name="bigship_user_name"
-        class="form-control"
+        class="form-control bigship-required"
         value="<?php echo set_value('bigship_user_name', $bigship['name'] ?? ''); ?>">
     </div>  
 
 	<div class="col-md-3">
-      <label>Email</label>
+      <label>Email <span class="text-danger required-star">*</span></label>
       <input type="text" name="bigship_email"
-        class="form-control"
+        class="form-control bigship-required"
         value="<?php echo set_value('bigship_email', $bigship['email'] ?? ''); ?>">
     </div>
 
 
     <div class="col-md-3">
-      <label>Password</label>
+      <label>Password <span class="text-danger required-star">*</span></label>
       <input type="text" name="bigship_password"
-        class="form-control"
+        class="form-control bigship-required"
         value="<?php echo set_value('bigship_password', $bigship['password'] ?? ''); ?>">
     </div>
 
     <div class="col-md-3">
-      <label>Access Key</label>
+      <label>Access Key <span class="text-danger required-star">*</span></label>
       <input type="text" name="bigship_access_key"
-        class="form-control"
+        class="form-control bigship-required"
         value="<?php echo set_value('bigship_access_key', $bigship['company_id'] ?? ''); ?>">
     </div>
   </div>
@@ -853,50 +853,177 @@ $velocity = isset($provider_data['velocity']) ? $provider_data['velocity'] : [];
 
   <div class="row">
     <div class="col-md-3">
-      <label>Username</label>
+      <label>Username <span class="text-danger required-star">*</span></label>
       <input type="text" name="velocity_username"
-        class="form-control"
+        class="form-control velocity-required"
         value="<?php echo set_value('velocity_username', $velocity['name'] ?? ''); ?>">
     </div>
 
     <div class="col-md-3">
-      <label>Password</label>
+      <label>Password <span class="text-danger required-star">*</span></label>
       <input type="text" name="velocity_password"
-        class="form-control"
+        class="form-control velocity-required"
         value="<?php echo set_value('velocity_password', $velocity['password'] ?? ''); ?>">
     </div>
 
     <div class="col-md-3">
-      <label>Account No</label>
+      <label>Account No <span class="text-danger required-star">*</span></label>
       <input type="text" name="velocity_accno"
-        class="form-control"
+        class="form-control velocity-required"
         value="<?php echo set_value('velocity_accno', $velocity['company_id'] ?? ''); ?>">
     </div>
 
     <div class="col-md-3">
-      <label>Secret Code</label>
+      <label>Secret Code <span class="text-danger required-star">*</span></label>
       <input type="text" name="velocity_secret_code"
-        class="form-control"
+        class="form-control velocity-required"
         value="<?php echo set_value('velocity_secret_code', $velocity['channel_id'] ?? ''); ?>">
     </div>
+  </div>
+  
+  
+  <hr class="my-4">
+
+<h6 class="mb-3">Pickup Details</h6>
+
+<div class="row g-3">
+
+  <div class="col-md-4">
+    <label>Pickup Name <span class="text-danger required-star d-none">*</span></label>
+    <input type="text" name="velocity_pickup_name"
+      class="form-control velocity-required"
+      value="<?php echo set_value('velocity_pickup_name', $velocity['pickup_name'] ?? ''); ?>">
+  </div>
+
+  <div class="col-md-4">
+    <label>Pickup Email <span class="text-danger required-star d-none">*</span></label>
+<input type="email"
+       name="velocity_pickup_emailid"
+       class="form-control velocity-required"
+       maxlength="150"
+       pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+       value="<?php echo set_value('velocity_pickup_emailid', $velocity['pickup_emailid'] ?? ''); ?>">
+  </div>
+
+  <div class="col-md-4">
+    <label>Pickup Phone <span class="text-danger required-star d-none">*</span></label>
+	<input type="text"
+       name="velocity_pickup_phoneno"
+       class="form-control velocity-required" 
+	   onkeypress="return isNumberKey(event,this)" minlength="10" maxlength="10" inputmode="numeric"
+       value="<?php echo set_value('velocity_pickup_phoneno', $velocity['pickup_phoneno'] ?? ''); ?>"
+       required>
+<small class="text-muted">10 digit mobile starting with 6-9</small>
+  </div>
+
+  <div class="col-md-4">
+    <label>Alternate Phone</label>
+	<input type="text"
+       name="velocity_pickup_alt_phoneno"
+       class="form-control" onkeypress="return isNumberKey(event,this)" minlength="10" maxlength="10" inputmode="numeric"
+       value="<?php echo set_value('velocity_pickup_alt_phoneno', $velocity['pickup_alt_phoneno'] ?? ''); ?>">
+  </div>
+
+  <div class="col-md-4">
+    <label>Pickup City <span class="text-danger required-star d-none">*</span></label>
+    <input type="text" name="velocity_pickup_city"
+      class="form-control velocity-required"
+      value="<?php echo set_value('velocity_pickup_city', $velocity['pickup_city'] ?? ''); ?>">
+  </div>
+ 
+  
+  <div class="col-md-4">
+	  <label> Pickup State <span class="text-danger required-star d-none">*</span> </label>
+
+	  <select name="velocity_pickup_state" class="form-select velocity-required">
+		<option value="">Select State</option>
+		<?php 
+		  $selected_state = set_value('velocity_pickup_state',$velocity['pickup_state'] ?? '');
+		  if (!empty($states)):
+		  foreach ($states as $state):
+		  $state_name = $state['name'];  ?>
+			<option value="<?php echo htmlspecialchars($state_name); ?>" <?php echo ($selected_state == $state_name) ? 'selected' : ''; ?>><?php echo htmlspecialchars($state_name); ?> </option>
+		 <?php endforeach; endif;?>
+	  </select>
+	</div>
+
+  <div class="col-md-6">
+    <label>Pickup Address <span class="text-danger required-star d-none">*</span></label>
+    <textarea name="velocity_pickup_address"
+      class="form-control velocity-required"
+      rows="2"><?php echo set_value('velocity_pickup_address', $velocity['pickup_address'] ?? ''); ?></textarea>
+  </div>
+
+  <div class="col-md-6">
+    <label>Landmark <span class="text-danger required-star d-none">*</span></label>
+    <input type="text" name="velocity_pickup_landmark"
+      class="form-control velocity-required"
+      value="<?php echo set_value('velocity_pickup_landmark', $velocity['pickup_landmark'] ?? ''); ?>">
+  </div>
+
+  <div class="col-md-4">
+    <label>Pincode <span class="text-danger required-star d-none">*</span></label>
+<input type="text"
+       name="velocity_pickup_pincode"
+       class="form-control velocity-required"
+		minlength="6" maxlength="6" onkeypress="return isNumberKey(event,this)"   
+       inputmode="numeric"
+       value="<?php echo set_value('velocity_pickup_pincode', $velocity['pickup_pincode'] ?? ''); ?>"
+       required>
+<small class="text-muted">6 digit Indian pincode</small>
   </div>
 
 </div>
 
+</div>
 
 <script>
-document.querySelectorAll('.shipping-provider-checkbox').forEach(function(checkbox) {
-    checkbox.addEventListener('change', function() {
+document.addEventListener('DOMContentLoaded', function () {
 
-        const provider = this.value;
+    const checkboxes = document.querySelectorAll('.shipping-provider-checkbox');
+
+    function toggleProvider(provider, isChecked) {
+
         const configDiv = document.getElementById(provider + '_config');
 
-        if (this.checked) {
-            configDiv.style.display = 'block';
-        } else {
-            configDiv.style.display = 'none';
+        if (configDiv) {
+            configDiv.style.display = isChecked ? 'block' : 'none';
         }
+
+        // Toggle required fields
+        const requiredFields = document.querySelectorAll('.' + provider + '-required');
+        const stars = document.querySelectorAll('#' + provider + '_config .required-star');
+
+        requiredFields.forEach(function (field) {
+            if (isChecked) {
+                field.setAttribute('required', 'required');
+            } else {
+                field.removeAttribute('required');
+            }
+        });
+
+        // Toggle red stars
+        stars.forEach(function (star) {
+            if (isChecked) {
+                star.classList.remove('d-none');
+            } else {
+                star.classList.add('d-none');
+            }
+        });
+    }
+
+    // ON LOAD — apply for already checked providers
+    checkboxes.forEach(function (checkbox) {
+        toggleProvider(checkbox.value, checkbox.checked);
     });
+
+    // ON CHANGE
+    checkboxes.forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
+            toggleProvider(this.value, this.checked);
+        });
+    });
+
 });
 </script>
 
