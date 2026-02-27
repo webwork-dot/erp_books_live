@@ -1782,9 +1782,17 @@ if($order_data[0]->payment_method == 'cod'){
           Cancel
         </button>
 
-        <button type="button" class="btn btn-primary" id="saveThirdPartyBtn" disabled onclick="saveThirdPartyShipping()">
-          <i class="fa fa-save me-1"></i> Save & Continue
-        </button>
+     
+		
+		<button type="button" class="btn btn-primary" id="saveThirdPartyBtn" disabled onclick="saveThirdPartyShipping()">
+			<span id="saveBtnText">
+				<i class="fa fa-save me-1"></i> Save & Continue
+			</span>
+			<span id="saveBtnLoader" style="display:none;">
+				<i class="fa fa-spinner fa-spin me-1"></i> Processing...
+			</span>
+		</button>
+		
       </div>
 
     </div>
@@ -2355,7 +2363,6 @@ function saveThirdPartyShipping() {
         Swal.fire('Error', 'Enter valid weight.', 'warning');
         return;
     }
-	
 
 	if (provider.toLowerCase() === 'velocity') {
 		let scheduleDate = $('#scheduleDate').val();
@@ -2410,6 +2417,10 @@ function saveThirdPartyShipping() {
         ajaxData.to_Time       = toTime;
     }
 
+    $btn.prop('disabled', true);
+    $('#saveBtnText').hide();
+    $('#saveBtnLoader').show();
+	  
     $.ajax({
         url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
         type: 'POST',
@@ -2425,6 +2436,9 @@ function saveThirdPartyShipping() {
             Swal.fire('Success', res.message, 'success')
                 .then(() => location.reload());
         } else {
+            $btn.prop('disabled', false);
+            $('#saveBtnText').show();
+            $('#saveBtnLoader').hide();
             Swal.fire('Error', res.message, 'error');
         }
     });

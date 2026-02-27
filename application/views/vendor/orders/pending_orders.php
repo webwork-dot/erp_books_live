@@ -238,7 +238,7 @@
                               <td><?php echo $item['payment_id']; ?></td>
                               <td><?php echo isset($item['razorpay_order_id']) ? $item['razorpay_order_id'] : '-'; ?></td>
                               <td nowrap="">
-                                 <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                 <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn-sm btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                               </td>
                            </tr>
                         <?php endforeach; 

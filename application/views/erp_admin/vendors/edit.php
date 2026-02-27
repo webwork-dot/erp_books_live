@@ -851,12 +851,19 @@ $velocity = isset($provider_data['velocity']) ? $provider_data['velocity'] : [];
 
   <h6 class="mb-3">Velocity Configuration</h6>
 
-  <div class="row">
-    <div class="col-md-3">
-      <label>Username <span class="text-danger required-star">*</span></label>
+  <div class="row"> 
+  <div class="col-md-3">
+      <label>CustomerName <span class="text-danger required-star">*</span></label>
       <input type="text" name="velocity_username"
         class="form-control velocity-required"
         value="<?php echo set_value('velocity_username', $velocity['name'] ?? ''); ?>">
+    </div>
+	
+    <div class="col-md-3">
+      <label>Username <span class="text-danger required-star">*</span></label>
+      <input type="text" name="velocity_email"
+        class="form-control velocity-required"
+        value="<?php echo set_value('velocity_email', $velocity['email'] ?? ''); ?>">
     </div>
 
     <div class="col-md-3">

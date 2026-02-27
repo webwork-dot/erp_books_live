@@ -489,7 +489,7 @@
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
-                                       <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                       <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-sm btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                                        <button type="button" class="btn btn-outline-primary btn-sm btn-timeline ms-1" data-order-id="<?php echo htmlspecialchars($item['order_unique_id']); ?>" data-toggle="tooltip" title="Order Timeline"><i class="fa fa-history"></i></button>
                                     </td>
                                  </tr>

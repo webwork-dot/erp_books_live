@@ -454,6 +454,39 @@ class Vendor_sync_model extends CI_Model
 
 		foreach ($main_records as $record){
 			$provider = $record['provider'];
+			
+			if (strtolower($provider) === 'velocity') { 
+				if (!$client_db->table_exists('velocity_pincode')) {
+					// Create table
+					$client_db->query("
+						CREATE TABLE `velocity_pincode` (
+						  `id` int(11) NOT NULL AUTO_INCREMENT,
+						  `pincode` varchar(10) DEFAULT NULL,
+						  `area` varchar(60) DEFAULT NULL,
+						  `state` varchar(60) DEFAULT NULL,
+						  `parcel` varchar(10) DEFAULT NULL,
+						  `ecommerce` varchar(10) DEFAULT NULL,
+						  `cod` varchar(10) DEFAULT NULL,
+						  `pickup` varchar(10) DEFAULT NULL,
+						  `oda` varchar(10) DEFAULT NULL,
+						  `air_ndd` varchar(30) DEFAULT NULL,
+						  `surface_ndd` varchar(30) DEFAULT NULL,
+						  `tat_hub` varchar(30) DEFAULT NULL,
+						  PRIMARY KEY (`id`)
+						) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+					");
+					$pincode_data = $this->db->get('velocity_pincode')->result_array();
+					if (!empty($pincode_data)) {
+						foreach ($pincode_data as &$row) {
+							unset($row['id']);
+						}
+						$chunks = array_chunk($pincode_data, 1000);
+						foreach ($chunks as $chunk) {
+							$client_db->insert_batch('velocity_pincode', $chunk);
+						}
+					}
+				}
+			} 
 
 			$existing = $client_db
 				->where('client_id', $vendor_id)

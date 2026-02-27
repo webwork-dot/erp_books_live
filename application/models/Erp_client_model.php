@@ -725,6 +725,7 @@ class Erp_client_model extends CI_Model
 			/* ---------- VELOCITY ---------- */
 			if ($provider == 'velocity') {
 				$data['name']       = $this->input->post('velocity_username');
+				$data['email']      = $this->input->post('velocity_email');
 				$data['company_id'] = $this->input->post('velocity_accno');
 				$data['channel_id'] = $this->input->post('velocity_secret_code');
 

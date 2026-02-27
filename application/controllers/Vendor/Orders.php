@@ -4917,7 +4917,7 @@ class Orders extends Vendor_base
 						$total_weight_gm += ($weight_gm * $qty);
 
 						$product_details[] = array(
-							"product_category"               => "Bookset",
+							"product_category"               => "Others",
 							"product_sub_category"           => $package['package_name'] ?? "",
 							"product_name"                   => sanitize_allowed_chars($product_name),
 							"product_quantity"               => $qty,
@@ -4973,15 +4973,15 @@ class Orders extends Vendor_base
 			$total_weight = round($total_weight_gm / 1000, 2);
 		}
 		 	/*echo json_encode([
-			'debug' => $product_details,
-			'csrf'  => [
-				'name' => $this->security->get_csrf_token_name(),
-				'hash' => $this->security->get_csrf_hash()
-			]
-		]); exit();
-*/
+				'debug' => $product_details,
+				'csrf'  => [
+					'name' => $this->security->get_csrf_token_name(),
+					'hash' => $this->security->get_csrf_hash()
+				]
+			]); exit();*/
+		
+		
 			switch (strtolower($third_party_provider)) {
-
 				case 'velocity':
 
 					$api_response = $this->Shipping_model->create_velocity_booking([
@@ -5034,6 +5034,13 @@ class Orders extends Vendor_base
 			if ($this->db->trans_status() === FALSE) {
 				throw new Exception('Database error');
 			}
+ 
+			$processing_date = date("Y-m-d H:i:s");			
+			$this->db->where('id', $order_id);
+			$update_result = $this->db->update('tbl_order_details', array(
+				'order_status' => '2',
+				'processing_date' => $processing_date
+			)); 
 
 			$this->db->trans_commit();
 

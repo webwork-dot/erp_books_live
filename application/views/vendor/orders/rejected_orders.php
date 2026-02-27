@@ -227,7 +227,7 @@
                               <td><?php echo isset($item['invoice_no']) ? $item['invoice_no'] : '-'; ?></td>
                               <td><?php echo isset($item['remark']) && !empty($item['remark']) ? htmlspecialchars($item['remark']) : '-'; ?></td>
                               <td nowrap="">
-                                 <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                 <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-sm btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                               </td>
                            </tr>
                         <?php endforeach; 
