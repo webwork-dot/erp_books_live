@@ -897,6 +897,7 @@ class Order_model extends CI_Model
 				return false;
 		}
 	}
+ 
 
 	/**
 	 * Find order(s) by search query - order number, shipping number, AWB, or customer phone

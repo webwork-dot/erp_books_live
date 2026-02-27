@@ -31,7 +31,41 @@
 
 <!-- Custom JS -->
 <script src="<?php echo base_url('assets/template/js/script.js'); ?>"></script>
+<script>
+var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
+var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
 
+/* Attach CSRF to all POST */
+$.ajaxSetup({
+    beforeSend: function (xhr, settings) {
+
+        if (settings.type === 'POST') {
+
+            if (typeof settings.data === 'string') {
+                settings.data += '&' + csrfName + '=' + csrfHash;
+            } else {
+                settings.data = settings.data || {};
+                settings.data[csrfName] = csrfHash;
+            }
+        }
+    }
+});
+
+/* Update CSRF only if returned */
+$(document).ajaxComplete(function (event, xhr) {
+
+    try {
+        var response = xhr.responseJSON || JSON.parse(xhr.responseText);
+
+        if (response && response.csrf && response.csrf.hash) {
+            csrfHash = response.csrf.hash;
+        }
+
+    } catch (e) {
+    }
+
+});
+</script>
 
 </body>
 </html>

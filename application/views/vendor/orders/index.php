@@ -330,10 +330,13 @@
                      <?php if ($order_status == 'all' || $order_status == ''): ?>
                         <!-- No action buttons for "All Orders" view -->
                      <?php elseif ($order_status == 'pending'): ?>
-                        <div class="pull-right">
-                           <button type="button" name="button" id="btn_process" value="update" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
-                              Move to Processing (<span class="total_orders">0</span>)
+                        <div class="pull-right d-flex gap-2 flex-wrap">
+                           <button type="button" id="btn_bulk_self_delivery" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
+                              <i class="fa fa-truck me-1"></i> Self Delivery (<span class="total_orders">0</span>)
                            </button>
+                           <button type="button" id="btn_bulk_3rd_party" class="btn btn-outline-info waves-effect waves-light btn-md mb-0" disabled>
+                              <i class="fa fa-shipping-fast me-1"></i> 3rd Party (<span class="total_orders">0</span>)
+                           </button> 
                         </div>
                      <?php elseif ($order_status == 'processing'): ?>
                         <div class="pull-right">
@@ -547,6 +550,105 @@
          </div> -->
       </div>
    </div>
+</div>
+
+<!-- 3rd Party Shipping Modal -->
+<div class="modal fade" id="thirdPartyShippingModal" tabindex="-1" aria-labelledby="thirdPartyShippingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+
+      <!-- Header -->
+      <div class="modal-header">
+        <h5 class="modal-title" id="thirdPartyShippingModalLabel">
+          Bulk 3rd Party Shipping
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body">
+
+        <!-- Provider Selection -->
+        <div class="mb-4">
+          <label class="form-label fw-bold">Select 3rd Party Provider</label>
+          <div id="thirdPartyProvidersContainer" class="d-flex gap-2 flex-wrap">
+            <span class="text-muted">Loading providers...</span>
+          </div>
+          <input type="hidden" id="thirdPartyProvider">
+        </div>
+
+        <!-- Pickup Address -->
+        <div class="mb-4" id="pickupAddressSection" style="display:none;">
+          <label class="form-label fw-bold">Pickup Address</label>
+          <select id="pickupAddressSelect" class="form-select">
+            <option value="">Select Pickup Address</option>
+          </select>
+        </div>
+
+        <!-- Package Dimensions -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">Package Dimensions (Applies to ALL selected orders)</label>
+          <div class="row g-2">
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Length (cm)</label>
+              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" placeholder="0">
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Breadth (cm)</label>
+              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" placeholder="0">
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Height (cm)</label>
+              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01" placeholder="0">
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted">Weight (kg)</label>
+              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" placeholder="0">
+            </div>
+          </div>
+        </div>
+		
+		 
+        <div class="mb-3" id="velocityScheduleSection" style="display:none;">
+          <label class="form-label fw-bold">Pickup Schedule (Velocity Only)</label>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <input type="date" id="scheduleDate"  class="form-control">
+            </div>
+            <div class="col-md-4">
+              <input type="time" id="fromTime" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <input type="time" id="toTime" class="form-control">
+            </div>
+          </div>
+        </div>
+		
+
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+
+		<button type="button" class="btn btn-primary" id="saveThirdPartyBtn" disabled onclick="saveBulkThirdPartyShipping()">
+			<span id="saveBtnText">
+				<i class="fa fa-save me-1"></i> Save & Continue
+			</span>
+			<span id="saveBtnLoader" style="display:none;">
+				<i class="fa fa-spinner fa-spin me-1"></i> Processing...
+			</span>
+		</button>
+		
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <!-- Order Timeline Modal -->
@@ -797,4 +899,335 @@
         });
         return false;
     });
+</script>
+
+
+
+<script>
+$(document).ready(function(){
+
+    /* =========================================
+       CHECKBOX HANDLING
+    ========================================= */
+
+    $("#checkAll_order").on('change', function(){
+        $("input[name='order_id[]']").prop("checked", $(this).prop("checked"));
+        updateSelectedCount();
+    });
+
+    $(document).on('change', '.order_id', function(){
+        updateSelectedCount();
+    });
+
+    function updateSelectedCount(){
+        var count = $('input[name="order_id[]"]:checked').length;
+        $(".total_orders").html(count);
+
+        var enable = count > 0;
+
+        $("#btn_bulk_self_delivery").prop('disabled', !enable);
+        $("#btn_bulk_3rd_party").prop('disabled', !enable);
+        $("#btn_out_for_delivery").prop('disabled', !enable);
+        $("#btn_delivered").prop('disabled', !enable);
+    }
+
+
+    /* =========================================
+       BULK SELF DELIVERY
+    ========================================= */
+
+    $("#btn_bulk_self_delivery").on('click', function(){
+
+        var orderIds = getSelectedOrders();
+        if(orderIds.length === 0) return;
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Assign Self Delivery to " + orderIds.length + " order(s)?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, assign'
+        }).then(function(result){
+
+            if(!result.isConfirmed) return;
+
+            $.ajax({
+                url: '<?php echo base_url("orders/bulk_set_shipper"); ?>',
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    order_ids: orderIds,
+                    courier: 'manual'
+                }
+            }).done(function(res){
+
+                if(res.status === '200'){
+                    Swal.fire('Success', res.message, 'success')
+                        .then(()=> location.reload());
+                }else{
+                    Swal.fire('Error', res.message || 'Failed', 'error');
+                }
+
+            });
+
+        });
+
+    });
+
+
+    /* =========================================
+       BULK 3RD PARTY MODAL
+    ========================================= */
+
+    $("#btn_bulk_3rd_party").on('click', function(){
+
+        if(getSelectedOrders().length === 0) return;
+
+        var modal = new bootstrap.Modal(document.getElementById('thirdPartyShippingModal'));
+        modal.show();
+    });
+
+
+    $('#thirdPartyShippingModal').on('show.bs.modal', function(){
+
+        resetBulkShippingModal();
+
+        $('#thirdPartyProvidersContainer').html('<span class="text-muted">Loading providers...</span>');
+
+		$.get('<?php echo base_url("vendor/orders/get_active_shipping_providers"); ?>', function(res) {
+
+			if (res.success && res.providers.length > 0) {
+
+				var html = '';
+
+				res.providers.forEach(function(p) {
+					html += `
+						<button type="button"
+								class="btn btn-outline-primary third-party-option"
+								data-provider="${p.provider}">
+							${p.provider.charAt(0).toUpperCase() + p.provider.slice(1)}
+						</button>`;
+				});
+
+				$('#thirdPartyProvidersContainer').html(html);
+
+			} else {
+				$('#thirdPartyProvidersContainer').html(
+					'<span class="text-danger">No active providers found</span>'
+				);
+			}
+
+		}, 'json');  
+
+    });
+
+
+    /* =========================================
+       PROVIDER CLICK
+    ========================================= */
+
+    $(document).on('click', '.third-party-option', function(){
+
+        $('.third-party-option').removeClass('active');
+        $(this).addClass('active');
+
+        var provider = $(this).data('provider');
+
+        $('#thirdPartyProvider').val(provider);
+
+        loadPickupAddresses(provider);
+
+        validateBulkShipping();
+
+    });
+
+
+    /* =========================================
+       LOAD PICKUP ADDRESSES
+    ========================================= */
+
+	function loadPickupAddresses(provider) {
+
+		if (!provider) return;
+		
+		if (provider.toLowerCase() === 'velocity') {
+			$('#velocityScheduleSection').slideDown();
+			let now = new Date();
+			let today = now.toISOString().split('T')[0];
+
+			// Set minimum selectable date
+			$('#scheduleDate').attr('min', today);
+
+			$('#scheduleDate').prop('required', true);
+			$('#fromTime').prop('required', true);
+			$('#toTime').prop('required', true);
+
+			$('#scheduleDate').val(today);
+			$('#fromTime').val('09:00');
+			$('#toTime').val('18:00');
+
+		} else {
+
+			$('#velocityScheduleSection').slideUp();
+
+			$('#scheduleDate').prop('required', false).val('').removeAttr('min');
+			$('#fromTime').prop('required', false).val('');
+			$('#toTime').prop('required', false).val('');
+		}
+		
+
+		$('#pickupAddressSection').show();
+		$('#pickupAddressSelect').html('<option value="">Loading...</option>');
+
+		$.ajax({
+			url: '<?php echo base_url("vendor/orders/get_provider_pickup_addresses"); ?>',
+			type: 'POST',
+			dataType: 'json',
+			data: {
+				provider: provider
+			}
+		})
+		.done(function (res) {
+			if (res.csrf && res.csrf.hash) {
+				csrfHash = res.csrf.hash;
+			}
+
+			if (res.success && res.data && res.data.length > 0) {
+
+				var options = '<option value="">Select Pickup Address</option>';
+
+				res.data.forEach(function (addr) {
+					options += '<option value="' + addr.value + '">' +
+									addr.name +
+							   '</option>';
+				});
+
+				$('#pickupAddressSelect').html(options);
+
+			} else {
+
+				$('#pickupAddressSelect').html(
+					'<option value="">No pickup address found</option>'
+				);
+			}
+
+		})
+		.fail(function () {
+
+			$('#pickupAddressSelect').html(
+				'<option value="">Error loading pickup addresses</option>'
+			);
+		});
+	}
+
+
+    /* =========================================
+       VALIDATION
+    ========================================= */
+
+    function validateBulkShipping(){
+
+        var provider = $('#thirdPartyProvider').val();
+        var pickup   = $('#pickupAddressSelect').val();
+        var weight   = parseFloat($('#pkgWeight').val()) || 0;
+
+        if(provider && pickup && weight > 0){
+            $('#saveThirdPartyBtn').prop('disabled', false);
+        } else {
+            $('#saveThirdPartyBtn').prop('disabled', true);
+        }
+    }
+
+    $(document).on('change keyup',
+        '#thirdPartyProvider, #pickupAddressSelect, #pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight',
+        validateBulkShipping
+    );
+
+
+    /* =========================================
+       SAVE BULK SHIPPING
+    ========================================= */
+
+    window.saveBulkThirdPartyShipping = function(){
+
+        var provider = $('#thirdPartyProvider').val();
+        var pickup   = $('#pickupAddressSelect').val();
+        var weight   = parseFloat($('#pkgWeight').val()) || 0;
+        var orderIds = getSelectedOrders();
+
+        if(orderIds.length === 0){
+            Swal.fire('Error','No orders selected','warning');
+            return;
+        }
+
+        if(!provider || !pickup || weight <= 0){
+            Swal.fire('Error','Fill all required fields','warning');
+            return;
+        }
+
+        var data = {
+            order_ids: orderIds,
+            third_party_provider: provider,
+            pickup_address_id: pickup,
+            length: $('#pkgLength').val(),
+            breadth: $('#pkgBreadth').val(),
+            height: $('#pkgHeight').val(),
+            weight: weight
+        };
+
+        if(provider.toLowerCase() === 'velocity'){
+            data.schedule_date = $('#scheduleDate').val();
+            data.from_Time     = $('#fromTime').val();
+            data.to_Time       = $('#toTime').val();
+        }
+
+        $('#saveThirdPartyBtn').prop('disabled', true);
+        $('#saveBtnText').hide();
+        $('#saveBtnLoader').show();
+
+        $.ajax({
+            url: '<?php echo base_url("orders/bulk_save_third_party_shipping"); ?>',
+            type: 'POST',
+            dataType: 'json',
+            data: data
+        }).done(function(res){
+
+            if(res.status === '200'){
+                Swal.fire('Success', res.message, 'success')
+                    .then(()=> location.reload());
+            } else {
+                $('#saveThirdPartyBtn').prop('disabled', false);
+                $('#saveBtnText').show();
+                $('#saveBtnLoader').hide();
+                Swal.fire('Error', res.message || 'Failed', 'error');
+            }
+
+        });
+
+    };
+
+
+    /* =========================================
+       HELPERS
+    ========================================= */
+
+    function getSelectedOrders(){
+        var ids = [];
+        $('input[name="order_id[]"]:checked').each(function(){
+            ids.push($(this).val());
+        });
+        return ids;
+    }
+
+    function resetBulkShippingModal(){
+        $('#thirdPartyProvider').val('');
+        $('#pickupAddressSection').hide();
+        $('#velocityScheduleSection').hide();
+        $('#pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight').val('');
+        $('#saveThirdPartyBtn').prop('disabled', true);
+        $('#saveBtnText').show();
+        $('#saveBtnLoader').hide();
+    }
+
+});
 </script>

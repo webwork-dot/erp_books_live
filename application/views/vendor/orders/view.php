@@ -980,7 +980,7 @@ if($order_data[0]->payment_method == 'cod'){
               
                 <div class="row" style="margin: 0;">
                   <div class="col-5" style="padding: 5px;">
-                    <button type="button" class="btn btn-outline-primary btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->order_unique_id ?>', 'manual', this)" style="width: 100%;">
+                    <button type="button" class="btn btn-outline-primary btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->id ?>', 'manual', this)" style="width: 100%;">
                       <i class="fa fa-truck"></i> Self Delivery
                     </button>
   </div>
@@ -1907,7 +1907,7 @@ function moveToProcessing(orderUniqueId, btnElement) {
   });
 }*/
 
-function selectShipper(orderUniqueId, courierType, btnElement) {
+function selectShipper(orderId, courierType, btnElement) {
 
   Swal.fire({
     title: 'Are you sure?',
@@ -1927,10 +1927,10 @@ function selectShipper(orderUniqueId, courierType, btnElement) {
           .html('<i class="fa fa-spinner fa-spin"></i> Processing...');
 
       $.ajax({
-        url: '<?php echo base_url("orders/set_shipper"); ?>',
+        url: '<?php echo base_url("orders/bulk_set_shipper"); ?>',
         type: 'POST',
         data: {
-          order_unique_id: orderUniqueId,
+          order_ids: [orderId],
           courier: courierType,
           <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
         },
@@ -2026,7 +2026,7 @@ function moveToDelivered(orderUniqueId, btnElement) {
 }
 
 // 3rd Party Shipping Modal
-var orderUniqueIdForThirdParty = '<?= $order_data[0]->order_unique_id ?>';
+var orderIdForThirdParty = '<?= $order_data[0]->id ?>';
 /*
 $('#thirdPartyShippingModal').on('show.bs.modal', function() {
   $('#thirdPartyProvider').val('');
@@ -2319,21 +2319,7 @@ $(document).on('click', '.third-party-option', function() {
 var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
 var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
 
-/* Automatically attach CSRF to all POST requests */
-$.ajaxSetup({
-    beforeSend: function (xhr, settings) {
 
-        if (settings.type === 'POST') {
-
-            if (typeof settings.data === 'string') {
-                settings.data += '&' + csrfName + '=' + csrfHash;
-            } else if (typeof settings.data === 'object') {
-                settings.data[csrfName] = csrfHash;
-            }
-
-        }
-    }
-});
 
 
 /* =========================================
@@ -2402,7 +2388,7 @@ function saveThirdPartyShipping() {
 	}
 
     var ajaxData = {
-        order_unique_id      : orderUniqueIdForThirdParty,
+        order_ids            : [orderIdForThirdParty],
         third_party_provider : provider,
         pickup_address_id    : pickup,
         length               : length,
@@ -2422,7 +2408,7 @@ function saveThirdPartyShipping() {
     $('#saveBtnLoader').show();
 	  
     $.ajax({
-        url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
+        url: '<?php echo base_url("orders/bulk_save_third_party_shipping"); ?>',
         type: 'POST',
         dataType: 'json',
         data: ajaxData
@@ -2454,11 +2440,8 @@ function loadPickupAddresses(provider) {
     if (!provider) return;
 	
 	if (provider.toLowerCase() === 'velocity') {
-
 		$('#velocityScheduleSection').slideDown();
-
 		let now = new Date();
-
 		let today = now.toISOString().split('T')[0];
 
 		// Set minimum selectable date
