@@ -5654,7 +5654,9 @@ class Products extends Vendor_base
 		$existing_packages = $this->db->get()->result_array();
 		
 		// Debug: Check what packages were found
-		log_message('debug', 'Found ' . count($existing_packages) . ' packages for bookset ID: ' . $bookset_id);
+		log_message('debug', 'Bookset Edit - Found ' . count($existing_packages) . ' packages for bookset ID: ' . $bookset_id);
+		log_message('debug', 'Bookset Edit - Has products: ' . ($has_products ? 'YES' : 'NO'));
+		log_message('debug', 'Bookset Edit - Packages data: ' . json_encode($existing_packages));
 		
 		if ($has_products)
 		{
@@ -5744,6 +5746,9 @@ class Products extends Vendor_base
 					'note' => $package['note']
 				);
 			}
+			
+			// Debug: Log formatted packages
+			log_message('debug', 'Bookset Edit - Formatted packages (without products): ' . json_encode($packages_with_products));
 		}
 		
 		// Get schools with state and city for dropdown

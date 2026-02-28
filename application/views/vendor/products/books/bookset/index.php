@@ -363,24 +363,24 @@
 									</div>
 								<?php endforeach; ?>
 							<?php elseif (!$is_bookset && !empty($bookset['packages'])): ?>
-								<?php $package = $bookset['packages'][0]; ?>
-								<div class="package-item p-3 border rounded" style="background: #f8f9fa;">
+								<?php foreach ($bookset['packages'] as $package): ?>
+								<div class="package-item mb-3 p-3 border rounded" style="background: #f8f9fa;">
 									<div class="d-flex justify-content-between align-items-center mb-2">
 										<h6 class="mb-0">
 											<i class="isax isax-box-1 me-2"></i>
 											<?php echo htmlspecialchars($package['package_name']); ?>
-											<?php if (!empty($bookset['category'])): ?>
+											<?php if (!empty($package['category'])): ?>
 												<span class="badge bg-primary ms-2">
-													<?php echo ucfirst($bookset['category']); ?>
+													<?php echo ucfirst($package['category']); ?>
 												</span>
 											<?php endif; ?>
 										</h6>
 										<div>
 											<span class="badge bg-info me-2">
-												<?php echo ucfirst($bookset['is_it'] ?? 'N/A'); ?>
+												<?php echo ucfirst($package['is_it'] ?? 'N/A'); ?>
 											</span>
 											<span class="badge bg-secondary">
-												Weight: <?php echo number_format($bookset['package_weight'] ?? 0, 2); ?> gm
+												Weight: <?php echo number_format($package['package_weight'] ?? 0, 2); ?> gm
 											</span>
 										</div>
 									</div>
@@ -414,6 +414,7 @@
 										<p class="text-muted mb-0"><small>No products in this package</small></p>
 									<?php endif; ?>
 								</div>
+								<?php endforeach; ?>
 							<?php endif; ?>
 						</div>
 					</div>

@@ -2,6 +2,8 @@
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
 		<h6><a href="<?php echo base_url('products/bookset?tab=without_product'); ?>"><i class="isax isax-arrow-left me-2"></i>Edit Bookset</a></h6>
+		<!-- DEBUG: Packages count -->
+		<small class="text-muted">Debug: <?php echo count($existing_packages ?? []); ?> existing packages found</small>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -136,6 +138,15 @@
 						<i class="isax isax-add"></i> Add Package
 					</button>
 				</div>
+				
+				<!-- DEBUG INFO -->
+				<div class="alert alert-info mb-3">
+					<strong>Debug Info:</strong> 
+					<?php echo count($existing_packages ?? []); ?> packages loaded from database.
+					<?php if (!empty($existing_packages)): ?>
+						<br>Package names: <?php echo implode(', ', array_column($existing_packages, 'package_name')); ?>
+					<?php endif; ?>
+				</div>
 					
 				<div id="packages_area" class="packages-container">
 					<!-- Packages will be added here dynamically -->
@@ -197,15 +208,21 @@
 (function() {
 	function initScript() {
 		if (typeof window.jQuery === 'undefined') {
+			console.log('jQuery not loaded yet, waiting...');
 			setTimeout(initScript, 100);
 			return;
 		}
 		
+		console.log('jQuery loaded, initializing script...');
 		var $ = window.jQuery;
 		
 		// Declare variables first
 		var packages = <?php echo json_encode($existing_packages ?? []); ?>;
 		var packageCounter = 0;
+		
+		// Debug: Log packages
+		console.log('Existing packages loaded:', packages);
+		console.log('Total packages:', packages.length);
 		
 		// Pre-load boards when school is selected
 		var schoolId = $('#school_id').val();
@@ -287,8 +304,10 @@
 		
 		// Add new package (with optional existing data)
 		window.addPackage = function(existingPackage) {
+			console.log('addPackage called with:', existingPackage);
 			packageCounter++;
 			var packageIndex = packages.length;
+			console.log('packageCounter:', packageCounter, 'packageIndex:', packageIndex);
 			
 			var packageHtml = `
 				<div class="package-card mb-3 border border-danger rounded" id="package_${packageCounter}" data-package-status="incomplete">
@@ -762,11 +781,16 @@
 		}
 		
 		// Load existing packages
+		console.log('About to load packages, count:', packages.length);
 		if (packages.length > 0) {
+			console.log('Loading existing packages...');
 			packages.forEach(function(pkg, index) {
+				console.log('Loading package', index + 1, ':', pkg);
 				window.addPackage(pkg);
 			});
+			console.log('Finished loading packages');
 		} else {
+			console.log('No existing packages, adding empty package');
 			// Initialize first package if none exist
 			window.addPackage();
 		}
