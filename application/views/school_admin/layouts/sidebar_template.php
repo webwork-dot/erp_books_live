@@ -36,6 +36,11 @@
 									<i class="isax isax-element-45"></i><span>Dashboard</span>
 								</a>
 							</li>
+							<li>
+								<a href="<?php echo base_url('school-admin/reports'); ?>" class="<?php echo (strpos(uri_string(), 'school-admin/reports') !== false) ? 'active' : ''; ?>">
+									<i class="isax isax-chart-2"></i><span>School Reports</span>
+								</a>
+							</li>
 						</ul>
 					</li>
 					<li class="menu-title"><span>Management</span></li>

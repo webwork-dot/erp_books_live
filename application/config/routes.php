@@ -42,6 +42,7 @@ $route['school-admin'] = 'School_admin/dashboard';
 $route['school-admin/auth/login'] = 'School_admin/auth/login';
 $route['school-admin/auth/logout'] = 'School_admin/auth/logout';
 $route['school-admin/dashboard'] = 'School_admin/dashboard';
+$route['school-admin/reports'] = 'School_admin/reports';
 // School Admin Orders routes
 $route['school-admin/orders'] = 'School_admin/orders/index';
 $route['school-admin/orders/all'] = 'School_admin/orders/index/all';
