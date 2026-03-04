@@ -967,11 +967,8 @@ if($order_data[0]->payment_method == 'cod'){
           $has_courier_selected = ($courier == 'manual' && $erp_courier_id > 0);
           ?>
           
-          <!-- Status 1: Pending - Show Move to Process button -->
-
-          
-          <!-- Status 2: Processing - Show Shipper Selection or Generate Label -->
-          <?php if ($current_status == '1' || $current_status == 1): ?>
+          <!-- Status 1 & 2: Pending / Processing - Shipper selection & Self Delivery flow -->
+          <?php if ($current_status == '1' || $current_status == 1 || $current_status == '2' || $current_status == 2): ?>
             <?php if (empty($courier)): ?>
               <!-- Shipper Selection -->
               <div class="mb-3">
@@ -1002,7 +999,7 @@ if($order_data[0]->payment_method == 'cod'){
                   <span><strong>Self Delivery</strong> Selected</span>
                 </div>
               </div>
-              <?php if (!$has_shipping_label): ?>
+              <?php if (!$has_shipping_label && ($current_status == '2' || $current_status == 2)): ?>
                 <!-- Step 1: Generate shipping label first -->
                 <div class="d-grid">
                   <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>" 

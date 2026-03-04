@@ -304,32 +304,33 @@
                      <?php echo form_open(base_url('orders/move_to_delivered'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php endif; ?>
 
-                  <div class="col-md-12" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                     <div class="d-block left">
-                        <div class="page_title" style="font-size: 20px;font-weight: 500;color:#000;">
-                           <?php 
-                           if ($order_status == 'all' || $order_status == '') {
-                              echo 'All Orders';
-                           } elseif ($order_status == 'pending') {
-                              echo 'New Order';
-                           } elseif ($order_status == 'processing') {
-                              echo 'Processing';
-                           } elseif ($order_status == 'out_for_delivery') {
-                              echo 'Out for Delivery';
-                           } elseif ($order_status == 'delivered') {
-                              echo 'Delivered';
-                           } elseif ($order_status == 'return') {
-                              echo 'Return';
-                           } else {
-                              echo ucfirst($order_status);
-                           }
-                           ?> Orders (<?= $total_count; ?>)
+                  <div class="col-md-12" style="margin-bottom: 15px;">
+                     <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-block left">
+                           <div class="page_title" style="font-size: 20px;font-weight: 500;color:#000;">
+                              <?php 
+                              if ($order_status == 'all' || $order_status == '') {
+                                 echo 'All Orders';
+                              } elseif ($order_status == 'pending') {
+                                 echo 'New Order';
+                              } elseif ($order_status == 'processing') {
+                                 echo 'Processing';
+                              } elseif ($order_status == 'out_for_delivery') {
+                                 echo 'Out for Delivery';
+                              } elseif ($order_status == 'delivered') {
+                                 echo 'Delivered';
+                              } elseif ($order_status == 'return') {
+                                 echo 'Return';
+                              } else {
+                                 echo ucfirst($order_status);
+                              }
+                              ?> Orders (<?= $total_count; ?>)
+                           </div>
                         </div>
-                     </div>
 
-                     <?php if ($order_status == 'all' || $order_status == ''): ?>
+                        <?php if ($order_status == 'all' || $order_status == ''): ?>
                         <!-- No action buttons for "All Orders" view -->
-                     <?php elseif ($order_status == 'pending'): ?>
+                        <?php elseif ($order_status == 'pending'): ?>
                         <div class="pull-right d-flex gap-2 flex-wrap">
                            <button type="button" id="btn_bulk_self_delivery" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
                               <i class="fa fa-truck me-1"></i> Self Delivery (<span class="total_orders">0</span>)
@@ -338,18 +339,42 @@
                               <i class="fa fa-shipping-fast me-1"></i> 3rd Party (<span class="total_orders">0</span>)
                            </button> 
                         </div>
-                     <?php elseif ($order_status == 'processing'): ?>
-                        <div class="pull-right">
+                        <?php elseif ($order_status == 'processing'): ?>
+                        <div class="pull-right d-flex gap-2 flex-wrap">
+                           <button type="button" id="btn_bulk_download_labels" class="btn btn-outline-secondary waves-effect waves-light btn-md mb-0" disabled>
+                              <span id="bulkLabelsText">
+                                 <i class="fa fa-file-pdf-o me-1"></i> Download Shipping Labels (<span class="total_orders">0</span>)
+                              </span>
+                              <span id="bulkLabelsSpinner" style="display:none;">
+                                 <i class="fa fa-spinner fa-spin me-1"></i> Generating &amp; Downloading...
+                              </span>
+                           </button>
                            <button type="button" name="button" id="btn_out_for_delivery" value="update" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
                               Move to Out for Delivery (<span class="total_orders">0</span>)
                            </button>
                         </div>
-                     <?php elseif ($order_status == 'out_for_delivery'): ?>
+                        <?php elseif ($order_status == 'out_for_delivery'): ?>
                         <div class="pull-right">
                            <button type="button" name="button" id="btn_delivered" value="update" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
                               Move to Delivered (<span class="total_orders">0</span>)
                            </button>
                         </div>
+                        <?php endif; ?>
+                     </div>
+
+                     <?php if ($order_status == 'processing' || $order_status == 'out_for_delivery'): ?>
+                        <ul class="nav nav-pills mb-2" id="courierFilterTabs" role="tablist">
+                           <li class="nav-item" role="presentation">
+                              <button class="nav-link active" id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">
+                                 Self Delivery
+                              </button>
+                           </li>
+                           <li class="nav-item" role="presentation">
+                              <button class="nav-link" id="tab-third-party" type="button" role="tab" data-courier-filter="third_party">
+                                 3rd Party
+                              </button>
+                           </li>
+                        </ul>
                      <?php endif; ?>
                   </div>
 
@@ -444,8 +469,9 @@
                                  }
                                  $is_payment_at_school = isset($item['is_payment_at_school']) && $item['is_payment_at_school'];
                                  $is_deliver_at_school = isset($item['is_deliver_at_school']) && $item['is_deliver_at_school'];
+                                 $courier_type = isset($item['courier']) ? $item['courier'] : '';
                               ?>
-                                 <tr class="item_holder">
+                                 <tr class="item_holder" data-courier="<?php echo htmlspecialchars($courier_type); ?>">
                                     <?php if ($is_actionable): ?>
                                        <td>
                                           <div class="checkbox checkbox-primary">
@@ -548,6 +574,37 @@
                </div>
             <!-- </div>
          </div> -->
+      </div>
+   </div>
+</div>
+
+<!-- Hidden form for bulk shipping label download (must be outside other forms) -->
+<form id="bulkDownloadShippingForm"
+      method="post"
+      action="<?php echo base_url('orders/bulk_download_shipping_labels'); ?>"
+      target="_blank"
+      style="display:none;">
+   <input type="hidden"
+          name="<?php echo $this->security->get_csrf_token_name(); ?>"
+          value="<?php echo $this->security->get_csrf_hash(); ?>">
+</form>
+
+<!-- Bulk download progress modal -->
+<div id="bulkDownloadProgressModal" class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" style="background: rgba(0,0,0,0.6);">
+   <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+         <div class="modal-body text-center py-5">
+            <div class="mb-3">
+               <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                  <span class="visually-hidden">Loading...</span>
+               </div>
+            </div>
+            <h5 class="mb-2">Generating shipping labels...</h5>
+            <p class="text-muted mb-3" id="bulkDownloadProgressText">0 / 0</p>
+            <div class="progress" style="height: 8px;">
+               <div id="bulkDownloadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+         </div>
       </div>
    </div>
 </div>
@@ -823,10 +880,12 @@
          $("#btn_process").prop('disabled', false);
          $("#btn_out_for_delivery").prop('disabled', false);
          $("#btn_delivered").prop('disabled', false);
+         $("#btn_bulk_download_labels").prop('disabled', false);
       } else {
          $("#btn_process").prop('disabled', true);
          $("#btn_out_for_delivery").prop('disabled', true);
          $("#btn_delivered").prop('disabled', true);
+         $("#btn_bulk_download_labels").prop('disabled', true);
       }
    }
 
@@ -929,6 +988,7 @@ $(document).ready(function(){
         $("#btn_bulk_3rd_party").prop('disabled', !enable);
         $("#btn_out_for_delivery").prop('disabled', !enable);
         $("#btn_delivered").prop('disabled', !enable);
+        $("#btn_bulk_download_labels").prop('disabled', !enable);
     }
 
 
@@ -1229,5 +1289,145 @@ $(document).ready(function(){
         $('#saveBtnLoader').hide();
     }
 
+});
+
+// Courier filter tabs (Self Delivery vs 3rd Party)
+$(document).on('click', '#courierFilterTabs button[data-courier-filter]', function(){
+    var courierFilter = $(this).data('courier-filter');
+
+    $('#courierFilterTabs button').removeClass('active');
+    $(this).addClass('active');
+
+    // Show/hide rows based on courier
+    $('tr.item_holder').each(function(){
+        var rowCourier = ($(this).data('courier') || '').toString().toLowerCase();
+
+        if (courierFilter === 'manual') {
+            // Self Delivery tab – show only manual or empty courier (not yet assigned)
+            if (rowCourier === 'manual' || rowCourier === '') {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        } else if (courierFilter === 'third_party') {
+            // 3rd Party tab – show non-manual couriers
+            if (rowCourier && rowCourier !== 'manual') {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        } else {
+            $(this).show();
+        }
+    });
+
+    // When in 3rd party tab, hide bulk shipping label button (if present)
+    if (courierFilter === 'third_party') {
+        $('#btn_bulk_download_labels').hide();
+    } else {
+        $('#btn_bulk_download_labels').show();
+    }
+
+    // Clear selections after filter change
+    $("#checkAll_order").prop('checked', false);
+    $("input[name='order_id[]']").prop('checked', false);
+    $(".total_orders").html(0);
+    $("#btn_bulk_self_delivery, #btn_bulk_3rd_party, #btn_out_for_delivery, #btn_delivered, #btn_bulk_download_labels").prop('disabled', true);
+});
+
+// Bulk download shipping labels (with progress modal)
+$(document).on('click', '#btn_bulk_download_labels', function(){
+
+    var orderIds = [];
+
+    $('input[name="order_id[]"]:checked').each(function(){
+        orderIds.push($(this).val());
+    });
+
+    if(orderIds.length === 0){
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Select orders first');
+        }
+        return;
+    }
+
+    var total = orderIds.length;
+    var progressModal = new bootstrap.Modal(document.getElementById('bulkDownloadProgressModal'));
+    var $progressText = $('#bulkDownloadProgressText');
+    var $progressBar = $('#bulkDownloadProgressBar');
+    var progressInterval = null;
+    var currentProgress = 0;
+
+    var updateProgress = function(n, label) {
+        currentProgress = Math.min(n, total);
+        var pct = total > 0 ? Math.round((currentProgress / total) * 100) : 0;
+        $progressText.text(currentProgress + ' / ' + total);
+        $progressBar.css('width', pct + '%').attr('aria-valuenow', pct).text(pct + '%');
+        if (label) {
+            $progressText.closest('.modal-body').find('h5').text(label);
+        }
+    };
+
+    $('#btn_bulk_download_labels').prop('disabled', true);
+    $('#bulkLabelsText').hide();
+    $('#bulkLabelsSpinner').show();
+
+    updateProgress(0, 'Generating shipping labels...');
+    progressModal.show();
+
+    // Simulate progress (0 -> total over time while request runs)
+    progressInterval = setInterval(function(){
+        if (currentProgress < total) {
+            updateProgress(currentProgress + 1);
+        }
+    }, 500);
+
+    var formData = new FormData();
+    formData.append('<?php echo $this->security->get_csrf_token_name(); ?>', '<?php echo $this->security->get_csrf_hash(); ?>');
+    orderIds.forEach(function(id){
+        formData.append('order_ids[]', id);
+    });
+
+    fetch('<?php echo base_url('orders/bulk_download_shipping_labels'); ?>', {
+        method: 'POST',
+        body: formData
+    }).then(function(response) {
+        clearInterval(progressInterval);
+        updateProgress(total, 'Preparing download...');
+        var contentType = response.headers.get('Content-Type') || '';
+        if (contentType.indexOf('application/zip') !== -1 || contentType.indexOf('application/octet-stream') !== -1) {
+            return response.blob();
+        }
+        return response.text().then(function(text) {
+            throw new Error('Server returned an error. ' + (text.indexOf('error') !== -1 ? 'Please check selected orders.' : ''));
+        });
+    }).then(function(blob) {
+        updateProgress(total, 'Download complete!');
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'shipping_labels_' + new Date().toISOString().slice(0,10) + '.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setTimeout(function(){
+            progressModal.hide();
+            $('#btn_bulk_download_labels').prop('disabled', false);
+            $('#bulkLabelsText').show();
+            $('#bulkLabelsSpinner').hide();
+        }, 1200);
+    }).catch(function(err) {
+        clearInterval(progressInterval);
+        progressModal.hide();
+        $('#btn_bulk_download_labels').prop('disabled', false);
+        $('#bulkLabelsText').show();
+        $('#bulkLabelsSpinner').hide();
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Error', err.message || 'Failed to download shipping labels.', 'error');
+        } else {
+            alert('Failed to download: ' + (err.message || 'Unknown error'));
+        }
+    });
 });
 </script>

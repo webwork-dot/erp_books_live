@@ -136,6 +136,8 @@ $route['orders/download_shipping_label/(:any)'] = 'Vendor/orders/download_shippi
 $route['orders/test_shipping_label/(:any)'] = 'Vendor/Orders/test_shipping_label/$1';
 $route['orders/test_barcode'] = 'Vendor/orders/test_barcode';
 $route['orders/test_barcode/(:any)'] = 'Vendor/orders/test_barcode/$1';
+// Bulk shipping label download
+$route['orders/bulk_download_shipping_labels'] = 'Vendor/orders/bulk_download_shipping_labels';
 
 
 // Orders shipping routes

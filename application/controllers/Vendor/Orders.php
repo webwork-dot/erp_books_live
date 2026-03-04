@@ -3937,7 +3937,7 @@ class Orders extends Vendor_base
 	 * @param	string	$order_no	Order unique ID
 	 * @return	void
 	 */
-	public function generate_shipping_label($order_no)
+	public function generate_shipping_label($order_no, $mode = 'single')
 	{
 		// Increase memory limit for PDF generation
 		ini_set('memory_limit', '256M');
@@ -3954,10 +3954,23 @@ class Orders extends Vendor_base
 		$order = $order_data[0];
 		$order_id = $order->id;
 		
-		// Verify order belongs to vendor and is in processing status
+		// Verify order is in processing status
 		if ($order->order_status != '2' && $order->order_status != 2)
 		{
+			if ($mode === 'bulk') {
+				return false;
+			}
 			$this->session->set_flashdata('error', 'Shipping label can only be generated for orders in processing status.');
+			redirect(base_url('orders/view/' . $order_no));
+			return;
+		}
+
+		// Verify courier is self-delivery (manual)
+		if (!isset($order->courier) || $order->courier !== 'manual') {
+			if ($mode === 'bulk') {
+				return false;
+			}
+			$this->session->set_flashdata('error', 'Shipping label can only be generated for self-delivery orders (courier: manual).');
 			redirect(base_url('orders/view/' . $order_no));
 			return;
 		}
@@ -4351,8 +4364,12 @@ class Orders extends Vendor_base
 		// Start output buffering to prevent any output before headers
 		ob_start();
 		
-		// Generate PDF
+		// Generate PDF - use fresh instance in bulk to avoid dompdf state bleeding between renders
+		// (reusing the same instance causes corrupted layout in 2nd, 3rd, etc. labels)
 		$this->load->library('pdf');
+		if ($mode === 'bulk') {
+			$this->pdf = new Pdf();
+		}
 		
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		$old_error_reporting = error_reporting();
@@ -4511,6 +4528,11 @@ class Orders extends Vendor_base
 		// End output buffering
 		ob_end_clean();
 		
+		// For bulk mode, just return the relative path (no redirect/flash)
+		if ($mode === 'bulk') {
+			return $relative_path;
+		}
+		
 		// Set success message and redirect back to order view (page will auto-reload)
 		$this->session->set_flashdata('success', 'Shipping label generated successfully.');
 		redirect(base_url('orders/view/' . $order_no));
@@ -4578,6 +4600,158 @@ class Orders extends Vendor_base
 		header('Content-Disposition: attachment; filename="shipping_label_' . $order_no . '.pdf"');
 		header('Content-Length: ' . filesize($file_path));
 		readfile($file_path);
+		exit;
+	}
+
+	/**
+	 * Bulk download shipping labels for selected orders (ZIP)
+	 *
+	 * Expects POST with order_ids[] (tbl_order_details.id values)
+	 *
+	 * @return void
+	 */
+	public function bulk_download_shipping_labels()
+	{
+		if (strtoupper($this->input->method()) !== 'POST') {
+			show_error('Invalid request method.', 405);
+			return;
+		}
+
+		$order_ids = $this->input->post('order_ids');
+
+		if (empty($order_ids) || !is_array($order_ids)) {
+			$this->session->set_flashdata('error', 'No orders selected for bulk shipping label download.');
+			redirect(base_url('orders/processing'));
+			return;
+		}
+
+		// Normalize and limit order IDs to avoid very heavy queries
+		$order_ids = array_map('intval', (array)$order_ids);
+		$order_ids = array_slice($order_ids, 0, 100);
+
+		// Fetch orders ensuring they belong to current vendor
+		$vendor_id = isset($this->current_vendor['id']) ? (int)$this->current_vendor['id'] : 0;
+
+		$orders = $this->db->select('td.id, td.order_unique_id, td.shipping_label, td.order_status, td.courier')
+			->from('tbl_order_details td')
+			->where_in('td.id', $order_ids)
+			->get()
+			->result();
+
+		if (empty($orders)) {
+			$this->session->set_flashdata('error', 'Selected orders not found.');
+			redirect(base_url('orders/processing'));
+			return;
+		}
+
+		// Prepare ZIP
+		if (!class_exists('ZipArchive')) {
+			$this->session->set_flashdata('error', 'ZIP extension is not enabled on the server.');
+			redirect(base_url('orders/processing'));
+			return;
+		}
+
+		$this->load->helper('common');
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('shipping_label_upload');
+		$vendor_folder = get_vendor_domain_folder();
+
+		$zip = new ZipArchive();
+		$tmp_dir = sys_get_temp_dir();
+		$zip_filename = 'shipping_labels_' . date('Ymd_His') . '.zip';
+		$zip_path = rtrim($tmp_dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $zip_filename;
+
+		if ($zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
+			$this->session->set_flashdata('error', 'Unable to create ZIP file.');
+			redirect(base_url('orders/processing'));
+			return;
+		}
+
+		$added_files = 0;
+
+		foreach ($orders as $order) {
+			// Only allow processing status orders
+			if ($order->order_status != '2' && $order->order_status != 2) {
+				continue;
+			}
+
+			// Only handle self-delivery (manual) orders for bulk label generation
+			if (!isset($order->courier) || $order->courier !== 'manual') {
+				continue;
+			}
+
+			// If no label yet, try to generate it first
+			if (empty($order->shipping_label)) {
+				// generate_shipping_label() expects order_unique_id
+				$relative_path = $this->generate_shipping_label($order->order_unique_id, 'bulk');
+
+				if ($relative_path) {
+					$order->shipping_label = $relative_path;
+				} else {
+					// As fallback, re-fetch fresh row for this order
+					$refetched = $this->Order_model->get_order($order->order_unique_id);
+					if ($refetched && !empty($refetched[0]->shipping_label)) {
+						$order->shipping_label = $refetched[0]->shipping_label;
+					}
+				}
+			}
+
+			if (empty($order->shipping_label)) {
+				continue;
+			}
+
+			// Build full file path exactly like download_shipping_label() - with FCPATH fallback
+			$relative_path = $order->shipping_label; // uploads/shipping_labels/2026_02_13/filename.pdf
+			$path_parts = explode('/', $relative_path);
+			$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
+			$filename = end($path_parts);
+
+			$file_path = rtrim($uploadCfg['base_root'], '/') . '/'
+				. $vendor_folder . '/'
+				. trim($uploadCfg['relative_dir'], '/') . '/'
+				. $date_folder . '/'
+				. $filename;
+
+			// Fallback to FCPATH if the above path doesn't exist (same as single download)
+			if (!file_exists($file_path)) {
+				$file_path = FCPATH . $relative_path;
+			}
+
+			if (file_exists($file_path)) {
+				// Use addFromString (not addFile) so content is embedded directly - avoids corruption
+				// and path resolution issues across different environments
+				$content = @file_get_contents($file_path);
+				if ($content !== false) {
+					$zip_name_in_archive = 'shipping_label_' . $order->order_unique_id . '.pdf';
+					$zip->addFromString($zip_name_in_archive, $content);
+					$added_files++;
+				}
+			}
+		}
+
+		$zip->close();
+
+		if ($added_files === 0 || !file_exists($zip_path)) {
+			if (file_exists($zip_path)) {
+				@unlink($zip_path);
+			}
+			$this->session->set_flashdata('error', 'No shipping labels found for selected orders.');
+			redirect(base_url('orders/processing'));
+			return;
+		}
+
+		// Clear any output buffer before sending binary - prevents ZIP corruption
+		if (ob_get_level()) {
+			ob_end_clean();
+		}
+
+		// Output ZIP (same pattern as single download: headers + readfile)
+		header('Content-Type: application/zip');
+		header('Content-Disposition: attachment; filename="' . $zip_filename . '"');
+		header('Content-Length: ' . filesize($zip_path));
+
+		readfile($zip_path);
+		@unlink($zip_path);
 		exit;
 	}
 	
