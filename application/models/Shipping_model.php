@@ -314,18 +314,20 @@ class Shipping_model extends CI_Model {
 
 				$reason = 'Velocity booking failed';
 
-				if (!empty($response[0]['message']['message'])) {
+				if (!empty($response[0]['message'])) {
 
-					$nested = trim($response[0]['message']['message'], '"');
-					$nested = stripslashes($nested);
-					$decoded = json_decode($nested, true);
-
-					if (is_array($decoded) && isset($decoded[0]['reason'])) {
-						$reason = $decoded[0]['reason'];
+					if (is_array($response[0]['message'])) {
+						$reason = implode(', ', $response[0]['message']);
+					} else {
+						$reason = $response[0]['message'];
 					}
+
 				}
 
-				return ['status'=>'error','message'=>$reason];
+				return [
+					'status'  => 'error',
+					'message' => $reason
+				];
 			}
 				
 			  // ===============================

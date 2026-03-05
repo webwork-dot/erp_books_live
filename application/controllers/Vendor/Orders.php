@@ -1968,7 +1968,8 @@ class Orders extends Vendor_base
 	 
  
 		if ($order_type === 'bookset') {
-			$order_products = $this->db->select('bookset_packages_json')
+			
+			$order_products = $this->db->select('product_id,bookset_packages_json')
 				->from('tbl_order_items')
 				->where('order_id', $order_id)
 				->get()
@@ -1978,7 +1979,22 @@ class Orders extends Vendor_base
 				throw new Exception('No bookset items found.');
 			}
 
-			foreach ($order_products as $row) {
+		 // ==============================
+			// LOAD ALL BOOKSETS IN ONE QUERY
+			// ==============================
+			$bookset_ids = array_unique(array_column($order_products, 'product_id'));
+
+			$booksets = $this->db->select('id, has_products')
+				->from('erp_booksets')
+				->where_in('id', $bookset_ids)
+				->get()
+				->result_array();
+
+			$bookset_map = array_column($booksets, 'has_products', 'id');
+
+
+			foreach ($order_products as $row) {	
+				$has_products = $bookset_map[$row->product_id] ?? 1;
 
 				if (empty($row->bookset_packages_json)) {
 					continue;
@@ -1989,37 +2005,67 @@ class Orders extends Vendor_base
 					continue;
 				}
 
-				foreach ($json['packages'] as $package) {
+				foreach ($json['packages'] as $package) {				
+					// =========================
+					// BOOKSET WITHOUT PRODUCTS
+					// =========================
+					if ($has_products == 0) {
+							$product_name = $package['package_name'] ?? 'Book';
+							$qty          = 1;
+							$price_total  = (float) ($package['package_offer_price'] ?? 0);
+							$weight_gm    = (float) ($package['package_weight'] ?? 0);
 
-					if (empty($package['products'])) {
-						continue;
+							$declared_value += $price_total;
+
+							if ($weight_gm <= 0) {
+								$weight_gm = 500;
+							}
+
+							$total_weight_gm += ($weight_gm * $qty);
+
+							$product_details[] = array(
+								"product_category"               => "Others",
+								"product_sub_category"           => $package['package_name'] ?? "",
+								"product_name"                   => sanitize_allowed_chars($product_name),
+								"product_quantity"               => $qty,
+								"each_product_invoice_amount"    => $price_total,
+								"each_product_collectable_amount"=> 0,
+								"hsn"                            => $package['hsn'] ?? ""
+							);
 					}
+					// =========================
+					// BOOKSET WITH PRODUCTS
+					// =========================
+					else{
+						 if (empty($package['products'])) {
+							continue;
+						 }					
+						foreach ($package['products'] as $product) {
+							$product_name = $product['display_name'] ?? 'Book';
+							$qty          = (int) ($product['quantity'] ?? 1);
+							$price_total  = (float) ($product['total_price'] ?? 0);
+							$weight_gm    = (float) ($product['weight'] ?? 0);
 
-					foreach ($package['products'] as $product) {
+							$declared_value += $price_total;
 
-						$product_name = $product['display_name'] ?? 'Book';
-						$qty          = (int) ($product['quantity'] ?? 1);
-						$price_total  = (float) ($product['total_price'] ?? 0);
-						$weight_gm    = (float) ($product['weight'] ?? 0);
+							if ($weight_gm <= 0) {
+								$weight_gm = 500;
+							}
 
-						$declared_value += $price_total;
+							$total_weight_gm += ($weight_gm * $qty);
 
-						if ($weight_gm <= 0) {
-							$weight_gm = 500;
-						}
-
-						$total_weight_gm += ($weight_gm * $qty);
-
-						$product_details[] = array(
-							"product_category"               => "Others",
-							"product_sub_category"           => $package['package_name'] ?? "",
-							"product_name"                   => sanitize_allowed_chars($product_name),
-							"product_quantity"               => $qty,
-							"each_product_invoice_amount"    => $price_total,
-							"each_product_collectable_amount"=> 0,
-							"hsn"                            => $package['hsn'] ?? ""
-						);
+							$product_details[] = array(
+								"product_category"               => "Others",
+								"product_sub_category"           => $package['package_name'] ?? "",
+								"product_name"                   => sanitize_allowed_chars($product_name),
+								"product_quantity"               => $qty,
+								"each_product_invoice_amount"    => $price_total,
+								"each_product_collectable_amount"=> 0,
+								"hsn"                            => $package['hsn'] ?? ""
+							);
+						 }
 					}
+					
 				}
 			}
 
