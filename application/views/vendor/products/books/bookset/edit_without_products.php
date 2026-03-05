@@ -2,8 +2,6 @@
 <div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
 	<div>
 		<h6><a href="<?php echo base_url('products/bookset?tab=without_product'); ?>"><i class="isax isax-arrow-left me-2"></i>Edit Bookset</a></h6>
-		<!-- DEBUG: Packages count -->
-		<small class="text-muted">Debug: <?php echo count($existing_packages ?? []); ?> existing packages found</small>
 	</div>
 </div>
 <!-- End Breadcrumb -->
@@ -138,16 +136,6 @@
 						<i class="isax isax-add"></i> Add Package
 					</button>
 				</div>
-				
-				<!-- DEBUG INFO -->
-				<div class="alert alert-info mb-3">
-					<strong>Debug Info:</strong> 
-					<?php echo count($existing_packages ?? []); ?> packages loaded from database.
-					<?php if (!empty($existing_packages)): ?>
-						<br>Package names: <?php echo implode(', ', array_column($existing_packages, 'package_name')); ?>
-					<?php endif; ?>
-				</div>
-					
 				<div id="packages_area" class="packages-container">
 					<!-- Packages will be added here dynamically -->
 				</div>
@@ -208,12 +196,15 @@
 (function() {
 	function initScript() {
 		if (typeof window.jQuery === 'undefined') {
-			console.log('jQuery not loaded yet, waiting...');
+			setTimeout(initScript, 100);
+			return;
+		}
+		// Select2 loads in footer - must wait for it or .select2() will throw and break package loading
+		if (typeof window.jQuery.fn.select2 === 'undefined') {
 			setTimeout(initScript, 100);
 			return;
 		}
 		
-		console.log('jQuery loaded, initializing script...');
 		var $ = window.jQuery;
 		
 		// Declare variables first
@@ -224,7 +215,12 @@
 		console.log('Existing packages loaded:', packages);
 		console.log('Total packages:', packages.length);
 		
-		// Pre-load boards when school is selected
+		// Initialize Select2 FIRST so school/board values are properly read and displayed
+		if ($('.select').length > 0) {
+			$('.select').select2();
+		}
+		
+		// Pre-load boards when school is selected (use val() after Select2 init for correct value)
 		var schoolId = $('#school_id').val();
 		if (schoolId) {
 			loadBoards(schoolId);
@@ -775,12 +771,7 @@
 			window.addPackage();
 		});
 		
-		// Initialize Select2 for existing selects
-		if ($('.select').length > 0) {
-			$('.select').select2();
-		}
-		
-		// Load existing packages
+		// Load existing packages (Select2 already initialized above)
 		console.log('About to load packages, count:', packages.length);
 		if (packages.length > 0) {
 			console.log('Loading existing packages...');

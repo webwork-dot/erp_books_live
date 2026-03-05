@@ -5701,7 +5701,7 @@ class Products extends Vendor_base
 					}
 					
 					$formatted_products[] = array(
-						'id' => $product['product_type'] . '_' . $product['product_id'], // Format: textbook_123 or notebook_456
+						'id' => $product['product_type'] . '_' . $product['product_id'], 
 						'product_id' => $product['product_id'],
 						'product_type' => $product['product_type'],
 						'product_name' => $product_name,
