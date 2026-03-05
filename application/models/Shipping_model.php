@@ -14,55 +14,76 @@ class Shipping_model extends CI_Model {
     }
 	
     public function bigship_token($vendor_id) {
-    date_default_timezone_set('Asia/Kolkata');
-    $curr_date = date('Y-m-d H:i:s');
-    $update_date = date('Y-m-d H:i:s');
-        
-    $token=$this->db->get_where('erp_shipping_providers', array('client_id' => $vendor_id,'provider' => 'bigship'))->row_array();
-    $token_expiry = date('Y-m-d H:i:s',strtotime($token['token_expiry']));	
-	// echo $this->db->last_query();exit();
-	
-    if($token_expiry < $curr_date){
-        $url = $this->bigship_url ."login/user";
+		$this->load->model('Erp_client_model');
+		$this->load->model('Vendor_sync_model');
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+		if (!$vendor) {
+			log_message('error', 'Vendor not found for shipping sync.');
+			return false;
+		}
+			
+		/* ==========================================================
+		 * CONNECT USING CI MULTI DATABASE
+		 * ========================================================== */
+		$client_db = $this->Vendor_sync_model->getVendorDbConnection($vendor['database_name']);
+
+		if (!$client_db) {
+			log_message('error', 'Client DB connection failed.');
+			return false;
+		}	
+			
 		
-        $ip_addr=$this->input->ip_address();
-		$data = array(
-          "user_name"  => $token['email'],
-          "password"   => $token['password'],
-          "access_key" => $token['company_id'],
-        );
+		date_default_timezone_set('Asia/Kolkata');
+		$curr_date = date('Y-m-d H:i:s');
+		$update_date = date('Y-m-d H:i:s');
+			
+		$token=$client_db->get_where('erp_shipping_providers', array('client_id' => $vendor_id,'provider' => 'bigship'))->row_array();
+		$token_expiry = date('Y-m-d H:i:s',strtotime($token['token_expiry']));	
+		// echo '11'.json_encode($client_db);exit();
+		// echo '11'.$client_db->last_query();exit();
 		
-        $payload = json_encode($data);        
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-          CURLOPT_URL => "$url",
-          CURLOPT_RETURNTRANSFER => true,
-          CURLOPT_ENCODING => "",
-          CURLOPT_MAXREDIRS => 10,
-          CURLOPT_TIMEOUT => 60,
-          CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-          CURLOPT_CUSTOMREQUEST => "POST",
-          CURLOPT_POSTFIELDS =>$payload,
-          CURLOPT_HTTPHEADER => array(
-            "cache-control: no-cache",
-            "content-type: application/json",
-          ),
-        ));
-        
-        $result = curl_exec($curl);
-        $api_data = json_decode($result, TRUE);
-		//echo json_encode($api_data);exit();  
-        if(!empty($api_data)){
-			$token_expiry = date('Y-m-d H:i:s', strtotime('+8 hours', strtotime($curr_date)));
-            $data_update=array();
-            $data_update['token'] 		 = $api_data['data']['token'];
-            $data_update['token_expiry'] = $token_expiry;
-            $data_update['created_at'] 	 = $curr_date;
-            $data_update['last_updated'] = $update_date;
-            $this->db->where('id', $token['id']);
-            $this->db->update('erp_shipping_providers', $data_update);  
-        }
-      }
+		if($token_expiry < $curr_date){
+			$url = $this->bigship_url ."login/user";
+			
+			$ip_addr=$this->input->ip_address();
+			$data = array(
+			  "user_name"  => $token['email'],
+			  "password"   => $token['password'],
+			  "access_key" => $token['company_id'],
+			);
+			
+			$payload = json_encode($data);        
+			$curl = curl_init();
+			curl_setopt_array($curl, array(
+			  CURLOPT_URL => "$url",
+			  CURLOPT_RETURNTRANSFER => true,
+			  CURLOPT_ENCODING => "",
+			  CURLOPT_MAXREDIRS => 10,
+			  CURLOPT_TIMEOUT => 60,
+			  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			  CURLOPT_CUSTOMREQUEST => "POST",
+			  CURLOPT_POSTFIELDS =>$payload,
+			  CURLOPT_HTTPHEADER => array(
+				"cache-control: no-cache",
+				"content-type: application/json",
+			  ),
+			));
+			
+			$result = curl_exec($curl);
+			$api_data = json_decode($result, TRUE);
+			//echo json_encode($api_data);exit();  
+			if(!empty($api_data)){
+				$token_expiry = date('Y-m-d H:i:s', strtotime('+8 hours', strtotime($curr_date)));
+				$data_update=array();
+				$data_update['token'] 		 = $api_data['data']['token'];
+				$data_update['token_expiry'] = $token_expiry;
+				$data_update['created_at'] 	 = $curr_date;
+				$data_update['last_updated'] = $update_date;
+				$client_db->where('id', $token['id']);
+				$client_db->update('erp_shipping_providers', $data_update);  
+				// echo '11'.$client_db->last_query();exit();
+			}
+		  }
     }
 
 	public function get_bigship_warehouses($client_id){
@@ -221,7 +242,7 @@ class Shipping_model extends CI_Model {
 				"drop_Pincode"     => $drop_pincode ?? '',
 				"drop_Phoneno"     => $address->phone ?? $order->user_phone ?? '',
 				"drop_Alt_Phoneno" => '',
-				"drop_Name"        => $address->name ?? $order->user_name ?? '',
+				"drop_Name"        => clean($address->name) ?? clean($order->user_name) ?? '',
 				"drop_Emailid"     => $address->email ?? $order->user_email ?? '',
 
 				// ================= PICKUP =================

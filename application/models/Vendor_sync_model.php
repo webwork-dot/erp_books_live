@@ -293,8 +293,9 @@ class Vendor_sync_model extends CI_Model
 		return TRUE;
 	}
 	
+ 
 	
-	private function getVendorDbConnection($database_name){
+	public function getVendorDbConnection($database_name){
 		if (empty($database_name)) {
 			log_message('error', 'Vendor DB name is empty.');
 			return FALSE;
@@ -324,7 +325,7 @@ class Vendor_sync_model extends CI_Model
 			'compress' => FALSE,
 			'stricton' => FALSE,
 			'failover' => [],
-			'save_queries' => FALSE
+			'save_queries' => TRUE
 		];
 
 		$client_db = $this->load->database($db_config, TRUE);

@@ -2193,7 +2193,7 @@ class Orders extends Vendor_base
 				$tp_data = [
 					'order_id'               => $order_id,
 					'order_unique_id'        => $order_unique_id,
-					'invoice_number'         => $order_data->invoice_no ?? null,
+					'order_number'        	 => $order_data->invoice_no ?? null,
 					'delivery_address_full'  => $delivery_address_full,
 					'length_cm'              => $length ?: null,
 					'breadth_cm'             => $breadth ?: null,
