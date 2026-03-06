@@ -450,6 +450,8 @@ class Order_model extends CI_Model
 				$order_status_filter = " AND d.order_status='1'";
 		} elseif ($order_status == 'processing') {
 				$order_status_filter = " AND d.order_status='2'";
+		} elseif ($order_status == 'ready_for_shipment') {
+				$order_status_filter = " AND d.order_status='6'";
 		} elseif ($order_status == 'out_for_delivery') {
 				$order_status_filter = " AND d.order_status='3'";
 		} elseif ($order_status == 'delivered') {
@@ -591,6 +593,8 @@ class Order_model extends CI_Model
 				$order_status_filter = " AND d.order_status='1'";
 		} elseif ($order_status == 'processing') {
 				$order_status_filter = " AND d.order_status='2'";
+		} elseif ($order_status == 'ready_for_shipment') {
+				$order_status_filter = " AND d.order_status='6'";
 		} elseif ($order_status == 'out_for_delivery') {
 				$order_status_filter = " AND d.order_status='3'";
 		} elseif ($order_status == 'delivered') {
@@ -701,6 +705,8 @@ class Order_model extends CI_Model
 					$date = date("d M, Y H:i:s", strtotime($item['order_date']));
 				} elseif ($order_status == 'processing') {
 					$date = date("d M, Y H:i:s", strtotime($item['processing_date']));
+				} elseif ($order_status == 'ready_for_shipment') {
+					$date = date("d M, Y H:i:s", strtotime(isset($item['ready_to_ship_time']) ? $item['ready_to_ship_time'] : $item['processing_date']));
 				} elseif ($order_status == 'out_for_delivery') {
 					$date = date("d M, Y H:i:s", strtotime($item['shipment_date']));
 				} elseif ($order_status == 'delivered') {
@@ -863,6 +869,7 @@ class Order_model extends CI_Model
 		$counts = array(
 			'pending' => 0,
 			'processing' => 0,
+			'ready_for_shipment' => 0,
 			'out_for_delivery' => 0
 		);
 
@@ -875,6 +882,11 @@ class Order_model extends CI_Model
 		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='2' AND order_status!='5'");
 		$result = $query->row();
 		$counts['processing'] = isset($result->count) ? (int)$result->count : 0;
+
+		// Get ready for shipment orders count (status = 6)
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='6' AND order_status!='5'");
+		$result = $query->row();
+		$counts['ready_for_shipment'] = isset($result->count) ? (int)$result->count : 0;
 
 		// Get out for delivery orders count (status = 3)
 		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='3' AND order_status!='5'");
@@ -976,6 +988,8 @@ class Order_model extends CI_Model
 				$date = !empty($item['order_date']) ? date("d M, Y H:i:s", strtotime($item['order_date'])) : '-';
 			} elseif ($order_status == '2' || $order_status == 2) {
 				$date = !empty($item['processing_date']) ? date("d M, Y H:i:s", strtotime($item['processing_date'])) : (!empty($item['order_date']) ? date("d M, Y H:i:s", strtotime($item['order_date'])) : '-');
+			} elseif ($order_status == '6' || $order_status == 6) {
+				$date = !empty($item['ready_to_ship_time']) ? date("d M, Y H:i:s", strtotime($item['ready_to_ship_time'])) : (!empty($item['processing_date']) ? date("d M, Y H:i:s", strtotime($item['processing_date'])) : '-');
 			} elseif ($order_status == '3' || $order_status == 3) {
 				$date = !empty($item['shipment_date']) ? date("d M, Y H:i:s", strtotime($item['shipment_date'])) : (!empty($item['order_date']) ? date("d M, Y H:i:s", strtotime($item['order_date'])) : '-');
 			} elseif ($order_status == '4' || $order_status == 4) {

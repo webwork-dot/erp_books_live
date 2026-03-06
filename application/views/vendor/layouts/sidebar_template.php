@@ -4,11 +4,17 @@
 			<div class="sidebar" id="sidebar-two">
 
 				<style>
-				/* Ensure sidebar menu text is Capitalized consistently */
-				#sidebar-two .sidebar-menu li a span,
-				#sidebar-two .sidebar-menu li a {
-					text-transform: capitalize;
+				/* Sidebar section titles - clear, uppercase labels */
+				#sidebar-two .sidebar-menu .menu-title {
+					font-size: 0.7rem;
+					font-weight: 600;
+					letter-spacing: 0.05em;
+					text-transform: uppercase;
+					color: rgba(255,255,255,0.6);
+					margin-top: 0.5rem;
 				}
+				#sidebar-two .sidebar-menu .menu-title:first-child { margin-top: 0; }
+				#sidebar-two .sidebar-menu li a span { text-transform: none; }
 				</style>
 
 				<!-- Start Logo -->
@@ -47,169 +53,104 @@
 				<div class="sidebar-inner" data-simplebar style="display: flex; flex-direction: column; height: 100%;">
 					<div id="sidebar-menu" class="sidebar-menu" style="flex: 1; overflow-y: auto;">
 						<ul>
-							<li class="menu-title"><span>Main</span></li>
+							<?php
+							$current_uri = uri_string();
+							$is_orders_section = (strpos($current_uri, 'orders') !== false || (isset($current_page) && in_array($current_page, ['Orders', 'Order Details'])));
+							$is_schools_section = (strpos($current_uri, 'schools') !== false || strpos($current_uri, 'branches') !== false || strpos($current_uri, 'boards') !== false);
+
+							$orders_parent_active = $is_orders_section ? 'active subdrop' : '';
+							$orders_all_active = ($current_uri === 'orders' || $current_uri === 'orders/index') ? 'active' : '';
+							$orders_pending_active = strpos($current_uri, 'orders/pending') !== false ? 'active' : '';
+							$orders_processing_active = strpos($current_uri, 'orders/processing') !== false ? 'active' : '';
+							$orders_ready_active = strpos($current_uri, 'orders/ready_for_shipment') !== false ? 'active' : '';
+							$orders_ofd_active = strpos($current_uri, 'orders/out_for_delivery') !== false ? 'active' : '';
+							$orders_delivered_active = strpos($current_uri, 'orders/delivered') !== false ? 'active' : '';
+							$orders_return_active = strpos($current_uri, 'orders/return') !== false ? 'active' : '';
+							$orders_cancelled_active = strpos($current_uri, 'orders/cancelled-orders') !== false ? 'active' : '';
+
+							$schools_parent_active = $is_schools_section ? 'active subdrop' : '';
+							$schools_all_active = ($current_uri === 'schools' || $current_uri === 'schools/index') ? 'active' : '';
+							$schools_branches_active = strpos($current_uri, 'branches') !== false ? 'active' : '';
+							$schools_boards_active = strpos($current_uri, 'schools/boards') !== false ? 'active' : '';
+							?>
+
+							<li class="menu-title"><span>Overview</span></li>
 							<li>
 								<ul>
 									<li>
-										<a href="<?php echo base_url('dashboard'); ?>" class="<?php echo (strpos(uri_string(), 'dashboard') !== false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('dashboard'); ?>" class="<?php echo (strpos($current_uri, 'dashboard') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-element-45"></i><span>Dashboard</span>
 										</a>
 									</li>
-									<?php /* Hidden: Live Site Settings
-									<li>
-										<a href="<?php echo base_url('site-settings'); ?>" class="<?php echo (strpos(uri_string(), 'site-settings') !== false) ? 'active' : ''; ?>">
-											<i class="isax isax-monitor"></i><span>Live Site Settings</span>
-										</a>
-									</li>
-									*/ ?>
 								</ul>
 							</li>
-							<li class="menu-title"><span>Management</span></li>
+
+							<li class="menu-title"><span>Orders</span></li>
 							<li>
 								<ul>
-									<?php
-									// Helper variables for better submenu logic
-									$current_uri = uri_string();
-									$is_schools_section = (
-										strpos($current_uri, 'schools') !== false ||
-										strpos($current_uri, 'branches') !== false ||
-										strpos($current_uri, 'boards') !== false
-									);
-									$is_orders_section = (
-										strpos($current_uri, 'orders') !== false ||
-										(isset($current_page) && in_array($current_page, ['Orders', 'Order Details']))
-									);
-
-									// Schools submenu states
-									$schools_parent_active = $is_schools_section ? 'active subdrop' : '';
-									$schools_all_active = ($current_uri === 'schools' || $current_uri === 'schools/index') ? 'active' : '';
-									$schools_branches_active = strpos($current_uri, 'branches') !== false ? 'active' : '';
-									$schools_boards_active = strpos($current_uri, 'schools/boards') !== false ? 'active' : '';
-
-									// Orders submenu states
-									$orders_parent_active = $is_orders_section ? 'active subdrop' : '';
-									$orders_all_active = ($current_uri === 'orders' || $current_uri === 'orders/index') ? 'active' : '';
-									$orders_pending_active = strpos($current_uri, 'orders/pending') !== false ? 'active' : '';
-									$orders_cancelled_active = strpos($current_uri, 'orders/cancelled-orders') !== false ? 'active' : '';
-									$orders_processing_active = strpos($current_uri, 'orders/processing') !== false ? 'active' : '';
-									$orders_delivered_active = strpos($current_uri, 'orders/delivered') !== false ? 'active' : '';
-									$orders_return_active = strpos($current_uri, 'orders/return') !== false ? 'active' : '';
-									?>
-									<li class="submenu">
-										<a href="javascript:void(0);" class="<?php echo $schools_parent_active; ?>">
-											<i class="isax isax-building-4"></i><span>Schools</span>
-											<span class="menu-arrow"></span>
-										</a>
-										<ul>
-											<li>
-												<a href="<?php echo base_url('schools'); ?>" class="<?php echo $schools_all_active; ?>">
-													All Schools
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('branches'); ?>" class="<?php echo $schools_branches_active; ?>">
-													Branches
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('schools/boards'); ?>" class="<?php echo $schools_boards_active; ?>">
-													Boards
-												</a>
-											</li>
-										</ul>
-									</li>
-
 									<li class="submenu">
 										<a href="javascript:void(0);" class="<?php echo $orders_parent_active; ?>">
 											<i class="isax isax-shopping-cart"></i><span>Orders</span>
 											<span class="menu-arrow"></span>
 										</a>
 										<ul>
-											<li>
-												<a href="<?php echo base_url('orders'); ?>" class="<?php echo $orders_all_active; ?>">
-													All Orders
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('orders/pending'); ?>" class="<?php echo $orders_pending_active; ?>">
-													Pending Orders
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('orders/processing'); ?>" class="<?php echo $orders_processing_active; ?>">
-													Processing
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('orders/out_for_delivery'); ?>" class="<?php echo $orders_delivered_active; ?>">
-													Out for Delivery
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('orders/delivered'); ?>" class="<?php echo $orders_delivered_active; ?>">
-													Delivered
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('orders/return'); ?>" class="<?php echo $orders_return_active; ?>">
-													Return/Refund
-												</a>
-											</li>
-											<li>
-												<a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="<?php echo $orders_cancelled_active; ?>">
-													Cancelled Orders
-												</a>
-											</li>
+											<li><a href="<?php echo base_url('orders'); ?>" class="<?php echo $orders_all_active; ?>">All Orders</a></li>
+											<li><a href="<?php echo base_url('orders/pending'); ?>" class="<?php echo $orders_pending_active; ?>">New Order</a></li>
+											<li><a href="<?php echo base_url('orders/processing'); ?>" class="<?php echo $orders_processing_active; ?>">Processing</a></li>
+											<li><a href="<?php echo base_url('orders/ready_for_shipment'); ?>" class="<?php echo $orders_ready_active; ?>">Ready for Shipment</a></li>
+											<li><a href="<?php echo base_url('orders/out_for_delivery'); ?>" class="<?php echo $orders_ofd_active; ?>">Out for Delivery</a></li>
+											<li><a href="<?php echo base_url('orders/delivered'); ?>" class="<?php echo $orders_delivered_active; ?>">Delivered</a></li>
+											<li><a href="<?php echo base_url('orders/return'); ?>" class="<?php echo $orders_return_active; ?>">Return / Refund</a></li>
+											<li><a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="<?php echo $orders_cancelled_active; ?>">Cancelled</a></li>
 										</ul>
 									</li>
+								</ul>
+							</li>
 
-									<!-- <li>
-										<a href="<?php echo base_url('orders'); ?>" class="<?php echo (strpos(uri_string(), 'orders') !== false) ? 'active' : ''; ?>">
-											<i class="isax isax-shopping-cart"></i><span>Orders</span>
-										</a>
-									</li> -->
-									<!-- <li>
-										<a href="<?php echo base_url('offers'); ?>" class="<?php echo (strpos(uri_string(), 'offers') !== false) ? 'active' : ''; ?>">
-											<i class="isax isax-gift"></i><span>Offers</span>
-										</a>
-									</li> -->
+							<li class="menu-title"><span>Customer & Support</span></li>
+							<li>
+								<ul>
 									<li>
-										<a href="<?php echo base_url('customers'); ?>" class="<?php echo (strpos(uri_string(), 'customers') !== false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('customers'); ?>" class="<?php echo (strpos($current_uri, 'customers') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-profile-2user5"></i><span>Customers</span>
 										</a>
 									</li>
 									<li>
-										<a href="<?php echo base_url('couriers'); ?>" class="<?php echo (strpos(uri_string(), 'couriers') !== false) ? 'active' : ''; ?>">
+										<a href="<?php echo base_url('concerns'); ?>" class="<?php echo (strpos($current_uri, 'concerns') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-message-question"></i><span>Customer Concerns</span>
+										</a>
+									</li>
+								</ul>
+							</li>
+
+							<li class="menu-title"><span>Operations</span></li>
+							<li>
+								<ul>
+									<li class="submenu">
+										<a href="javascript:void(0);" class="<?php echo $schools_parent_active; ?>">
+											<i class="isax isax-building-4"></i><span>Schools</span>
+											<span class="menu-arrow"></span>
+										</a>
+										<ul>
+											<li><a href="<?php echo base_url('schools'); ?>" class="<?php echo $schools_all_active; ?>">All Schools</a></li>
+											<li><a href="<?php echo base_url('branches'); ?>" class="<?php echo $schools_branches_active; ?>">Branches</a></li>
+											<li><a href="<?php echo base_url('schools/boards'); ?>" class="<?php echo $schools_boards_active; ?>">Boards</a></li>
+										</ul>
+									</li>
+									<li>
+										<a href="<?php echo base_url('couriers'); ?>" class="<?php echo (strpos($current_uri, 'couriers') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-truck"></i><span>Couriers</span>
 										</a>
 									</li>
-									<li>
-										<a href="<?php echo base_url('reports'); ?>" class="<?php echo (strpos(uri_string(), 'reports') !== false) ? 'active' : ''; ?>">
-											<i class="isax isax-chart-2"></i><span>Reports</span>
-										</a>
-									</li>
-									<?php /* Hidden: Feature Images
-									<li>
-										<a href="<?php echo base_url('features'); ?>" class="<?php echo (strpos(uri_string(), 'features') !== false && strpos(uri_string(), 'products/') === false) ? 'active' : ''; ?>">
-											<i class="isax isax-image"></i><span>Feature Images</span>
-										</a>
-									</li>
-									*/ ?>
 								</ul>
 							</li>
 							<?php 
-							// Show Products section only if vendor has products OR has features assigned
 							$total_products_count = isset($total_products_count) ? $total_products_count : 0;
 							$has_features = isset($enabled_features) && !empty($enabled_features);
 							$show_products = ($total_products_count > 0 || $has_features);
-							
-							// Debug: Log feature count
-							if (function_exists('log_message')) {
-								log_message('debug', 'Sidebar - enabled_features isset: ' . (isset($enabled_features) ? 'YES' : 'NO') . ', count: ' . (isset($enabled_features) ? count($enabled_features) : 0) . ', has_features: ' . ($has_features ? 'YES' : 'NO'));
-							}
 							?>
 							<?php if ($show_products): ?>
-							<li class="menu-title"><span>Products</span></li>
+							<li class="menu-title"><span>Catalog</span></li>
 							<li>
 								<ul>
 									<?php if (isset($enabled_features) && !empty($enabled_features)): ?>
@@ -264,6 +205,17 @@
 								</ul>
 							</li>
 							<?php endif; ?>
+
+							<li class="menu-title"><span>Analytics</span></li>
+							<li>
+								<ul>
+									<li>
+										<a href="<?php echo base_url('reports'); ?>" class="<?php echo (strpos($current_uri, 'reports') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-chart-2"></i><span>Reports</span>
+										</a>
+									</li>
+								</ul>
+							</li>
 						</ul>
 						<script>
 						function toggleSubmenu(arrowElement) {

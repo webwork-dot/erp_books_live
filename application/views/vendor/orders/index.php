@@ -195,6 +195,11 @@
                </a>
             </li>
             <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'ready_for_shipment') ? 'active' : ''; ?>" href="<?php echo base_url('orders/ready_for_shipment'); ?>">
+                  Ready for Shipment <?php if(isset($order_counts['ready_for_shipment']) && $order_counts['ready_for_shipment'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['ready_for_shipment']; ?></span><?php endif; ?>
+               </a>
+            </li>
+            <li class="nav-item">
                <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url('orders/out_for_delivery'); ?>">
                   Out for Delivery <?php if(isset($order_counts['out_for_delivery']) && $order_counts['out_for_delivery'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['out_for_delivery']; ?></span><?php endif; ?>
                </a>
@@ -299,6 +304,8 @@
                   <?php elseif ($order_status == 'pending'): ?>
                      <?php echo form_open(base_url('orders/move_to_processing'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'processing'): ?>
+                     <?php echo form_open(base_url('orders/move_to_processing'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
+                  <?php elseif ($order_status == 'ready_for_shipment'): ?>
                      <?php echo form_open(base_url('orders/move_to_out_for_delivery'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'out_for_delivery'): ?>
                      <?php echo form_open(base_url('orders/move_to_delivered'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
@@ -315,6 +322,8 @@
                                  echo 'New Order';
                               } elseif ($order_status == 'processing') {
                                  echo 'Processing';
+                              } elseif ($order_status == 'ready_for_shipment') {
+                                 echo 'Ready for Shipment';
                               } elseif ($order_status == 'out_for_delivery') {
                                  echo 'Out for Delivery';
                               } elseif ($order_status == 'delivered') {
@@ -349,6 +358,17 @@
                                  <i class="fa fa-spinner fa-spin me-1"></i> Generating &amp; Downloading...
                               </span>
                            </button>
+                        </div>
+                        <?php elseif ($order_status == 'ready_for_shipment'): ?>
+                        <div class="pull-right d-flex gap-2 flex-wrap">
+                           <button type="button" id="btn_bulk_download_labels" class="btn btn-outline-secondary waves-effect waves-light btn-md mb-0" disabled>
+                              <span id="bulkLabelsText">
+                                 <i class="fa fa-file-pdf-o me-1"></i> Download Shipping Labels (<span class="total_orders">0</span>)
+                              </span>
+                              <span id="bulkLabelsSpinner" style="display:none;">
+                                 <i class="fa fa-spinner fa-spin me-1"></i> Generating &amp; Downloading...
+                              </span>
+                           </button>
                            <button type="button" name="button" id="btn_out_for_delivery" value="update" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
                               Move to Out for Delivery (<span class="total_orders">0</span>)
                            </button>
@@ -362,7 +382,7 @@
                         <?php endif; ?>
                      </div>
 
-                     <?php if ($order_status == 'processing' || $order_status == 'out_for_delivery'): ?>
+                     <?php if ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): ?>
                         <ul class="nav nav-pills mb-2" id="courierFilterTabs" role="tablist">
                            <li class="nav-item" role="presentation">
                               <button class="nav-link active" id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">
@@ -382,7 +402,7 @@
                      <table class="table table-striped table-bordered table-hover">
                         <thead>
                            <tr>
-                              <?php if ($order_status == 'all' || $order_status == 'pending' || $order_status == '' || $order_status == 'processing' || $order_status == 'out_for_delivery'): ?>
+                              <?php if ($order_status == 'all' || $order_status == 'pending' || $order_status == '' || $order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): ?>
                                  <th class="flex-center center">
                                     <div class="checkbox checkbox-primary">
                                        <input type="checkbox" class="package_change" id="checkAll_order" value="1">
@@ -408,6 +428,8 @@
                                     echo 'Order Date';
                                  } elseif ($order_status == 'processing') {
                                     echo 'Processing Date';
+                                 } elseif ($order_status == 'ready_for_shipment') {
+                                    echo 'Ready Date';
                                  } elseif ($order_status == 'out_for_delivery') {
                                     echo 'Shipment Date';
                                  } elseif ($order_status == 'delivered') {
@@ -433,9 +455,9 @@
                                  // Determine if order is actionable (can be moved to next status)
                                  $is_actionable = false;
                                  if ($order_status == 'all' || $order_status == '') {
-                                    $is_actionable = ($item['status'] == '1' || $item['status'] == '2' || $item['status'] == '3');
+                                    $is_actionable = ($item['status'] == '1' || $item['status'] == '2' || $item['status'] == '6' || $item['status'] == '3');
                                  } else {
-                                    $is_actionable = ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'out_for_delivery');
+                                    $is_actionable = ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery');
                                  }
                                  
                                  // Get status label and class
@@ -449,6 +471,10 @@
                                     case '2':
                                        $status_label = 'Processing';
                                        $status_class = 'label-warning';
+                                       break;
+                                    case '6':
+                                       $status_label = 'Ready for Shipment';
+                                       $status_class = 'label-primary';
                                        break;
                                     case '3':
                                        $status_label = 'Out for Delivery';
@@ -529,7 +555,7 @@
                                     $colspan = 13;
                                     if ($order_status == 'all' || $order_status == '') {
                                        $colspan = 15; // checkbox + status + product + address + school + grade + delivery
-                                    } elseif ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'out_for_delivery') {
+                                    } elseif ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery') {
                                        $colspan = 14; // checkbox + product + address + school + grade + delivery
                                     }
                                     echo $colspan;
@@ -565,6 +591,9 @@
                      <input type="submit" name="submit_orderc" class="submit_orderc" value="1" style="display:none;">
                      <?php echo form_close(); ?>
                   <?php elseif ($order_status == 'processing'): ?>
+                     <input type="submit" name="submit_orderc" class="submit_orderc" value="1" style="display:none;">
+                     <?php echo form_close(); ?>
+                  <?php elseif ($order_status == 'ready_for_shipment'): ?>
                      <input type="submit" name="submit_orderc" class="submit_orderc" value="1" style="display:none;">
                      <?php echo form_close(); ?>
                   <?php elseif ($order_status == 'out_for_delivery'): ?>
@@ -928,33 +957,46 @@
             	  }).then(() => { location.reload()});
             }
             else{
-				$.each(res.errors, function(key, value){
-					$('[name="'+key+'"]').addClass('is-invalid'); //select parent twice to select div form-group class and add has-error class
-					$('[name="'+key+'"]').next().html(value); //select span help-block class set text error string
-					if(value == ""){
-						$('[name="'+key+'"]').removeClass('is-invalid');
-						$('[name="'+key+'"]').addClass('is-valid');
-					}
-				});
-			   Swal.fire({
-					title: "Error!",
-					html: true,
-					html: res.message ,
+				if (res.errors && typeof res.errors === 'object') {
+					$.each(res.errors, function(key, value){
+						$('[name="'+key+'"]').addClass('is-invalid');
+						$('[name="'+key+'"]').next().html(value);
+						if(value == ""){
+							$('[name="'+key+'"]').removeClass('is-invalid');
+							$('[name="'+key+'"]').addClass('is-valid');
+						}
+					});
+				}
+				$(".loader").fadeOut("slow");
+				$('.btn_verify').html('<i class="fa fa-save"></i>  Save');
+				$('.btn_verify').attr("disabled", false);
+				var t = $('input[name="order_id[]"]:checked').length;
+				$('#btn_process').html('Move to Processing Selected Orders (<span class="total_orders">'+t+'</span>)');
+				$("#btn_process").prop('disabled', false);
+				Swal.fire({
+					title: "Allocation failed",
+					text: res.message || "Orders could not be moved to processing. Please try again or contact support.",
 					icon: "error",
-					customClass: {
-						confirmButton: "btn btn-primary"
-					},
-					buttonsStyling: !1
-				})
-            $(".loader").fadeOut("slow");
-            $('.btn_verify').html('<i class="fa fa-save"></i>  Save');
-            $('.btn_verify').attr("disabled", false)
-            var t = $('input[name="order_id[]"]:checked').length;
-
-        	$('#btn_process').html('Move to Processing Selected Orders (<span class="total_orders">'+t+'</span>)');
-            $("#btn_process").prop('disabled', false);
+					customClass: { confirmButton: "btn btn-primary" },
+					buttonsStyling: false
+				});
           }
-         }
+         },
+			error: function(xhr, status, err) {
+				$(".loader").fadeOut("slow");
+				$('.btn_verify').html('<i class="fa fa-save"></i>  Save');
+				$('.btn_verify').attr("disabled", false);
+				var t = $('input[name="order_id[]"]:checked').length;
+				$('#btn_process').html('Move to Processing Selected Orders (<span class="total_orders">'+t+'</span>)');
+				$("#btn_process").prop('disabled', false);
+				Swal.fire({
+					title: "Allocation failed",
+					text: "Request failed. Please check your connection and try again.",
+					icon: "error",
+					customClass: { confirmButton: "btn btn-primary" },
+					buttonsStyling: false
+				});
+			}
         });
         return false;
     });
@@ -1253,15 +1295,48 @@ $(document).ready(function(){
         }).done(function(res){
 
             if(res.status === '200'){
-                Swal.fire('Success', res.message, 'success')
-                    .then(()=> location.reload());
+                var failedData = res.data && typeof res.data === 'object' && Object.keys(res.data).length > 0;
+                if (failedData) {
+                    var failedList = '';
+                    for (var ord in res.data) { failedList += '• ' + ord + ': ' + res.data[ord] + '\n'; }
+                    Swal.fire({
+                        title: 'Allocation completed with errors',
+                        html: '<p class="text-start mb-2">' + (res.message || 'Some orders could not be allocated.') + '</p>' +
+                              '<pre class="text-start small bg-light p-2 rounded mb-0" style="max-height: 200px; overflow: auto;">' + failedList.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>',
+                        icon: 'warning',
+                        customClass: { confirmButton: 'btn btn-primary' },
+                        buttonsStyling: false
+                    }).then(function(){ location.reload(); });
+                } else {
+                    Swal.fire('Success', res.message, 'success').then(function(){ location.reload(); });
+                }
             } else {
                 $('#saveThirdPartyBtn').prop('disabled', false);
                 $('#saveBtnText').show();
                 $('#saveBtnLoader').hide();
-                Swal.fire('Error', res.message || 'Failed', 'error');
+                var errDetail = res.data && typeof res.data === 'object' && Object.keys(res.data).length > 0
+                    ? '<pre class="text-start small bg-light p-2 rounded mt-2">' + Object.keys(res.data).map(function(k){ return k + ': ' + res.data[k]; }).join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
+                    : '';
+                Swal.fire({
+                    title: 'Allocation failed',
+                    html: '<p>' + (res.message || 'Orders could not be allocated. Please try again or contact support.') + '</p>' + errDetail,
+                    icon: 'error',
+                    customClass: { confirmButton: 'btn btn-primary' },
+                    buttonsStyling: false
+                });
             }
 
+        }).fail(function(xhr, status, err){
+            $('#saveThirdPartyBtn').prop('disabled', false);
+            $('#saveBtnText').show();
+            $('#saveBtnLoader').hide();
+            Swal.fire({
+                title: 'Allocation failed',
+                text: 'Request failed. Please check your connection and try again.',
+                icon: 'error',
+                customClass: { confirmButton: 'btn btn-primary' },
+                buttonsStyling: false
+            });
         });
 
     };

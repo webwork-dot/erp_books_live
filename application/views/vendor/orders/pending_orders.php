@@ -86,6 +86,11 @@
                </a>
             </li>
             <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'ready_for_shipment') ? 'active' : ''; ?>" href="<?php echo base_url('orders/ready_for_shipment'); ?>">
+                  Ready for Shipment <?php if(isset($order_counts['ready_for_shipment']) && $order_counts['ready_for_shipment'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['ready_for_shipment']; ?></span><?php endif; ?>
+               </a>
+            </li>
+            <li class="nav-item">
                <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url('orders/out_for_delivery'); ?>">
                   Out for Delivery <?php if(isset($order_counts['out_for_delivery']) && $order_counts['out_for_delivery'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['out_for_delivery']; ?></span><?php endif; ?>
                </a>

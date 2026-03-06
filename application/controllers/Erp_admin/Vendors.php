@@ -571,8 +571,9 @@ class Vendors extends Erp_base
 			// Handle logo upload (EXACT pattern like notebooks, domain-based folder)
 			if (!empty($_FILES['logo']['name']))
 			{
-				$this->config->load('upload');
-				$uploadCfg = $this->config->item('vendor_logo_upload');
+				$this->config->load('upload', TRUE);
+				// Load vendor logo upload config from the 'upload' config group (same pattern as favicon)
+				$uploadCfg = $this->config->item('vendor_logo_upload', 'upload');
 				// Derive vendor folder from domain (EXACT same logic as earlier)
 				$raw_domain = strtolower(trim($this->input->post('domain')));
 				$raw_domain = preg_replace('#^https?://#', '', $raw_domain);
@@ -595,6 +596,8 @@ class Vendors extends Erp_base
 							. trim($uploadCfg['relative_dir'], '/')
 							. '/';
 
+				
+							
 				if (!is_dir($upload_path)) {
 					mkdir($upload_path, 0775, true);
 				}
@@ -675,6 +678,8 @@ class Vendors extends Erp_base
 								. '/'
 								. $vendor_folder . '/'
 								. trim($faviconCfg['relative_dir'], '/') . '/';
+
+					
 
 					if (!is_dir($upload_path)) {
 						mkdir($upload_path, 0775, true);

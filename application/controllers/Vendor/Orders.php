@@ -1240,22 +1240,22 @@ class Orders extends Vendor_base
 			return;
 		}
 		
-		// Update orders status from 2 (processing) to 3 (out_for_delivery) and set shipment_date
+		// Update orders status from 6 (ready for shipment) to 3 (out_for_delivery) and set shipment_date
 		$shipment_date = date("Y-m-d H:i:s");
 		$updated_count = 0;
 		
 		foreach ($order_ids as $order_id)
 		{
-			// Verify order belongs to vendor (check through order items)
+			// Verify order belongs to vendor and is in ready for shipment status (6)
 			$order_check = $this->db->query("SELECT od.id FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
-				WHERE od.id = ? AND od.order_status = '2'", 
+				WHERE od.id = ? AND od.order_status = '6'", 
 				array($order_id))->row();
 			
 			if ($order_check)
 			{
 				$this->db->where('id', $order_id);
-				$this->db->where('order_status', '2'); // Only update processing orders
+				$this->db->where('order_status', '6'); // Only update ready for shipment orders
 				$this->db->update('tbl_order_details', array(
 					'order_status' => '3',
 					'shipment_date' => $shipment_date
@@ -1275,16 +1275,16 @@ class Orders extends Vendor_base
 			echo json_encode([
 				'status' => '200',
 				'message' => $updated_count . ' order(s) moved to out for delivery successfully.',
-				'url' => base_url($this->current_vendor['domain'] . '/orders/processing')
+				'url' => base_url($this->current_vendor['domain'] . '/orders/out_for_delivery')
 			]);
 		}
 		else
 		{
-			$this->session->set_flashdata('error', 'No orders were updated. Please ensure orders are in processing status.');
+			$this->session->set_flashdata('error', 'No orders were updated. Please ensure orders are in ready for shipment status.');
 			
 			echo json_encode([
 				'status' => '400',
-				'message' => 'No orders were updated. Please ensure orders are in processing status.',
+				'message' => 'No orders were updated. Please ensure orders are in ready for shipment status.',
 			]);
 		}
 	}
@@ -1663,215 +1663,128 @@ class Orders extends Vendor_base
 	}
  
 	public function bulk_save_third_party_shipping(){
-    header('Content-Type: application/json');
+		header('Content-Type: application/json');
 
-    $response = function($status, $message, $extra = []) {
-        echo json_encode([
-            'status'  => $status,
-            'message' => $message,
-            'data'    => $extra,
-            'csrf'    => [
-                'name' => $this->security->get_csrf_token_name(),
-                'hash' => $this->security->get_csrf_hash()
-            ]
-        ]);
-        exit;
-    };
+		$response = function($status, $message, $extra = []) {
+			echo json_encode([
+				'status'  => $status,
+				'message' => $message,
+				'data'    => $extra,
+				'csrf'    => [
+					'name' => $this->security->get_csrf_token_name(),
+					'hash' => $this->security->get_csrf_hash()
+				]
+			]);
+			exit;
+		};
 
-    $order_ids = $this->input->post('order_ids');
-    $third_party_provider = trim($this->input->post('third_party_provider', true));
-    $length  = (float) $this->input->post('length');
-    $breadth = (float) $this->input->post('breadth');
-    $height  = (float) $this->input->post('height');
-    $weight  = (float) $this->input->post('weight');
-    $schedule_date = $this->input->post('schedule_date', true);
-    $from_time     = $this->input->post('from_Time', true);
-    $to_time       = $this->input->post('to_Time', true);
-    $pickup_address_id = $this->input->post('pickup_address_id', true);
+		$order_ids = $this->input->post('order_ids');
+		$third_party_provider = trim($this->input->post('third_party_provider', true));
+		$length  = (float) $this->input->post('length');
+		$breadth = (float) $this->input->post('breadth');
+		$height  = (float) $this->input->post('height');
+		$weight  = (float) $this->input->post('weight');
+		$schedule_date = $this->input->post('schedule_date', true);
+		$from_time     = $this->input->post('from_Time', true);
+		$to_time       = $this->input->post('to_Time', true);
+		$pickup_address_id = $this->input->post('pickup_address_id', true);
 
-    // ===============================
-    // BASIC VALIDATION
-    // ===============================
+		// ===============================
+		// BASIC VALIDATION
+		// ===============================
 
-    if (empty($order_ids) || !is_array($order_ids) || empty($third_party_provider)) {
-        $response('400', 'Order IDs and provider are required.');
-    }
+		if (empty($order_ids) || !is_array($order_ids) || empty($third_party_provider)) {
+			$response('400', 'Order IDs and provider are required.');
+		}
 
-    if ($length <= 0 || $breadth <= 0 || $height <= 0 || $weight <= 0) {
-        $response('400', 'Package dimensions and weight must be greater than 0.');
-    }
+		if ($length <= 0 || $breadth <= 0 || $height <= 0 || $weight <= 0) {
+			$response('400', 'Package dimensions and weight must be greater than 0.');
+		}
 
-    // Validate provider allowed
-    $providers = $this->db->select('shipping_providers')
-        ->from('erp_clients')
-        ->where('id', $this->current_vendor['id'])
-        ->get()->row_array();
+		// Validate provider allowed
+		$providers = $this->db->select('shipping_providers')
+			->from('erp_clients')
+			->where('id', $this->current_vendor['id'])
+			->get()->row_array();
 
-    $allowed_providers = explode(",", $providers['shipping_providers'] ?? '');
+		$allowed_providers = explode(",", $providers['shipping_providers'] ?? '');
 
-    if (!in_array($third_party_provider, $allowed_providers)) {
-        $response('400', 'Invalid provider.');
-    }
+		if (!in_array($third_party_provider, $allowed_providers)) {
+			$response('400', 'Invalid provider.');
+		}
 
-    // Provider config
-    $provider_config = $this->db->select('*')
-        ->from('erp_shipping_providers')
-        ->where('provider', $third_party_provider)
-        ->where('client_id', $this->current_vendor['id'])
-        ->limit(1)
-        ->get()->row();
+		// Provider config
+		$provider_config = $this->db->select('*')
+			->from('erp_shipping_providers')
+			->where('provider', $third_party_provider)
+			->where('client_id', $this->current_vendor['id'])
+			->limit(1)
+			->get()->row();
 
-    if (!$provider_config) {
-        $response('400', 'Shipping provider configuration not found.');
-    }
+		if (!$provider_config) {
+			$response('400', 'Shipping provider configuration not found.');
+		}
 
-    $this->load->model('Shipping_model');
+		$this->load->model('Shipping_model');
 
-    // ===============================
-    // FETCH ORDERS
-    // ===============================
+		// ===============================
+		// FETCH ORDERS
+		// ===============================
 
-    $orders = $this->db->select('*')
-        ->from('tbl_order_details')
-        ->where_in('id', $order_ids)
-        ->get()
-        ->result();
+		$orders = $this->db->select('*')
+			->from('tbl_order_details')
+			->where_in('id', $order_ids)
+			->get()
+			->result();
 
-    if (empty($orders)) {
-        $response('400', 'No valid orders found.');
-    }
+		if (empty($orders)) {
+			$response('400', 'No valid orders found.');
+		}
 
-    // ===============================
-    // PRE-VALIDATION OF ALL ORDERS
-    // ===============================
+		// ===============================
+		// PRE-VALIDATION OF ALL ORDERS
+		// ===============================
 
-    $valid_orders  = [];
-    $failed_orders = [];
+		$valid_orders  = [];
+		$failed_orders = [];
 
-    foreach ($orders as $order_data) {
+		foreach ($orders as $order_data) {
 
-        $order_id = $order_data->id;
-        $order_unique_id = $order_data->order_unique_id;
+			$order_id = $order_data->id;
+			$order_unique_id = $order_data->order_unique_id;
 
-        if ($order_data->order_status != 1) {
-            $failed_orders[$order_unique_id] = 'Not in pending status';
-            continue;
-        }
+			if ($order_data->order_status != 1) {
+				$failed_orders[$order_unique_id] = 'Not in pending status';
+				continue;
+			}
 
-        if (!empty($order_data->shipment_id)) {
-            $failed_orders[$order_unique_id] = 'Shipment already created';
-            continue;
-        }
+			if (!empty($order_data->shipment_id)) {
+				$failed_orders[$order_unique_id] = 'Shipment already created';
+				continue;
+			}
 
-        $items_count = $this->db
-            ->where('order_id', $order_id)
-            ->count_all_results('tbl_order_items');
+			$items_count = $this->db
+				->where('order_id', $order_id)
+				->count_all_results('tbl_order_items');
 
-        if ($items_count == 0) {
-            $failed_orders[$order_unique_id] = 'No order items found';
-            continue;
-        }
-
-        // ===============================
-        // PROPER ADDRESS VALIDATION
-        // ===============================
-
-        $is_deliver_at_school = (
-            isset($order_data->is_deliver_at_school) &&
-            (int)$order_data->is_deliver_at_school === 1
-        );
-
-        $addr_row = null;
-
-        if ($is_deliver_at_school) {
-
-            $order_item = $this->db->select('branch_id, school_id')
-                ->from('tbl_order_items')
-                ->where('order_id', $order_id)
-                ->limit(1)
-                ->get()
-                ->row();
-
-            if ($order_item) {
-
-                if (!empty($order_item->branch_id)) {
-
-                    $addr_row = $this->db->select('id')
-                        ->from('erp_school_branches')
-                        ->where('id', (int)$order_item->branch_id)
-                        ->limit(1)
-                        ->get()
-                        ->row();
-
-                } elseif (!empty($order_item->school_id)) {
-
-                    $addr_row = $this->db->select('id')
-                        ->from('erp_schools')
-                        ->where('id', (int)$order_item->school_id)
-                        ->limit(1)
-                        ->get()
-                        ->row();
-                }
-            }
-
-        } else {
-
-            $addr_row = $this->db->select('id')
-                ->from('tbl_order_address')
-                ->where('order_id', $order_id)
-                ->limit(1)
-                ->get()
-                ->row();
-        }
-
-        if (!$addr_row) {
-            $failed_orders[$order_unique_id] = 'Delivery address not found';
-            continue;
-        }
-
-        $valid_orders[] = $order_data;
-    }
-
-    if (empty($valid_orders)) {
-
-        $message = "No orders were eligible for third-party booking.\n\n";
-        $message .= "Total Selected: " . count($orders) . "\n";
-        $message .= "Total Rejected: " . count($failed_orders) . "\n\n";
-
-        if (!empty($failed_orders)) {
-            $message .= "Rejected Orders:\n";
-            foreach ($failed_orders as $order_no => $reason) {
-                $message .= "- Order {$order_no}: {$reason}\n";
-            }
-        }
-
-        $response('400', $message);
-    }
-
-    // ===============================
-    // PROCESS VALID ORDERS
-    // ===============================
-
-    $success_count = 0;
-
-    foreach ($valid_orders as $order_data) {
-
-        $order_id = $order_data->id;
-        $order_unique_id = $order_data->order_unique_id;
-
-        try {
+			if ($items_count == 0) {
+				$failed_orders[$order_unique_id] = 'No order items found';
+				continue;
+			}
 
 			// ===============================
-			// DELIVERY ADDRESS (School or Normal)
+			// PROPER ADDRESS VALIDATION
 			// ===============================
-				$is_deliver_at_school = (isset($order_data->is_deliver_at_school) 
-				&& (int)$order_data->is_deliver_at_school === 1);
 
-				$addr_row = null;
+			$is_deliver_at_school = (
+				isset($order_data->is_deliver_at_school) &&
+				(int)$order_data->is_deliver_at_school === 1
+			);
 
-		 	if ($is_deliver_at_school) {
+			$addr_row = null;
 
-				// Get first order item with branch or school
+			if ($is_deliver_at_school) {
+
 				$order_item = $this->db->select('branch_id, school_id')
 					->from('tbl_order_items')
 					->where('order_id', $order_id)
@@ -1881,43 +1794,20 @@ class Orders extends Vendor_base
 
 				if ($order_item) {
 
-					// ===============================
-					// BRANCH ADDRESS
-					// ===============================
 					if (!empty($order_item->branch_id)) {
 
-						$addr_row = $this->db->select('
-								sb.branch_name as name,
-								sb.address,
-								sb.pincode,
-								c.name as city,
-								st.name as state
-							')
-							->from('erp_school_branches sb')
-							->join('cities c', 'c.id = sb.city_id', 'left')
-							->join('states st', 'st.id = sb.state_id', 'left')
-							->where('sb.id', (int)$order_item->branch_id)
+						$addr_row = $this->db->select('id')
+							->from('erp_school_branches')
+							->where('id', (int)$order_item->branch_id)
 							->limit(1)
 							->get()
 							->row();
 
-					} 
-					// ===============================
-					// SCHOOL ADDRESS
-					// ===============================
-					elseif (!empty($order_item->school_id)) {
+					} elseif (!empty($order_item->school_id)) {
 
-						$addr_row = $this->db->select('
-								s.school_name as name,
-								s.address,
-								s.pincode,
-								c.name as city,
-								st.name as state
-							')
-							->from('erp_schools s')
-							->join('cities c', 'c.id = s.city_id', 'left')
-							->join('states st', 'st.id = s.state_id', 'left')
-							->where('s.id', (int)$order_item->school_id)
+						$addr_row = $this->db->select('id')
+							->from('erp_schools')
+							->where('id', (int)$order_item->school_id)
 							->limit(1)
 							->get()
 							->row();
@@ -1926,10 +1816,7 @@ class Orders extends Vendor_base
 
 			} else {
 
-				// ===============================
-				// NORMAL DELIVERY ADDRESS
-				// ===============================
-				$addr_row = $this->db->select('*')
+				$addr_row = $this->db->select('id')
 					->from('tbl_order_address')
 					->where('order_id', $order_id)
 					->limit(1)
@@ -1937,340 +1824,453 @@ class Orders extends Vendor_base
 					->row();
 			}
 
-			// If still empty → fallback error
 			if (!$addr_row) {
-				throw new Exception('Delivery address not found.');
+				$failed_orders[$order_unique_id] = 'Delivery address not found';
+				continue;
 			}
-							
-									
-			$delivery_address_full = '';
 
-			$parts = array_filter([
-				$addr_row->address ?? '',
-				$addr_row->city ?? '',
-				$addr_row->state ?? '',
-				$addr_row->pincode ?? '',
-				'India'
-			]);
+			$valid_orders[] = $order_data;
+		}
 
-			$delivery_address_full = implode(', ', $parts);
+		if (empty($valid_orders)) {
+
+			$message = "No orders were eligible for third-party booking.\n\n";
+			$message .= "Total Selected: " . count($orders) . "\n";
+			$message .= "Total Rejected: " . count($failed_orders) . "\n\n";
+
+			if (!empty($failed_orders)) {
+				$message .= "Rejected Orders:\n";
+				foreach ($failed_orders as $order_no => $reason) {
+					$message .= "- Order {$order_no}: {$reason}\n";
+				}
+			}
+
+			$response('400', $message);
+		}
+
+		// ===============================
+		// PROCESS VALID ORDERS
+		// ===============================
+
+		$success_count = 0;
+
+		foreach ($valid_orders as $order_data) {
+
+			$order_id = $order_data->id;
+			$order_unique_id = $order_data->order_unique_id;
+
+			try {
+
+				// ===============================
+				// DELIVERY ADDRESS (School or Normal)
+				// ===============================
+					$is_deliver_at_school = (isset($order_data->is_deliver_at_school) 
+					&& (int)$order_data->is_deliver_at_school === 1);
+
+					$addr_row = null;
+
+				if ($is_deliver_at_school) {
+
+					// Get first order item with branch or school
+					$order_item = $this->db->select('branch_id, school_id')
+						->from('tbl_order_items')
+						->where('order_id', $order_id)
+						->limit(1)
+						->get()
+						->row();
+
+					if ($order_item) {
+
+						// ===============================
+						// BRANCH ADDRESS
+						// ===============================
+						if (!empty($order_item->branch_id)) {
+
+							$addr_row = $this->db->select('
+									sb.branch_name as name,
+									sb.address,
+									sb.pincode,
+									c.name as city,
+									st.name as state
+								')
+								->from('erp_school_branches sb')
+								->join('cities c', 'c.id = sb.city_id', 'left')
+								->join('states st', 'st.id = sb.state_id', 'left')
+								->where('sb.id', (int)$order_item->branch_id)
+								->limit(1)
+								->get()
+								->row();
+
+						} 
+						// ===============================
+						// SCHOOL ADDRESS
+						// ===============================
+						elseif (!empty($order_item->school_id)) {
+
+							$addr_row = $this->db->select('
+									s.school_name as name,
+									s.address,
+									s.pincode,
+									c.name as city,
+									st.name as state
+								')
+								->from('erp_schools s')
+								->join('cities c', 'c.id = s.city_id', 'left')
+								->join('states st', 'st.id = s.state_id', 'left')
+								->where('s.id', (int)$order_item->school_id)
+								->limit(1)
+								->get()
+								->row();
+						}
+					}
+
+				} else {
+
+					// ===============================
+					// NORMAL DELIVERY ADDRESS
+					// ===============================
+					$addr_row = $this->db->select('*')
+						->from('tbl_order_address')
+						->where('order_id', $order_id)
+						->limit(1)
+						->get()
+						->row();
+				}
+
+				// If still empty → fallback error
+				if (!$addr_row) {
+					throw new Exception('Delivery address not found.');
+				}
+								
+										
+				$delivery_address_full = '';
+
+				$parts = array_filter([
+					$addr_row->address ?? '',
+					$addr_row->city ?? '',
+					$addr_row->state ?? '',
+					$addr_row->pincode ?? '',
+					'India'
+				]);
+
+				$delivery_address_full = implode(', ', $parts);
 
 
 
-            // PRODUCT DETAILS
-   
-			$consignments = array();
-			$product_details = array();
-			$declared_value=0;
-			$total_weight=0;
-			$total_weight_gm=0;	   
-			$order_type = strtolower($order_data->type_order);
-	 
- 
-		if ($order_type === 'bookset') {
-			
-			$order_products = $this->db->select('product_id,bookset_packages_json')
-				->from('tbl_order_items')
-				->where('order_id', $order_id)
-				->get()
-				->result();
+				// PRODUCT DETAILS
+	
+				$consignments = array();
+				$product_details = array();
+				$declared_value=0;
+				$total_weight=0;
+				$total_weight_gm=0;	   
+				$order_type = strtolower($order_data->type_order);
+		
+	
+			if ($order_type === 'bookset') {
 				
-			if (empty($order_products)) {
-				throw new Exception('No bookset items found.');
-			}
-
-		 // ==============================
-			// LOAD ALL BOOKSETS IN ONE QUERY
-			// ==============================
-			$bookset_ids = array_unique(array_column($order_products, 'product_id'));
-
-			$booksets = $this->db->select('id, has_products')
-				->from('erp_booksets')
-				->where_in('id', $bookset_ids)
-				->get()
-				->result_array();
-
-			$bookset_map = array_column($booksets, 'has_products', 'id');
-
-
-			foreach ($order_products as $row) {	
-				$has_products = $bookset_map[$row->product_id] ?? 1;
-
-				if (empty($row->bookset_packages_json)) {
-					continue;
-				}
-
-				$json = json_decode($row->bookset_packages_json, true);
-				if (!isset($json['packages'])) {
-					continue;
-				}
-
-				foreach ($json['packages'] as $package) {				
-					// =========================
-					// BOOKSET WITHOUT PRODUCTS
-					// =========================
-					if ($has_products == 0) {
-							$product_name = $package['package_name'] ?? 'Book';
-							$qty          = 1;
-							$price_total  = (float) ($package['package_offer_price'] ?? 0);
-							$weight_gm    = (float) ($package['package_weight'] ?? 0);
-
-							$declared_value += $price_total;
-
-							if ($weight_gm <= 0) {
-								$weight_gm = 500;
-							}
-
-							$total_weight_gm += ($weight_gm * $qty);
-
-							$product_details[] = array(
-								"product_category"               => "Others",
-								"product_sub_category"           => $package['package_name'] ?? "",
-								"product_name"                   => sanitize_allowed_chars($product_name),
-								"product_quantity"               => $qty,
-								"each_product_invoice_amount"    => $price_total,
-								"each_product_collectable_amount"=> 0,
-								"hsn"                            => $package['hsn'] ?? ""
-							);
-					}
-					// =========================
-					// BOOKSET WITH PRODUCTS
-					// =========================
-					else{
-						 if (empty($package['products'])) {
-							continue;
-						 }					
-						foreach ($package['products'] as $product) {
-							$product_name = $product['display_name'] ?? 'Book';
-							$qty          = (int) ($product['quantity'] ?? 1);
-							$price_total  = (float) ($product['total_price'] ?? 0);
-							$weight_gm    = (float) ($product['weight'] ?? 0);
-
-							$declared_value += $price_total;
-
-							if ($weight_gm <= 0) {
-								$weight_gm = 500;
-							}
-
-							$total_weight_gm += ($weight_gm * $qty);
-
-							$product_details[] = array(
-								"product_category"               => "Others",
-								"product_sub_category"           => $package['package_name'] ?? "",
-								"product_name"                   => sanitize_allowed_chars($product_name),
-								"product_quantity"               => $qty,
-								"each_product_invoice_amount"    => $price_total,
-								"each_product_collectable_amount"=> 0,
-								"hsn"                            => $package['hsn'] ?? ""
-							);
-						 }
-					}
-					
-				}
-			}
-
-			// Convert gm to kg
-			$total_weight = round($total_weight_gm / 1000, 2);
-		}
-		else {
-
-			$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
-				->from('tbl_order_items')
-				->where('order_id', $order_id)
-				->get()
-				->result();
-
-			if (empty($order_products)) {
-				throw new Exception('No order items found.');
-			}
-
-			foreach ($order_products as $item) {
-
-				$product_name = $item->product_title;
-				$qty          = (int) $item->product_qty;
-				$price_total  = (float) $item->total_price;
-				$weight_gm    = (float) $item->weight;
-
-				$declared_value += $price_total;
-
-				if ($weight_gm <= 0) {
-					$weight_gm = 500;
-				}
-
-				$total_weight_gm += ($weight_gm * $qty);
-
-				$product_details[] = array(
-					"product_category"               => "Others",
-					"product_sub_category"           => "",
-					"product_name"                   => sanitize_allowed_chars($product_name),
-					"product_quantity"               => $qty,
-					"each_product_invoice_amount"    => $price_total / max($qty,1),
-					"each_product_collectable_amount"=> 0,
-					"hsn"                            => $item->hsn ?? ""
-				);
-			}
-
-			$total_weight = round($total_weight_gm / 1000, 2);
-		}
-
-
-		/*echo json_encode([
-				'debug' => $product_details,
-				'csrf'  => [
-					'name' => $this->security->get_csrf_token_name(),
-					'hash' => $this->security->get_csrf_hash()
-				]
-			]);
-			exit;*/
-
-            // CALL PROVIDER API
-            $api_res = null;
-
-            switch (strtolower($third_party_provider)) {
-
-                case 'velocity':
-                    $api_res = $this->Shipping_model->create_velocity_booking([
-                        'provider' => $provider_config,
-                        'order_data' => $order_data,
-                        'address_row' => $addr_row,
-                        'product_details' => $product_details,
-                        'length' => $length,
-                        'breadth' => $breadth,
-                        'height' => $height,
-                        'weight' => $weight,
-                        'schedule_date' => $schedule_date,
-                        'from_time' => $from_time,
-                        'to_time' => $to_time
-                    ]);
-                    break;
-
-                case 'bigship':
-                    $api_res = $this->Shipping_model->create_bigship_booking([
-                        'provider' => $provider_config,
-                        'order_data' => $order_data,
-                        'address_row' => $addr_row,
-                        'product_details' => $product_details,
-                        'length' => $length,
-                        'breadth' => $breadth,
-                        'height' => $height,
-                        'weight' => $weight,
-                        'pickup_address_id' => $pickup_address_id
-                    ]);
-                    break;
-
-                case 'shiprocket':
-                    $api_res = ['status' => 'success'];
-                    break;
-
-                default:
-                    $failed_orders[$order_unique_id] = 'Provider not implemented';
-                    continue 2;
-            }
-
-            if (!isset($api_res['status']) || $api_res['status'] !== 'success') {
-                $failed_orders[$order_unique_id] = $api_res['message'] ?? 'API booking failed';
-                continue;
-            }
-
-            // ===============================
-            // DB UPDATE PER ORDER
-            // ===============================
-
-            $this->db->trans_begin();
-
-			$awb_no = $api_res['awb_no'] ?? null;
-			$system_order_id = $api_res['system_order_id'] ?? null;
-			$track_url = $api_res['track_url'] ?? null;
-			$provider_request = $api_res['provider_request'] ?? null;
-			$provider_response = $api_res['provider_response'] ?? null;
-
-
-			// ===============================
-			// THIRD PARTY TABLE
-			// ===============================
-			if ($this->db->table_exists('tbl_order_third_party_shipping')) {
-
-				$tp_data = [
-					'order_id'               => $order_id,
-					'order_unique_id'        => $order_unique_id,
-					'order_number'        	 => $order_data->invoice_no ?? null,
-					'delivery_address_full'  => $delivery_address_full,
-					'length_cm'              => $length ?: null,
-					'breadth_cm'             => $breadth ?: null,
-					'height_cm'              => $height ?: null,
-					'weight_kg'              => $weight ?: null,
-					'third_party_provider'   => $third_party_provider,
-					'schedule_date'          => $schedule_date ?: null,
-					'from_time'              => $from_time ?: null,
-					'to_time'                => $to_time ?: null,
-					
-					'provider_request'  	=> $provider_request,
-					'provider_response'	 	=> $provider_response,
-					'system_order_id'   	=> $system_order_id,
-					'awb_no'            	=> $awb_no,
-					'track_url'         	=> $track_url,
-					'booking_time'      	=> date('Y-m-d H:i:s')
-				];
-
-				$existing = $this->db->select('id')
-					->from('tbl_order_third_party_shipping')
+				$order_products = $this->db->select('product_id,bookset_packages_json')
+					->from('tbl_order_items')
 					->where('order_id', $order_id)
 					->get()
-					->row();
-
-				if ($existing) {
-					$this->db->where('id', $existing->id)
-							 ->update('tbl_order_third_party_shipping', $tp_data);
-				} else {
-					$this->db->insert('tbl_order_third_party_shipping', $tp_data);
+					->result();
+					
+				if (empty($order_products)) {
+					throw new Exception('No bookset items found.');
 				}
+
+			// ==============================
+				// LOAD ALL BOOKSETS IN ONE QUERY
+				// ==============================
+				$bookset_ids = array_unique(array_column($order_products, 'product_id'));
+
+				$booksets = $this->db->select('id, has_products')
+					->from('erp_booksets')
+					->where_in('id', $bookset_ids)
+					->get()
+					->result_array();
+
+				$bookset_map = array_column($booksets, 'has_products', 'id');
+
+
+				foreach ($order_products as $row) {	
+					$has_products = $bookset_map[$row->product_id] ?? 1;
+
+					if (empty($row->bookset_packages_json)) {
+						continue;
+					}
+
+					$json = json_decode($row->bookset_packages_json, true);
+					if (!isset($json['packages'])) {
+						continue;
+					}
+
+					foreach ($json['packages'] as $package) {				
+						// =========================
+						// BOOKSET WITHOUT PRODUCTS
+						// =========================
+						if ($has_products == 0) {
+								$product_name = $package['package_name'] ?? 'Book';
+								$qty          = 1;
+								$price_total  = (float) ($package['package_offer_price'] ?? 0);
+								$weight_gm    = (float) ($package['package_weight'] ?? 0);
+
+								$declared_value += $price_total;
+
+								if ($weight_gm <= 0) {
+									$weight_gm = 500;
+								}
+
+								$total_weight_gm += ($weight_gm * $qty);
+
+								$product_details[] = array(
+									"product_category"               => "Others",
+									"product_sub_category"           => $package['package_name'] ?? "",
+									"product_name"                   => sanitize_allowed_chars($product_name),
+									"product_quantity"               => $qty,
+									"each_product_invoice_amount"    => $price_total,
+									"each_product_collectable_amount"=> 0,
+									"hsn"                            => $package['hsn'] ?? ""
+								);
+						}
+						// =========================
+						// BOOKSET WITH PRODUCTS
+						// =========================
+						else{
+							if (empty($package['products'])) {
+								continue;
+							}					
+							foreach ($package['products'] as $product) {
+								$product_name = $product['display_name'] ?? 'Book';
+								$qty          = (int) ($product['quantity'] ?? 1);
+								$price_total  = (float) ($product['total_price'] ?? 0);
+								$weight_gm    = (float) ($product['weight'] ?? 0);
+
+								$declared_value += $price_total;
+
+								if ($weight_gm <= 0) {
+									$weight_gm = 500;
+								}
+
+								$total_weight_gm += ($weight_gm * $qty);
+
+								$product_details[] = array(
+									"product_category"               => "Others",
+									"product_sub_category"           => $package['package_name'] ?? "",
+									"product_name"                   => sanitize_allowed_chars($product_name),
+									"product_quantity"               => $qty,
+									"each_product_invoice_amount"    => $price_total,
+									"each_product_collectable_amount"=> 0,
+									"hsn"                            => $package['hsn'] ?? ""
+								);
+							}
+						}
+						
+					}
+				}
+
+				// Convert gm to kg
+				$total_weight = round($total_weight_gm / 1000, 2);
+			}
+			else {
+
+				$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
+					->from('tbl_order_items')
+					->where('order_id', $order_id)
+					->get()
+					->result();
+
+				if (empty($order_products)) {
+					throw new Exception('No order items found.');
+				}
+
+				foreach ($order_products as $item) {
+
+					$product_name = $item->product_title;
+					$qty          = (int) $item->product_qty;
+					$price_total  = (float) $item->total_price;
+					$weight_gm    = (float) $item->weight;
+
+					$declared_value += $price_total;
+
+					if ($weight_gm <= 0) {
+						$weight_gm = 500;
+					}
+
+					$total_weight_gm += ($weight_gm * $qty);
+
+					$product_details[] = array(
+						"product_category"               => "Others",
+						"product_sub_category"           => "",
+						"product_name"                   => sanitize_allowed_chars($product_name),
+						"product_quantity"               => $qty,
+						"each_product_invoice_amount"    => $price_total / max($qty,1),
+						"each_product_collectable_amount"=> 0,
+						"hsn"                            => $item->hsn ?? ""
+					);
+				}
+
+				$total_weight = round($total_weight_gm / 1000, 2);
 			}
 
 
-            $this->db->where('id', $order_id)
-                ->update('tbl_order_details', [
-                    'courier' => '3rd_party',
-                    'third_party_provider' => $third_party_provider,
-                    'pkg_length_cm' => $length,
-                    'pkg_breadth_cm' => $breadth,
-                    'pkg_height_cm' => $height,
-                    'pkg_weight_kg' => $weight,
-					'shipment_id' => $system_order_id,
-					'awb_no'      => $awb_no,
-                    'order_status' => 2,
-                    'processing_date' => date('Y-m-d H:i:s')
-                ]);
+			/*echo json_encode([
+					'debug' => $product_details,
+					'csrf'  => [
+						'name' => $this->security->get_csrf_token_name(),
+						'hash' => $this->security->get_csrf_hash()
+					]
+				]);
+				exit;*/
 
-            $this->db->insert('tbl_order_status', [
-                'order_id' => $order_id,
-                'user_id' => $this->current_vendor['id'] ?? 0,
-                'product_id' => 0,
-                'status_title' => '3rd Party Selected',
-                'status_desc' => ucfirst($third_party_provider) .
-                    " (L:$length B:$breadth H:$height W:$weight kg) (Bulk)",
-                'created_at' => date('Y-m-d H:i:s')
-            ]);
+				// CALL PROVIDER API
+				$api_res = null;
 
-            if ($this->db->trans_status() === FALSE) {
-                $this->db->trans_rollback();
-                $failed_orders[$order_unique_id] = 'Database update failed';
-                continue;
-            }
+				switch (strtolower($third_party_provider)) {
 
-            $this->db->trans_commit();
-            $success_count++;
+					case 'velocity':
+						$api_res = $this->Shipping_model->create_velocity_booking([
+							'provider' => $provider_config,
+							'order_data' => $order_data,
+							'address_row' => $addr_row,
+							'product_details' => $product_details,
+							'length' => $length,
+							'breadth' => $breadth,
+							'height' => $height,
+							'weight' => $weight,
+							'schedule_date' => $schedule_date,
+							'from_time' => $from_time,
+							'to_time' => $to_time
+						]);
+						break;
 
-        } catch (Exception $e) {
-            $failed_orders[$order_unique_id] = $e->getMessage();
-        }
-    }
+					case 'bigship':
+						$api_res = $this->Shipping_model->create_bigship_booking([
+							'provider' => $provider_config,
+							'order_data' => $order_data,
+							'address_row' => $addr_row,
+							'product_details' => $product_details,
+							'length' => $length,
+							'breadth' => $breadth,
+							'height' => $height,
+							'weight' => $weight,
+							'pickup_address_id' => $pickup_address_id
+						]);
+						break;
 
-    $response('200',
-        "$success_count orders booked successfully, "
-        . count($failed_orders) . " failed.",
-        $failed_orders
-    );
-}
+					case 'shiprocket':
+						$api_res = ['status' => 'success'];
+						break;
+
+					default:
+						$failed_orders[$order_unique_id] = 'Provider not implemented';
+						continue 2;
+				}
+
+				if (!isset($api_res['status']) || $api_res['status'] !== 'success') {
+					$failed_orders[$order_unique_id] = $api_res['message'] ?? 'API booking failed';
+					continue;
+				}
+
+				// ===============================
+				// DB UPDATE PER ORDER
+				// ===============================
+
+				$this->db->trans_begin();
+
+				$awb_no = $api_res['awb_no'] ?? null;
+				$system_order_id = $api_res['system_order_id'] ?? null;
+				$track_url = $api_res['track_url'] ?? null;
+				$provider_request = $api_res['provider_request'] ?? null;
+				$provider_response = $api_res['provider_response'] ?? null;
+
+
+				// ===============================
+				// THIRD PARTY TABLE
+				// ===============================
+				if ($this->db->table_exists('tbl_order_third_party_shipping')) {
+
+					$tp_data = [
+						'order_id'               => $order_id,
+						'order_unique_id'        => $order_unique_id,
+						'order_number'        	 => $order_data->invoice_no ?? null,
+						'delivery_address_full'  => $delivery_address_full,
+						'length_cm'              => $length ?: null,
+						'breadth_cm'             => $breadth ?: null,
+						'height_cm'              => $height ?: null,
+						'weight_kg'              => $weight ?: null,
+						'third_party_provider'   => $third_party_provider,
+						'schedule_date'          => $schedule_date ?: null,
+						'from_time'              => $from_time ?: null,
+						'to_time'                => $to_time ?: null,
+						
+						'provider_request'  	=> $provider_request,
+						'provider_response'	 	=> $provider_response,
+						'system_order_id'   	=> $system_order_id,
+						'awb_no'            	=> $awb_no,
+						'track_url'         	=> $track_url,
+						'booking_time'      	=> date('Y-m-d H:i:s')
+					];
+
+					$existing = $this->db->select('id')
+						->from('tbl_order_third_party_shipping')
+						->where('order_id', $order_id)
+						->get()
+						->row();
+
+					if ($existing) {
+						$this->db->where('id', $existing->id)
+								->update('tbl_order_third_party_shipping', $tp_data);
+					} else {
+						$this->db->insert('tbl_order_third_party_shipping', $tp_data);
+					}
+				}
+
+
+				$this->db->where('id', $order_id)
+					->update('tbl_order_details', [
+						'courier' => '3rd_party',
+						'third_party_provider' => $third_party_provider,
+						'pkg_length_cm' => $length,
+						'pkg_breadth_cm' => $breadth,
+						'pkg_height_cm' => $height,
+						'pkg_weight_kg' => $weight,
+						'shipment_id' => $system_order_id,
+						'awb_no'      => $awb_no,
+						'order_status' => 2,
+						'processing_date' => date('Y-m-d H:i:s')
+					]);
+
+				$this->db->insert('tbl_order_status', [
+					'order_id' => $order_id,
+					'user_id' => $this->current_vendor['id'] ?? 0,
+					'product_id' => 0,
+					'status_title' => '3rd Party Selected',
+					'status_desc' => ucfirst($third_party_provider) .
+						" (L:$length B:$breadth H:$height W:$weight kg) (Bulk)",
+					'created_at' => date('Y-m-d H:i:s')
+				]);
+
+				if ($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					$failed_orders[$order_unique_id] = 'Database update failed';
+					continue;
+				}
+
+				$this->db->trans_commit();
+				$success_count++;
+
+			} catch (Exception $e) {
+				$failed_orders[$order_unique_id] = $e->getMessage();
+			}
+		}
+
+		$response('200',
+			"$success_count orders booked successfully, "
+			. count($failed_orders) . " failed.",
+			$failed_orders
+		);
+	}
 	
 
 	public function get_order_couriers()
@@ -2596,11 +2596,11 @@ class Orders extends Vendor_base
 		$order_data = $order[0];
 		$order_id = $order_data->id;
 
-		// Verify order is in processing status
-		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+		// Verify order is in ready for shipment status (6)
+		if ($order_data->order_status != '6' && $order_data->order_status != 6) {
 			echo json_encode([
 				'status' => '400',
-				'message' => 'Order must be in processing status to move to out for delivery.',
+				'message' => 'Order must be in ready for shipment status to move to out for delivery.',
 			]);
 			return;
 		}
@@ -2614,20 +2614,10 @@ class Orders extends Vendor_base
 			return;
 		}
 
-		// Check if order is marked as ready to ship
-		$is_ready_to_ship = isset($order_data->ready_to_ship) && $order_data->ready_to_ship == 1;
-		if (!$is_ready_to_ship) {
-			echo json_encode([
-				'status' => '400',
-				'message' => 'Order must be marked as ready to ship before moving to out for delivery.',
-			]);
-			return;
-		}
-
-		// Update order status
+		// Update order status from 6 (Ready for Shipment) to 3 (Out for Delivery)
 		$shipment_date = date("Y-m-d H:i:s");
 		$this->db->where('id', $order_id);
-		$this->db->where('order_status', '2');
+		$this->db->where('order_status', '6');
 		$this->db->update('tbl_order_details', array(
 			'order_status' => '3',
 			'shipment_date' => $shipment_date
@@ -2721,21 +2711,25 @@ class Orders extends Vendor_base
 			}
 		}
 
-		// Update order ready_to_ship status
+		// Update order: set order_status to 6 (Ready for Shipment) and ready_to_ship flag
 		$ready_time = date("Y-m-d H:i:s");
 		$this->db->where('id', $order_id);
 		$this->db->update('tbl_order_details', array(
+			'order_status' => '6',
 			'ready_to_ship' => 1,
 			'ready_to_ship_time' => $ready_time
 		));
 
 		if ($this->db->affected_rows() > 0) {
+			// Update order items pro_order_status to 6
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '6'));
 			// Add status history
 			$this->db->insert('tbl_order_status', array(
 				'order_id' => $order_id,
 				'user_id' => $order_data->user_id,
 				'product_id' => 0,
-				'status_title' => 'Ready to Ship',
+				'status_title' => '6',
 				'status_desc' => 'Order marked as ready to ship',
 				'created_at' => $ready_time
 			));
@@ -2783,39 +2777,34 @@ class Orders extends Vendor_base
 		$order_data = $order[0];
 		$order_id = $order_data->id;
 
-		// Verify order is in processing status and is marked as ready to ship
-		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
+		// Verify order is in ready for shipment status (6)
+		if ($order_data->order_status != '6' && $order_data->order_status != 6) {
 			echo json_encode([
 				'status' => '400',
-				'message' => 'Order must be in processing status.',
+				'message' => 'Order must be in ready for shipment status.',
 			]);
 			return;
 		}
 
-		$is_ready_to_ship = isset($order_data->ready_to_ship) && $order_data->ready_to_ship == 1;
-		if (!$is_ready_to_ship) {
-			echo json_encode([
-				'status' => '400',
-				'message' => 'Order is not marked as ready to ship.',
-			]);
-			return;
-		}
-
-		// Update order ready_to_ship status
+		// Update order: set order_status back to 2 (Processing) and clear ready_to_ship
 		$this->db->where('id', $order_id);
 		$this->db->update('tbl_order_details', array(
+			'order_status' => '2',
 			'ready_to_ship' => 0,
 			'ready_to_ship_time' => null
 		));
 
 		if ($this->db->affected_rows() > 0) {
+			// Update order items pro_order_status back to 2
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '2'));
 			// Add status history
 			$this->db->insert('tbl_order_status', array(
 				'order_id' => $order_id,
 				'user_id' => $order_data->user_id,
 				'product_id' => 0,
-				'status_title' => 'Unmarked Ready to Ship',
-				'status_desc' => 'Order unmarked as ready to ship',
+				'status_title' => '2',
+				'status_desc' => 'Order unmarked as ready to ship (moved back to processing)',
 				'created_at' => date("Y-m-d H:i:s")
 			));
 
@@ -2936,6 +2925,7 @@ class Orders extends Vendor_base
 			return;
 		}
 
+		// Move back to Processing (2) - shipping details are reset so order needs to go through ready-for-shipment again
 		$reset_data = array(
 			'order_status' => '2',
 			'shipment_date' => null,
@@ -3479,31 +3469,71 @@ class Orders extends Vendor_base
 	}
 
 	/**
-	 * Get logo as base64 for invoice (like shipping label - from erp_clients)
+	 * Get company/seller info from erp_clients (same source as shipping label)
+	 *
+	 * @return	array	Keys: name, address, pincode, pan, gstin, contact_number
+	 */
+	private function _get_invoice_company_from_erp_clients()
+	{
+		if (!$this->db->table_exists('erp_clients')) {
+			return array();
+		}
+		$cols = array('name', 'address', 'pincode', 'pan', 'gstin');
+		if ($this->db->field_exists('contact_number', 'erp_clients')) {
+			$cols[] = 'contact_number';
+		}
+		$row = $this->db->select(implode(', ', $cols))
+			->from('erp_clients')
+			->limit(1)
+			->get()
+			->row_array();
+		return is_array($row) ? $row : array();
+	}
+
+	/**
+	 * Get logo as base64 for invoice (same way as shipping label - from erp_clients)
 	 *
 	 * @return	string	Base64 data URL or empty string
 	 */
 	private function _get_invoice_logo_base64()
 	{
+		// Same source as shipping label: erp_clients.logo
+		if ($this->db->table_exists('erp_clients')) {
+			$logo_row = $this->db->select('logo')->from('erp_clients')->limit(1)->get()->row();
+			if (!empty($logo_row) && !empty($logo_row->logo)) {
+				$logo_path = FCPATH . ltrim($logo_row->logo, '/');
+				if (file_exists($logo_path)) {
+					$file_size = @filesize($logo_path);
+					if ($file_size > 0 && $file_size <= 300000) {
+						$logo_data = @file_get_contents($logo_path);
+						if ($logo_data !== false) {
+							$image_info = @getimagesize($logo_path);
+							$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+							return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+						}
+					}
+				}
+			}
+		}
+		// Fallback: current_vendor logo
 		$logo_path = !empty($this->current_vendor['logo']) ? trim($this->current_vendor['logo']) : '';
 		if (empty($logo_path)) return '';
 		$full_path = FCPATH . ltrim($logo_path, '/');
 		if (file_exists($full_path)) {
 			$file_size = @filesize($full_path);
-			if ($file_size > 200000) return ''; // Skip if > 200KB to avoid dompdf memory exhaustion
-			$logo_data = file_get_contents($full_path);
-			if ($logo_data !== false) {
-				$image_info = @getimagesize($full_path);
-				$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
-				return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+			if ($file_size > 0 && $file_size <= 200000) {
+				$logo_data = file_get_contents($full_path);
+				if ($logo_data !== false) {
+					$image_info = @getimagesize($full_path);
+					$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+					return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+				}
 			}
 		}
-		// Fallback: try vendor frontend folder
-		$vendor_folder = !empty($this->current_vendor['domain']) ? $this->current_vendor['domain'] : '';
-		if (preg_match('/shivambook/i', $vendor_folder)) {
+		if (preg_match('/shivambook/i', !empty($this->current_vendor['domain']) ? $this->current_vendor['domain'] : '')) {
 			$alt_path = FCPATH . 'shivam_book_frontend/' . ltrim($logo_path, '/');
 			if (file_exists($alt_path) && @filesize($alt_path) <= 200000) {
-				$logo_data = file_get_contents($alt_path);
+				$logo_data = @file_get_contents($alt_path);
 				if ($logo_data !== false) {
 					$image_info = @getimagesize($alt_path);
 					$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
@@ -3513,7 +3543,7 @@ class Orders extends Vendor_base
 		}
 		$alt_path = FCPATH . 'book_erp_frontend/' . ltrim($logo_path, '/');
 		if (file_exists($alt_path) && @filesize($alt_path) <= 200000) {
-			$logo_data = file_get_contents($alt_path);
+			$logo_data = @file_get_contents($alt_path);
 			if ($logo_data !== false) {
 				$image_info = @getimagesize($alt_path);
 				$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
@@ -3695,12 +3725,17 @@ class Orders extends Vendor_base
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		error_reporting(E_ALL & ~E_DEPRECATED);
 
-		// Vendor/company info from erp_clients (like shipping label)
+		// Vendor/company info from erp_clients (same as shipping label: logo + company details)
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
-		$order_details['company_name'] = !empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books';
-		$order_details['company_address'] = !empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '';
-		$order_details['company_gstin'] = !empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-';
-		$order_details['company_pan'] = !empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-';
+		$company = $this->_get_invoice_company_from_erp_clients();
+		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books');
+		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
+		if (!empty($company['pincode'])) {
+			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
+		}
+		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : (!empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-');
+		$order_details['company_pan'] = !empty($company['pan']) ? $company['pan'] : (!empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-');
+		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
 
 		// Fetch order_type, items_arr, bookset_products for product display (like shipping label)
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
@@ -3863,10 +3898,15 @@ class Orders extends Vendor_base
 		error_reporting(E_ALL & ~E_DEPRECATED);
 
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
-		$order_details['company_name'] = !empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books';
-		$order_details['company_address'] = !empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '';
-		$order_details['company_gstin'] = !empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-';
-		$order_details['company_pan'] = !empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-';
+		$company = $this->_get_invoice_company_from_erp_clients();
+		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books');
+		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
+		if (!empty($company['pincode'])) {
+			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
+		}
+		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : (!empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-');
+		$order_details['company_pan'] = !empty($company['pan']) ? $company['pan'] : (!empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-');
+		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
 		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
 		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);

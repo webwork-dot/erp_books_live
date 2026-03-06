@@ -106,6 +106,7 @@ $route['orders/cancelled-orders'] = 'Vendor/orders/cancelled_orders';
 $route['orders/pending'] = 'Vendor/orders/index/pending';
 $route['orders/processing'] = 'Vendor/orders/index/processing';
 $route['orders/out_for_delivery'] = 'Vendor/orders/index/out_for_delivery';
+$route['orders/ready_for_shipment'] = 'Vendor/orders/index/ready_for_shipment';
 $route['orders/delivered'] = 'Vendor/orders/index/delivered';
 $route['orders/return'] = 'Vendor/orders/index/return';
 $route['orders'] = 'Vendor/orders/index';
@@ -265,6 +266,10 @@ $route['products/individual-products/(:any)'] = 'Vendor/products/individual_prod
 // Customers routes
 $route['customers'] = 'Vendor/customers/index';
 $route['customers/list'] = 'Vendor/customers/list';
+$route['concerns'] = 'Vendor/concerns/index';
+$route['concerns/get_concern/(:num)'] = 'Vendor/concerns/get_concern/$1';
+$route['concerns/update_status'] = 'Vendor/concerns/update_status';
+$route['concerns/update_admin_response'] = 'Vendor/concerns/update_admin_response';
 $route['customers/index'] = 'Vendor/customers/index';
 $route['customers/get_customer_details/(:num)'] = 'Vendor/customers/get_customer_details/$1';
 

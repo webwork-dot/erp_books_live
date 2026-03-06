@@ -35,6 +35,7 @@ $company_name = isset($d['company_name']) ? $d['company_name'] : 'Shivam Books';
 $company_address = isset($d['company_address']) ? $d['company_address'] : '';
 $company_gstin = isset($d['company_gstin']) ? $d['company_gstin'] : '-';
 $company_pan = isset($d['company_pan']) ? $d['company_pan'] : '-';
+$company_phone = isset($d['company_phone']) ? $d['company_phone'] : '';
 
 // Total invoice value for calculations
 $total_invoice_value = isset($d['payable_amt']) ? floatval($d['payable_amt']) : 0;
@@ -95,6 +96,7 @@ body.invoice { font-family: DejaVu Sans, sans-serif; font-size: 10px; margin: 15
     <th class="p-l-r text-left" style="width: 50%; border: 1px solid #333;">
       <p><b>Sold By:</b> <?= htmlspecialchars($company_name) ?></p>
       <?php if ($company_address): ?><p><b>Address:</b> <?= htmlspecialchars($company_address) ?></p><?php endif; ?>
+      <?php if ($company_phone): ?><p><b>Contact:</b> <?= htmlspecialchars($company_phone) ?></p><?php endif; ?>
       <p><b>PAN:</b> <?= htmlspecialchars($company_pan) ?></p>
       <p><b>GSTIN:</b> <?= htmlspecialchars($company_gstin) ?></p>
       <p><b>Place of Supply:</b> <?= htmlspecialchars($place_of_supply) ?></p>
@@ -302,6 +304,12 @@ body.invoice { font-family: DejaVu Sans, sans-serif; font-size: 10px; margin: 15
   </tr>
   <?php endif; ?>
 
+  <?php
+  $display_total = $total_incl;
+  if (isset($d['payable_amt']) && (float)$d['payable_amt'] > 0) {
+    $display_total = (float)$d['payable_amt'];
+  }
+  ?>
   <tr class="bold" style="background: #f5f5f5;">
     <td colspan="3" class="text-left" style="border: 1px solid #333; padding: 8px;">Total</td>
     <td style="border: 1px solid #333; padding: 8px;"><?= $total_qty ?></td>
@@ -312,11 +320,11 @@ body.invoice { font-family: DejaVu Sans, sans-serif; font-size: 10px; margin: 15
     <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst/2) ?></td>
     <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst/2) ?></td>
     <?php endif; ?>
-    <td style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_incl) ?></td>
+    <td style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($display_total) ?></td>
   </tr>
   <tr>
     <td colspan="<?= $is_igst ? 7 : 9 ?>" class="text-left" style="border: 1px solid #333; padding: 6px;">Total Invoice Value (In Words)</td>
-    <td class="text-right" style="border: 1px solid #333; padding: 6px;"><?= function_exists('rupees_word') ? rupees_word($total_incl) : (function_exists('price_format_decimal') ? price_format_decimal($total_incl) : number_format($total_incl, 2)) . ' Only' ?></td>
+    <td class="text-right" style="border: 1px solid #333; padding: 6px;"><?= function_exists('rupees_word') ? rupees_word($display_total) : (function_exists('price_format_decimal') ? price_format_decimal($display_total) : number_format($display_total, 2)) . ' Only' ?></td>
   </tr>
   </tbody>
 </table>

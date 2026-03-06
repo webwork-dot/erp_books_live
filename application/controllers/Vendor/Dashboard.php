@@ -73,7 +73,7 @@ class Dashboard extends Vendor_base
 		$data['individual_orders'] = array(
 			'new_order' => isset($order_counts['pending']) ? $order_counts['pending'] : 0,
 			'processing' => isset($order_counts['processing']) ? $order_counts['processing'] : 0,
-			'ready_for_ship' => 0, // Not used in current system
+			'ready_for_ship' => isset($order_counts['ready_for_shipment']) ? $order_counts['ready_for_shipment'] : 0,
 			'out_for_delivery' => isset($order_counts['out_for_delivery']) ? $order_counts['out_for_delivery'] : 0,
 			'delivered' => 0 // Will be calculated separately
 		);

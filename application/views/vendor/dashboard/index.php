@@ -88,7 +88,7 @@ $vendor_name = isset($current_vendor['name']) ? htmlspecialchars($current_vendor
 				</a>
 			</div>
 			<div class="col-xl" style="flex: 0 0 calc(20% - 0.4rem); max-width: calc(20% - 0.4rem);">
-				<a href="<?php echo base_url('orders/ready_for_ship'); ?>" class="text-decoration-none">
+				<a href="<?php echo base_url('orders/ready_for_shipment'); ?>" class="text-decoration-none">
 					<div class="card border-warning order-counter-card" style="cursor: pointer;">
 						<div class="card-body">
 							<div class="d-flex align-items-center justify-content-between">
