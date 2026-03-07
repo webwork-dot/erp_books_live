@@ -8,8 +8,6 @@
 
 <style>
 	.packages-container {
-		max-height: 70vh;
-		overflow-y: auto;
 		padding-right: 10px;
 	}
 	.package-card {
@@ -28,21 +26,6 @@
 	.package-status-badge {
 		font-size: 0.75rem;
 		padding: 0.25rem 0.5rem;
-	}
-	/* Scrollbar styling for packages container */
-	.packages-container::-webkit-scrollbar {
-		width: 6px;
-	}
-	.packages-container::-webkit-scrollbar-track {
-		background: #f1f1f1;
-		border-radius: 10px;
-	}
-	.packages-container::-webkit-scrollbar-thumb {
-		background: #888;
-		border-radius: 10px;
-	}
-	.packages-container::-webkit-scrollbar-thumb:hover {
-		background: #555;
 	}
 	/* Validation error styling */
 	.is-invalid {

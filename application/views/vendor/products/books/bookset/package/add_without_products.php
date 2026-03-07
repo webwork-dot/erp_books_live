@@ -8,7 +8,6 @@
 
 <style>
 	.packages-container {
-		min-height: 200px;
 		padding-right: 10px;
 		position: relative;
 		display: block;

@@ -350,6 +350,9 @@
                         </div>
                         <?php elseif ($order_status == 'processing'): ?>
                         <div class="pull-right d-flex gap-2 flex-wrap">
+                           <button type="button" id="btn_bulk_print_labels" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
+                              <i class="fa fa-print me-1"></i> Print Shipping Labels (<span class="total_orders">0</span>)
+                           </button>
                            <button type="button" id="btn_bulk_download_labels" class="btn btn-outline-secondary waves-effect waves-light btn-md mb-0" disabled>
                               <span id="bulkLabelsText">
                                  <i class="fa fa-file-pdf-o me-1"></i> Download Shipping Labels (<span class="total_orders">0</span>)
@@ -361,6 +364,9 @@
                         </div>
                         <?php elseif ($order_status == 'ready_for_shipment'): ?>
                         <div class="pull-right d-flex gap-2 flex-wrap">
+                           <button type="button" id="btn_bulk_print_labels" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
+                              <i class="fa fa-print me-1"></i> Print Shipping Labels (<span class="total_orders">0</span>)
+                           </button>
                            <button type="button" id="btn_bulk_download_labels" class="btn btn-outline-secondary waves-effect waves-light btn-md mb-0" disabled>
                               <span id="bulkLabelsText">
                                  <i class="fa fa-file-pdf-o me-1"></i> Download Shipping Labels (<span class="total_orders">0</span>)
@@ -497,7 +503,7 @@
                                  $is_deliver_at_school = isset($item['is_deliver_at_school']) && $item['is_deliver_at_school'];
                                  $courier_type = isset($item['courier']) ? $item['courier'] : '';
                               ?>
-                                 <tr class="item_holder" data-courier="<?php echo htmlspecialchars($courier_type); ?>">
+                                 <tr class="item_holder" data-courier="<?php echo htmlspecialchars($courier_type); ?>" data-order-unique-id="<?php echo htmlspecialchars(isset($item['order_unique_id']) ? $item['order_unique_id'] : ''); ?>">
                                     <?php if ($is_actionable): ?>
                                        <td>
                                           <div class="checkbox checkbox-primary">
@@ -546,6 +552,11 @@
                                     <td nowrap="">
                                        <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-sm btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                                        <button type="button" class="btn btn-outline-primary btn-sm btn-timeline ms-1" data-order-id="<?php echo htmlspecialchars($item['order_unique_id']); ?>" data-toggle="tooltip" title="Order Timeline"><i class="fa fa-history"></i></button>
+                                       <?php if ($order_status == 'processing'): ?>
+                                       <button type="button" class="btn btn-sm btn-outline-primary btn-print ms-1" data-order-id="<?php echo htmlspecialchars($item['order_unique_id']); ?>" data-toggle="tooltip" title="Print Label">
+                                            <i class="fa fa-print"></i>
+                                       </button>
+                                       <?php endif; ?>
                                     </td>
                                  </tr>
                               <?php endforeach; 
@@ -752,6 +763,9 @@
    </div>
 </div>
 
+<!-- Hidden Print Area -->
+<div id="print-area" style="display:none;"></div>
+
 <script>
    $(document).ready(function() {
       // Date range picker
@@ -787,6 +801,14 @@
             .fail(function() {
                $body.html('<p class="text-danger">Failed to load timeline.</p>');
             });
+      });
+
+      // Print Label button - open print page in new window (avoids AJAX/popup layout issues)
+      $(document).on('click', '.btn-print', function() {
+         var orderId = $(this).data('order-id');
+         if (!orderId) return;
+         var printUrl = '<?php echo base_url("orders/print_label/"); ?>' + encodeURIComponent(orderId);
+         window.open(printUrl, 'PrintLabel_' + orderId, 'width=800,height=600,scrollbars=yes,resizable=yes');
       });
 
       // Check all checkbox
@@ -910,11 +932,13 @@
          $("#btn_out_for_delivery").prop('disabled', false);
          $("#btn_delivered").prop('disabled', false);
          $("#btn_bulk_download_labels").prop('disabled', false);
+         $("#btn_bulk_print_labels").prop('disabled', false);
       } else {
          $("#btn_process").prop('disabled', true);
          $("#btn_out_for_delivery").prop('disabled', true);
          $("#btn_delivered").prop('disabled', true);
          $("#btn_bulk_download_labels").prop('disabled', true);
+         $("#btn_bulk_print_labels").prop('disabled', true);
       }
    }
 
@@ -1031,6 +1055,7 @@ $(document).ready(function(){
         $("#btn_out_for_delivery").prop('disabled', !enable);
         $("#btn_delivered").prop('disabled', !enable);
         $("#btn_bulk_download_labels").prop('disabled', !enable);
+        $("#btn_bulk_print_labels").prop('disabled', !enable);
     }
 
 
@@ -1396,18 +1421,41 @@ $(document).on('click', '#courierFilterTabs button[data-courier-filter]', functi
         }
     });
 
-    // When in 3rd party tab, hide bulk shipping label button (if present)
+    // When in 3rd party tab, hide bulk shipping label buttons (if present)
     if (courierFilter === 'third_party') {
-        $('#btn_bulk_download_labels').hide();
+        $('#btn_bulk_download_labels, #btn_bulk_print_labels').hide();
     } else {
-        $('#btn_bulk_download_labels').show();
+        $('#btn_bulk_download_labels, #btn_bulk_print_labels').show();
     }
 
     // Clear selections after filter change
     $("#checkAll_order").prop('checked', false);
     $("input[name='order_id[]']").prop('checked', false);
     $(".total_orders").html(0);
-    $("#btn_bulk_self_delivery, #btn_bulk_3rd_party, #btn_out_for_delivery, #btn_delivered, #btn_bulk_download_labels").prop('disabled', true);
+    $("#btn_bulk_self_delivery, #btn_bulk_3rd_party, #btn_out_for_delivery, #btn_delivered, #btn_bulk_download_labels, #btn_bulk_print_labels").prop('disabled', true);
+});
+
+// Bulk print shipping labels - open single page with all labels (one print = all pages)
+$(document).on('click', '#btn_bulk_print_labels', function(){
+    var orderUniqueIds = [];
+    $('input[name="order_id[]"]:checked').each(function(){
+        var $row = $(this).closest('tr.item_holder');
+        var uid = $row.data('order-unique-id');
+        if (uid) orderUniqueIds.push(uid);
+    });
+    if (orderUniqueIds.length === 0) {
+        if (typeof Swal !== 'undefined') Swal.fire('Select orders first');
+        else alert('Select orders first');
+        return;
+    }
+    var $form = $('<form method="post" action="<?php echo base_url("orders/print_labels_bulk"); ?>" target="_blank" style="display:none;">');
+    $form.append('<input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">');
+    orderUniqueIds.forEach(function(uid){
+        $form.append($('<input>', { type: 'hidden', name: 'order_unique_ids[]', value: uid }));
+    });
+    $('body').append($form);
+    $form.submit();
+    $form.remove();
 });
 
 // Bulk download shipping labels (with progress modal)

@@ -4018,6 +4018,413 @@ class Orders extends Vendor_base
 	}
 
 	/**
+	 * Build print label data for one order. Returns array('order'=>..., 'order_type_label'=>...) or null.
+	 *
+	 * @param	string	$order_no	Order unique ID
+	 * @return	array|null
+	 */
+	private function _get_print_label_data($order_no)
+	{
+		$order_data = $this->Order_model->get_order($order_no);
+		if (!$order_data) {
+			return null;
+		}
+		$order = $order_data[0];
+		$order_id = $order->id;
+		
+		// Get order items - same as fetch_shipping_label
+		$items_arr = $this->db->select('*')
+			->from('tbl_order_items')
+			->where('order_id', $order_id)
+			->order_by('id', 'ASC')
+			->get()
+			->result();
+		
+		// Get order address - same as test_shipping_label (tbl_order_address + school/branch fallback)
+		$address_arr = $this->db->select('*')
+			->from('tbl_order_address')
+			->where('order_id', $order_id)
+			->order_by('id', 'ASC')
+			->limit(1)
+			->get()
+			->result();
+		
+		$addr_obj = !empty($address_arr) ? $address_arr[0] : null;
+		$addr_empty = !$addr_obj || (empty($addr_obj->address) && empty($addr_obj->city) && empty($addr_obj->state) && empty($addr_obj->pincode));
+		if ($addr_empty && !empty($items_arr)) {
+			foreach ($items_arr as $oi) {
+				if (!empty($oi->branch_id)) {
+					$br = $this->db->select('sb.branch_name, sb.address, sb.pincode, s.school_name, c.name as city_name, st.name as state_name')
+						->from('erp_school_branches sb')
+						->join('erp_schools s', 's.id = sb.school_id', 'left')
+						->join('cities c', 'c.id = sb.city_id', 'left')
+						->join('states st', 'st.id = sb.state_id', 'left')
+						->where('sb.id', (int)$oi->branch_id)
+						->limit(1)->get()->row();
+					if ($br) {
+						$addr_obj = $addr_obj ?: new stdClass();
+						$addr_obj->name = $order->user_name;
+						$addr_obj->mobile_no = $order->user_phone;
+						$addr_obj->address = $br->branch_name . (!empty($br->school_name) ? ' (' . $br->school_name . ')' : '') . (!empty($br->address) ? ', ' . $br->address : '');
+						$addr_obj->city = !empty($br->city_name) ? $br->city_name : '';
+						$addr_obj->state = !empty($br->state_name) ? $br->state_name : '';
+						$addr_obj->country = 'India';
+						$addr_obj->pincode = !empty($br->pincode) ? $br->pincode : '';
+						$address_arr = array($addr_obj);
+						break;
+					}
+				} elseif (!empty($oi->school_id)) {
+					$sch = $this->db->select('s.school_name, s.address, s.pincode, c.name as city_name, st.name as state_name')
+						->from('erp_schools s')
+						->join('cities c', 'c.id = s.city_id', 'left')
+						->join('states st', 'st.id = s.state_id', 'left')
+						->where('s.id', (int)$oi->school_id)
+						->limit(1)->get()->row();
+					if ($sch) {
+						$addr_obj = $addr_obj ?: new stdClass();
+						$addr_obj->name = $order->user_name;
+						$addr_obj->mobile_no = $order->user_phone;
+						$addr_obj->address = $sch->school_name . (!empty($sch->address) ? ', ' . $sch->address : '');
+						$addr_obj->city = !empty($sch->city_name) ? $sch->city_name : '';
+						$addr_obj->state = !empty($sch->state_name) ? $sch->state_name : '';
+						$addr_obj->country = 'India';
+						$addr_obj->pincode = !empty($sch->pincode) ? $sch->pincode : '';
+						$address_arr = array($addr_obj);
+						break;
+					}
+				}
+			}
+		}
+		
+		$address_obj = !empty($address_arr) ? $address_arr[0] : null;
+		
+		// Determine order type - same as fetch_shipping_label
+		$order_type_label = 'Individual';
+		$has_bookset = false;
+		$has_uniform = false;
+		foreach ($items_arr as $item) {
+			if (isset($item->order_type)) {
+				if ($item->order_type == 'bookset' || $item->order_type == 'package') {
+					$has_bookset = true;
+					break;
+				} elseif ($item->order_type == 'uniform') {
+					$has_uniform = true;
+				}
+			}
+		}
+		if ($has_bookset) {
+			$order_type_label = 'Bookset';
+		} elseif ($has_uniform) {
+			$order_type_label = 'Uniform';
+		}
+		
+		// Enrich order with school_name, grade_name, board_name via fetch_shipping_label (modifies $order by reference)
+		$shipping_number = $order_no;
+		$ship_order_id = isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : null;
+		$this->load->helper('common');
+		$logo_url = get_simple_vendor_logo_url();
+		$barcode_url = '';
+		if (!empty($order->barcode_path)) {
+			$barcode_url = base_url($order->barcode_path);
+		} else {
+			$shipping_label_row = $this->Pdf_model->get_shipping_label($shipping_number);
+			if ($shipping_label_row->num_rows() > 0) {
+				$label_row = $shipping_label_row->row();
+				if (!empty($label_row->barcode_url)) {
+					$barcode_url = base_url($label_row->barcode_url);
+				}
+			}
+		}
+		// Call fetch_shipping_label to enrich $order (school_name, grade_name, board_name, etc.)
+		$this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self', $ship_order_id);
+		
+		// Extract student name and roll number - same logic as fetch_shipping_label
+		$student_name = '';
+		$roll_number = '';
+		if (!empty($items_arr)) {
+			foreach ($items_arr as $item) {
+				$is_bookset_item = (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package')) || $order_type_label == 'Bookset';
+				$is_deliver_at_school = isset($order->is_deliver_at_school) && (int)$order->is_deliver_at_school === 1;
+				if ($is_bookset_item || $is_deliver_at_school) {
+					if (empty($student_name)) {
+						$f_name = isset($item->f_name) ? trim($item->f_name) : '';
+						$m_name = isset($item->m_name) ? trim($item->m_name) : '';
+						$s_name = isset($item->s_name) ? trim($item->s_name) : '';
+						$roll_number = isset($item->roll_number) ? trim($item->roll_number) : '';
+						$name_parts = array_filter(array($f_name, $m_name, $s_name));
+						if (!empty($name_parts)) {
+							$student_name = trim(implode(' ', $name_parts));
+						}
+					}
+					if (empty($roll_number)) {
+						if (isset($item->roll_number) && !empty($item->roll_number)) {
+							$roll_number = trim($item->roll_number);
+						} elseif (isset($item->roll_no) && !empty($item->roll_no)) {
+							$roll_number = trim($item->roll_no);
+						} elseif (isset($item->bookset_packages_json) && !empty($item->bookset_packages_json)) {
+							$json_data = json_decode($item->bookset_packages_json, true);
+							if (is_array($json_data)) {
+								$roll_number = isset($json_data['roll_number']) && !empty($json_data['roll_number']) ? trim($json_data['roll_number']) : (isset($json_data['roll_no']) && !empty($json_data['roll_no']) ? trim($json_data['roll_no']) : '');
+							} else {
+								$json_obj = json_decode($item->bookset_packages_json);
+								if (is_object($json_obj)) {
+									$roll_number = isset($json_obj->roll_number) && !empty($json_obj->roll_number) ? trim($json_obj->roll_number) : (isset($json_obj->roll_no) && !empty($json_obj->roll_no) ? trim($json_obj->roll_no) : '');
+								}
+							}
+						}
+					}
+					if (!empty($student_name) || !empty($roll_number)) {
+						break;
+					}
+				}
+			}
+		}
+		if (empty($student_name) && !empty($address_obj) && !empty($address_obj->student_name)) {
+			$student_name = trim($address_obj->student_name);
+		}
+		
+		// Slot no and pincode - same as fetch_shipping_label
+		$slot_no = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $order_no);
+		$pincode = !empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '';
+		
+		// Shipping name, phone, address - from address_obj with order fallback (same as fetch_shipping_label)
+		$shipping_name = !empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : (!empty($order->user_name) ? $order->user_name : '');
+		$phone = !empty($address_obj) && !empty($address_obj->mobile_no) ? $address_obj->mobile_no : (!empty($order->user_phone) ? $order->user_phone : '');
+		$address = '';
+		$address_line1 = '';
+		$address_city = '';
+		$address_state = '';
+		$address_country = '';
+		if (!empty($address_obj)) {
+			$address_line1 = isset($address_obj->address) ? $address_obj->address : '';
+			$address_city = isset($address_obj->city) ? $address_obj->city : '';
+			$address_state = isset($address_obj->state) ? $address_obj->state : '';
+			$address_country = isset($address_obj->country) ? $address_obj->country : '';
+			$addr_parts = array($address_line1, $address_city, $address_state, isset($address_obj->pincode) ? $address_obj->pincode : '', $address_country);
+			$address = trim(implode(', ', array_filter($addr_parts)));
+		}
+		
+		// Bookset display: "Bookset - {name} {grade} {board}"
+		$bookset_display_name = '';
+		if ($order_type_label == 'Bookset' && !empty($items_arr)) {
+			$bs_name = '';
+			$bs_grade = isset($order->grade_name) ? $order->grade_name : '';
+			$bs_board = isset($order->board_name) ? $order->board_name : '';
+			foreach ($items_arr as $item) {
+				if (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package') && !empty($item->product_title)) {
+					$bs_name = trim($item->product_title);
+					break;
+				}
+			}
+			if (empty($bs_name) && $this->db->table_exists('erp_booksets')) {
+				foreach ($items_arr as $item) {
+					if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->product_id)) {
+						$bs_row = $this->db->select('bs.bookset_name, s.school_name, b.board_name, tg.name as grade_name')
+							->from('erp_booksets bs')
+							->join('erp_schools s', 's.id = bs.school_id', 'left')
+							->join('erp_school_boards b', 'b.id = bs.board_id', 'left')
+							->join('erp_textbook_grades tg', 'tg.id = bs.grade_id', 'left')
+							->where('bs.id', $item->product_id)
+							->limit(1)->get()->row();
+						if (!empty($bs_row)) {
+							$bs_name = !empty($bs_row->bookset_name) ? $bs_row->bookset_name : trim(implode(' - ', array_filter(array($bs_row->school_name, $bs_row->board_name, $bs_row->grade_name))));
+							if (empty($bs_grade) && !empty($bs_row->grade_name)) $bs_grade = $bs_row->grade_name;
+							if (empty($bs_board) && !empty($bs_row->board_name)) $bs_board = $bs_row->board_name;
+							break;
+						}
+					}
+				}
+			}
+			// Avoid duplicating grade/board if already in bs_name (e.g. "School - Grade CLASS 4 CBSE")
+			$add_grade = !empty($bs_grade) && (empty($bs_name) || stripos($bs_name, $bs_grade) === false);
+			$add_board = !empty($bs_board) && (empty($bs_name) || stripos($bs_name, $bs_board) === false);
+			$parts = array_filter(array($bs_name, $add_grade ? $bs_grade : '', $add_board ? $bs_board : ''));
+			$bookset_display_name = !empty($parts) ? implode(' - ', $parts) : 'Bookset';
+		}
+		// Build product list - flat for simple display
+		$product_names = array();
+		$products_structured = array();
+		// Simplified Bookset: only tbl_order_items, only packages, no products inside packages
+		if ($order_type_label == 'Bookset' && !empty($items_arr)) {
+			foreach ($items_arr as $item) {
+				if (empty($item->package_id)) continue;
+				$package_ids = array_filter(array_map('trim', explode(',', $item->package_id)));
+				if (empty($package_ids)) continue;
+				$packages = $this->db->select('id, package_name, package_offer_price')
+					->from('erp_bookset_packages')
+					->where_in('id', $package_ids)
+					->order_by('id', 'ASC')
+					->get()
+					->result();
+				foreach ($packages as $pkg) {
+					$pkg_price = !empty($pkg->package_offer_price)
+						? floatval($pkg->package_offer_price)
+						: (!empty($item->product_price) ? floatval($item->product_price) : 0);
+					$products_structured[] = array(
+						'package_name' => $pkg->package_name,
+						'products' => array(),
+						'package_price' => $pkg_price
+					);
+				}
+			}
+		}
+		if (empty($product_names)) {
+			foreach ($items_arr as $item) {
+				$name = isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : '');
+				if (!empty($name)) {
+					$product_names[] = $name;
+				}
+			}
+		}
+		
+		// Generate barcode/QR - same as fetch_shipping_label (3rd_party=barcode, manual=QR)
+		$shipping_number_for_code = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $order_no);
+		$shipping_label_row = $this->Pdf_model->get_shipping_label($order_no)->row();
+		if (!empty($order->courier) && $order->courier == '3rd_party' && !empty($shipping_label_row) && !empty($shipping_label_row->awb_number)) {
+			$code_no = $shipping_label_row->awb_number;
+		} else {
+			$code_no = $shipping_number_for_code;
+		}
+		$barcode = null;
+		$qr_code = null;
+		if (!empty($order->courier) && $order->courier == '3rd_party') {
+			$barcode = $this->Pdf_model->generate_barcode_base64($code_no);
+		} elseif (!empty($order->courier) && $order->courier == 'manual') {
+			$qr_code = $this->Pdf_model->generate_qr_base64($code_no);
+		} else {
+			$qr_code = $this->Pdf_model->generate_qr_base64($code_no);
+		}
+		
+		// Get logo - base64 for print view
+		$logo_src = '';
+		$logo_row = $this->db->select('logo')
+			->from('erp_clients')
+			->limit(1)
+			->get()
+			->row();
+		if (!empty($logo_row) && !empty($logo_row->logo)) {
+			$logo_path = FCPATH . ltrim($logo_row->logo, '/');
+			if (file_exists($logo_path)) {
+				$image_info = @getimagesize($logo_path);
+				if ($image_info !== false) {
+					$logo_data = file_get_contents($logo_path);
+					$mime_type = $image_info['mime'];
+					$logo_src = 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+				}
+			}
+		}
+		
+		// Get seller details from erp_clients - same as fetch_shipping_label (name, address, pincode, pan, gstin)
+		$seller_name = 'Kirti Book Agency';
+		$seller_address = 'Mumbai';
+		$seller_pincode = '';
+		$seller_pan = '';
+		$seller_gstin = '';
+		$seller_row = $this->db->select('name, address, pincode, pan, gstin')
+			->from('erp_clients')
+			->limit(1)
+			->get()
+			->row();
+		if (!empty($seller_row)) {
+			if (!empty($seller_row->name)) $seller_name = $seller_row->name;
+			if (!empty($seller_row->address)) $seller_address = $seller_row->address;
+			if (!empty($seller_row->pincode)) $seller_pincode = $seller_row->pincode;
+			if (!empty($seller_row->pan)) $seller_pan = $seller_row->pan;
+			if (!empty($seller_row->gstin)) $seller_gstin = $seller_row->gstin;
+		}
+		
+		// Prepare data for view - all keys with safe defaults to avoid undefined array key errors
+		$order_date = isset($order->created_at) ? date('d M Y', strtotime($order->created_at)) : '';
+		$data = array(
+			'order' => array(
+				'date' => $order_date,
+				'created_at' => $order_date,
+				'slot_no' => $slot_no,
+				'pincode' => $pincode,
+				'shipping_name' => $shipping_name,
+				'phone' => $phone,
+				'address' => $address,
+				'address_line1' => $address_line1,
+				'address_city' => $address_city,
+				'address_state' => $address_state,
+				'address_country' => $address_country,
+				'student_name' => $student_name,
+				'roll_number' => $roll_number,
+				'items' => $product_names,
+				'products_structured' => $products_structured,
+				'barcode' => $barcode,
+				'qr_code' => $qr_code,
+				'shipping_code' => $code_no,
+				'courier_type' => isset($order->courier) ? $order->courier : '',
+				'logo_src' => $logo_src,
+				'seller_name' => $seller_name,
+				'seller_address' => $seller_address,
+				'seller_pincode' => $seller_pincode,
+				'seller_pan' => $seller_pan,
+				'seller_gstin' => $seller_gstin,
+				'school_name' => isset($order->school_name) ? $order->school_name : '',
+				'board_name' => isset($order->board_name) ? $order->board_name : '',
+				'grade_name' => isset($order->grade_name) ? $order->grade_name : '',
+				'category_name' => isset($order->category_name) ? $order->category_name : '',
+				'order_unique_id' => isset($order->order_unique_id) ? $order->order_unique_id : $order_no,
+				'invoice_no' => isset($order->invoice_no) ? $order->invoice_no : '',
+				'bookset_display_name' => $bookset_display_name
+			),
+			'order_type_label' => $order_type_label
+		);
+		return $data;
+	}
+
+	/**
+	 * Print shipping label for single order (opens print dialog)
+	 *
+	 * @param	string	$order_no	Order unique ID
+	 * @return	void
+	 */
+	public function print_label($order_no)
+	{
+		$data = $this->_get_print_label_data($order_no);
+		if (!$data) {
+			show_error('Order not found', 404);
+			return;
+		}
+		$this->load->view('vendor/orders/print_label', $data);
+	}
+
+	/**
+	 * Bulk print shipping labels - single page with all labels, each on own print page
+	 * Expects POST order_unique_ids[] (array of order unique IDs)
+	 *
+	 * @return	void
+	 */
+	public function print_labels_bulk()
+	{
+		if (strtoupper($this->input->method()) !== 'POST') {
+			show_error('Invalid request method.', 405);
+			return;
+		}
+		$order_ids = $this->input->post('order_unique_ids');
+		if (empty($order_ids) || !is_array($order_ids)) {
+			show_error('No orders selected for bulk print.');
+			return;
+		}
+		$order_ids = array_slice(array_map('trim', (array)$order_ids), 0, 50);
+		$label_data_list = array();
+		foreach ($order_ids as $oid) {
+			if (empty($oid)) continue;
+			$data = $this->_get_print_label_data($oid);
+			if ($data) {
+				$label_data_list[] = $data;
+			}
+		}
+		if (empty($label_data_list)) {
+			show_error('No valid orders found to print.');
+			return;
+		}
+		$this->load->view('vendor/orders/print_labels_bulk', array('label_data_list' => $label_data_list));
+	}
+
+	/**
 	 * Generate shipping label for an order
 	 *
 	 * @param	string	$order_no	Order unique ID
@@ -4706,9 +5113,11 @@ class Orders extends Vendor_base
 		$order_ids = $this->input->post('order_ids');
 
 		if (empty($order_ids) || !is_array($order_ids)) {
-			$this->session->set_flashdata('error', 'No orders selected for bulk shipping label download.');
-			redirect(base_url('orders/processing'));
-			return;
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'No orders selected for bulk shipping label download.'
+			]);
+			exit;
 		}
 
 		// Normalize and limit order IDs to avoid very heavy queries
@@ -4725,16 +5134,20 @@ class Orders extends Vendor_base
 			->result();
 
 		if (empty($orders)) {
-			$this->session->set_flashdata('error', 'Selected orders not found.');
-			redirect(base_url('orders/processing'));
-			return;
-		}
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'Selected orders not found.'
+			]);
+			exit;
+		}	
 
-		// Prepare ZIP
+
 		if (!class_exists('ZipArchive')) {
-			$this->session->set_flashdata('error', 'ZIP extension is not enabled on the server.');
-			redirect(base_url('orders/processing'));
-			return;
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'ZIP extension is not enabled on the server.'
+			]);
+			exit;
 		}
 
 		$this->load->helper('common');
@@ -4749,8 +5162,11 @@ class Orders extends Vendor_base
 
 		if ($zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
 			$this->session->set_flashdata('error', 'Unable to create ZIP file.');
-			redirect(base_url('orders/processing'));
-			return;
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'Unable to create ZIP file.'
+			]);
+			exit;
 		}
 
 		$added_files = 0;
@@ -4762,9 +5178,9 @@ class Orders extends Vendor_base
 			}
 
 			// Only handle self-delivery (manual) orders for bulk label generation
-			if (!isset($order->courier) || $order->courier !== 'manual') {
+			/*if (!isset($order->courier) || $order->courier !== 'manual') {
 				continue;
-			}
+			}*/ 
 
 			// If no label yet, try to generate it first
 			if (empty($order->shipping_label)) {
@@ -4820,10 +5236,13 @@ class Orders extends Vendor_base
 		if ($added_files === 0 || !file_exists($zip_path)) {
 			if (file_exists($zip_path)) {
 				@unlink($zip_path);
-			}
-			$this->session->set_flashdata('error', 'No shipping labels found for selected orders.');
-			redirect(base_url('orders/processing'));
-			return;
+			} 
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'No shipping labels found for selected orders.'
+			]);
+			exit;
+			
 		}
 
 		// Clear any output buffer before sending binary - prevents ZIP corruption
@@ -6043,6 +6462,164 @@ public function test(){
 	curl_close($curl);
 	echo $response;
 }
-	
+
+	public function test_shiprocket_login()
+	{
+		$baseUrl = 'https://apiv2.shiprocket.in/v1/external/';
+
+		$email    = 'api@varitty.in';
+		$password = '5xuuwTJbsFVRQNeVMpoH%CtxeE^EZGv&';
+
+		$payload = json_encode([
+			'email'    => $email,
+			'password' => $password,
+		]);
+
+		$ch = curl_init();
+		curl_setopt_array($ch, [
+			CURLOPT_URL            => $baseUrl . 'auth/login',
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING       => '',
+			CURLOPT_MAXREDIRS      => 10,
+			CURLOPT_TIMEOUT        => 60,
+			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST  => 'POST',
+			CURLOPT_POSTFIELDS     => $payload,
+			CURLOPT_HTTPHEADER     => [
+				'Content-Type: application/json',
+				'Cache-Control: no-cache',
+			],
+		]);
+
+		$result  = curl_exec($ch);
+		$curlErr = curl_error($ch);
+		curl_close($ch);
+
+		header('Content-Type: application/json');
+
+		if ($curlErr) {
+			echo json_encode([
+				'status'  => 'error',
+				'message' => 'cURL error',
+				'error'   => $curlErr,
+			]);
+			return;
+		}
+
+		$apiData = json_decode($result, true);
+
+		echo json_encode([
+			'status'   => 'ok',
+			'raw_body' => $result,
+			'parsed'   => $apiData,
+		]);
+	}
+
+	public function test_shiprocket_pickup()
+	{
+		$baseUrl = 'https://apiv2.shiprocket.in/v1/external/';
+
+		$email    = 'api@varitty.in';
+		$password = '5xuuwTJbsFVRQNeVMpoH%CtxeE^EZGv&';
+
+		$payload = json_encode([
+			'email'    => $email,
+			'password' => $password,
+		]);
+
+		$ch = curl_init();
+		curl_setopt_array($ch, [
+			CURLOPT_URL            => $baseUrl . 'auth/login',
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING       => '',
+			CURLOPT_MAXREDIRS      => 10,
+			CURLOPT_TIMEOUT        => 60,
+			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST  => 'POST',
+			CURLOPT_POSTFIELDS     => $payload,
+			CURLOPT_HTTPHEADER     => [
+				'Content-Type: application/json',
+				'Cache-Control: no-cache',
+			],
+		]);
+
+		$loginResult  = curl_exec($ch);
+		$loginCurlErr = curl_error($ch);
+		curl_close($ch);
+
+		header('Content-Type: application/json');
+
+		if ($loginCurlErr) {
+			echo json_encode([
+				'status'  => 'error',
+				'step'    => 'login',
+				'message' => 'cURL error during login',
+				'error'   => $loginCurlErr,
+			]);
+			return;
+		}
+
+		$loginData = json_decode($loginResult, true);
+		if (empty($loginData) || empty($loginData['token'])) {
+			echo json_encode([
+				'status'     => 'error',
+				'step'       => 'login',
+				'message'    => 'No token received from Shiprocket',
+				'raw_login'  => $loginResult,
+				'parsed_login' => $loginData,
+			]);
+			return;
+		}
+
+		$token = $loginData['token'];
+
+		$pickupUrl = $baseUrl . 'settings/company/pickup';
+
+		$ch2 = curl_init();
+		curl_setopt_array($ch2, [
+			CURLOPT_URL            => $pickupUrl,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING       => '',
+			CURLOPT_MAXREDIRS      => 10,
+			CURLOPT_TIMEOUT        => 60,
+			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST  => 'GET',
+			CURLOPT_HTTPHEADER     => [
+				'Content-Type: application/json',
+				'Authorization: Bearer ' . $token,
+			],
+		]);
+
+		$pickupResult  = curl_exec($ch2);
+		$pickupCurlErr = curl_error($ch2);
+		curl_close($ch2);
+
+		if ($pickupCurlErr) {
+			echo json_encode([
+				'status'  => 'error',
+				'step'    => 'pickup',
+				'message' => 'cURL error during pickup fetch',
+				'error'   => $pickupCurlErr,
+			]);
+			return;
+		}
+
+		$pickupData = json_decode($pickupResult, true);
+
+		// For testing, only show pickup address data (no login payload)
+		$pickupOnly = $pickupData;
+		if (is_array($pickupData)) {
+			// Common Shiprocket structure: addresses often under 'data'
+			if (isset($pickupData['data'])) {
+				$pickupOnly = $pickupData['data'];
+			}
+		}
+
+		echo json_encode([
+			'status'      => 'ok',
+			'pickup_data' => $pickupOnly,
+		]);
+	}
+
 }
 

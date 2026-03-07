@@ -134,11 +134,16 @@ $route['orders/download_invoice/(:any)'] = 'Vendor/orders/download_invoice/$1';
 $route['orders/test_invoice/(:any)'] = 'Vendor/orders/test_invoice/$1';
 $route['orders/generate_shipping_label/(:any)'] = 'Vendor/orders/generate_shipping_label/$1';
 $route['orders/download_shipping_label/(:any)'] = 'Vendor/orders/download_shipping_label/$1';
+$route['orders/print_label/(:any)'] = 'Vendor/orders/print_label/$1';
 $route['orders/test_shipping_label/(:any)'] = 'Vendor/Orders/test_shipping_label/$1';
 $route['orders/test_barcode'] = 'Vendor/orders/test_barcode';
 $route['orders/test_barcode/(:any)'] = 'Vendor/orders/test_barcode/$1';
+// Shiprocket test routes
+$route['orders/test_shiprocket_login'] = 'Vendor/orders/test_shiprocket_login';
+$route['orders/test_shiprocket_pickup'] = 'Vendor/orders/test_shiprocket_pickup';
 // Bulk shipping label download
 $route['orders/bulk_download_shipping_labels'] = 'Vendor/orders/bulk_download_shipping_labels';
+$route['orders/print_labels_bulk'] = 'Vendor/orders/print_labels_bulk';
 
 
 // Orders shipping routes
@@ -288,4 +293,9 @@ $route['shipping/(:any)'] = 'Shipping/index/$1';
 $route['default_controller'] = 'Welcome';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
+
+
+$route['test_shiprocket_login'] = 'Vendor/Orders/test_shiprocket_login';
+$route['test_shiprocket_pickup'] = 'Vendor/Orders/test_shiprocket_pickup';
+
 

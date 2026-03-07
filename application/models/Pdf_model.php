@@ -4,7 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Pdf_model extends CI_Model
 {
-    private function generate_qr_base64($text)
+    public function generate_qr_base64($text)
     {
         // Override QR config to prevent database connection errors
         if (!defined('QR_CACHEABLE')) {
@@ -33,6 +33,31 @@ class Pdf_model extends CI_Model
         }
 
         return 'data:image/png;base64,' . base64_encode(file_get_contents($file));
+    }
+
+    public function generate_barcode_base64($text)
+    {
+        // Use Composer autoload if available
+        if (file_exists(APPPATH . 'vendor/autoload.php')) {
+            require_once APPPATH . 'vendor/autoload.php';
+        } else {
+            // Fallback to manual loading (not recommended for Picqer)
+            require_once APPPATH . 'vendor/picqer/php-barcode-generator/src/BarcodeGenerator.php';
+            require_once APPPATH . 'vendor/picqer/php-barcode-generator/src/BarcodeGeneratorPNG.php';
+            require_once APPPATH . 'vendor/picqer/php-barcode-generator/src/Types/TypeCode128.php';
+        }
+        
+        $generator = new \Picqer\Barcode\BarcodeGeneratorPNG();
+        
+        // Generate barcode (Code 128 is widely used for shipping)
+        try {
+            $barcode_data = $generator->getBarcode($text, $generator::TYPE_CODE_128);
+            return 'data:image/png;base64,' . base64_encode($barcode_data);
+        } catch (\Exception $e) {
+            // Fallback to QR code if barcode generation fails
+            log_message('error', 'Barcode generation failed: ' . $e->getMessage());
+            return $this->generate_qr_base64($text);
+        }
     }
 
     public function fetch_shipping_label($shipping_no, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, $type = "self", $ship_order_id = null)
@@ -244,21 +269,41 @@ class Pdf_model extends CI_Model
             }
         }
         
-        // Generate QR codes on-the-fly - use shipping number (ship_order_id) when available, not order number
-        $shipping_number_for_qr = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $shipping_no);
-        if ($type == "self") {
-            $barcode_no = $shipping_number_for_qr;
-            $barcode = $this->generate_qr_base64($barcode_no);
-        } elseif ($type == "bigship" && !empty($shipping_label) && !empty($shipping_label->awb_number)) {
-            $barcode_no = $shipping_label->awb_number;
-            $barcode = $this->generate_qr_base64($barcode_no);
+        // Determine courier type from order
+        $is_third_party = false;
+        
+        if (!empty($order->courier) && $order->courier == '3rd_party') {
+            $is_third_party = true;
+        }
+        
+        // Generate codes on-the-fly - use shipping number (ship_order_id) when available, not order number
+        $shipping_number_for_code = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $shipping_no);
+        
+        // For 3rd party shipping, use AWB number if available
+        if (!empty($order->courier) && $order->courier == '3rd_party' && !empty($shipping_label) && !empty($shipping_label->awb_number)) {
+            $code_no = $shipping_label->awb_number;
         } else {
-            $barcode_no = $shipping_number_for_qr;
-            $barcode = $this->generate_qr_base64($barcode_no);
+            $code_no = $shipping_number_for_code;
+        }
+        
+        // Generate barcode for 3rd party, QR code for manual shipping
+        if (!empty($order->courier) && $order->courier == '3rd_party') {
+            // 3rd party courier → BARCODE
+            $barcode = $this->generate_barcode_base64($code_no);
+            $qr_code = null;
+        } elseif (!empty($order->courier) && $order->courier == 'manual') {
+            // Manual courier → QR
+            $barcode = null;
+            $qr_code = $this->generate_qr_base64($code_no);
+        } else {
+            // Default fallback - generate QR code
+            $barcode = null;
+            $qr_code = $this->generate_qr_base64($code_no);
         }
     
         $output = '';
-        if (!empty($barcode)) {
+        // Show output if we have either barcode or qr_code
+        if (!empty($barcode) || !empty($qr_code)) {
             $output = '<body class="A5"><div class="panel-body tbold" id="page-wrap">';
             $output .= '<section id="data-list-view" class="print-this" >
                     <body>
@@ -447,8 +492,16 @@ class Pdf_model extends CI_Model
                         <div><b>Pincode:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '') . '</div>
                         <div><b>Country:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->country) ? $address_obj->country : '') . '</div>
                     </td>
-                    <td style="width:35%; text-align:center; vertical-align:middle;">
-                        <img src="' . htmlspecialchars($barcode) . '" style="width:170px; height:170px;">
+                    <td style="width:35%; text-align:center; vertical-align:middle;">';
+            
+            // Display barcode or qr_code based on what's available
+            if (!empty($barcode)) {
+                $output .= '<img src="' . htmlspecialchars($barcode) . '" style="width:170px; height:170px;">';
+            } elseif (!empty($qr_code)) {
+                $output .= '<img src="' . htmlspecialchars($qr_code) . '" style="width:170px; height:170px;">';
+            }
+            
+            $output .= '
                         <div style="border:2px solid #000; padding:8px; margin-top:10px;">
                             <b>' . strtoupper($order_type_label) . '</b>
                         </div>
@@ -861,9 +914,16 @@ class Pdf_model extends CI_Model
             }
             
             $output .= '</td>
-                    <td style="width:30%; text-align:center; vertical-align:top;">
-                        <img src="' . htmlspecialchars($barcode) . '" style="width:180px;">
-                    </td>
+                    <td style="width:30%; text-align:center; vertical-align:top;">';
+            
+            // Display barcode or qr_code based on what's available
+            if (!empty($barcode)) {
+                $output .= '<img src="' . htmlspecialchars($barcode) . '" style="width:180px;">';
+            } elseif (!empty($qr_code)) {
+                $output .= '<img src="' . htmlspecialchars($qr_code) . '" style="width:180px;">';
+            }
+            
+            $output .= '</td>
                     </tr>
                     </table>';
 
