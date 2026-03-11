@@ -98,6 +98,14 @@ class Orders extends Vendor_base
 		$filter_data['order_status']  = ($param1 != "" ? $param1 : 'all');
 		$page_data['order_status']  = $filter_data['order_status'];
 
+		// Per-page: allow 10, 25, 50, 100
+		$allowed_per_page = array(10, 25, 50, 100);
+		$per_page = (int)$this->input->get('per_page');
+		if (!in_array($per_page, $allowed_per_page)) {
+			$per_page = 10;
+		}
+		$filter_data['per_page'] = $per_page;
+
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_orders_count($vendor_id, $filter_data);
 		$page_data['total_count'] = $total_count;
@@ -106,7 +114,6 @@ class Orders extends Vendor_base
 		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
 		
 		// Pagination setup
-		$per_page = 100;
 		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 		if ($page < 1) $page = 1;
 		$offset = ($page - 1) * $per_page;
@@ -119,16 +126,25 @@ class Orders extends Vendor_base
 		// $this->load->model('common_model');
 		// $this->common_model->updateByids($data_update, array('is_seen' => 0), 'tbl_order_details');
 
+		// Pagination base URL - use 'orders' for all, otherwise 'orders/{status}' (matches tabs/form)
+		$pagination_base = ($param1 != "" ? 'orders/' . $param1 : 'orders');
+
 		// Setup pagination
 		$this->load->library('pagination');
 		$pagination_config = $this->get_pagination_config(
-			base_url($this->current_vendor['domain'] . '/orders/' . $param1),
+			base_url($pagination_base),
 			$total_count,
 			$per_page
 		);
 		
 		$this->pagination->initialize($pagination_config);
 		$page_data['pagination'] = $this->pagination->create_links();
+
+		// Pagination data for schools-style markup
+		$page_data['total_pages'] = ceil($total_count / $per_page);
+		$page_data['current_page'] = $page;
+		$page_data['per_page'] = $per_page;
+		$page_data['pagination_base'] = $pagination_base;
 
 		// Prepare page data
 		$page_data['page_name']    = 'orders';
@@ -151,6 +167,114 @@ class Orders extends Vendor_base
 		
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
+	/**
+	 * Export orders to Excel (CSV) - exports all orders matching current list filters
+	 *
+	 * @return	void
+	 */
+	public function export_orders()
+	{
+		$vendor_id = $this->current_vendor['id'];
+
+		// Same filter parameters as index
+		$filter_data['date_range'] = $this->input->get('date_range');
+		$filter_data['machine']   = $this->input->get('machine');
+		$filter_data['keywords']  = $this->input->get('keywords');
+		$filter_data['pincode']   = $this->input->get('pincode');
+		$filter_data['school']    = $this->input->get('school');
+		$filter_data['grade']     = $this->input->get('grade');
+		$filter_data['payment_method'] = $this->input->get('payment_method');
+		$filter_data['delivery_type']  = $this->input->get('delivery_type');
+		$filter_data['order_status']   = $this->input->get('order_status') ?: 'all';
+
+		// Fetch all matching orders (no pagination)
+		$limit = 50000;
+		$orders = $this->Order_model->get_paginated_orders($vendor_id, $filter_data, $limit, 0);
+
+		$status_label_map = array(
+			'1' => 'New Order',
+			'2' => 'Processing',
+			'6' => 'Ready for Shipment',
+			'3' => 'Out for Delivery',
+			'4' => 'Delivered',
+			'7' => 'Return',
+			'5' => 'Cancelled'
+		);
+
+		$status_slug = $filter_data['order_status'] == 'all' ? 'all' : $filter_data['order_status'];
+		$filename = 'orders_' . $status_slug . '_' . date('Y-m-d_H-i-s') . '.csv';
+
+		header('Content-Type: text/csv; charset=utf-8');
+		header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+		$out = fopen('php://output', 'w');
+		// BOM for Excel UTF-8
+		fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+
+		fputcsv($out, array('Orders Export - ' . ucfirst(str_replace('_', ' ', $status_slug))));
+		fputcsv($out, array('Export Date: ' . date('Y-m-d H:i:s')));
+		fputcsv($out, array('Total: ' . count($orders)));
+		fputcsv($out, array());
+
+		fputcsv($out, array(
+			'Order ID',
+			'Status',
+			'User Name',
+			'User Phone',
+			'Product Name',
+			'Address',
+			'School',
+			'Grade',
+			'Delivery Type',
+			'Date',
+			'Payment Method',
+			'Shipping Company',
+			'AWB Number',
+			'Invoice No'
+		));
+
+		foreach ($orders as $o) {
+			$status_text = isset($status_label_map[$o['status']]) ? $status_label_map[$o['status']] : 'Unknown';
+			$payment = $o['payment_method'];
+			if ($payment == 'payment_at_school' || $payment == 'payment_at_scho') {
+				$payment = 'Payment at School';
+			} elseif ($payment == 'cod') {
+				$payment = 'Cash On Delivery';
+			} else {
+				$payment = ucfirst(str_replace('_', ' ', $payment));
+			}
+			$delivery = !empty($o['is_deliver_at_school']) ? 'Deliver at School' : 'Deliver at Address';
+			$shipping = '-';
+			if (!empty($o['third_party_provider'])) {
+				$shipping = ucfirst($o['third_party_provider']);
+			} elseif (!empty($o['courier_name']) && $o['courier_name'] !== '-') {
+				$shipping = $o['courier_name'];
+			} elseif (!empty($o['courier'])) {
+				$shipping = ucfirst(str_replace('_', ' ', $o['courier']));
+			}
+			$invoice_raw = strip_tags($o['invoice_no']);
+			fputcsv($out, array(
+				$o['order_unique_id'],
+				$status_text,
+				$o['user_name'],
+				$o['user_phone'],
+				isset($o['product_name']) ? $o['product_name'] : '-',
+				isset($o['address']) ? $o['address'] : '-',
+				isset($o['school_name']) ? $o['school_name'] : '-',
+				isset($o['grade_name']) ? $o['grade_name'] : '-',
+				$delivery,
+				$o['date'],
+				$payment,
+				$shipping,
+				isset($o['awb_no']) ? $o['awb_no'] : '',
+				$invoice_raw
+			));
+		}
+
+		fclose($out);
+		exit;
 	}
 	
 	/**

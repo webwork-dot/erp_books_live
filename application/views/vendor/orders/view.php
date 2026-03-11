@@ -359,10 +359,7 @@ if($order_data[0]->payment_method == 'cod'){
                   <i class="fa fa-download"></i> Invoice
                 </a>
               <?php endif; ?>
-            <?php endif; ?>
-            <a href="<?php echo base_url('orders/test_invoice/' . $order_data[0]->order_unique_id); ?>" class="btn btn-sm btn-outline-secondary" target="_blank" title="Test invoice generation">
-              <i class="fa fa-file-pdf-o"></i> Test Invoice
-            </a>
+            <?php endif; ?>    
                 </div>
               </div>
             </div>

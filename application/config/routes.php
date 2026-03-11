@@ -109,6 +109,7 @@ $route['orders/out_for_delivery'] = 'Vendor/orders/index/out_for_delivery';
 $route['orders/ready_for_shipment'] = 'Vendor/orders/index/ready_for_shipment';
 $route['orders/delivered'] = 'Vendor/orders/index/delivered';
 $route['orders/return'] = 'Vendor/orders/index/return';
+$route['orders/export'] = 'Vendor/orders/export_orders';
 $route['orders'] = 'Vendor/orders/index';
 $route['orders/move_to_processing'] = 'Vendor/orders/move_to_processing';
 $route['orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_delivery';

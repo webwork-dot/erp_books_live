@@ -229,6 +229,7 @@
          <div class="card brtop0">
             <div class="card-body">
                <form method="get" action="<?php echo base_url('orders/' . $order_status); ?>" class="row">
+                  <input type="hidden" name="per_page" value="<?php echo isset($filter_data['per_page']) ? (int)$filter_data['per_page'] : 10; ?>">
                   <div class="col-md-2">
                      <label>Keywords</label>
                      <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone, Invoice Number...">
@@ -264,7 +265,9 @@
                      <select name="payment_method" class="form-control">
                         <option value="">All Payment Methods</option>
                         <option value="cod" <?php echo (isset($filter_data['payment_method']) && $filter_data['payment_method'] == 'cod') ? 'selected' : ''; ?>>Cash On Delivery</option>
-                        <option value="razorpay" <?php echo (isset($filter_data['payment_method']) && $filter_data['payment_method'] == 'razorpay' || $filter_data['payment_method'] == 'Cashfree') ? 'selected' : ''; ?>>Online Payment</option>
+                        <option value="non_cod" <?php echo (isset($filter_data['payment_method']) && $filter_data['payment_method'] == 'non_cod') ? 'selected' : ''; ?>>
+                           Online / Non-COD
+                        </option>
                         <option value="payment_at_school" <?php echo (isset($filter_data['payment_method']) && $filter_data['payment_method'] == 'payment_at_school') ? 'selected' : ''; ?>>Payment at School</option>
                      </select>
                   </div>
@@ -350,19 +353,33 @@
                            </div>
                         </div>
 
+                        <?php
+                        $export_params = array_filter(array(
+                           'order_status' => $order_status ?: 'all',
+                           'keywords' => isset($filter_data['keywords']) ? $filter_data['keywords'] : '',
+                           'pincode' => isset($filter_data['pincode']) ? $filter_data['pincode'] : '',
+                           'school' => isset($filter_data['school']) ? $filter_data['school'] : '',
+                           'grade' => isset($filter_data['grade']) ? $filter_data['grade'] : '',
+                           'payment_method' => isset($filter_data['payment_method']) ? $filter_data['payment_method'] : '',
+                           'delivery_type' => isset($filter_data['delivery_type']) ? $filter_data['delivery_type'] : '',
+                           'date_range' => isset($filter_data['date_range']) ? $filter_data['date_range'] : ''
+                        ));
+                        $export_url = base_url('orders/export?' . http_build_query($export_params));
+                        ?>
+                        <div class="pull-right d-flex gap-2 flex-wrap align-items-center">
+                           <a href="<?php echo htmlspecialchars($export_url); ?>" class="btn btn-outline-success btn-sm" target="_blank" title="Export current list to Excel">
+                              <i class="fa fa-file-excel-o me-1"></i> Export to Excel
+                           </a>
                         <?php if ($order_status == 'all' || $order_status == ''): ?>
-                        <!-- No action buttons for "All Orders" view -->
+                        <!-- No other action buttons for "All Orders" view -->
                         <?php elseif ($order_status == 'pending'): ?>
-                        <div class="pull-right d-flex gap-2 flex-wrap">
                            <button type="button" id="btn_bulk_self_delivery" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
                               <i class="fa fa-truck me-1"></i> Self Delivery (<span class="total_orders">0</span>)
                            </button>
                            <button type="button" id="btn_bulk_3rd_party" class="btn btn-outline-info waves-effect waves-light btn-md mb-0" disabled>
                               <i class="fa fa-shipping-fast me-1"></i> 3rd Party (<span class="total_orders">0</span>)
-                           </button> 
-                        </div>
+                           </button>
                         <?php elseif ($order_status == 'processing'): ?>
-                        <div class="pull-right d-flex gap-2 flex-wrap">
                            <button type="button" id="btn_bulk_print_labels" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
                               <i class="fa fa-print me-1"></i> Print Shipping Labels (<span class="total_orders">0</span>)
                            </button>
@@ -374,9 +391,7 @@
                                  <i class="fa fa-spinner fa-spin me-1"></i> Generating &amp; Downloading...
                               </span>
                            </button>
-                        </div>
                         <?php elseif ($order_status == 'ready_for_shipment'): ?>
-                        <div class="pull-right d-flex gap-2 flex-wrap">
                            <button type="button" id="btn_bulk_print_labels" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
                               <i class="fa fa-print me-1"></i> Print Shipping Labels (<span class="total_orders">0</span>)
                            </button>
@@ -391,13 +406,10 @@
                            <button type="button" name="button" id="btn_out_for_delivery" value="update" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
                               Move to Out for Delivery (<span class="total_orders">0</span>)
                            </button>
-                        </div>
                         <?php elseif ($order_status == 'out_for_delivery'): ?>
-                        <div class="pull-right">
                            <button type="button" name="button" id="btn_delivered" value="update" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
                               Move to Delivered (<span class="total_orders">0</span>)
                            </button>
-                        </div>
                         <?php endif; ?>
                      </div>
                   </div>
@@ -446,6 +458,8 @@
                                  ?>
                               </th>
                               <th>Payment Method</th>
+                              <th>Shipping Company</th>
+                              <th>AWB Number</th>
                               <th>Invoice Number</th>
                               <th class="cat_action_list">Action</th>
                            </tr>
@@ -545,6 +559,29 @@
                                             echo '<span class="badge badge-pill badge-payment-other">' . htmlspecialchars($payment_method_display) . '</span>';
                                         }
                                     ?></td>
+                                    <td>
+                                       <?php
+                                       $display_courier = '-';
+                                       // Prefer explicit 3rd party provider label when available
+                                       if (!empty($item['third_party_provider'])) {
+                                          $display_courier = ucfirst($item['third_party_provider']);
+                                       } elseif (!empty($item['courier_name']) && $item['courier_name'] !== '-') {
+                                          $display_courier = $item['courier_name'];
+                                       } elseif (!empty($courier_type)) {
+                                          $display_courier = ucfirst(str_replace('_', ' ', $courier_type));
+                                       }
+                                       echo htmlspecialchars($display_courier);
+                                       ?>
+                                    </td>
+                                    <td>
+                                       <?php
+                                       if (!empty($item['awb_no'])) {
+                                          echo '<code>' . htmlspecialchars($item['awb_no']) . '</code>';
+                                       } else {
+                                          echo '<span class="text-muted">-</span>';
+                                       }
+                                       ?>
+                                    </td>
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
@@ -561,11 +598,17 @@
                            else: ?>
                               <tr>
                                  <td colspan="<?php
-                                    $colspan = 13;
+                                    // Base columns (without checkbox/status): Order ID, User, Product, Address, School, Grade,
+                                    // Delivery, Date, Payment, Shipping Company, AWB, Invoice, Action = 13
+                                    $colspan = 15; // default when there is a checkbox (most views)
                                     if ($order_status == 'all' || $order_status == '') {
-                                       $colspan = 15; // checkbox + status + product + address + school + grade + delivery
+                                       // + Status column
+                                       $colspan = 17;
                                     } elseif ($order_status == 'pending' || $order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery') {
-                                       $colspan = 14; // checkbox + product + address + school + grade + delivery
+                                       $colspan = 16;
+                                    } else {
+                                       // No checkbox for delivered/return, so 14 (no status) or 15 (with status)
+                                       $colspan = 14;
                                     }
                                     echo $colspan;
                                  ?>">
@@ -589,8 +632,67 @@
 
                   <div class="clearfix"></div>
                   <div class="col-md-12 col-xs-12">
-                     <div class="pagination_item_block">
-                        <?php if (isset($pagination) && !empty($pagination)): ?>
+                     <div class="pagination_item_block d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <?php
+                        $total_pages = isset($total_pages) ? (int)$total_pages : 0;
+                        $current_page = isset($current_page) ? (int)$current_page : 1;
+                        $pagination_base = isset($pagination_base) ? $pagination_base : 'orders';
+                        $pg_filters = isset($filter_data) ? array_filter((array)$filter_data) : array();
+                        unset($pg_filters['order_status']); // Remove order_status since it's already in the URL path
+                        $per_page_val = isset($filter_data['per_page']) ? (int)$filter_data['per_page'] : 10;
+                        $allowed_per_page = array(10, 25, 50, 100);
+                        ?>
+                        <?php
+                        $pg_params_for_perpage = $pg_filters;
+                        unset($pg_params_for_perpage['per_page'], $pg_params_for_perpage['page'], $pg_params_for_perpage['order_status']);
+                        $pg_params_str = http_build_query(array_filter($pg_params_for_perpage));
+                        ?>
+                        <div class="d-flex align-items-center gap-2">
+                           <label class="mb-0 text-muted small">Show</label>
+                           <select class="form-select form-select-sm" id="perPageSelect" style="width: auto; min-width: 70px;" data-base="<?php echo htmlspecialchars(base_url($pagination_base), ENT_QUOTES); ?>" data-params="<?php echo htmlspecialchars($pg_params_str, ENT_QUOTES); ?>">
+                              <?php foreach ($allowed_per_page as $opt): ?>
+                                 <option value="<?php echo $opt; ?>" <?php echo ($per_page_val == $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
+                              <?php endforeach; ?>
+                           </select>
+                           <span class="text-muted small">per page</span>
+                        </div>
+                        <?php if (!empty($order_list) && $total_pages > 1): ?>
+                           <nav aria-label="Page navigation" class="d-flex justify-content-center flex-grow-1">
+                              <ul class="pagination pagination-sm mb-0 justify-content-center">
+                                 <?php if ($current_page > 1): ?>
+                                    <li class="page-item">
+                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_filters, array('page' => $current_page - 1)))); ?>">Previous</a>
+                                    </li>
+                                 <?php else: ?>
+                                    <li class="page-item disabled">
+                                       <span class="page-link">Previous</span>
+                                    </li>
+                                 <?php endif; ?>
+
+                                 <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                                    <?php if ($i == $current_page): ?>
+                                       <li class="page-item active">
+                                          <span class="page-link"><?php echo $i; ?></span>
+                                       </li>
+                                    <?php else: ?>
+                                       <li class="page-item">
+                                          <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
+                                       </li>
+                                    <?php endif; ?>
+                                 <?php endfor; ?>
+
+                                 <?php if ($current_page < $total_pages): ?>
+                                    <li class="page-item">
+                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_filters, array('page' => $current_page + 1)))); ?>">Next</a>
+                                    </li>
+                                 <?php else: ?>
+                                    <li class="page-item disabled">
+                                       <span class="page-link">Next</span>
+                                    </li>
+                                 <?php endif; ?>
+                              </ul>
+                           </nav>
+                        <?php elseif (isset($pagination) && !empty($pagination)): ?>
                            <?php echo $pagination; ?>
                         <?php endif; ?>
                      </div>
@@ -766,6 +868,17 @@
 
 <script>
    $(document).ready(function() {
+      // Per-page selector - use JS redirect to avoid nested form issues
+      $('#perPageSelect').on('change', function() {
+         var base = $(this).data('base');
+         var params = $(this).data('params') || '';
+         var perPage = $(this).val();
+         var sep = base.indexOf('?') >= 0 ? '&' : '?';
+         var q = params ? (params + '&') : '';
+         q += 'per_page=' + perPage + '&page=1';
+         window.location.href = base + sep + q;
+      });
+
       // Date range picker
       if ($('input[name="daterange"]').length) {
          $('input[name="daterange"]').daterangepicker({

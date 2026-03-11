@@ -480,8 +480,17 @@ class Order_model extends CI_Model
 						OR d.user_name LIKE '%{$keyword_esc}%'
 						OR d.invoice_no LIKE '%{$keyword_esc}%'
 						OR d.coupon_code LIKE '%{$keyword_esc}%'
-						OR d.user_phone LIKE '%{$keyword_esc}%'
-				)";
+						OR d.user_phone LIKE '%{$keyword_esc}%'";
+
+				// Also allow searching by shipping order ID and AWB number if columns exist
+				if ($this->db->field_exists('ship_order_id', 'tbl_order_details')) {
+					$keyword_filter .= " OR d.ship_order_id LIKE '%{$keyword_esc}%'";
+				}
+				if ($this->db->field_exists('awb_no', 'tbl_order_details')) {
+					$keyword_filter .= " OR d.awb_no LIKE '%{$keyword_esc}%'";
+				}
+
+				$keyword_filter .= ")";
 		endif;
 
 		if (isset($filter_data['school_user_id']) && $filter_data['school_user_id'] != "") :
@@ -517,8 +526,16 @@ class Order_model extends CI_Model
 
 		// Payment method filter
 		if (isset($filter_data['payment_method']) && $filter_data['payment_method'] != "") :
-			$payment_method = $this->db->escape_str($filter_data['payment_method']);
-			$payment_method_filter = " AND (d.payment_method = '{$payment_method}' OR d.payment_status = '{$payment_method}')";
+			if ($filter_data['payment_method'] === 'non_cod') {
+				// All orders where payment is NOT Cash On Delivery
+				$payment_method_filter = " AND (
+					(d.payment_method IS NOT NULL AND d.payment_method <> 'cod')
+					OR (d.payment_method IS NULL AND d.payment_status <> 'cod')
+				)";
+			} else {
+				$payment_method = $this->db->escape_str($filter_data['payment_method']);
+				$payment_method_filter = " AND (d.payment_method = '{$payment_method}' OR d.payment_status = '{$payment_method}')";
+			}
 		endif;
 
 		// Delivery type filter (deliver at school vs deliver at address) - use tbl_order_details.is_deliver_at_school
@@ -660,8 +677,16 @@ class Order_model extends CI_Model
 
 		// Payment method filter
 		if (isset($filter_data['payment_method']) && $filter_data['payment_method'] != "") :
-			$payment_method = $this->db->escape_str($filter_data['payment_method']);
-			$payment_method_filter = " AND (d.payment_method = '{$payment_method}' OR d.payment_status = '{$payment_method}')";
+			if ($filter_data['payment_method'] === 'non_cod') {
+				// All orders where payment is NOT Cash On Delivery
+				$payment_method_filter = " AND (
+					(d.payment_method IS NOT NULL AND d.payment_method <> 'cod')
+					OR (d.payment_method IS NULL AND d.payment_status <> 'cod')
+				)";
+			} else {
+				$payment_method = $this->db->escape_str($filter_data['payment_method']);
+				$payment_method_filter = " AND (d.payment_method = '{$payment_method}' OR d.payment_status = '{$payment_method}')";
+			}
 		endif;
 
 		// Delivery type filter (deliver at school vs deliver at address) - use tbl_order_details.is_deliver_at_school
@@ -687,8 +712,24 @@ class Order_model extends CI_Model
 
 
 		$resultdata = array();
+
+		// Build column list dynamically so we can safely include optional shipping fields
+		$cols = 'd.id, d.checkout_type, d.payment_method, d.razorpay_order_id, d.payment_id, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.tracking_id, d.shipping_label, d.track_url, d.courier, d.order_type, d.order_token, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.coupon_code, d.source, d.is_deliver_at_school, d.ready_to_ship, d.ready_to_ship_time';
+		if ($this->db->field_exists('ship_order_id', 'tbl_order_details')) {
+			$cols .= ', d.ship_order_id';
+		}
+		if ($this->db->field_exists('awb_no', 'tbl_order_details')) {
+			$cols .= ', d.awb_no';
+		}
+		if ($this->db->field_exists('erp_courier_id', 'tbl_order_details')) {
+			$cols .= ', d.erp_courier_id';
+		}
+		if ($this->db->field_exists('third_party_provider', 'tbl_order_details')) {
+			$cols .= ', d.third_party_provider';
+		}
+
 		$query = $this->db->query("
-				SELECT d.id, d.checkout_type, d.payment_method, d.razorpay_order_id, d.payment_id, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.tracking_id, d.shipping_label, d.track_url, d.courier, d.order_type, d.order_token, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.coupon_code, d.source, d.is_deliver_at_school, d.ready_to_ship, d.ready_to_ship_time
+				SELECT {$cols}
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
@@ -819,6 +860,24 @@ class Order_model extends CI_Model
 				$invoice_no = !empty($invoice_url_path) ? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
 				$is_payment_at_school = ($item['payment_method'] == 'payment_at_school' || $item['payment_method'] == 'payment_at_scho');
 				$is_deliver_at_school = (isset($item['is_deliver_at_school']) && (int)$item['is_deliver_at_school'] === 1);
+
+				// Resolve courier name from master table when erp_courier_id is available
+				$courier_name = '-';
+				if (isset($item['erp_courier_id']) && !empty($item['erp_courier_id']) && $this->db->table_exists('erp_master_courier')) {
+					$courier_row = $this->db->select('courier_name')
+						->from('erp_master_courier')
+						->where('id', (int)$item['erp_courier_id'])
+						->limit(1)
+						->get()
+						->row();
+					if ($courier_row && !empty($courier_row->courier_name)) {
+						$courier_name = $courier_row->courier_name;
+					}
+				}
+
+				$ship_order_id = isset($item['ship_order_id']) ? $item['ship_order_id'] : '';
+				$awb_no       = isset($item['awb_no']) ? $item['awb_no'] : '';
+				$third_party_provider = isset($item['third_party_provider']) ? $item['third_party_provider'] : '';
 				$resultdata[] = array(
 					"id"              => $item['id'],
 					"order_type"      => $item['order_type'],
@@ -851,6 +910,11 @@ class Order_model extends CI_Model
 					"address"         => $address,
 					"school_name"     => $school_name,
 					"grade_name"      => $grade_name,
+					// Shipping info for list views
+					"ship_order_id"   => $ship_order_id,
+					"awb_no"          => $awb_no,
+					"courier_name"    => $courier_name,
+					"third_party_provider" => $third_party_provider,
 				);
 			}
 		}
