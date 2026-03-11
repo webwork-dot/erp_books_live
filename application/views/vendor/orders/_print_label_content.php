@@ -32,8 +32,16 @@ $date = isset($order['date']) ? $order['date'] : '';
                 <b><?php echo htmlspecialchars($order['order_unique_id'] ?? ''); ?></b>
             </td>
             <td class="box" style="width: 50%; text-align: center;">
-                <b>Pincode: <?php echo htmlspecialchars(isset($order['pincode']) ? $order['pincode'] : ''); ?></b>
-            </td>
+				<b>
+					<?php
+					if(isset($order['payment_method']) && strtolower($order['payment_method']) == 'cod'){
+						echo "CASH ON DELIVERY";
+					}else{
+						echo "PREPAID";
+					}
+					?>
+				</b>
+			</td>
         </tr>
     </table>
     <div class="info-box">
@@ -54,7 +62,7 @@ $date = isset($order['date']) ? $order['date'] : '';
         <p><b>Address:</b> <?php echo htmlspecialchars($full_address); ?></p>
     </div>
     <hr>
-    <table class="product-table">
+<table class="product-table">
         <thead>
             <tr>
                 <th>Product</th>
@@ -64,8 +72,8 @@ $date = isset($order['date']) ? $order['date'] : '';
         <tbody>
             <?php if ($order_type_label == 'Bookset' && !empty($order['bookset_display_name'])): ?>
             <tr>
-                <td colspan="2" class="package-header"><b>Bookset - <?php echo htmlspecialchars($order['bookset_display_name']); ?></b></td>
-            </tr>
+                <td colspan="2" class="package-header"><b><?php echo htmlspecialchars($order['bookset_display_name']); ?></b></td>
+            </tr> 
             <?php endif; ?>
             <?php if ($order_type_label == 'Bookset'): ?>
                 <?php if (!empty($order['products_structured']) && is_array($order['products_structured'])): ?>
@@ -73,8 +81,8 @@ $date = isset($order['date']) ? $order['date'] : '';
                         <?php $pkg_name = isset($pkg['package_name']) ? $pkg['package_name'] : ''; ?>
                         <?php $pkg_price = isset($pkg['package_price']) ? floatval($pkg['package_price']) : 0; ?>
                         <tr>
-                            <td class="package-header"><b>Package: <?php echo htmlspecialchars($pkg_name); ?></b></td>
-                            <td class="col-price package-header"><?php echo $pkg_price > 0 ? number_format($pkg_price, 2) : ''; ?></td>
+                            <td class="package-header"><b><?php echo htmlspecialchars($pkg_name); ?></b></td>
+                            <td class="col-price package-header" style="font-weight:400"><?php echo $pkg_price > 0 ? number_format($pkg_price, 2) : ''; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -83,19 +91,25 @@ $date = isset($order['date']) ? $order['date'] : '';
                 <?php $items = isset($order['items']) && is_array($order['items']) ? $order['items'] : array(); foreach ($items as $item): ?>
                 <tr>
                     <td><?php echo htmlspecialchars(is_array($item) ? (isset($item['name']) ? $item['name'] : '') : $item); ?></td>
-                    <td class="col-price"></td>
+                    <td class="col-price"><?php echo round($order['total_amt']);?></td>
                 </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
-    </table>
+        <?php if (isset($order['payment_method']) && $order['payment_method'] == 'cod'): ?>
+        <tfoot>
+            <tr>
+                <td colspan="2" style="text-align:center; padding: 8px 0;"><b>PLEASE COLLECT CASH : <?php echo number_format(round($order['total_amt']), 2); ?></b></td>
+            </tr>
+        </tfoot>
+        <?php endif; ?>
+    </table> 
     <hr>
     <div class="info-box">
         <p><b>Seller:</b> <?php echo htmlspecialchars(isset($order['seller_name']) ? $order['seller_name'] : 'Kirti Book Agency'); ?></p>
         <?php if (!empty($order['seller_address']) || !empty($order['seller_pincode'])): ?>
         <p><b>Address:</b> <?php echo htmlspecialchars($order['seller_address'] ?? ''); ?><?php if (!empty($order['seller_pincode'])): ?> <?php echo htmlspecialchars($order['seller_pincode']); ?><?php endif; ?></p>
         <?php endif; ?>
-        <?php if (!empty($order['seller_pan'])): ?><p><b>PAN:</b> <?php echo htmlspecialchars($order['seller_pan']); ?></p><?php endif; ?>
         <?php if (!empty($order['seller_gstin'])): ?><p><b>GSTIN:</b> <?php echo htmlspecialchars($order['seller_gstin']); ?></p><?php endif; ?>
     </div>
     <div class="barcode-section">

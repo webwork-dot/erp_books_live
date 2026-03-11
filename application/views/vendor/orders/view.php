@@ -1846,701 +1846,721 @@ if($order_data[0]->payment_method == 'cod'){
 <!-- JavaScript for Order Actions -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-// Function to show loading spinner for generate label button
-function showGenerateLoading(btn) {
-  var btnElement = $(btn);
-  var textSpan = $('#generateLabelText');
-  var spinnerSpan = $('#generateLabelSpinner');
-  
-  // Disable button and show loading
-  btnElement.prop('disabled', true).addClass('disabled');
-  textSpan.hide();
-  spinnerSpan.show();
-  
-  // The page will redirect, so the loading will be visible until redirect
-  // If redirect fails, we can add a timeout to re-enable (optional)
-  setTimeout(function() {
-    // Re-enable after 30 seconds if still on page (fallback)
-    btnElement.prop('disabled', false).removeClass('disabled');
-    textSpan.show();
-    spinnerSpan.hide();
-  }, 30000);
-}
+  // Function to show loading spinner for generate label button
+  function showGenerateLoading(btn) {
+    var btnElement = $(btn);
+    var textSpan = $('#generateLabelText');
+    var spinnerSpan = $('#generateLabelSpinner');
+    
+    // Disable button and show loading
+    btnElement.prop('disabled', true).addClass('disabled');
+    textSpan.hide();
+    spinnerSpan.show();
+    
+    // The page will redirect, so the loading will be visible until redirect
+    // If redirect fails, we can add a timeout to re-enable (optional)
+    setTimeout(function() {
+      // Re-enable after 30 seconds if still on page (fallback)
+      btnElement.prop('disabled', false).removeClass('disabled');
+      textSpan.show();
+      spinnerSpan.hide();
+    }, 30000);
+  }
 
-// Function to show loading spinner for regenerate label button
-function showRegenerateLoading(btn) {
-  var btnElement = $(btn);
-  var textSpan = $('#regenerateLabelText');
-  var spinnerSpan = $('#regenerateLabelSpinner');
-  
-  // Disable button and show loading
-  btnElement.prop('disabled', true).addClass('disabled');
-  textSpan.hide();
-  spinnerSpan.show();
-  
-  // The page will redirect, so the loading will be visible until redirect
-  // If redirect fails, we can add a timeout to re-enable (optional)
-  setTimeout(function() {
-    // Re-enable after 30 seconds if still on page (fallback)
-    btnElement.prop('disabled', false).removeClass('disabled');
-    textSpan.show();
-    spinnerSpan.hide();
-  }, 30000);
-}
-/*
-function moveToProcessing(orderUniqueId, btnElement) {
-  // Disable button and show loading state
-  var $btn = $(btnElement);
-  var originalText = $btn.html();
-  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+  // Function to show loading spinner for regenerate label button
+  function showRegenerateLoading(btn) {
+    var btnElement = $(btn);
+    var textSpan = $('#regenerateLabelText');
+    var spinnerSpan = $('#regenerateLabelSpinner');
+    
+    // Disable button and show loading
+    btnElement.prop('disabled', true).addClass('disabled');
+    textSpan.hide();
+    spinnerSpan.show();
+    
+    // The page will redirect, so the loading will be visible until redirect
+    // If redirect fails, we can add a timeout to re-enable (optional)
+    setTimeout(function() {
+      // Re-enable after 30 seconds if still on page (fallback)
+      btnElement.prop('disabled', false).removeClass('disabled');
+      textSpan.show();
+      spinnerSpan.hide();
+    }, 30000);
+  }
+  /*
+  function moveToProcessing(orderUniqueId, btnElement) {
+    // Disable button and show loading state
+    var $btn = $(btnElement);
+    var originalText = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
 
-  $.ajax({
-    url: '<?php echo base_url("orders/move_to_processing_single"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueId
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        location.reload();
-      } else {
-        alert(response.message || 'Error updating order status');
+    $.ajax({
+      url: '<?php echo base_url("orders/move_to_processing_single"); ?>',
+      type: 'POST',
+      data: {
+        order_unique_id: orderUniqueId
+      },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          location.reload();
+        } else {
+          alert(response.message || 'Error updating order status');
+          $btn.prop('disabled', false).html(originalText);
+        }
+      },
+      error: function() {
+        alert('Error updating order status. Please try again.');
         $btn.prop('disabled', false).html(originalText);
       }
-    },
-    error: function() {
-      alert('Error updating order status. Please try again.');
-      $btn.prop('disabled', false).html(originalText);
-    }
+    });
+  }*/
+
+  function selectShipper(orderId, courierType, btnElement) {
+
+    Swal.fire({
+      title: 'Are you sure?',
+      text: "You want to assign this courier?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, assign it!'
+    }).then((result) => {
+
+      if (result.isConfirmed) {
+
+        var $btn = $(btnElement);
+        var originalText = $btn.html();
+        $btn.prop('disabled', true)
+            .html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+        $.ajax({
+          url: '<?php echo base_url("orders/bulk_set_shipper"); ?>',
+          type: 'POST',
+          data: {
+            order_ids: [orderId],
+            courier: courierType,
+            <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+          },
+          dataType: 'json',
+          success: function(response) {
+            if (response.status == '200') {
+
+              Swal.fire({
+                icon: 'success',
+                title: 'Assigned!',
+                text: 'Courier assigned successfully.',
+                timer: 1500,
+                showConfirmButton: false
+              }).then(() => {
+                location.reload();
+              });
+
+            } else {
+              Swal.fire('Error', response.message || 'Error setting shipper', 'error');
+              $btn.prop('disabled', false).html(originalText);
+            }
+          },
+          error: function(xhr) {
+            let msg = 'Error setting shipper. Please try again.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              msg = xhr.responseJSON.message;
+            }
+
+            Swal.fire('Error', msg, 'error');
+            $btn.prop('disabled', false).html(originalText);
+          }
+        });
+
+      }
+
+    });
+  }
+
+  function moveToOutForDelivery(orderUniqueId, btnElement) {
+    // Disable button and show loading state
+    var $btn = $(btnElement);
+    var originalText = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+    $.ajax({
+      url: '<?php echo base_url("orders/move_to_out_for_delivery_single"); ?>',
+      type: 'POST',
+      data: {
+        order_unique_id: orderUniqueId
+      },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          location.reload();
+        } else {
+          alert(response.message || 'Error updating order status');
+          $btn.prop('disabled', false).html(originalText);
+        }
+      },
+      error: function() {
+        alert('Error updating order status. Please try again.');
+        $btn.prop('disabled', false).html(originalText);
+      }
+    });
+  }
+
+  function moveToDelivered(orderUniqueId, btnElement) {
+    // Disable button and show loading state
+    var $btn = $(btnElement);
+    var originalText = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+    $.ajax({
+      url: '<?php echo base_url("orders/move_to_delivered_single"); ?>',
+      type: 'POST',
+      data: {
+        order_unique_id: orderUniqueId
+      },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          location.reload();
+        } else {
+          alert(response.message || 'Error updating order status');
+          $btn.prop('disabled', false).html(originalText);
+        }
+      },
+      error: function() {
+        alert('Error updating order status. Please try again.');
+        $btn.prop('disabled', false).html(originalText);
+      }
+    });
+  }
+
+  // 3rd Party Shipping Modal (single order uses save_third_party_shipping)
+  var orderUniqueIdForThirdParty = '<?= addslashes($order_data[0]->order_unique_id ?? '') ?>';
+  /*
+  $('#thirdPartyShippingModal').on('show.bs.modal', function() {
+    $('#thirdPartyProvider').val('');
+    $('#thirdPartyShippingModal .third-party-option').removeClass('active');
+    $('#pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight').val('');
+    $('#saveThirdPartyBtn').prop('disabled', true);
+    $('#vendorAddressDisplay').html('<span class="text-muted">Loading...</span>');
+    $.get('<?php echo base_url("orders/get_vendor_address"); ?>', function(data) {
+      if (data.success && data.address_full) {
+        $('#vendorAddressDisplay').html('<span>' + (data.address_full || 'Please add address in Profile.') + '</span>');
+      } else {
+        $('#vendorAddressDisplay').html('<span class="text-warning">Please add address in Profile.</span>');
+      }
+    }).fail(function() {
+      $('#vendorAddressDisplay').html('<span class="text-warning">Could not load address.</span>');
+    });
   });
-}*/
+  */
 
-function selectShipper(orderId, courierType, btnElement) {
+  $('#thirdPartyShippingModal .third-party-option').on('click', function() {
+    var provider = $(this).data('provider');
+    $('#thirdPartyProvider').val(provider);
+    $('#thirdPartyShippingModal .third-party-option').removeClass('active');
+    $(this).addClass('active');
+    $('#saveThirdPartyBtn').prop('disabled', false);
+  });
 
-  Swal.fire({
-    title: 'Are you sure?',
-    text: "You want to assign this courier?",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'Yes, assign it!'
-  }).then((result) => {
 
-    if (result.isConfirmed) {
+  // Select Courier Modal - load couriers when modal opens
+  var orderUniqueIdForCourier = '<?= $order_data[0]->order_unique_id ?>';
+  var existingCourierId = '<?= isset($order_data[0]->erp_courier_id) && $order_data[0]->erp_courier_id ? (int)$order_data[0]->erp_courier_id : 0 ?>';
+  var existingAwbNo = '<?= isset($order_data[0]->awb_no) ? addslashes(trim($order_data[0]->awb_no)) : "" ?>';
+  $('#selectCourierModal').on('show.bs.modal', function() {
+    $('#courierListLoading').show();
+    $('#courierListEmpty').hide();
+    $('#courierStep2').hide();
+    $('#selectedCourierId').val('');
+    $('#awbNumberInput').val(existingAwbNo);
+    $('#saveCourierAwbBtn').prop('disabled', true);
+    $('#courierListContainer .list-group-item-action').remove();
+    
+    $.get('<?php echo base_url("orders/get_order_couriers"); ?>', function(data) {
+      $('#courierListLoading').hide();
+      if (data.success && data.couriers && data.couriers.length > 0) {
+        data.couriers.forEach(function(c) {
+          var item = $('<a href="#" class="list-group-item list-group-item-action courier-item" data-id="' + c.id + '" data-name="' + (c.courier_name || '').replace(/"/g, '&quot;') + '">' + (c.courier_name || 'Courier #' + c.id) + '</a>');
+          $('#courierListContainer').append(item);
+        });
+        if (existingCourierId > 0) {
+          $('#selectedCourierId').val(existingCourierId);
+          $('#courierListContainer .courier-item[data-id="' + existingCourierId + '"]').addClass('active');
+          $('#courierStep2').show();
+          $('#saveCourierAwbBtn').prop('disabled', false);
+        }
+        $('#courierListContainer .courier-item').on('click', function(e) {
+          e.preventDefault();
+          var id = $(this).data('id');
+          $('#selectedCourierId').val(id);
+          $('#courierListContainer .courier-item').removeClass('active');
+          $(this).addClass('active');
+          $('#courierStep2').show();
+          $('#awbNumberInput').focus();
+          $('#saveCourierAwbBtn').prop('disabled', false);
+        });
+      } else {
+        $('#courierListEmpty').show();
+      }
+    }).fail(function() {
+      $('#courierListLoading').hide();
+      $('#courierListEmpty').text('Failed to load couriers.').show();
+    });
+  });
 
+  function saveCourierAndAwb() {
+    var courierId = $('#selectedCourierId').val();
+    var awbNo = $('#awbNumberInput').val().trim();
+    if (!courierId || courierId == '0') {
+      alert('Please select a courier.');
+      return;
+    }
+    var $btn = $('#saveCourierAwbBtn');
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...');
+    
+    $.ajax({
+      url: '<?php echo base_url("orders/save_order_courier_awb"); ?>',
+      type: 'POST',
+      data: {
+        order_unique_id: orderUniqueIdForCourier,
+        erp_courier_id: courierId,
+        awb_no: awbNo,
+        <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+      },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          $('#selectCourierModal').modal('hide');
+          location.reload();
+        } else {
+          alert(response.message || 'Failed to save.');
+          $btn.prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
+        }
+      },
+      error: function() {
+        alert('Error saving. Please try again.');
+        $btn.prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
+      }
+    });
+  }
+
+  function markReadyToShip(orderUniqueId, btnElement) {
+    // Disable button and show loading state
+    var $btn = $(btnElement);
+    var originalText = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+    $.ajax({
+      url: '<?php echo base_url("orders/mark_ready_to_ship"); ?>',
+      type: 'POST',
+      data: {
+        order_unique_id: orderUniqueId
+      },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          location.reload();
+        } else {
+          alert(response.message || 'Error marking order ready to ship');
+          $btn.prop('disabled', false).html(originalText);
+        }
+      },
+      error: function() {
+        alert('Error marking order ready to ship. Please try again.');
+        $btn.prop('disabled', false).html(originalText);
+      }
+    });
+  }
+
+  function unmarkReadyToShip(orderUniqueId, btnElement) {
+    // Disable button and show loading state
+    var $btn = $(btnElement);
+    var originalText = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+    $.ajax({
+      url: '<?php echo base_url("orders/unmark_ready_to_ship"); ?>',
+      type: 'POST',
+      data: {
+        order_unique_id: orderUniqueId
+      },
+      dataType: 'json',
+      success: function(response) {
+        if (response.status == '200') {
+          location.reload();
+        } else {
+          alert(response.message || 'Error unmarking order ready to ship');
+          $btn.prop('disabled', false).html(originalText);
+        }
+      },
+      error: function() {
+        alert('Error unmarking order ready to ship. Please try again.');
+        $btn.prop('disabled', false).html(originalText);
+      }
+    });
+  }
+
+  function moveBackToProcessing(orderUniqueId, btnElement) {
+    Swal.fire({
+      title: 'Move back to Processing?',
+      text: 'This will move the order back to Processing and reset all shipping details (label, courier, AWB, tracking). Continue?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, move back'
+    }).then(function(result) {
+      if (!result.isConfirmed) return;
       var $btn = $(btnElement);
       var originalText = $btn.html();
-      $btn.prop('disabled', true)
-          .html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-
+      $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
       $.ajax({
-        url: '<?php echo base_url("orders/bulk_set_shipper"); ?>',
+        url: '<?php echo base_url("orders/move_back_to_processing_single"); ?>',
         type: 'POST',
-        data: {
-          order_ids: [orderId],
-          courier: courierType,
-          <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
-        },
+        data: { order_unique_id: orderUniqueId },
         dataType: 'json',
         success: function(response) {
           if (response.status == '200') {
-
-            Swal.fire({
-              icon: 'success',
-              title: 'Assigned!',
-              text: 'Courier assigned successfully.',
-              timer: 1500,
-              showConfirmButton: false
-            }).then(() => {
-              location.reload();
-            });
-
+            Swal.fire({ title: 'Success', text: response.message || 'Order moved back to Processing.', icon: 'success' }).then(function() { location.reload(); });
           } else {
-            Swal.fire('Error', response.message || 'Error setting shipper', 'error');
+            Swal.fire({ title: 'Error', text: response.message || 'Error moving order back.', icon: 'error' });
             $btn.prop('disabled', false).html(originalText);
           }
         },
-        error: function(xhr) {
-          let msg = 'Error setting shipper. Please try again.';
-          if (xhr.responseJSON && xhr.responseJSON.message) {
-            msg = xhr.responseJSON.message;
-          }
-
-          Swal.fire('Error', msg, 'error');
+        error: function() {
+          Swal.fire({ title: 'Error', text: 'Error moving order back. Please try again.', icon: 'error' });
           $btn.prop('disabled', false).html(originalText);
         }
       });
-
-    }
-
-  });
-}
-
-function moveToOutForDelivery(orderUniqueId, btnElement) {
-  // Disable button and show loading state
-  var $btn = $(btnElement);
-  var originalText = $btn.html();
-  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-
-  $.ajax({
-    url: '<?php echo base_url("orders/move_to_out_for_delivery_single"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueId
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        location.reload();
-      } else {
-        alert(response.message || 'Error updating order status');
-        $btn.prop('disabled', false).html(originalText);
-      }
-    },
-    error: function() {
-      alert('Error updating order status. Please try again.');
-      $btn.prop('disabled', false).html(originalText);
-    }
-  });
-}
-
-function moveToDelivered(orderUniqueId, btnElement) {
-  // Disable button and show loading state
-  var $btn = $(btnElement);
-  var originalText = $btn.html();
-  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-
-  $.ajax({
-    url: '<?php echo base_url("orders/move_to_delivered_single"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueId
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        location.reload();
-      } else {
-        alert(response.message || 'Error updating order status');
-        $btn.prop('disabled', false).html(originalText);
-      }
-    },
-    error: function() {
-      alert('Error updating order status. Please try again.');
-      $btn.prop('disabled', false).html(originalText);
-    }
-  });
-}
-
-// 3rd Party Shipping Modal
-var orderIdForThirdParty = '<?= $order_data[0]->id ?>';
-/*
-$('#thirdPartyShippingModal').on('show.bs.modal', function() {
-  $('#thirdPartyProvider').val('');
-  $('#thirdPartyShippingModal .third-party-option').removeClass('active');
-  $('#pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight').val('');
-  $('#saveThirdPartyBtn').prop('disabled', true);
-  $('#vendorAddressDisplay').html('<span class="text-muted">Loading...</span>');
-  $.get('<?php echo base_url("orders/get_vendor_address"); ?>', function(data) {
-    if (data.success && data.address_full) {
-      $('#vendorAddressDisplay').html('<span>' + (data.address_full || 'Please add address in Profile.') + '</span>');
-    } else {
-      $('#vendorAddressDisplay').html('<span class="text-warning">Please add address in Profile.</span>');
-    }
-  }).fail(function() {
-    $('#vendorAddressDisplay').html('<span class="text-warning">Could not load address.</span>');
-  });
-});
-*/
-
-$('#thirdPartyShippingModal .third-party-option').on('click', function() {
-  var provider = $(this).data('provider');
-  $('#thirdPartyProvider').val(provider);
-  $('#thirdPartyShippingModal .third-party-option').removeClass('active');
-  $(this).addClass('active');
-  $('#saveThirdPartyBtn').prop('disabled', false);
-});
-
-
-// Select Courier Modal - load couriers when modal opens
-var orderUniqueIdForCourier = '<?= $order_data[0]->order_unique_id ?>';
-var existingCourierId = '<?= isset($order_data[0]->erp_courier_id) && $order_data[0]->erp_courier_id ? (int)$order_data[0]->erp_courier_id : 0 ?>';
-var existingAwbNo = '<?= isset($order_data[0]->awb_no) ? addslashes(trim($order_data[0]->awb_no)) : "" ?>';
-$('#selectCourierModal').on('show.bs.modal', function() {
-  $('#courierListLoading').show();
-  $('#courierListEmpty').hide();
-  $('#courierStep2').hide();
-  $('#selectedCourierId').val('');
-  $('#awbNumberInput').val(existingAwbNo);
-  $('#saveCourierAwbBtn').prop('disabled', true);
-  $('#courierListContainer .list-group-item-action').remove();
-  
-  $.get('<?php echo base_url("orders/get_order_couriers"); ?>', function(data) {
-    $('#courierListLoading').hide();
-    if (data.success && data.couriers && data.couriers.length > 0) {
-      data.couriers.forEach(function(c) {
-        var item = $('<a href="#" class="list-group-item list-group-item-action courier-item" data-id="' + c.id + '" data-name="' + (c.courier_name || '').replace(/"/g, '&quot;') + '">' + (c.courier_name || 'Courier #' + c.id) + '</a>');
-        $('#courierListContainer').append(item);
-      });
-      if (existingCourierId > 0) {
-        $('#selectedCourierId').val(existingCourierId);
-        $('#courierListContainer .courier-item[data-id="' + existingCourierId + '"]').addClass('active');
-        $('#courierStep2').show();
-        $('#saveCourierAwbBtn').prop('disabled', false);
-      }
-      $('#courierListContainer .courier-item').on('click', function(e) {
-        e.preventDefault();
-        var id = $(this).data('id');
-        $('#selectedCourierId').val(id);
-        $('#courierListContainer .courier-item').removeClass('active');
-        $(this).addClass('active');
-        $('#courierStep2').show();
-        $('#awbNumberInput').focus();
-        $('#saveCourierAwbBtn').prop('disabled', false);
-      });
-    } else {
-      $('#courierListEmpty').show();
-    }
-  }).fail(function() {
-    $('#courierListLoading').hide();
-    $('#courierListEmpty').text('Failed to load couriers.').show();
-  });
-});
-
-function saveCourierAndAwb() {
-  var courierId = $('#selectedCourierId').val();
-  var awbNo = $('#awbNumberInput').val().trim();
-  if (!courierId || courierId == '0') {
-    alert('Please select a courier.');
-    return;
+    });
   }
-  var $btn = $('#saveCourierAwbBtn');
-  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...');
-  
-  $.ajax({
-    url: '<?php echo base_url("orders/save_order_courier_awb"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueIdForCourier,
-      erp_courier_id: courierId,
-      awb_no: awbNo,
-      <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        $('#selectCourierModal').modal('hide');
-        location.reload();
-      } else {
-        alert(response.message || 'Failed to save.');
-        $btn.prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
-      }
-    },
-    error: function() {
-      alert('Error saving. Please try again.');
-      $btn.prop('disabled', false).html('<i class="fa fa-save me-1"></i> Save & Continue');
-    }
-  });
-}
 
-function markReadyToShip(orderUniqueId, btnElement) {
-  // Disable button and show loading state
-  var $btn = $(btnElement);
-  var originalText = $btn.html();
-  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-
-  $.ajax({
-    url: '<?php echo base_url("orders/mark_ready_to_ship"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueId
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        location.reload();
-      } else {
-        alert(response.message || 'Error marking order ready to ship');
-        $btn.prop('disabled', false).html(originalText);
-      }
-    },
-    error: function() {
-      alert('Error marking order ready to ship. Please try again.');
-      $btn.prop('disabled', false).html(originalText);
-    }
-  });
-}
-
-function unmarkReadyToShip(orderUniqueId, btnElement) {
-  // Disable button and show loading state
-  var $btn = $(btnElement);
-  var originalText = $btn.html();
-  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-
-  $.ajax({
-    url: '<?php echo base_url("orders/unmark_ready_to_ship"); ?>',
-    type: 'POST',
-    data: {
-      order_unique_id: orderUniqueId
-    },
-    dataType: 'json',
-    success: function(response) {
-      if (response.status == '200') {
-        location.reload();
-      } else {
-        alert(response.message || 'Error unmarking order ready to ship');
-        $btn.prop('disabled', false).html(originalText);
-      }
-    },
-    error: function() {
-      alert('Error unmarking order ready to ship. Please try again.');
-      $btn.prop('disabled', false).html(originalText);
-    }
-  });
-}
-
-function moveBackToProcessing(orderUniqueId, btnElement) {
-  Swal.fire({
-    title: 'Move back to Processing?',
-    text: 'This will move the order back to Processing and reset all shipping details (label, courier, AWB, tracking). Continue?',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'Yes, move back'
-  }).then(function(result) {
-    if (!result.isConfirmed) return;
-    var $btn = $(btnElement);
-    var originalText = $btn.html();
-    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-    $.ajax({
-      url: '<?php echo base_url("orders/move_back_to_processing_single"); ?>',
-      type: 'POST',
-      data: { order_unique_id: orderUniqueId },
-      dataType: 'json',
-      success: function(response) {
-        if (response.status == '200') {
-          Swal.fire({ title: 'Success', text: response.message || 'Order moved back to Processing.', icon: 'success' }).then(function() { location.reload(); });
-        } else {
-          Swal.fire({ title: 'Error', text: response.message || 'Error moving order back.', icon: 'error' });
+  function moveBackToPending(orderUniqueId, btnElement) {
+    Swal.fire({
+      title: 'Move back to New Order?',
+      text: 'This will move the order back to New Order and reset all processing/shipping details (including 3rd party shipping). Continue?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, move back'
+    }).then(function(result) {
+      if (!result.isConfirmed) return;
+      var $btn = $(btnElement);
+      var originalText = $btn.html();
+      $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+      $.ajax({
+        url: '<?php echo base_url("orders/move_back_to_pending_single"); ?>',
+        type: 'POST',
+        data: { order_unique_id: orderUniqueId },
+        dataType: 'json',
+        success: function(response) {
+          if (response.status == '200') {
+            Swal.fire({ title: 'Success', text: response.message || 'Order moved back to New Order.', icon: 'success' }).then(function() { location.reload(); });
+          } else {
+            Swal.fire({ title: 'Error', text: response.message || 'Error moving order back.', icon: 'error' });
+            $btn.prop('disabled', false).html(originalText);
+          }
+        },
+        error: function() {
+          Swal.fire({ title: 'Error', text: 'Error moving order back. Please try again.', icon: 'error' });
           $btn.prop('disabled', false).html(originalText);
         }
-      },
-      error: function() {
-        Swal.fire({ title: 'Error', text: 'Error moving order back. Please try again.', icon: 'error' });
-        $btn.prop('disabled', false).html(originalText);
-      }
+      });
     });
-  });
-}
-
-function moveBackToPending(orderUniqueId, btnElement) {
-  Swal.fire({
-    title: 'Move back to New Order?',
-    text: 'This will move the order back to New Order and reset all processing/shipping details (including 3rd party shipping). Continue?',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'Yes, move back'
-  }).then(function(result) {
-    if (!result.isConfirmed) return;
-    var $btn = $(btnElement);
-    var originalText = $btn.html();
-    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-    $.ajax({
-      url: '<?php echo base_url("orders/move_back_to_pending_single"); ?>',
-      type: 'POST',
-      data: { order_unique_id: orderUniqueId },
-      dataType: 'json',
-      success: function(response) {
-        if (response.status == '200') {
-          Swal.fire({ title: 'Success', text: response.message || 'Order moved back to New Order.', icon: 'success' }).then(function() { location.reload(); });
-        } else {
-          Swal.fire({ title: 'Error', text: response.message || 'Error moving order back.', icon: 'error' });
-          $btn.prop('disabled', false).html(originalText);
-        }
-      },
-      error: function() {
-        Swal.fire({ title: 'Error', text: 'Error moving order back. Please try again.', icon: 'error' });
-        $btn.prop('disabled', false).html(originalText);
-      }
-    });
-  });
-}
+  }
 </script>
 
 <script>
-$('#thirdPartyShippingModal').on('show.bs.modal', function() {
+  $('#thirdPartyShippingModal').on('show.bs.modal', function() {
 
-    $('#thirdPartyProvidersContainer').html('<span class="text-muted">Loading providers...</span>');
-    $('#pickupAddressSection').hide();
-    $('#pickupAddressSelect').html('<option value="">Select Pickup Address</option>');
-    $('#saveThirdPartyBtn').prop('disabled', true);
+      $('#thirdPartyProvidersContainer').html('<span class="text-muted">Loading providers...</span>');
+      $('#pickupAddressSection').hide();
+      $('#pickupAddressSelect').html('<option value="">Select Pickup Address</option>');
+      $('#saveThirdPartyBtn').prop('disabled', true);
 
-	$.get('<?php echo base_url("vendor/orders/get_active_shipping_providers"); ?>', function(res) {
+    $.get('<?php echo base_url("vendor/orders/get_active_shipping_providers"); ?>', function(res) {
 
-		if (res.success && res.providers.length > 0) {
+      if (res.success && res.providers.length > 0) {
 
-			var html = '';
+        var html = '';
 
-			res.providers.forEach(function(p) {
-				html += `
-					<button type="button"
-							class="btn btn-outline-primary third-party-option"
-							data-provider="${p.provider}">
-						${p.provider.charAt(0).toUpperCase() + p.provider.slice(1)}
-					</button>`;
-			});
+        res.providers.forEach(function(p) {
+          html += `
+            <button type="button"
+                class="btn btn-outline-primary third-party-option"
+                data-provider="${p.provider}">
+              ${p.provider.charAt(0).toUpperCase() + p.provider.slice(1)}
+            </button>`;
+        });
 
-			$('#thirdPartyProvidersContainer').html(html);
+        $('#thirdPartyProvidersContainer').html(html);
 
-		} else {
-			$('#thirdPartyProvidersContainer').html(
-				'<span class="text-danger">No active providers found</span>'
-			);
-		}
+      } else {
+        $('#thirdPartyProvidersContainer').html(
+          '<span class="text-danger">No active providers found</span>'
+        );
+      }
 
-	}, 'json');  
-});
-
-
-// Provider Click
-$(document).on('click', '.third-party-option', function() {
-
-    var provider = $(this).data('provider');
-
-    $('.third-party-option').removeClass('active');
-    $(this).addClass('active');
-
-    $('#thirdPartyProvider').val(provider);
-
-    loadPickupAddresses(provider);
-});
+    }, 'json');  
+  });
 
 
-/* =========================================
-   GLOBAL CSRF SETUP
-========================================= */
+  // Provider Click
+  $(document).on('click', '.third-party-option', function() {
 
-var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
-var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
+      var provider = $(this).data('provider');
+
+      $('.third-party-option').removeClass('active');
+      $(this).addClass('active');
+
+      $('#thirdPartyProvider').val(provider);
+
+      loadPickupAddresses(provider);
+  });
+
+
+  /* =========================================
+    GLOBAL CSRF SETUP
+  ========================================= */
+
+  var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
+  var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
 
 
 
 
-/* =========================================
-   SAVE THIRD PARTY SHIPPING
-========================================= */
-function saveThirdPartyShipping() {
+  /* =========================================
+    SAVE THIRD PARTY SHIPPING
+  ========================================= */
+  function saveThirdPartyShipping() {
 
-    var $btn = $('#saveThirdPartyBtn');
-    if ($btn.prop('disabled')) return;
+      var $btn = $('#saveThirdPartyBtn');
+      if ($btn.prop('disabled')) return;
 
-    var provider     = $('#thirdPartyProvider').val();
-    var pickup       = $('#pickupAddressSelect').val();
-    var length       = parseFloat($('#pkgLength').val()) || 0;
-    var breadth      = parseFloat($('#pkgBreadth').val()) || 0;
-    var height       = parseFloat($('#pkgHeight').val()) || 0;
-    var weight       = parseFloat($('#pkgWeight').val()) || 0;
-    var scheduleDate = $('#scheduleDate').val();
-    var fromTime     = $('#fromTime').val();
-    var toTime       = $('#toTime').val();
+      var provider     = $('#thirdPartyProvider').val();
+      var pickup       = $('#pickupAddressSelect').val();
+      var length       = parseFloat($('#pkgLength').val()) || 0;
+      var breadth      = parseFloat($('#pkgBreadth').val()) || 0;
+      var height       = parseFloat($('#pkgHeight').val()) || 0;
+      var weight       = parseFloat($('#pkgWeight').val()) || 0;
+      var scheduleDate = $('#scheduleDate').val();
+      var fromTime     = $('#fromTime').val();
+      var toTime       = $('#toTime').val();
 
-    if (!provider || !pickup) {
-        Swal.fire('Error', 'Select provider & pickup address.', 'warning');
-        return;
-    }
+      if (!provider || !pickup) {
+          Swal.fire('Error', 'Select provider & pickup address.', 'warning');
+          return;
+      }
 
-    if (weight <= 0) {
-        Swal.fire('Error', 'Enter valid weight.', 'warning');
-        return;
-    }
-
-	if (provider.toLowerCase() === 'velocity') {
-		let scheduleDate = $('#scheduleDate').val();
-		let fromTime     = $('#fromTime').val();
-		let toTime       = $('#toTime').val();
-
-		if (!scheduleDate || !fromTime || !toTime) {
-			Swal.fire('Error', 'Pickup schedule is required for Velocity.', 'warning');
-			return;
-		}
-
-		let now = new Date();
-		let selectedDate = new Date(scheduleDate + 'T' + fromTime);
-
-		// Past date check
-		if (selectedDate < now) {
-			Swal.fire('Error', 'Pickup time cannot be in the past.', 'warning');
-			return;
-		}
-
-		// Time comparison
-		if (fromTime >= toTime) {
-			Swal.fire('Error', 'From Time must be earlier than To Time.', 'warning');
-			return;
-		}
-
-		// Optional: Minimum 1 hour window
-		let from = new Date(scheduleDate + 'T' + fromTime);
-		let to   = new Date(scheduleDate + 'T' + toTime);
-
-		let diffMinutes = (to - from) / 60000;
-
-		if (diffMinutes < 30) {
-			Swal.fire('Error', 'Pickup window must be at least 30 minutes.', 'warning');
-			return;
-		}
-	}
-
-    var ajaxData = {
-        order_ids            : [orderIdForThirdParty],
-        third_party_provider : provider,
-        pickup_address_id    : pickup,
-        length               : length,
-        breadth              : breadth,
-        height               : height,
-        weight               : weight
-    };
+      if (weight <= 0) {
+          Swal.fire('Error', 'Enter valid weight.', 'warning');
+          return;
+      }
 
     if (provider.toLowerCase() === 'velocity') {
-        ajaxData.schedule_date = scheduleDate;
-        ajaxData.from_Time     = fromTime;
-        ajaxData.to_Time       = toTime;
+      let scheduleDate = $('#scheduleDate').val();
+      let fromTime     = $('#fromTime').val();
+      let toTime       = $('#toTime').val();
+
+      if (!scheduleDate || !fromTime || !toTime) {
+        Swal.fire('Error', 'Pickup schedule is required for Velocity.', 'warning');
+        return;
+      }
+
+      let now = new Date();
+      let selectedDate = new Date(scheduleDate + 'T' + fromTime);
+
+      // Past date check
+      if (selectedDate < now) {
+        Swal.fire('Error', 'Pickup time cannot be in the past.', 'warning');
+        return;
+      }
+
+      // Time comparison
+      if (fromTime >= toTime) {
+        Swal.fire('Error', 'From Time must be earlier than To Time.', 'warning');
+        return;
+      }
+
+      // Optional: Minimum 1 hour window
+      let from = new Date(scheduleDate + 'T' + fromTime);
+      let to   = new Date(scheduleDate + 'T' + toTime);
+
+      let diffMinutes = (to - from) / 60000;
+
+      if (diffMinutes < 30) {
+        Swal.fire('Error', 'Pickup window must be at least 30 minutes.', 'warning');
+        return;
+      }
     }
 
-    $btn.prop('disabled', true);
-    $('#saveBtnText').hide();
-    $('#saveBtnLoader').show();
-	  
-    $.ajax({
-        url: '<?php echo base_url("orders/bulk_save_third_party_shipping"); ?>',
-        type: 'POST',
-        dataType: 'json',
-        data: ajaxData
-    })
-    .done(function (res) {
-        if (res.csrf && res.csrf.hash) {
-            csrfHash = res.csrf.hash;
-        }
-		
-        if (res.status === '200') {
-            Swal.fire('Success', res.message, 'success')
-                .then(() => location.reload());
-        } else {
-            $btn.prop('disabled', false);
-            $('#saveBtnText').show();
-            $('#saveBtnLoader').hide();
-            Swal.fire('Error', res.message, 'error');
-        }
-    });
-}
+      var ajaxData = {
+          order_unique_id       : orderUniqueIdForThirdParty,
+          third_party_provider  : provider,
+          pickup_address_id     : pickup,
+          length                : length,
+          breadth               : breadth,
+          height                : height,
+          weight                : weight
+      };
+      ajaxData[csrfName] = csrfHash;
+
+      if (provider.toLowerCase() === 'velocity') {
+          ajaxData.schedule_date = scheduleDate;
+          ajaxData.from_Time     = fromTime;
+          ajaxData.to_Time       = toTime;
+      }
+
+      $btn.prop('disabled', true);
+      $('#saveBtnText').hide();
+      $('#saveBtnLoader').show();
+
+      $.ajax({
+          url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
+          type: 'POST',
+          dataType: 'json',
+          data: ajaxData
+      })
+      .done(function (res) {
+          if (res.csrf && res.csrf.hash) {
+              csrfHash = res.csrf.hash;
+          }
+          $btn.prop('disabled', false);
+          $('#saveBtnText').show();
+          $('#saveBtnLoader').hide();
+
+          if (res.status === '200') {
+              Swal.fire({
+                  title: 'Success',
+                  text: res.message || '3rd party shipping saved.',
+                  icon: 'success',
+                  customClass: { confirmButton: 'btn btn-primary' },
+                  buttonsStyling: false
+              }).then(() => location.reload());
+          } else {
+              Swal.fire({
+                  title: 'Shipping allocation failed',
+                  text: res.message || 'Could not assign shipping. Please try again.',
+                  icon: 'error',
+                  customClass: { confirmButton: 'btn btn-primary' },
+                  buttonsStyling: false
+              });
+          }
+      })
+      .fail(function() {
+          $btn.prop('disabled', false);
+          $('#saveBtnText').show();
+          $('#saveBtnLoader').hide();
+          Swal.fire({
+              title: 'Request failed',
+              text: 'Please check your connection and try again.',
+              icon: 'error',
+              customClass: { confirmButton: 'btn btn-primary' },
+              buttonsStyling: false
+          });
+      });
+  }
 
 
-/* =========================================
-   LOAD PICKUP ADDRESSES
-========================================= */
+  function loadPickupAddresses(provider) {
 
-function loadPickupAddresses(provider) {
+      if (!provider) return;
+    
+    if (provider.toLowerCase() === 'velocity') {
+      $('#velocityScheduleSection').slideDown();
+      let now = new Date();
+      let today = now.toISOString().split('T')[0];
 
-    if (!provider) return;
-	
-	if (provider.toLowerCase() === 'velocity') {
-		$('#velocityScheduleSection').slideDown();
-		let now = new Date();
-		let today = now.toISOString().split('T')[0];
+      // Set minimum selectable date
+      $('#scheduleDate').attr('min', today);
 
-		// Set minimum selectable date
-		$('#scheduleDate').attr('min', today);
+      $('#scheduleDate').prop('required', true);
+      $('#fromTime').prop('required', true);
+      $('#toTime').prop('required', true);
 
-		$('#scheduleDate').prop('required', true);
-		$('#fromTime').prop('required', true);
-		$('#toTime').prop('required', true);
+      $('#scheduleDate').val(today);
+      $('#fromTime').val('09:00');
+      $('#toTime').val('18:00');
 
-		$('#scheduleDate').val(today);
-		$('#fromTime').val('09:00');
-		$('#toTime').val('18:00');
-
-	} else {
-
-		$('#velocityScheduleSection').slideUp();
-
-		$('#scheduleDate').prop('required', false).val('').removeAttr('min');
-		$('#fromTime').prop('required', false).val('');
-		$('#toTime').prop('required', false).val('');
-	}
-	
-
-    $('#pickupAddressSection').show();
-    $('#pickupAddressSelect').html('<option value="">Loading...</option>');
-
-    $.ajax({
-        url: '<?php echo base_url("vendor/orders/get_provider_pickup_addresses"); ?>',
-        type: 'POST',
-        dataType: 'json',
-        data: {
-            provider: provider
-        }
-    })
-    .done(function (res) {
-        if (res.csrf && res.csrf.hash) {
-            csrfHash = res.csrf.hash;
-        }
-
-        if (res.success && res.data && res.data.length > 0) {
-
-            var options = '<option value="">Select Pickup Address</option>';
-
-            res.data.forEach(function (addr) {
-                options += '<option value="' + addr.value + '">' +
-                                addr.name +
-                           '</option>';
-            });
-
-            $('#pickupAddressSelect').html(options);
-
-        } else {
-
-            $('#pickupAddressSelect').html(
-                '<option value="">No pickup address found</option>'
-            );
-        }
-
-    })
-    .fail(function () {
-
-        $('#pickupAddressSelect').html(
-            '<option value="">Error loading pickup addresses</option>'
-        );
-    });
-}
-
-
-function validateThirdPartyForm(){
-    var provider = $('#thirdPartyProvider').val();
-    var pickup   = $('#pickupAddressSelect').val();
-    var length   = parseFloat($('#pkgLength').val()) || 0;
-    var breadth  = parseFloat($('#pkgBreadth').val()) || 0;
-    var height   = parseFloat($('#pkgHeight').val()) || 0;
-    var weight   = parseFloat($('#pkgWeight').val()) || 0;
-
-    if (provider && pickup && weight > 0 && length > 0 && breadth > 0 && height > 0) {
-        $('#saveThirdPartyBtn').prop('disabled', false);
     } else {
-        $('#saveThirdPartyBtn').prop('disabled', true);
+
+      $('#velocityScheduleSection').slideUp();
+
+      $('#scheduleDate').prop('required', false).val('').removeAttr('min');
+      $('#fromTime').prop('required', false).val('');
+      $('#toTime').prop('required', false).val('');
     }
-}
-$(document).on('change keyup', 
-    '#thirdPartyProvider, #pickupAddressSelect, #pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight',
-    function() {
-        validateThirdPartyForm();
-    }
-);
-$('#pickupAddressSelect').on('change', function(){
-    validateThirdPartyForm();
-});
+    
+
+      $('#pickupAddressSection').show();
+      $('#pickupAddressSelect').html('<option value="">Loading...</option>');
+
+      $.ajax({
+          url: '<?php echo base_url("vendor/orders/get_provider_pickup_addresses"); ?>',
+          type: 'POST',
+          dataType: 'json',
+          data: {
+              provider: provider
+          }
+      })
+      .done(function (res) {
+          if (res.csrf && res.csrf.hash) {
+              csrfHash = res.csrf.hash;
+          }
+
+          if (res.success && res.data && res.data.length > 0) {
+
+              var options = '<option value="">Select Pickup Address</option>';
+
+              res.data.forEach(function (addr) {
+                  options += '<option value="' + addr.value + '">' +
+                                  addr.name +
+                            '</option>';
+              });
+
+              $('#pickupAddressSelect').html(options);
+
+          } else {
+
+              $('#pickupAddressSelect').html(
+                  '<option value="">No pickup address found</option>'
+              );
+          }
+
+      })
+      .fail(function () {
+
+          $('#pickupAddressSelect').html(
+              '<option value="">Error loading pickup addresses</option>'
+          );
+      });
+  }
+
+
+  function validateThirdPartyForm(){
+      var provider = $('#thirdPartyProvider').val();
+      var pickup   = $('#pickupAddressSelect').val();
+      var length   = parseFloat($('#pkgLength').val()) || 0;
+      var breadth  = parseFloat($('#pkgBreadth').val()) || 0;
+      var height   = parseFloat($('#pkgHeight').val()) || 0;
+      var weight   = parseFloat($('#pkgWeight').val()) || 0;
+
+      if (provider && pickup && weight > 0 && length > 0 && breadth > 0 && height > 0) {
+          $('#saveThirdPartyBtn').prop('disabled', false);
+      } else {
+          $('#saveThirdPartyBtn').prop('disabled', true);
+      }
+  }
+  $(document).on('change keyup', 
+      '#thirdPartyProvider, #pickupAddressSelect, #pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight',
+      function() {
+          validateThirdPartyForm();
+      }
+  );
+  $('#pickupAddressSelect').on('change', function(){
+      validateThirdPartyForm();
+  });
 
 </script>

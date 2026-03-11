@@ -106,7 +106,7 @@ class Orders extends Vendor_base
 		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
 		
 		// Pagination setup
-		$per_page = 10;
+		$per_page = 100;
 		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
 		if ($page < 1) $page = 1;
 		$offset = ($page - 1) * $per_page;
@@ -1181,19 +1181,24 @@ class Orders extends Vendor_base
 		foreach ($order_ids as $order_id)
 		{
 			// Verify order belongs to vendor (check through order items)
-			$order_check = $this->db->query("SELECT od.id FROM tbl_order_details od 
+			$order_check = $this->db->query("SELECT od.id, od.invoice_no FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
 				WHERE od.id = ? AND od.order_status = '1'", 
 				array($order_id))->row();
 			
 			if ($order_check)
 			{
-				$this->db->where('id', $order_id);
-				$this->db->where('order_status', '1'); // Only update pending orders
-				$this->db->update('tbl_order_details', array(
+				$update_data = array(
 					'order_status' => '2',
 					'processing_date' => $processing_date
-				));
+				);
+				// Auto-assign invoice number if empty (for all payment types, like COD)
+				if (empty($order_check->invoice_no) || trim($order_check->invoice_no) === '') {
+					$update_data['invoice_no'] = $this->_generate_invoice_number();
+				}
+				$this->db->where('id', $order_id);
+				$this->db->where('order_status', '1'); // Only update pending orders
+				$this->db->update('tbl_order_details', $update_data);
 				
 				if ($this->db->affected_rows() > 0)
 				{
@@ -1397,12 +1402,17 @@ class Orders extends Vendor_base
 		
 		// Update order status
 		$processing_date = date("Y-m-d H:i:s");
-		$this->db->where('id', $order_id);
-		$this->db->where('order_status', '1');
-		$this->db->update('tbl_order_details', array(
+		$update_data = array(
 			'order_status' => '2',
 			'processing_date' => $processing_date
-		));
+		);
+		// Auto-assign invoice number if empty (for all payment types, like COD)
+		if (empty($order_data->invoice_no) || trim($order_data->invoice_no) === '') {
+			$update_data['invoice_no'] = $this->_generate_invoice_number();
+		}
+		$this->db->where('id', $order_id);
+		$this->db->where('order_status', '1');
+		$this->db->update('tbl_order_details', $update_data);
 		
 		if ($this->db->affected_rows() > 0) {
 			// Update order items status
@@ -1701,28 +1711,17 @@ class Orders extends Vendor_base
 			$response('400', 'Package dimensions and weight must be greater than 0.');
 		}
 
-		// Validate provider allowed
-		$providers = $this->db->select('shipping_providers')
-			->from('erp_clients')
-			->where('id', $this->current_vendor['id'])
-			->get()->row_array();
-
-		$allowed_providers = explode(",", $providers['shipping_providers'] ?? '');
-
-		if (!in_array($third_party_provider, $allowed_providers)) {
-			$response('400', 'Invalid provider.');
-		}
-
-		// Provider config
+		// Provider config (source of truth: same as get_active_shipping_providers)
 		$provider_config = $this->db->select('*')
 			->from('erp_shipping_providers')
 			->where('provider', $third_party_provider)
 			->where('client_id', $this->current_vendor['id'])
+			->where('status', 1)
 			->limit(1)
 			->get()->row();
 
 		if (!$provider_config) {
-			$response('400', 'Shipping provider configuration not found.');
+			$response('400', 'Invalid provider or shipping provider configuration not found.');
 		}
 
 		$this->load->model('Shipping_model');
@@ -2159,7 +2158,17 @@ class Orders extends Vendor_base
 						break;
 
 					case 'shiprocket':
-						$api_res = ['status' => 'success'];
+						$api_res = $this->Shipping_model->create_shiprocket_booking([
+							'provider' => $provider_config,
+							'order_data' => $order_data,
+							'address_row' => $addr_row,
+							'product_details' => $product_details,
+							'length' => $length,
+							'breadth' => $breadth,
+							'height' => $height,
+							'weight' => $weight,
+							'pickup_address_id' => $pickup_address_id,
+						]);
 						break;
 
 					default:
@@ -3491,6 +3500,37 @@ class Orders extends Vendor_base
 	}
 
 	/**
+	 * Generate next invoice number in format INV/YY-MM/NNN
+	 * Sequence resets each month. Uses at least 3 digits, grows as needed.
+	 *
+	 * @return	string	Invoice number e.g. INV/26-03/001
+	 */
+	private function _generate_invoice_number()
+	{
+		$yy = date('y');
+		$mm = date('m');
+		$prefix = 'INV/' . $yy . '-' . $mm . '/';
+
+		$this->db->select('invoice_no');
+		$this->db->from('tbl_order_details');
+		$this->db->like('invoice_no', $prefix, 'after');
+		$rows = $this->db->get()->result();
+
+		$max_seq = 0;
+		$prefix_len = strlen($prefix);
+		foreach ($rows as $row) {
+			if (empty($row->invoice_no)) continue;
+			$suffix = substr($row->invoice_no, $prefix_len);
+			$num = (int) preg_replace('/[^0-9]/', '', $suffix);
+			if ($num > $max_seq) $max_seq = $num;
+		}
+		$next_seq = $max_seq + 1;
+
+		$digits = $next_seq >= 1000 ? strlen((string) $next_seq) : 3;
+		return $prefix . str_pad((string) $next_seq, $digits, '0', STR_PAD_LEFT);
+	}
+
+	/**
 	 * Get logo as base64 for invoice (same way as shipping label - from erp_clients)
 	 *
 	 * @return	string	Base64 data URL or empty string
@@ -3704,15 +3744,15 @@ class Orders extends Vendor_base
 			'freight_gst_per' => isset($order_row['freight_gst_per']) ? $order_row['freight_gst_per'] : 0,
 		);
 		
-		// Generate invoice number if not exists
+		// Generate invoice number if not exists (format: INV/26-03/001)
 		if (empty($order_details['invoice_no']))
 		{
-			$invoice_no = 'INV' . date('Ymd') . str_pad($order_id, 6, '0', STR_PAD_LEFT);
+			$invoice_no = $this->_generate_invoice_number();
 			$this->db->where('id', $order_id);
 			$this->db->update('tbl_order_details', array('invoice_no' => $invoice_no));
 			$order_details['invoice_no'] = $invoice_no;
 		}
-		
+
 		// Increase memory for PDF generation (dompdf can exhaust default limit with images)
 		@ini_set('memory_limit', '256M');
 
@@ -3886,7 +3926,7 @@ class Orders extends Vendor_base
 
 		if (empty($order_details['invoice_no']))
 		{
-			$invoice_no = 'INV' . date('Ymd') . str_pad($order_id, 6, '0', STR_PAD_LEFT);
+			$invoice_no = $this->_generate_invoice_number();
 			$this->db->where('id', $order_id);
 			$this->db->update('tbl_order_details', array('invoice_no' => $invoice_no));
 			$order_details['invoice_no'] = $invoice_no;
@@ -4031,6 +4071,8 @@ class Orders extends Vendor_base
 		}
 		$order = $order_data[0];
 		$order_id = $order->id;
+		$payment_method = $order->payment_method;
+		$total_amt = $order->total_amt;
 		
 		// Get order items - same as fetch_shipping_label
 		$items_arr = $this->db->select('*')
@@ -4334,7 +4376,7 @@ class Orders extends Vendor_base
 		}
 		
 		// Prepare data for view - all keys with safe defaults to avoid undefined array key errors
-		$order_date = isset($order->created_at) ? date('d M Y', strtotime($order->created_at)) : '';
+		$order_date = isset($order->order_date) ? date('d M Y', strtotime($order->order_date)) : '';
 		$data = array(
 			'order' => array(
 				'date' => $order_date,
@@ -4343,6 +4385,8 @@ class Orders extends Vendor_base
 				'pincode' => $pincode,
 				'shipping_name' => $shipping_name,
 				'phone' => $phone,
+				'payment_method' => $payment_method,
+				'total_amt' => $total_amt,
 				'address' => $address,
 				'address_line1' => $address_line1,
 				'address_city' => $address_city,
@@ -5887,7 +5931,12 @@ class Orders extends Vendor_base
 		}
 	 
 		if ($provider === 'shiprocket') {
-			return jsonResponse(true, '', []);
+			$this->load->model('Shipping_model');
+			$response = $this->Shipping_model->get_shiprocket_pickups($client_id);
+			if (!$response['status']) {
+				return jsonResponse(false, $response['message']);
+			}
+			return jsonResponse(true, '', $response['data'] ?? []);
 		}
 	 
 		if ($provider === 'velocity') {
@@ -5988,11 +6037,13 @@ class Orders extends Vendor_base
 			$response('400', 'Order ID and provider are required.');
 		}
 
-		$providers = $this->db->select('shipping_providers')->from('erp_clients')->where('id', $this->current_vendor['id'])->get()->row_array();
-		$allowed_providers = explode(",",$providers['shipping_providers']);
-
-		if (!in_array($third_party_provider, $allowed_providers)) {
-			$response('400', 'Invalid provider.');
+		$provider_row = $this->db->select('id')->from('erp_shipping_providers')
+			->where('provider', $third_party_provider)
+			->where('client_id', $this->current_vendor['id'])
+			->where('status', 1)
+			->limit(1)->get()->row();
+		if (!$provider_row) {
+			$response('400', 'Invalid provider or shipping provider configuration not found.');
 		}
 
 		$order = $this->Order_model->get_order($order_unique_id);
@@ -6175,7 +6226,7 @@ class Orders extends Vendor_base
 			// ===============================
 			
 				
-			$provider = $this->db->select('name,email,password,company_id,channel_id,token,token_expiry,pickup_city, pickup_state, pickup_address, pickup_landmark, pickup_pincode, pickup_phoneno, pickup_alt_phoneno, pickup_name, pickup_emailid')
+			$provider = $this->db->select('id,name,email,password,company_id,channel_id,token,token_expiry,pickup_city,pickup_state,pickup_address,pickup_landmark,pickup_pincode,pickup_phoneno,pickup_alt_phoneno,pickup_name,pickup_emailid')
 			->from('erp_shipping_providers')
 			->where('provider', $third_party_provider)
 			->where('client_id', $this->current_vendor['id'] ?? 0)
@@ -6363,8 +6414,21 @@ class Orders extends Vendor_base
 				break;
 
 				case 'shiprocket':
-					// Shiprocket dimensions are saved but no direct booking API call implemented here yet
-				break;
+					$api_response = $this->Shipping_model->create_shiprocket_booking([
+						'provider'       => $provider,
+						'order_data'     => $order_data,
+						'address_row'    => $addr_row,
+						'product_details'=> $product_details,
+						'length'         => $length,
+						'breadth'        => $breadth,
+						'height'         => $height,
+						'weight'         => $weight,
+						'pickup_address_id' => $pickup_address_id,
+					]);
+					if ($api_response['status'] != 'success') {
+						throw new Exception($api_response['message']);
+					}
+					break;
 
 				default:
 					throw new Exception('Provider API not implemented.');
@@ -6395,230 +6459,188 @@ class Orders extends Vendor_base
 	}
 	
 	 
-public function test(){
-	echo 'xxx';
-	exit();
-	$curl = curl_init();
+	public function test(){
+		echo 'xxx';
+		exit();
+		$curl = curl_init();
 
-	curl_setopt_array($curl, array(
-	  CURLOPT_URL => 'https://velexp.com/corporate-bulk-booking',
-	  CURLOPT_RETURNTRANSFER => true,
-	  CURLOPT_ENCODING => '',
-	  CURLOPT_MAXREDIRS => 10,
-	  CURLOPT_TIMEOUT => 0,
-	  CURLOPT_FOLLOWLOCATION => true,
-	  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-	  CURLOPT_CUSTOMREQUEST => 'POST',
-	  CURLOPT_POSTFIELDS =>'[{ 
-	"username": "corporate_user", 
-	"password": "test@123", 
-	"accno": "12351", 
-	"secret_code": "TEST20200720", 
-	"CustomerName": "IT-TESTING", 
-	"serviceType": "VELOSKY", 
-	"Product_Description": "Electronics", 
-	"pieces": [ 
-	{ "weight": 5.5, "length": 10, "breadth": 12, "height": 8 }, 
-	{ "weight": 3.2, "length": 15, "breadth": 10, "height": 6 } 
-	], 
-	"drop_City": "pune", 
-	"drop_State": "maharashtra", 
-	"drop_Address": "456 Drop Avenue", 
-	"drop_Landmark": "Near Mall", 
-	"drop_Pincode": "416012", 
-	"drop_Phoneno": "8765432109", 
-	"drop_Alt_Phoneno": "9012345678", 
-	"drop_Name": "Mike Drop", 
-	"drop_Emailid": "mike.drop@example.com", 
-	"pickup_City": "Kolhapur", 
-	"pickup_State": "Maharashtra", 
-	"pickup_Address": "123 Pickup Street", 
-	"pickup_Landmark": "Near Park", 
-	"pickup_Pincode": "416012", 
-	"pickup_Phoneno": "9876543210", 
-	"pickup_Alt_Phoneno": "9123456780", 
-	"pickup_Name": "Jane Pickup", 
-	"pickup_Emailid": "jane.pickup@example.com", 
-	"schedule_date": "29-11-2024", 
-	"from_Time": "09:00:00", 
-	"to_Time": "17:00:00", 
-	"Shipment_value": 100.0, 
-	"cod_amount": 100.0, 
-	"payment_mode": "COD", 
-	"send_otp": "False", 
-	"RTO_vendorname": "Onkar", 
-	"RTO_vendoraddress": "address address address", 
-	"RTO_vendorpincode": "416012", 
-	"RTO_vendorcontactno": "9876543210" 
-	}] 
-	',
-	  CURLOPT_HTTPHEADER => array(
-		'Content-Type: application/json'
-	  ),
-	));
+		curl_setopt_array($curl, array(
+		CURLOPT_URL => 'https://velexp.com/corporate-bulk-booking',
+		CURLOPT_RETURNTRANSFER => true,
+		CURLOPT_ENCODING => '',
+		CURLOPT_MAXREDIRS => 10,
+		CURLOPT_TIMEOUT => 0,
+		CURLOPT_FOLLOWLOCATION => true,
+		CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+		CURLOPT_CUSTOMREQUEST => 'POST',
+		CURLOPT_POSTFIELDS =>'[{ 
+		"username": "corporate_user", 
+		"password": "test@123", 
+		"accno": "12351", 
+		"secret_code": "TEST20200720", 
+		"CustomerName": "IT-TESTING", 
+		"serviceType": "VELOSKY", 
+		"Product_Description": "Electronics", 
+		"pieces": [ 
+		{ "weight": 5.5, "length": 10, "breadth": 12, "height": 8 }, 
+		{ "weight": 3.2, "length": 15, "breadth": 10, "height": 6 } 
+		], 
+		"drop_City": "pune", 
+		"drop_State": "maharashtra", 
+		"drop_Address": "456 Drop Avenue", 
+		"drop_Landmark": "Near Mall", 
+		"drop_Pincode": "416012", 
+		"drop_Phoneno": "8765432109", 
+		"drop_Alt_Phoneno": "9012345678", 
+		"drop_Name": "Mike Drop", 
+		"drop_Emailid": "mike.drop@example.com", 
+		"pickup_City": "Kolhapur", 
+		"pickup_State": "Maharashtra", 
+		"pickup_Address": "123 Pickup Street", 
+		"pickup_Landmark": "Near Park", 
+		"pickup_Pincode": "416012", 
+		"pickup_Phoneno": "9876543210", 
+		"pickup_Alt_Phoneno": "9123456780", 
+		"pickup_Name": "Jane Pickup", 
+		"pickup_Emailid": "jane.pickup@example.com", 
+		"schedule_date": "29-11-2024", 
+		"from_Time": "09:00:00", 
+		"to_Time": "17:00:00", 
+		"Shipment_value": 100.0, 
+		"cod_amount": 100.0, 
+		"payment_mode": "COD", 
+		"send_otp": "False", 
+		"RTO_vendorname": "Onkar", 
+		"RTO_vendoraddress": "address address address", 
+		"RTO_vendorpincode": "416012", 
+		"RTO_vendorcontactno": "9876543210" 
+		}] 
+		',
+		CURLOPT_HTTPHEADER => array(
+			'Content-Type: application/json'
+		),
+		));
 
-	$response = curl_exec($curl);
+		$response = curl_exec($curl);
 
-	curl_close($curl);
-	echo $response;
-}
-
-	public function test_shiprocket_login()
-	{
-		$baseUrl = 'https://apiv2.shiprocket.in/v1/external/';
-
-		$email    = 'api@varitty.in';
-		$password = '5xuuwTJbsFVRQNeVMpoH%CtxeE^EZGv&';
-
-		$payload = json_encode([
-			'email'    => $email,
-			'password' => $password,
-		]);
-
-		$ch = curl_init();
-		curl_setopt_array($ch, [
-			CURLOPT_URL            => $baseUrl . 'auth/login',
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING       => '',
-			CURLOPT_MAXREDIRS      => 10,
-			CURLOPT_TIMEOUT        => 60,
-			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST  => 'POST',
-			CURLOPT_POSTFIELDS     => $payload,
-			CURLOPT_HTTPHEADER     => [
-				'Content-Type: application/json',
-				'Cache-Control: no-cache',
-			],
-		]);
-
-		$result  = curl_exec($ch);
-		$curlErr = curl_error($ch);
-		curl_close($ch);
-
-		header('Content-Type: application/json');
-
-		if ($curlErr) {
-			echo json_encode([
-				'status'  => 'error',
-				'message' => 'cURL error',
-				'error'   => $curlErr,
-			]);
-			return;
-		}
-
-		$apiData = json_decode($result, true);
-
-		echo json_encode([
-			'status'   => 'ok',
-			'raw_body' => $result,
-			'parsed'   => $apiData,
-		]);
+		curl_close($curl);
+		echo $response;
 	}
 
-	public function test_shiprocket_pickup()
+	public function shiprocket_verify_login()
 	{
-		$baseUrl = 'https://apiv2.shiprocket.in/v1/external/';
-
-		$email    = 'api@varitty.in';
-		$password = '5xuuwTJbsFVRQNeVMpoH%CtxeE^EZGv&';
-
-		$payload = json_encode([
-			'email'    => $email,
-			'password' => $password,
-		]);
-
-		$ch = curl_init();
-		curl_setopt_array($ch, [
-			CURLOPT_URL            => $baseUrl . 'auth/login',
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING       => '',
-			CURLOPT_MAXREDIRS      => 10,
-			CURLOPT_TIMEOUT        => 60,
-			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST  => 'POST',
-			CURLOPT_POSTFIELDS     => $payload,
-			CURLOPT_HTTPHEADER     => [
-				'Content-Type: application/json',
-				'Cache-Control: no-cache',
-			],
-		]);
-
-		$loginResult  = curl_exec($ch);
-		$loginCurlErr = curl_error($ch);
-		curl_close($ch);
-
 		header('Content-Type: application/json');
-
-		if ($loginCurlErr) {
-			echo json_encode([
-				'status'  => 'error',
-				'step'    => 'login',
-				'message' => 'cURL error during login',
-				'error'   => $loginCurlErr,
-			]);
+		$client_id = (int) ($this->input->get('client_id') ?: ($this->current_vendor['id'] ?? 0));
+		if ($client_id <= 0) {
+			echo json_encode(['status' => 'error', 'message' => 'Vendor login required or provide client_id.']);
 			return;
 		}
-
-		$loginData = json_decode($loginResult, true);
-		if (empty($loginData) || empty($loginData['token'])) {
-			echo json_encode([
-				'status'     => 'error',
-				'step'       => 'login',
-				'message'    => 'No token received from Shiprocket',
-				'raw_login'  => $loginResult,
-				'parsed_login' => $loginData,
-			]);
+		$row = $this->db->select('email,password')->from('erp_shipping_providers')
+			->where('client_id', $client_id)->where('provider', 'shiprocket')->where('status', 1)->limit(1)->get()->row();
+		if (!$row || empty($row->email) || empty($row->password)) {
+			echo json_encode(['status' => 'error', 'message' => 'Shiprocket not configured for this vendor.']);
 			return;
 		}
-
-		$token = $loginData['token'];
-
-		$pickupUrl = $baseUrl . 'settings/company/pickup';
-
-		$ch2 = curl_init();
-		curl_setopt_array($ch2, [
-			CURLOPT_URL            => $pickupUrl,
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING       => '',
-			CURLOPT_MAXREDIRS      => 10,
-			CURLOPT_TIMEOUT        => 60,
-			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST  => 'GET',
-			CURLOPT_HTTPHEADER     => [
-				'Content-Type: application/json',
-				'Authorization: Bearer ' . $token,
-			],
-		]);
-
-		$pickupResult  = curl_exec($ch2);
-		$pickupCurlErr = curl_error($ch2);
-		curl_close($ch2);
-
-		if ($pickupCurlErr) {
-			echo json_encode([
-				'status'  => 'error',
-				'step'    => 'pickup',
-				'message' => 'cURL error during pickup fetch',
-				'error'   => $pickupCurlErr,
-			]);
+		$this->load->model('Shipping_model');
+		$provider = $this->db->select('*')->from('erp_shipping_providers')
+			->where('client_id', $client_id)->where('provider', 'shiprocket')->limit(1)->get()->row();
+		$token = $this->Shipping_model->get_shiprocket_token($provider);
+		if (!$token) {
+			echo json_encode(['status' => 'error', 'message' => 'Shiprocket login failed.']);
 			return;
 		}
+		echo json_encode(['status' => 'ok', 'token_received' => true]);
+	}
 
-		$pickupData = json_decode($pickupResult, true);
+	public function shiprocket_pickups()
+	{
+		header('Content-Type: application/json');
+		$client_id = (int) ($this->input->get('client_id') ?: ($this->current_vendor['id'] ?? 0));
+		if ($client_id <= 0) {
+			echo json_encode(['status' => 'error', 'message' => 'Vendor login required or provide client_id.']);
+			return;
+		}
+		$this->load->model('Shipping_model');
+		$response = $this->Shipping_model->get_shiprocket_pickups($client_id);
+		if (!$response['status']) {
+			echo json_encode(['status' => 'error', 'message' => $response['message']]);
+			return;
+		}
+		echo json_encode(['status' => 'ok', 'pickup_data' => $response['data']]);
+	}
 
-		// For testing, only show pickup address data (no login payload)
-		$pickupOnly = $pickupData;
-		if (is_array($pickupData)) {
-			// Common Shiprocket structure: addresses often under 'data'
-			if (isset($pickupData['data'])) {
-				$pickupOnly = $pickupData['data'];
+	
+	public function shiprocket_debug_payload()
+	{
+		header('Content-Type: application/json');
+		$order_id = (int) $this->input->get('order_id');
+		$client_id = (int) ($this->input->get('client_id') ?: ($this->current_vendor['id'] ?? 0));
+		if ($order_id <= 0 || $client_id <= 0) {
+			echo json_encode(['status' => 'error', 'message' => 'Requires order_id and vendor session (or client_id).']);
+			return;
+		}
+		$order_data = $this->db->from('tbl_order_details')->where('id', $order_id)->limit(1)->get()->row();
+		if (!$order_data) {
+			echo json_encode(['status' => 'error', 'message' => 'Order not found.']);
+			return;
+		}
+		$addr_row = $this->db->select('*')->from('tbl_order_address')->where('order_id', $order_id)->limit(1)->get()->row();
+		if (!$addr_row) {
+			$oi = $this->db->select('branch_id, school_id')->from('tbl_order_items')->where('order_id', $order_id)->limit(1)->get()->row();
+			if ($oi && !empty($oi->branch_id)) {
+				$addr_row = $this->db->select('sb.branch_name as name, sb.address, sb.pincode, c.name as city, st.name as state')
+					->from('erp_school_branches sb')->join('cities c', 'c.id = sb.city_id', 'left')->join('states st', 'st.id = sb.state_id', 'left')
+					->where('sb.id', (int)$oi->branch_id)->limit(1)->get()->row();
+			} elseif ($oi && !empty($oi->school_id)) {
+				$addr_row = $this->db->select('s.school_name as name, s.address, s.pincode, c.name as city, st.name as state')
+					->from('erp_schools s')->join('cities c', 'c.id = s.city_id', 'left')->join('states st', 'st.id = s.state_id', 'left')
+					->where('s.id', (int)$oi->school_id)->limit(1)->get()->row();
 			}
 		}
-
-		echo json_encode([
-			'status'      => 'ok',
-			'pickup_data' => $pickupOnly,
+		if (!$addr_row) {
+			echo json_encode(['status' => 'error', 'message' => 'Delivery address not found.']);
+			return;
+		}
+		$order_type = strtolower($order_data->type_order ?? '');
+		$product_details = [];
+		if ($order_type === 'bookset') {
+			$rows = $this->db->select('product_id, bookset_packages_json')->from('tbl_order_items')->where('order_id', $order_id)->get()->result();
+			foreach ($rows as $r) {
+				$json = json_decode($r->bookset_packages_json ?? '{}', true);
+				if (empty($json['packages'])) continue;
+				foreach ($json['packages'] as $p) {
+					$product_details[] = ['product_name' => $p['package_name'] ?? 'Book', 'product_quantity' => 1, 'each_product_invoice_amount' => $p['package_offer_price'] ?? 0, 'product_sub_category' => ''];
+				}
+			}
+		}
+		if (empty($product_details)) {
+			$rows = $this->db->select('product_title, product_qty, total_price')->from('tbl_order_items')->where('order_id', $order_id)->get()->result();
+			foreach ($rows as $r) {
+				$product_details[] = ['product_name' => $r->product_title, 'product_quantity' => (int)$r->product_qty, 'each_product_invoice_amount' => $r->total_price / max(1, (int)$r->product_qty), 'product_sub_category' => ''];
+			}
+		}
+		$provider_config = $this->db->select('*')->from('erp_shipping_providers')
+			->where('provider', 'shiprocket')->where('client_id', $client_id)->where('status', 1)->limit(1)->get()->row();
+		if (!$provider_config) {
+			echo json_encode(['status' => 'error', 'message' => 'Shiprocket not configured.']);
+			return;
+		}
+		$length  = (float) ($this->input->get('length') ?: 1);
+		$breadth = (float) ($this->input->get('breadth') ?: 1);
+		$height  = (float) ($this->input->get('height') ?: 1);
+		$weight  = (float) ($this->input->get('weight') ?: 1);
+		$pickup  = $this->input->get('pickup_address_id', true);
+		$this->load->model('Shipping_model');
+		$res = $this->Shipping_model->create_shiprocket_booking([
+			'provider' => $provider_config, 'order_data' => $order_data, 'address_row' => $addr_row,
+			'product_details' => $product_details, 'length' => $length, 'breadth' => $breadth, 'height' => $height, 'weight' => $weight,
+			'pickup_address_id' => $pickup, '_debug' => true
 		]);
+		if (isset($res['status']) && $res['status'] === 'debug') {
+			echo json_encode($res);
+		} else {
+			echo json_encode($res);
+		}
 	}
 
 }

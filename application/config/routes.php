@@ -138,9 +138,10 @@ $route['orders/print_label/(:any)'] = 'Vendor/orders/print_label/$1';
 $route['orders/test_shipping_label/(:any)'] = 'Vendor/Orders/test_shipping_label/$1';
 $route['orders/test_barcode'] = 'Vendor/orders/test_barcode';
 $route['orders/test_barcode/(:any)'] = 'Vendor/orders/test_barcode/$1';
-// Shiprocket test routes
-$route['orders/test_shiprocket_login'] = 'Vendor/orders/test_shiprocket_login';
-$route['orders/test_shiprocket_pickup'] = 'Vendor/orders/test_shiprocket_pickup';
+// Shiprocket API helpers
+$route['orders/shiprocket_verify_login'] = 'Vendor/orders/shiprocket_verify_login';
+$route['orders/shiprocket_pickups'] = 'Vendor/orders/shiprocket_pickups';
+$route['orders/shiprocket_debug_payload'] = 'Vendor/orders/shiprocket_debug_payload';
 // Bulk shipping label download
 $route['orders/bulk_download_shipping_labels'] = 'Vendor/orders/bulk_download_shipping_labels';
 $route['orders/print_labels_bulk'] = 'Vendor/orders/print_labels_bulk';
@@ -282,20 +283,21 @@ $route['customers/get_customer_details/(:num)'] = 'Vendor/customers/get_customer
 $route['products/(:any)/(:any)'] = 'Vendor/products/$1/$2'; // Products feature method routes (e.g., /products/books/add)
 $route['products/(:any)'] = 'Vendor/products/index/$1'; // Products feature routes (e.g., /products/books)
 
+// Shipping routes (must be before generic vendor catch-all)
+$route['shipping/customer_invoice/(:any)'] = 'Shipping/customer_invoice/$1';
+$route['shipping/(:any)'] = 'Shipping/index/$1'; // Public shipping details route (for QR code scanning)
+
 // Generic vendor routes (must be last)
 $route['(:any)/(:any)/(:any)'] = 'Vendor/$2/$3'; // Vendor controller/method routes (controller/method -> Vendor/controller/method)
 $route['(:any)/(:any)'] = 'Vendor/$2'; // Vendor controller routes (controller -> Vendor/controller)
-
-// Default route
-// Public shipping details route (for QR code scanning)
-$route['shipping/(:any)'] = 'Shipping/index/$1';
 
 $route['default_controller'] = 'Welcome';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
 
-$route['test_shiprocket_login'] = 'Vendor/Orders/test_shiprocket_login';
-$route['test_shiprocket_pickup'] = 'Vendor/Orders/test_shiprocket_pickup';
+$route['shiprocket_verify_login'] = 'Vendor/Orders/shiprocket_verify_login';
+$route['shiprocket_pickups'] = 'Vendor/Orders/shiprocket_pickups';
+$route['shiprocket_debug_payload'] = 'Vendor/Orders/shiprocket_debug_payload';
 
 

@@ -708,6 +708,7 @@ class Erp_client_model extends CI_Model
 				if (!empty($password)) {
 					$data['password'] = $password; // optionally encrypt here
 				}
+				$data['pickup_name'] = trim($this->input->post('shiprocket_pickup_location') ?? '');
 			}
 
 			/* ---------- BIGSHIP ---------- */

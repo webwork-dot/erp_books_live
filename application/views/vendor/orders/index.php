@@ -294,10 +294,23 @@
    </div>
 
    <div class="row">
+               <?php if ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): ?>
+                  <div class="card-body py-2 px-3 pb-0">
+                     <ul class="nav nav-tabs brbm0" id="courierFilterTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                           <button class="nav-link tab-navigation active" id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">Self Delivery</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                           <button class="nav-link tab-navigation" id="tab-third-party" type="button" role="tab" data-courier-filter="third_party">3rd Party</button>
+                        </li>
+                     </ul>
+                  </div>
+               <?php endif; ?>
       <div class="col-12">
          <!-- <div class="card f-filter">
             <div class="card-body py-1 my-0"> -->
                <div class="card mrg_bottom">
+                 
 
                   <?php if ($order_status == 'all' || $order_status == ''): ?>
                      <!-- No form for "All Orders" view -->
@@ -387,21 +400,6 @@
                         </div>
                         <?php endif; ?>
                      </div>
-
-                     <?php if ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): ?>
-                        <ul class="nav nav-pills mb-2" id="courierFilterTabs" role="tablist">
-                           <li class="nav-item" role="presentation">
-                              <button class="nav-link active" id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">
-                                 Self Delivery
-                              </button>
-                           </li>
-                           <li class="nav-item" role="presentation">
-                              <button class="nav-link" id="tab-third-party" type="button" role="tab" data-courier-filter="third_party">
-                                 3rd Party
-                              </button>
-                           </li>
-                        </ul>
-                     <?php endif; ?>
                   </div>
 
                   <div class="col-md-12 table-responsive">
@@ -1325,8 +1323,8 @@ $(document).ready(function(){
                     var failedList = '';
                     for (var ord in res.data) { failedList += '• ' + ord + ': ' + res.data[ord] + '\n'; }
                     Swal.fire({
-                        title: 'Allocation completed with errors',
-                        html: '<p class="text-start mb-2">' + (res.message || 'Some orders could not be allocated.') + '</p>' +
+                        title: 'Shipping allocation completed with errors',
+                        html: '<p class="text-start mb-2">' + (res.message || 'Some orders could not be assigned.') + '</p>' +
                               '<pre class="text-start small bg-light p-2 rounded mb-0" style="max-height: 200px; overflow: auto;">' + failedList.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>',
                         icon: 'warning',
                         customClass: { confirmButton: 'btn btn-primary' },
@@ -1343,8 +1341,8 @@ $(document).ready(function(){
                     ? '<pre class="text-start small bg-light p-2 rounded mt-2">' + Object.keys(res.data).map(function(k){ return k + ': ' + res.data[k]; }).join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
                     : '';
                 Swal.fire({
-                    title: 'Allocation failed',
-                    html: '<p>' + (res.message || 'Orders could not be allocated. Please try again or contact support.') + '</p>' + errDetail,
+                    title: 'Shipping allocation failed',
+                    html: '<p>' + (res.message || 'Orders could not be assigned. Please try again or contact support.') + '</p>' + errDetail,
                     icon: 'error',
                     customClass: { confirmButton: 'btn btn-primary' },
                     buttonsStyling: false
@@ -1356,7 +1354,7 @@ $(document).ready(function(){
             $('#saveBtnText').show();
             $('#saveBtnLoader').hide();
             Swal.fire({
-                title: 'Allocation failed',
+                title: 'Shipping allocation failed',
                 text: 'Request failed. Please check your connection and try again.',
                 icon: 'error',
                 customClass: { confirmButton: 'btn btn-primary' },
@@ -1391,26 +1389,18 @@ $(document).ready(function(){
 
 });
 
-// Courier filter tabs (Self Delivery vs 3rd Party)
-$(document).on('click', '#courierFilterTabs button[data-courier-filter]', function(){
-    var courierFilter = $(this).data('courier-filter');
-
-    $('#courierFilterTabs button').removeClass('active');
-    $(this).addClass('active');
-
-    // Show/hide rows based on courier
+// Apply courier filter (Self Delivery vs 3rd Party) – used on load and tab click
+function applyCourierFilter(courierFilter) {
     $('tr.item_holder').each(function(){
         var rowCourier = ($(this).data('courier') || '').toString().toLowerCase();
 
         if (courierFilter === 'manual') {
-            // Self Delivery tab – show only manual or empty courier (not yet assigned)
             if (rowCourier === 'manual' || rowCourier === '') {
                 $(this).show();
             } else {
                 $(this).hide();
             }
         } else if (courierFilter === 'third_party') {
-            // 3rd Party tab – show non-manual couriers
             if (rowCourier && rowCourier !== 'manual') {
                 $(this).show();
             } else {
@@ -1420,13 +1410,26 @@ $(document).on('click', '#courierFilterTabs button[data-courier-filter]', functi
             $(this).show();
         }
     });
+}
 
-    // When in 3rd party tab, hide bulk shipping label buttons (if present)
-    if (courierFilter === 'third_party') {
-        $('#btn_bulk_download_labels, #btn_bulk_print_labels').hide();
-    } else {
-        $('#btn_bulk_download_labels, #btn_bulk_print_labels').show();
+// On page load: apply default Self Delivery filter so 3rd party orders don't appear until tab clicked
+$(document).ready(function(){
+    if ($('#courierFilterTabs').length && $('#tab-self-delivery').hasClass('active')) {
+        applyCourierFilter('manual');
     }
+});
+
+// Courier filter tabs (Self Delivery vs 3rd Party)
+$(document).on('click', '#courierFilterTabs button[data-courier-filter]', function(){
+    var courierFilter = $(this).data('courier-filter');
+
+    $('#courierFilterTabs button').removeClass('active');
+    $(this).addClass('active');
+
+    applyCourierFilter(courierFilter);
+
+    // Show bulk shipping label buttons for both Self Delivery and 3rd Party tabs
+    $('#btn_bulk_download_labels, #btn_bulk_print_labels').show();
 
     // Clear selections after filter change
     $("#checkAll_order").prop('checked', false);

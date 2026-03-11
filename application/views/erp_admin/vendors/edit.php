@@ -806,6 +806,16 @@ $velocity = isset($provider_data['velocity']) ? $provider_data['velocity'] : [];
         value="<?php echo set_value('shiprocket_password', $shiprocket['password'] ?? ''); ?>">
     </div>
   </div>
+  <div class="row mt-2">
+    <div class="col-md-6">
+      <label>Pickup Location Name</label>
+      <input type="text" name="shiprocket_pickup_location"
+        class="form-control"
+        placeholder="Optional - name of pickup in Shiprocket dashboard"
+        value="<?php echo set_value('shiprocket_pickup_location', $shiprocket['pickup_name'] ?? ''); ?>">
+      <small class="text-muted">Leave empty to use default from Shiprocket</small>
+    </div>
+  </div>
 
 </div>
 <div id="bigship_config" class="shipping-config border-top pt-3 mt-3"

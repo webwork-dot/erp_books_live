@@ -4,6 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Shipping_model extends CI_Model { 
    private $bigship_url = BIGSHIP_URL;
    private $velocity_url = VELOCITY_URL;
+   private $shiprocket_base_url = 'https://apiv2.shiprocket.in/v1/external/';
    
     function __construct(){
         parent::__construct();
@@ -663,8 +664,429 @@ class Shipping_model extends CI_Model {
 			];
 		}
 	}
-		
-	
 
+	/**
+	 * Get or refresh Shiprocket token; stores in erp_shipping_providers
+	 * @param object $provider_row Row from erp_shipping_providers (provider=shiprocket)
+	 * @return string|false Token or false on failure
+	 */
+	public function get_shiprocket_token($provider_row) {
+		if (!$provider_row || empty($provider_row->email) || empty($provider_row->password)) {
+			return false;
+		}
+		$now = date('Y-m-d H:i:s');
+		if (!empty($provider_row->token) && !empty($provider_row->token_expiry) && $provider_row->token_expiry > $now) {
+			return trim($provider_row->token);
+		}
+		$payload = json_encode([
+			'email'    => $provider_row->email,
+			'password' => $provider_row->password,
+		]);
+		$ch = curl_init();
+		curl_setopt_array($ch, [
+			CURLOPT_URL            => $this->shiprocket_base_url . 'auth/login',
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING       => '',
+			CURLOPT_MAXREDIRS      => 10,
+			CURLOPT_TIMEOUT        => 60,
+			CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST  => 'POST',
+			CURLOPT_POSTFIELDS     => $payload,
+			CURLOPT_HTTPHEADER     => [
+				'Content-Type: application/json',
+				'Cache-Control: no-cache',
+			],
+		]);
+		$result = curl_exec($ch);
+		$curlErr = curl_error($ch);
+		curl_close($ch);
+		if ($curlErr) {
+			return false;
+		}
+		$apiData = json_decode($result, true);
+		if (empty($apiData['token'])) {
+			return false;
+		}
+		$token = trim($apiData['token']);
+		$expiry = date('Y-m-d H:i:s', strtotime('+9 days'));
+		$this->db->where('id', $provider_row->id)
+			->update('erp_shipping_providers', [
+				'token'       => $token,
+				'token_expiry'=> $expiry,
+				'last_updated'=> date('Y-m-d H:i:s')
+			]);
+		return $token;
+	}
+
+	/**
+	 * Fetch default pickup location name from Shiprocket; uses provider->pickup_name if set
+	 */
+	private function _shiprocket_pickup_location($provider, $token) {
+		if (!empty($provider->pickup_name)) {
+			return trim($provider->pickup_name);
+		}
+		$ch = curl_init($this->shiprocket_base_url . 'settings/company/pickup');
+		curl_setopt_array($ch, [
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_HTTPHEADER => [
+				'Content-Type: application/json',
+				'Authorization: Bearer ' . $token,
+			],
+			CURLOPT_TIMEOUT => 30
+		]);
+		$result = curl_exec($ch);
+		curl_close($ch);
+		$data = json_decode($result, true);
+		if (!is_array($data)) {
+			return null;
+		}
+		// Shiprocket: shipping_address array at top level; each item has pickup_location
+		if (isset($data['shipping_address']) && is_array($data['shipping_address']) && !empty($data['shipping_address'])) {
+			$first = reset($data['shipping_address']);
+			if (!empty($first['pickup_location'])) {
+				return trim($first['pickup_location']);
+			}
+		}
+		$pickupData = $data['data'] ?? $data;
+		if (isset($pickupData['shipping_address']) && is_array($pickupData['shipping_address']) && !empty($pickupData['shipping_address'])) {
+			$first = reset($pickupData['shipping_address']);
+			if (!empty($first['pickup_location'])) {
+				return trim($first['pickup_location']);
+			}
+		}
+		if (isset($pickupData['address']) && is_array($pickupData['address'])) {
+			$first = reset($pickupData['address']);
+			return isset($first['pickup_location']) ? trim($first['pickup_location']) : (isset($first['name']) ? trim($first['name']) : null);
+		}
+		if (isset($pickupData['pickup_addresses']) && is_array($pickupData['pickup_addresses'])) {
+			$first = reset($pickupData['pickup_addresses']);
+			return isset($first['pickup_location']) ? trim($first['pickup_location']) : (isset($first['name']) ? trim($first['name']) : null);
+		}
+		if (isset($pickupData['pickup_location'])) {
+			return trim($pickupData['pickup_location']);
+		}
+		if (isset($pickupData['name'])) {
+			return trim($pickupData['name']);
+		}
+		return null;
+	}
+
+	/**
+	 * Create Shiprocket adhoc order; same interface as create_bigship_booking
+	 */
+	public function create_shiprocket_booking($data) {
+		try {
+			$provider = $data['provider'];
+			$order    = $data['order_data'];
+			$address  = $data['address_row'];
+			$product_details = $data['product_details'] ?? [];
+
+			if (!$provider || empty($provider->email) || empty($provider->password)) {
+				return [
+					'status'  => 'error',
+					'message' => 'Shiprocket provider configuration not found.'
+				];
+			}
+
+			if (!empty($order->shipment_id)) {
+				return [
+					'status'  => 'error',
+					'message' => 'Shipment already created for this order.'
+				];
+			}
+
+			$token = $this->get_shiprocket_token($provider);
+			if (!$token) {
+				return [
+					'status'  => 'error',
+					'message' => 'Shiprocket login failed. Check email/password.'
+				];
+			}
+
+			$pickup_location = null;
+			if (!empty($data['pickup_address_id']) && is_string($data['pickup_address_id'])) {
+				$pickup_location = trim($data['pickup_address_id']);
+			}
+			if (empty($pickup_location)) {
+				$pickup_location = $this->_shiprocket_pickup_location($provider, $token);
+			}
+			if (empty($pickup_location)) {
+				return [
+					'status'  => 'error',
+					'message' => 'Could not determine Shiprocket pickup location. Add pickup in Shiprocket dashboard or set pickup name in vendor config.'
+				];
+			}
+
+			$weight = (float) ($data['weight'] ?? 0);
+			if ($weight <= 0) {
+				$weight = 0.5;
+			}
+			$length = max(0.5, (float) ($data['length'] ?? 10));
+			$breadth = max(0.5, (float) ($data['breadth'] ?? 10));
+			$height = max(0.5, (float) ($data['height'] ?? 10));
+
+			$name_ = isset($address->name) ? $address->name : ($order->user_name ?? 'Customer');
+			$name_parts = explode(' ', trim($name_), 2);
+			$billing_first = trim($name_parts[0] ?? 'Customer') ?: 'Customer';
+			$billing_last  = trim($name_parts[1] ?? '') ?: $billing_first;
+			$billing_city  = trim($address->city ?? '') ?: 'NA';
+			$billing_state = trim($address->state ?? '') ?: 'NA';
+			$billing_pincode = trim($address->pincode ?? $address->billing_pincode ?? '');
+			if (empty($billing_pincode)) {
+				$addr_text = trim($address->address ?? $address->billing_address ?? '');
+				if (preg_match('/\b\d{6}\b/', $addr_text, $m)) {
+					$billing_pincode = $m[0];
+				}
+			}
+			if (empty($billing_pincode) && !empty($address->landmark) && preg_match('/\b\d{6}\b/', $address->landmark, $m)) {
+				$billing_pincode = $m[0];
+			}
+			if (empty($billing_pincode)) {
+				return [
+					'status'  => 'error',
+					'message' => 'Delivery pincode not found. Please add pincode in order delivery address (Order #' . ($order->order_unique_id ?? $order->id) . ').'
+				];
+			}
+			$billing_country = trim($address->country ?? '') ?: 'India';
+			$billing_email   = trim($address->email ?? $order->user_email ?? '') ?: 'noreply@example.com';
+			$billing_phone_raw = $address->mobile_no ?? $order->user_phone ?? '';
+			$billing_phone   = (int) preg_replace('/\D/', '', $billing_phone_raw) ?: 9999999999;
+			$billing_address = trim($address->address ?? $address->billing_address ?? '') ?: 'Address not provided';
+			$billing_address = substr(trim(preg_replace('/\s+/', ' ', $billing_address)), 0, 190);
+			if (strlen($billing_address) < 3) {
+				$billing_address = 'Delivery Address';
+			}
+
+			$payment_method = 'Prepaid';
+			if (!empty($order->payment_method) && strtolower($order->payment_method) === 'cod') {
+				$payment_method = 'COD';
+			}
+
+			$order_total = (float) ($order->payment_amount ?? 0);
+			$item_names = [];
+			foreach ($product_details as $item) {
+				$item_names[] = isset($item['product_name']) ? $item['product_name'] : 'Product';
+			}
+			$item_desc = !empty($item_names) ? implode(', ', array_slice($item_names, 0, 3)) : 'Order';
+			if (count($item_names) > 3) {
+				$item_desc .= ' +' . (count($item_names) - 3) . ' more';
+			}
+			$item_desc = substr($item_desc, 0, 100);
+			$sub_total = $order_total > 0 ? (int) ceil($order_total) : 100;
+
+			$order_items = [[
+				'name'          => $item_desc,
+				'sku'           => 'PKG-' . ($order->order_unique_id ?? $order->id),
+				'units'         => 1,
+				'selling_price' => $sub_total
+			]];
+
+			$order_id_str = trim($order->order_unique_id ?? ('ORD-' . $order->id));
+			$order_date_str = date('Y-m-d H:i', strtotime($order->order_date ?? 'now'));
+
+			$billing_pincode_int = (int) preg_replace('/\D/', '', $billing_pincode) ?: 110001;
+
+			$payload = [
+				'order_id'             => $order_id_str,
+				'order_date'           => $order_date_str,
+				'pickup_location'      => $pickup_location,
+				'billing_customer_name'=> substr($billing_first, 0, 50),
+				'billing_last_name'    => substr($billing_last, 0, 50),
+				'billing_address'      => $billing_address,
+				'billing_city'         => substr($billing_city, 0, 30),
+				'billing_pincode'      => $billing_pincode_int,
+				'billing_state'        => substr($billing_state, 0, 50),
+				'billing_country'      => $billing_country,
+				'billing_email'        => $billing_email,
+				'billing_phone'        => $billing_phone,
+				'shipping_is_billing'  => true,
+				'order_items'          => $order_items,
+				'payment_method'       => $payment_method,
+				'sub_total'            => $sub_total,
+				'shipping_charges'     => 0,
+				'giftwrap_charges'     => 0,
+				'transaction_charges'  => 0,
+				'total_discount'       => 0,
+				'length'               => $length,
+				'breadth'              => $breadth,
+				'height'               => $height,
+				'weight'               => $weight
+			];
+
+			if (!empty($data['_debug'])) {
+				return [
+					'status' => 'debug',
+					'api_url' => $this->shiprocket_base_url . 'orders/create/adhoc',
+					'payload' => $payload,
+					'payload_json' => json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+				];
+			}
+
+			$ch = curl_init($this->shiprocket_base_url . 'orders/create/adhoc');
+			curl_setopt_array($ch, [
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_POST           => true,
+				CURLOPT_HTTPHEADER     => [
+					'Content-Type: application/json',
+					'Authorization: Bearer ' . $token
+				],
+				CURLOPT_POSTFIELDS     => json_encode($payload),
+				CURLOPT_TIMEOUT        => 60
+			]);
+
+			$result    = curl_exec($ch);
+			$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+			$curl_err  = curl_error($ch);
+			curl_close($ch);
+
+			if ($curl_err) {
+				return [
+					'status'  => 'error',
+					'message' => $curl_err
+				];
+			}
+
+			$response = json_decode($result, true);
+
+			$err_detail = function() use ($response) {
+				$msg = $response['message'] ?? '';
+				$msg = is_array($msg) ? implode(', ', $msg) : (string) $msg;
+				if (!empty($response['errors'])) {
+					$err = is_array($response['errors']) ? $response['errors'] : ['raw' => $response['errors']];
+					$parts = [];
+					foreach ($err as $k => $v) {
+						$parts[] = $k . ': ' . (is_array($v) ? implode(', ', $v) : $v);
+					}
+					$msg .= ($msg ? '. ' : '') . implode('; ', $parts);
+				}
+				return $msg ?: 'Shiprocket API error';
+			};
+
+			if ($http_code >= 400) {
+				return [
+					'status'  => 'error',
+					'message' => $err_detail()
+				];
+			}
+
+			$order_id_sr = $response['order_id'] ?? null;
+			if (empty($order_id_sr) && isset($response['message'])) {
+				$err_msg = is_array($response['message']) ? implode(', ', $response['message']) : (string) $response['message'];
+				if (stripos($err_msg, 'invalid') !== false || stripos($err_msg, 'error') !== false || stripos($err_msg, 'Oops') !== false) {
+					return [
+						'status'  => 'error',
+						'message' => $err_detail()
+					];
+				}
+			}
+			$awb_no = $response['awb_assign_code'] ?? $response['awb'] ?? null;
+			$track_url = $response['tracking_url'] ?? '';
+
+			return [
+				'status'            => 'success',
+				'awb_no'            => $awb_no,
+				'system_order_id'   => $order_id_sr,
+				'track_url'         => $track_url,
+				'provider_request'  => json_encode($payload),
+				'provider_response' => $result
+			];
+
+		} catch (Exception $e) {
+			return [
+				'status'  => 'error',
+				'message' => $e->getMessage()
+			];
+		}
+	}
+
+	/**
+	 * Get Shiprocket pickup locations for dropdown (used by get_provider_pickup_addresses)
+	 */
+	public function get_shiprocket_pickups($client_id) {
+		$row = $this->db->select('*')
+			->from('erp_shipping_providers')
+			->where([
+				'client_id' => $client_id,
+				'provider'  => 'shiprocket',
+				'status'    => 1
+			])
+			->limit(1)
+			->get()
+			->row();
+
+		if (!$row) {
+			return ['status' => false, 'message' => 'Shiprocket not configured.'];
+		}
+
+		$token = $this->get_shiprocket_token($row);
+		if (!$token) {
+			return ['status' => false, 'message' => 'Shiprocket login failed.'];
+		}
+
+		$ch = curl_init($this->shiprocket_base_url . 'settings/company/pickup');
+		curl_setopt_array($ch, [
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_HTTPHEADER => [
+				'Content-Type: application/json',
+				'Authorization: Bearer ' . $token
+			],
+			CURLOPT_TIMEOUT => 30
+		]);
+		$result = curl_exec($ch);
+		curl_close($ch);
+		$data = json_decode($result, true);
+		if (!is_array($data)) {
+			return ['status' => true, 'data' => []];
+		}
+
+		$list = [];
+		// Shiprocket: shipping_address array at top level; fetch full address from API
+		$shippingAddr = $data['shipping_address'] ?? ($data['data']['shipping_address'] ?? null);
+		if (is_array($shippingAddr) && !empty($shippingAddr)) {
+			foreach ($shippingAddr as $addr) {
+				$loc = !empty($addr['pickup_location']) ? trim($addr['pickup_location']) : null;
+				if ($loc) {
+					$addressLine = trim($addr['address'] ?? '');
+					$address2    = trim($addr['address_2'] ?? '');
+					$city        = trim($addr['city'] ?? '');
+					$state       = trim($addr['state'] ?? '');
+					$pincode     = trim($addr['pin_code'] ?? '');
+					$contactName = trim($addr['name'] ?? '');
+					$fullAddress = implode(', ', array_filter([$addressLine, $address2, $city, $state, $pincode]));
+					$display     = $fullAddress ? $loc . ' - ' . $fullAddress : ($loc . ($city ? ' - ' . $city : ''));
+					$list[] = [
+						'value'   => $loc,
+						'name'    => $display,
+						'address' => $fullAddress,
+						'city'    => $city,
+						'state'   => $state,
+						'pincode' => $pincode,
+						'contact' => $contactName
+					];
+				}
+			}
+		}
+		$pickupData = $data['data'] ?? $data;
+		if (empty($list) && isset($pickupData['address']) && is_array($pickupData['address'])) {
+			foreach ($pickupData['address'] as $addr) {
+				$loc = $addr['pickup_location'] ?? $addr['name'] ?? null;
+				if ($loc) {
+					$list[] = ['value' => $loc, 'name' => $loc];
+				}
+			}
+		}
+		if (empty($list) && isset($pickupData['pickup_addresses']) && is_array($pickupData['pickup_addresses'])) {
+			foreach ($pickupData['pickup_addresses'] as $addr) {
+				$loc = $addr['pickup_location'] ?? $addr['name'] ?? null;
+				if ($loc) {
+					$list[] = ['value' => $loc, 'name' => $loc];
+				}
+			}
+		}
+		if (empty($list) && !empty($row->pickup_name)) {
+			$list[] = ['value' => $row->pickup_name, 'name' => $row->pickup_name];
+		}
+		return ['status' => true, 'data' => $list];
+	}
 
 }
