@@ -1182,7 +1182,7 @@ if($order_data[0]->payment_method == 'cod'){
           <?php endif; ?>
           
           <!-- TESTING: Regenerate Label Button (Always Visible) -->
-          <hr class="my-3">
+          <!-- <hr class="my-3">
           <div class="d-grid">
             <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>" 
                class="btn btn-warning btn-sm" 
@@ -1195,7 +1195,7 @@ if($order_data[0]->payment_method == 'cod'){
                 <i class="fa fa-spinner fa-spin me-2"></i> Generating...
               </span>
             </a>
-          </div>
+          </div> -->
         </div>
       </div>
       

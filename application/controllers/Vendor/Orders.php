@@ -3064,6 +3064,7 @@ class Orders extends Vendor_base
 			'shipment_date' => null,
 			'shipping_label' => null,
 			'ship_order_id' => null,
+			'shipment_id' => null,
 			'erp_courier_id' => null,
 			'awb_no' => null,
 			'track_url' => null,
@@ -3086,6 +3087,9 @@ class Orders extends Vendor_base
 		}
 		if (!$this->db->field_exists('ship_order_id', 'tbl_order_details')) {
 			unset($reset_data['ship_order_id']);
+		}
+		if (!$this->db->field_exists('shipment_id', 'tbl_order_details')) {
+			unset($reset_data['shipment_id']);
 		}
 		if (!$this->db->field_exists('third_party_provider', 'tbl_order_details')) {
 			unset($reset_data['third_party_provider'], $reset_data['pkg_length_cm'], $reset_data['pkg_breadth_cm'], $reset_data['pkg_height_cm'], $reset_data['pkg_weight_kg']);
@@ -3157,6 +3161,7 @@ class Orders extends Vendor_base
 			'pkg_height_cm' => null,
 			'pkg_weight_kg' => null,
 			'ship_order_id' => null,
+			'shipment_id' => null,
 			'erp_courier_id' => null,
 			'awb_no' => null,
 			'track_url' => null,
@@ -3167,6 +3172,9 @@ class Orders extends Vendor_base
 			'courier' => ''
 		);
 
+		if (!$this->db->field_exists('shipment_id', 'tbl_order_details')) {
+			unset($reset_data['shipment_id']);
+		}
 		if (!$this->db->field_exists('erp_courier_id', 'tbl_order_details')) {
 			unset($reset_data['erp_courier_id']);
 		}
