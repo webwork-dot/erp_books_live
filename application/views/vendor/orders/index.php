@@ -297,18 +297,18 @@
    </div>
 
    <div class="row">
-               <?php if ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): ?>
-                  <div class="card-body py-2 px-3 pb-0">
-                     <ul class="nav nav-tabs brbm0" id="courierFilterTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                           <button class="nav-link tab-navigation active" id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">Self Delivery</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                           <button class="nav-link tab-navigation" id="tab-third-party" type="button" role="tab" data-courier-filter="third_party">3rd Party</button>
-                        </li>
-                     </ul>
-                  </div>
-               <?php endif; ?>
+	   <?php if ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): ?>
+		  <div class="card-body py-2 px-3 pb-0">
+			 <ul class="nav nav-tabs brbm0" id="courierFilterTabs" role="tablist">
+				 <li class="nav-item" role="presentation">
+				   <button class="nav-link tab-navigation active" id="tab-third-party" type="button" role="tab" data-courier-filter="third_party">3rd Party</button>
+				</li>					 
+				<li class="nav-item" role="presentation">
+				   <button class="nav-link tab-navigation " id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">Self Delivery</button>
+				</li>                    
+			 </ul>
+		  </div>
+	   <?php endif; ?>
       <div class="col-12">
          <!-- <div class="card f-filter">
             <div class="card-body py-1 my-0"> -->

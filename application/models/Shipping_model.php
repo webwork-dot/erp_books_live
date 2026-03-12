@@ -262,13 +262,9 @@ class Shipping_model extends CI_Model {
 				"to_Time"       => $to_Time,
 
 				"Shipment_value" => (float) $order->payment_amount,
-				//"cod_amount"     => (strtolower($order->payment_method) == 'cod')? (float) $order->payment_amount: 0,
-				//"payment_mode" => (strtolower($order->payment_method) == 'cod')? "COD": "PAID",
-				"cod_amount"     => 0,
-				"payment_mode"   => "PAID",
-
+				"cod_amount"     => (strtolower($order->payment_method) == 'cod')? (float) $order->payment_amount: 0,
+				"payment_mode" => (strtolower($order->payment_method) == 'cod')? "COD": "PAID", 
 				"send_otp" => false,
-
 				"RTO_vendorname"      => "",
 				"RTO_vendoraddress"   => "",
 				"RTO_vendorpincode"   => "",
@@ -513,11 +509,9 @@ class Shipping_model extends CI_Model {
 				"order_detail" => [
 					"invoice_date" =>  date("Y-m-d\TH:i:s", strtotime($order_date)),
 					"invoice_id" => $order->order_unique_id,
-					//"payment_type" => strtolower($order->payment_method) == 'cod' ? "COD" : "Prepaid",
-					"payment_type" => "Prepaid",
+					"payment_type" => strtolower($order->payment_method) == 'cod' ? "COD" : "Prepaid",					
 					"shipment_invoice_amount" => (float)$order->payment_amount,
-					//"total_collectable_amount" => strtolower($order->payment_method) == 'cod'? (float)$order->payment_amount: 0,
-					"total_collectable_amount" => 0,
+					"total_collectable_amount" => strtolower($order->payment_method) == 'cod'? (float)$order->payment_amount: 0,					
 					"box_details" => [[
 						"each_box_dead_weight" => $weight,
 						"each_box_length" => (float)$data['length'],

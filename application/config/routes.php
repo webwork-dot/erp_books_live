@@ -151,6 +151,9 @@ $route['orders/print_labels_bulk'] = 'Vendor/orders/print_labels_bulk';
 // Orders shipping routes
 $route['vendor/orders/get_active_shipping_providers'] = 'Vendor/orders/get_active_shipping_providers';
 $route['shipping/bigship_token/(:any)'] = 'shipping/bigship_token/$1';
+$route['cron/bigship_assign_courier/(:any)'] = 'cron/bigship_assign_courier/$1';
+$route['cron/bigship_update_failed_awb_courier/(:any)'] = 'cron/bigship_update_failed_awb_courier/$1';
+$route['cron/bigship_tracking/(:any)'] = 'cron/bigship_tracking/$1';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';
