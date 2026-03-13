@@ -468,8 +468,23 @@
                            <?php
                            $i = 1;
                            $ci = &get_instance();
+                           $prev_has_label = null;
+                           $show_label_batches = ($order_status == 'processing' || $order_status == 'ready_for_shipment');
                            if (!empty($order_list)):
                               foreach ($order_list as $key => $item): 
+                                 $has_label = $show_label_batches && (!empty($item['shipping_label']) || !empty($item['awb_no']));
+                                 // Section divider between printed and awaiting-label batches
+                                 if ($show_label_batches && $prev_has_label === true && $has_label === false):
+                                    $colspan = 16;
+                                 ?>
+                                 <tr class="table-light">
+                                    <td colspan="<?php echo $colspan; ?>" class="py-2 text-muted small fw-bold">
+                                       <i class="fa fa-print me-1"></i> ——— Awaiting Label ———
+                                    </td>
+                                 </tr>
+                                 <?php
+                                 endif;
+                                 $prev_has_label = $has_label;
                                  // Determine if order is actionable (can be moved to next status)
                                  $is_actionable = false;
                                  if ($order_status == 'all' || $order_status == '') {
@@ -526,7 +541,12 @@
                                     <?php elseif ($order_status == 'all' || $order_status == ''): ?>
                                        <td></td>
                                     <?php endif; ?>
-                                    <td><a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="text-primary fw-bold" style="text-decoration: underline;"><?php echo $item['order_unique_id']; ?></a></td>
+                                    <td>
+                                       <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="text-primary fw-bold" style="text-decoration: underline;"><?php echo $item['order_unique_id']; ?></a>
+                                       <?php if ($has_label): ?>
+                                       <i class="fa fa-print text-success ms-1" data-toggle="tooltip" title="Label Printed"></i>
+                                       <?php endif; ?>
+                                    </td>
                                     <?php if ($order_status == 'all' || $order_status == ''): ?>
                                        <td><span class="label <?php echo $status_class; ?>"><?php echo $status_label; ?></span></td>
                                     <?php endif; ?>

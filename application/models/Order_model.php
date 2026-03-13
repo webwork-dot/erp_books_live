@@ -735,7 +735,7 @@ class Order_model extends CI_Model
 				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
 					AND d.order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter $pincode_filter $school_filter $grade_filter $payment_method_filter $delivery_type_filter
 				GROUP BY d.id
-				ORDER BY d.id DESC
+				" . (($order_status == 'processing' || $order_status == 'ready_for_shipment') ? "ORDER BY (CASE WHEN (d.shipping_label IS NOT NULL AND TRIM(d.shipping_label) != '') OR (d.awb_no IS NOT NULL AND TRIM(d.awb_no) != '') THEN 0 ELSE 1 END) ASC, d.id DESC" : "ORDER BY d.id DESC") . "
 				LIMIT $offset, $per_page
 		");
 

@@ -1140,7 +1140,6 @@ if($order_data[0]->payment_method == 'cod'){
             <?php if ($has_shipping_label): ?>
               <div class="row" style="margin: 0;">
                 <div class="col-6" style="padding: 5px;">
-                  
                   <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
                     <i class="fa fa-check-circle"></i> Delivered
                   </button>

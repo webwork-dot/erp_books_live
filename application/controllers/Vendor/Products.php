@@ -3280,10 +3280,13 @@ class Products extends Vendor_base
 				$product = $this->Product_model->get_product_by_legacy('erp_textbooks', $id, $this->current_vendor['id']);
 				if ($product)
 				{
+					// Preserve existing status (edit form does not include status - do not overwrite with undefined)
+					$curr_tb = $this->db->select('status')->where('id', $id)->where('vendor_id', $this->current_vendor['id'])->get('erp_textbooks')->row_array();
+					$status_val = (isset($curr_tb['status']) && $curr_tb['status'] === 'active') ? 1 : 0;
 					$product_update = array(
 						'product_name'    => $textbook_data['product_name'],
 						'description'     => $textbook_data['product_description'],
-						'status'          => ($textbook_data['status'] === 'active') ? 1 : 0,
+						'status'          => $status_val,
 						'brand_id'        => $textbook_data['publisher_id'],
 						'board_id'        => $textbook_data['board_id'],
 						'selling_price'   => $textbook_data['selling_price'],
@@ -3563,6 +3566,70 @@ class Products extends Vendor_base
 		// For now, just redirect
 		$this->session->set_flashdata('success', 'Textbook product deleted successfully (placeholder)');
 		redirect($this->config->item('base_url') . '/products/books/textbook');
+	}
+
+	/**
+	 * Textbook Toggle Status - Updates both erp_textbooks and erp_products
+	 *
+	 * @param	int	$id	Textbook ID
+	 * @return	void
+	 */
+	public function textbook_toggle_status($id)
+	{
+		header('Content-Type: application/json');
+		$id = (int) $id;
+		if ($id <= 0) {
+			echo json_encode(array('status' => 'error', 'message' => 'Invalid textbook ID'));
+			return;
+		}
+		$textbook = $this->db->where('id', $id)->where('vendor_id', $this->current_vendor['id'])->get('erp_textbooks')->row_array();
+		if (!$textbook) {
+			echo json_encode(array('status' => 'error', 'message' => 'Textbook not found'));
+			return;
+		}
+		$new_status = ($textbook['status'] === 'active') ? 'inactive' : 'active';
+		$this->db->where('id', $id)->where('vendor_id', $this->current_vendor['id']);
+		$this->db->update('erp_textbooks', array('status' => $new_status, 'updated_at' => date('Y-m-d H:i:s')));
+		$product = $this->Product_model->get_product_by_legacy('erp_textbooks', $id, $this->current_vendor['id']);
+		if ($product) {
+			$this->Product_model->update_product($product['id'], array(
+				'status' => ($new_status === 'active') ? 1 : 0,
+				'updated_at' => date('Y-m-d H:i:s')
+			));
+		}
+		echo json_encode(array('status' => 'success', 'message' => 'Status updated', 'new_status' => $new_status));
+	}
+
+	/**
+	 * Notebook Toggle Status - Updates both erp_notebooks and erp_products
+	 *
+	 * @param	int	$id	Notebook ID
+	 * @return	void
+	 */
+	public function notebook_toggle_status($id)
+	{
+		header('Content-Type: application/json');
+		$id = (int) $id;
+		if ($id <= 0) {
+			echo json_encode(array('status' => 'error', 'message' => 'Invalid notebook ID'));
+			return;
+		}
+		$notebook = $this->db->where('id', $id)->where('vendor_id', $this->current_vendor['id'])->get('erp_notebooks')->row_array();
+		if (!$notebook) {
+			echo json_encode(array('status' => 'error', 'message' => 'Notebook not found'));
+			return;
+		}
+		$new_status = ($notebook['status'] === 'active') ? 'inactive' : 'active';
+		$this->db->where('id', $id)->where('vendor_id', $this->current_vendor['id']);
+		$this->db->update('erp_notebooks', array('status' => $new_status, 'updated_at' => date('Y-m-d H:i:s')));
+		$product = $this->Product_model->get_product_by_legacy('erp_notebooks', $id, $this->current_vendor['id']);
+		if ($product) {
+			$this->Product_model->update_product($product['id'], array(
+				'status' => ($new_status === 'active') ? 1 : 0,
+				'updated_at' => date('Y-m-d H:i:s')
+			));
+		}
+		echo json_encode(array('status' => 'success', 'message' => 'Status updated', 'new_status' => $new_status));
 	}
 	
 	/**
@@ -6154,10 +6221,13 @@ class Products extends Vendor_base
 				$product = $this->Product_model->get_product_by_legacy('erp_notebooks', $id, $this->current_vendor['id']);
 				if ($product)
 				{
+					// Preserve existing status from legacy table (edit form may not send status)
+					$curr_nb = $this->db->select('status')->where('id', $id)->where('vendor_id', $this->current_vendor['id'])->get('erp_notebooks')->row_array();
+					$status_val = (isset($curr_nb['status']) && $curr_nb['status'] === 'active') ? 1 : 0;
 					$product_update = array(
 						'product_name'    => $notebook_data['product_name'],
 						'description'     => $notebook_data['product_description'],
-						'status'          => ($notebook_data['status'] === 'active') ? 1 : 0,
+						'status'          => $status_val,
 						'brand_id'        => $notebook_data['brand_id'],
 						'selling_price'   => $notebook_data['selling_price'],
 						'product_mrp'     => $notebook_data['mrp'],

@@ -2152,7 +2152,7 @@ class Orders extends Vendor_base
 									"product_name"                   => sanitize_allowed_chars($product_name),
 									"product_quantity"               => $qty,
 									"each_product_invoice_amount"    => $price_total,
-									"each_product_collectable_amount"=> 0,
+									"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
 									"hsn"                            => $package['hsn'] ?? ""
 								);
 						}
@@ -2183,7 +2183,7 @@ class Orders extends Vendor_base
 									"product_name"                   => sanitize_allowed_chars($product_name),
 									"product_quantity"               => $qty,
 									"each_product_invoice_amount"    => $price_total,
-									"each_product_collectable_amount"=> 0,
+									"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
 									"hsn"                            => $package['hsn'] ?? ""
 								);
 							}
@@ -2228,7 +2228,7 @@ class Orders extends Vendor_base
 						"product_name"                   => sanitize_allowed_chars($product_name),
 						"product_quantity"               => $qty,
 						"each_product_invoice_amount"    => $price_total / max($qty,1),
-						"each_product_collectable_amount"=> 0,
+						"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total / max($qty,1): 0,
 						"hsn"                            => $item->hsn ?? ""
 					);
 				}
@@ -4454,8 +4454,10 @@ class Orders extends Vendor_base
 		// Generate barcode/QR - same as fetch_shipping_label (3rd_party=barcode, manual=QR)
 		$shipping_number_for_code = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $order_no);
 		$shipping_label_row = $this->Pdf_model->get_shipping_label($order_no)->row();
-		if (!empty($order->courier) && $order->courier == '3rd_party' && !empty($shipping_label_row) && !empty($shipping_label_row->awb_number)) {
-			$code_no = $shipping_label_row->awb_number;
+		if (!empty($order->courier) && $order->courier == '3rd_party') {
+			$code_no = (!empty($shipping_label_row) && !empty($shipping_label_row->awb_number))
+				? $shipping_label_row->awb_number
+				: (isset($order->awb_no) && $order->awb_no !== '' ? $order->awb_no : '');
 		} else {
 			$code_no = $shipping_number_for_code;
 		}

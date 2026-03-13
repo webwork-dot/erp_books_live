@@ -241,9 +241,14 @@
 								<td><strong><?php echo $textbook['selling_price'] ? '₹' . number_format($textbook['selling_price'], 2) : '-'; ?></strong></td>
 								<td><?php echo $textbook['gst_percentage'] ? number_format($textbook['gst_percentage'], 2) . '%' : '-'; ?></td>
 								<td>
-									<span class="badge <?php echo $textbook['status'] == 'active' ? 'badge-success' : 'badge-danger'; ?>">
-										<?php echo ucfirst($textbook['status']); ?>
-									</span>
+									<div class="form-check form-switch mb-0">
+										<input class="form-check-input" type="checkbox" id="status-switch-tb-<?php echo $textbook['id']; ?>"
+											<?php echo $textbook['status'] == 'active' ? 'checked' : ''; ?>
+											onchange="toggleTextbookStatus(<?php echo $textbook['id']; ?>, '<?php echo $textbook['status']; ?>')">
+										<label class="form-check-label small" for="status-switch-tb-<?php echo $textbook['id']; ?>">
+											<?php echo $textbook['status'] == 'active' ? 'Active' : 'Inactive'; ?>
+										</label>
+									</div>
 								</td>
 								<td class="text-end">
 									<a href="<?php echo base_url('products/textbook/edit/' . $textbook['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
@@ -307,3 +312,29 @@
 		<?php endif; ?>
 	</div>
 </div>
+
+<script>
+function toggleTextbookStatus(textbookId, currentStatus) {
+	var newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+	$.ajax({
+		url: "<?php echo base_url('products/textbook/toggle_status'); ?>/" + textbookId,
+		type: "POST",
+		dataType: "json",
+		data: {
+			<?php echo $this->security->get_csrf_token_name(); ?>: "<?php echo $this->security->get_csrf_hash(); ?>"
+		},
+		success: function(r) {
+			if (r.status !== 'success') {
+				alert(r.message || 'Failed to update status');
+				$('#status-switch-tb-' + textbookId).prop('checked', currentStatus === 'active');
+			} else {
+				$('#status-switch-tb-' + textbookId).siblings('.form-check-label').text(newStatus.charAt(0).toUpperCase() + newStatus.slice(1));
+			}
+		},
+		error: function() {
+			alert('Something went wrong');
+			$('#status-switch-tb-' + textbookId).prop('checked', currentStatus === 'active');
+		}
+	});
+}
+</script>

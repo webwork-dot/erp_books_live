@@ -194,9 +194,14 @@
 								<td><strong><?php echo $notebook['selling_price'] ? '₹' . number_format($notebook['selling_price'], 2) : '-'; ?></strong></td>
 								<td><?php echo $notebook['gst_percentage'] ? number_format($notebook['gst_percentage'], 2) . '%' : '-'; ?></td>
 								<td>
-									<span class="badge <?php echo $notebook['status'] == 'active' ? 'badge-success' : 'badge-danger'; ?>">
-										<?php echo ucfirst($notebook['status']); ?>
-									</span>
+									<div class="form-check form-switch mb-0">
+										<input class="form-check-input" type="checkbox" id="status-switch-nb-<?php echo $notebook['id']; ?>"
+											<?php echo $notebook['status'] == 'active' ? 'checked' : ''; ?>
+											onchange="toggleNotebookStatus(<?php echo $notebook['id']; ?>, '<?php echo $notebook['status']; ?>')">
+										<label class="form-check-label small" for="status-switch-nb-<?php echo $notebook['id']; ?>">
+											<?php echo $notebook['status'] == 'active' ? 'Active' : 'Inactive'; ?>
+										</label>
+									</div>
 								</td>
 								<td class="text-end">
 									<a href="<?php echo base_url('products/notebooks/edit/' . $notebook['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
@@ -260,3 +265,29 @@
 		<?php endif; ?>
 	</div>
 </div>
+
+<script>
+function toggleNotebookStatus(notebookId, currentStatus) {
+	var newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+	$.ajax({
+		url: "<?php echo base_url('products/notebooks/toggle_status'); ?>/" + notebookId,
+		type: "POST",
+		dataType: "json",
+		data: {
+			<?php echo $this->security->get_csrf_token_name(); ?>: "<?php echo $this->security->get_csrf_hash(); ?>"
+		},
+		success: function(r) {
+			if (r.status !== 'success') {
+				alert(r.message || 'Failed to update status');
+				$('#status-switch-nb-' + notebookId).prop('checked', currentStatus === 'active');
+			} else {
+				$('#status-switch-nb-' + notebookId).siblings('.form-check-label').text(newStatus.charAt(0).toUpperCase() + newStatus.slice(1));
+			}
+		},
+		error: function() {
+			alert('Something went wrong');
+			$('#status-switch-nb-' + notebookId).prop('checked', currentStatus === 'active');
+		}
+	});
+}
+</script>

@@ -518,7 +518,7 @@ class Shipping_model extends CI_Model {
 						"each_box_width"  => (float)$data['breadth'],
 						"each_box_height" => (float)$data['height'],
 						"each_box_invoice_amount" => (float)$order->payment_amount,
-						"each_box_collectable_amount" => 0,
+						"each_box_collectable_amount" => strtolower($order->payment_method) == 'cod'? (float)$order->payment_amount: 0,
 						"box_count" => 1,
 						"product_details" => $product_details
 					]], 
@@ -529,14 +529,14 @@ class Shipping_model extends CI_Model {
 					],
 				]
 			];
-			/*	echo json_encode([
+			/*echo json_encode([
 				'debug' => $payload,
 				'csrf'  => [
 					'name' => $this->security->get_csrf_token_name(),
 					'hash' => $this->security->get_csrf_hash()
 				]
 			]);
-			exit;*/
+			exit; */
 			// ===============================
 			// CALL BIGSHIP API
 			// ===============================
