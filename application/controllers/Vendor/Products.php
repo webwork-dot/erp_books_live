@@ -3280,13 +3280,10 @@ class Products extends Vendor_base
 				$product = $this->Product_model->get_product_by_legacy('erp_textbooks', $id, $this->current_vendor['id']);
 				if ($product)
 				{
-					// Preserve existing status (edit form does not include status - do not overwrite with undefined)
-					$curr_tb = $this->db->select('status')->where('id', $id)->where('vendor_id', $this->current_vendor['id'])->get('erp_textbooks')->row_array();
-					$status_val = (isset($curr_tb['status']) && $curr_tb['status'] === 'active') ? 1 : 0;
 					$product_update = array(
 						'product_name'    => $textbook_data['product_name'],
 						'description'     => $textbook_data['product_description'],
-						'status'          => $status_val,
+						'status'          => ($textbook_data['status'] === 'active') ? 1 : 0,
 						'brand_id'        => $textbook_data['publisher_id'],
 						'board_id'        => $textbook_data['board_id'],
 						'selling_price'   => $textbook_data['selling_price'],
@@ -3567,7 +3564,8 @@ class Products extends Vendor_base
 		$this->session->set_flashdata('success', 'Textbook product deleted successfully (placeholder)');
 		redirect($this->config->item('base_url') . '/products/books/textbook');
 	}
-
+	
+	
 	/**
 	 * Textbook Toggle Status - Updates both erp_textbooks and erp_products
 	 *
@@ -6221,13 +6219,10 @@ class Products extends Vendor_base
 				$product = $this->Product_model->get_product_by_legacy('erp_notebooks', $id, $this->current_vendor['id']);
 				if ($product)
 				{
-					// Preserve existing status from legacy table (edit form may not send status)
-					$curr_nb = $this->db->select('status')->where('id', $id)->where('vendor_id', $this->current_vendor['id'])->get('erp_notebooks')->row_array();
-					$status_val = (isset($curr_nb['status']) && $curr_nb['status'] === 'active') ? 1 : 0;
 					$product_update = array(
 						'product_name'    => $notebook_data['product_name'],
 						'description'     => $notebook_data['product_description'],
-						'status'          => $status_val,
+						'status'          => ($notebook_data['status'] === 'active') ? 1 : 0,
 						'brand_id'        => $notebook_data['brand_id'],
 						'selling_price'   => $notebook_data['selling_price'],
 						'product_mrp'     => $notebook_data['mrp'],

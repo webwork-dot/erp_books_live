@@ -312,7 +312,6 @@
 		<?php endif; ?>
 	</div>
 </div>
-
 <script>
 function toggleTextbookStatus(textbookId, currentStatus) {
 	var newStatus = (currentStatus === 'active') ? 'inactive' : 'active';

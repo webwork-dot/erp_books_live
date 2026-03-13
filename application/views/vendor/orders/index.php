@@ -468,11 +468,11 @@
                            <?php
                            $i = 1;
                            $ci = &get_instance();
-                           $prev_has_label = null;
+						   $prev_has_label = null;
                            $show_label_batches = ($order_status == 'processing' || $order_status == 'ready_for_shipment');
                            if (!empty($order_list)):
                               foreach ($order_list as $key => $item): 
-                                 $has_label = $show_label_batches && (!empty($item['shipping_label']) || !empty($item['awb_no']));
+									$has_label = $show_label_batches && (!empty($item['shipping_label']) || !empty($item['awb_no']));
                                  // Section divider between printed and awaiting-label batches
                                  if ($show_label_batches && $prev_has_label === true && $has_label === false):
                                     $colspan = 16;
