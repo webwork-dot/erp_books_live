@@ -60,7 +60,19 @@ class Cron extends CI_Controller {
 		$this->cron_model->bigship_tracking((int)$vendor_id);
 		echo "Done";
 	}
+	
+	public function velocity_tracking($token = null){
+		if (!$token) show_error('Unauthorized', 403);
 
+		list($key, $vendor_id) = explode('_', $token);
+
+		if ($key !== SECURE_KEY || !is_numeric($vendor_id)) {
+			show_error('Unauthorized', 403);
+		}
+
+		$this->cron_model->velocity_tracking((int)$vendor_id);
+		echo "Done";
+	}
    
 }
 

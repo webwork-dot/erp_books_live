@@ -154,6 +154,7 @@ $route['shipping/bigship_token/(:any)'] = 'shipping/bigship_token/$1';
 $route['cron/bigship_assign_courier/(:any)'] = 'cron/bigship_assign_courier/$1';
 $route['cron/bigship_update_failed_awb_courier/(:any)'] = 'cron/bigship_update_failed_awb_courier/$1';
 $route['cron/bigship_tracking/(:any)'] = 'cron/bigship_tracking/$1';
+$route['cron/velocity_tracking/(:any)'] = 'cron/velocity_tracking/$1';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';
@@ -188,8 +189,8 @@ $route['products/stationery/delete_image/(:num)'] = 'Vendor/products/stationery_
 $route['products/textbook'] = 'Vendor/products/textbook_index';
 $route['products/textbook/add'] = 'Vendor/products/textbook_add';
 $route['products/textbook/edit/(:num)'] = 'Vendor/products/textbook_edit/$1';
-$route['products/textbook/delete/(:num)'] = 'Vendor/products/textbook_delete/$1';
 $route['products/textbook/toggle_status/(:num)'] = 'Vendor/products/textbook_toggle_status/$1';
+$route['products/textbook/delete/(:num)'] = 'Vendor/products/textbook_delete/$1';
 $route['products/textbook/add_type'] = 'Vendor/products/textbook_add_type';
 $route['products/textbook/add_publisher'] = 'Vendor/products/textbook_add_publisher';
 $route['products/textbook/add_grade'] = 'Vendor/products/textbook_add_grade';

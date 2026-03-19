@@ -697,6 +697,195 @@ class Cron_model extends CI_Model {
 			$this->add_cronjob_track($vendor_id,$order_unique_id,$function_name,$track_data);
 		}
 	}   
+	
+	public function velocity_tracking($vendor_id){
+		$client_db = $this->getVendorDB($vendor_id);
+		if (!$client_db) return false;
+
+		$curr_date = date('Y-m-d H:i:s');
+
+		$orders = $client_db->query("
+			SELECT id, order_unique_id, awb_no, shipment_id AS system_order_id, track_date, user_id
+			FROM tbl_order_details
+			WHERE courier='3rd_party'
+			AND awb_no IS NOT NULL
+			AND third_party_provider='velocity'
+			AND order_status IN ('3','6')
+			AND (track_date IS NULL OR track_date < DATE_SUB(NOW(), INTERVAL 2 HOUR))
+			ORDER BY id ASC
+			LIMIT 10");
+
+		if ($orders->num_rows() == 0) {
+			return;
+		}
+
+		foreach ($orders->result_array() as $item) {
+
+			$order_id        = $item['id'];
+			$order_unique_id = $item['order_unique_id'];
+			$tracking_id     = $item['awb_no'];
+			$user_id         = $item['user_id'];
+
+			$url = $this->velocity_url . "trackAWB/" . $tracking_id;
+
+			$ch = curl_init();
+			curl_setopt_array($ch, [
+				CURLOPT_URL => $url,
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_TIMEOUT => 30,
+			]);
+
+			$response = curl_exec($ch);
+
+			if (curl_errno($ch)) {
+				curl_close($ch);
+				$api_data = null;
+			} else {
+				curl_close($ch);
+				$api_data = json_decode($response, true);
+			}
+			
+			//echo $response;exit();
+
+			/* UPDATE TRACK DATE */
+		    $client_db->where('id', $order_id);
+			$client_db->update('tbl_order_details', [
+				'track_date' => $curr_date
+			]);
+
+			$function_name = 'tracking_check';
+			$remark = '2';
+
+			if (!empty($api_data) && is_array($api_data)) {
+				$data = $api_data[0] ?? [];
+
+				if (!empty($data['Error'])) {
+					$function_name = 'api_error';
+				} else {
+					$parent = $data['Parent'][0] ?? [];
+					$childs = $data['Child'] ?? [];
+
+
+					if (empty($parent)) {
+						$function_name = 'no_parent_data';
+					} 
+					if (empty($childs)) {
+						$function_name = 'no_child_data';
+					} else {
+						$latest = [];
+						$latest = $childs[0] ?? [];
+
+						$status_code = strtolower($latest['Statuscode'] ?? '');
+						$status_date = $latest['Statusdate'] ?? '';
+						$status_time = $latest['Statustime'] ?? '';
+
+						$tracking_time = (!empty($status_date) && !empty($status_time))
+							? date('Y-m-d H:i:s', strtotime($status_date . ' ' . $status_time))
+							: $curr_date;
+
+						// OUT FOR DELIVERY
+						if ($status_code == 'ofd') {
+							$client_db->where('id', $order_id);
+							$client_db->update('tbl_order_details', [
+								'order_status'  => '3',
+								'shipment_date' => $tracking_time
+							]);
+
+							// prevent duplicate
+							$exists = $client_db->query("
+								SELECT id FROM tbl_order_status 
+								WHERE order_id = '$order_id' 
+								AND status_title = '3'
+								LIMIT 1
+							")->num_rows();
+
+							if ($exists == 0) {
+								$client_db->insert('tbl_order_status', [
+									'order_id'    => $order_id,
+									'user_id'     => $user_id,
+									'product_id'  => 0,
+									'status_title'=> '3',
+									'status_desc' => 'Order Out For Delivery',
+									'created_at'  => $tracking_time
+								]);
+							}
+
+							$function_name = 'order_out_for_delivery';
+							$remark = '1';
+
+						}
+
+						// DELIVERED
+						elseif ($status_code == 'spd') {
+
+							$client_db->where('id', $order_id);
+							$client_db->update('tbl_order_details', [
+								'order_status'  => '4',
+								'delivery_date' => $tracking_time
+							]);
+
+							// prevent duplicate
+							$exists = $client_db->query("
+								SELECT id FROM tbl_order_status 
+								WHERE order_id = '$order_id' 
+								AND status_title = '4'
+								LIMIT 1
+							")->num_rows();
+
+							if ($exists == 0) {
+								$client_db->insert('tbl_order_status', [
+									'order_id'    => $order_id,
+									'user_id'     => $user_id,
+									'product_id'  => 0,
+									'status_title'=> '4',
+									'status_desc' => 'Order Delivered',
+									'created_at'  => $tracking_time
+								]);
+							}
+
+							$function_name = 'order_delivered';
+							$remark = '1';
+
+						}
+
+						// RTO / RETURN
+						elseif (in_array($status_code, ['rto','rts','rtd'])) {
+
+							$function_name = 'order_rto';
+							$remark = '1';
+
+						}
+
+						// IN TRANSIT
+						else {
+
+							$function_name = 'order_in_transit';
+							$remark = '1';
+						}
+					}
+				}
+
+			} else {
+				$function_name = 'invalid_api_response';
+			}
+
+			/* CRON LOG */
+			$track_data = [
+				'json_courier' => NULL,
+				'wallet'       => 0,
+				'json_request' => json_encode($item),
+				'json_data'    => json_encode($api_data),
+				'master_awb'   => $tracking_id,
+				'remark'       => $remark
+			];
+
+			$this->add_cronjob_track($vendor_id, $order_unique_id, $function_name, $track_data);
+		}
+	}
+
+
+	
+	
 	   	   
 	public function add_cronjob_track($vendor_id,$order_unique_id,$function_name,$params){
 		$client_db = $this->getVendorDB($vendor_id);
