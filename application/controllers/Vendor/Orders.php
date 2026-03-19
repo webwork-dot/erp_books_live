@@ -2148,7 +2148,7 @@ class Orders extends Vendor_base
 
 								$product_details[] = array(
 									"product_category"               => "Others",
-									"product_sub_category"           => $package['package_name'] ?? "",
+									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
 									"product_name"                   => sanitize_allowed_chars($product_name),
 									"product_quantity"               => $qty,
 									"each_product_invoice_amount"    => $price_total,
@@ -2179,7 +2179,7 @@ class Orders extends Vendor_base
 
 								$product_details[] = array(
 									"product_category"               => "Others",
-									"product_sub_category"           => $package['package_name'] ?? "",
+									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
 									"product_name"                   => sanitize_allowed_chars($product_name),
 									"product_quantity"               => $qty,
 									"each_product_invoice_amount"    => $price_total,
@@ -2248,6 +2248,25 @@ class Orders extends Vendor_base
 
 				// CALL PROVIDER API
 				$api_res = null;
+				
+				
+				// ===============================
+				// ADD DELIVERY CHARGES AS PRODUCT
+				// ===============================	
+				// Add only if delivery exists
+				if ($order_data->delivery_charge > 0) {
+					$product_details[] = [
+						"product_category"               => "Others",
+						"product_sub_category"           => "DELIVERY CHARGES",
+						"product_name"                   => "Delivery Charges",
+						"product_quantity"               => 1,
+						"each_product_invoice_amount"    => (float) $order_data->delivery_charge,
+						"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod' 
+															? (float) $order_data->delivery_charge 
+															: 0,
+						"hsn"                            => "0000"
+					];
+				}
 
 				switch (strtolower($third_party_provider)) {
 
@@ -6384,115 +6403,152 @@ class Orders extends Vendor_base
 			$order_type = strtolower($order_data->type_order);
 
  
-		if ($order_type === 'bookset') {
-
-			$order_products = $this->db->select('bookset_packages_json')
-				->from('tbl_order_items')
-				->where('order_id', $order_id)
-				->get()
-				->result();
-				
-				
-		 	/*echo json_encode([
-			'debug' => $order_products,
-			'csrf'  => [
-				'name' => $this->security->get_csrf_token_name(),
-				'hash' => $this->security->get_csrf_hash()
-			]
-		]); exit();*/
 		
-			if (empty($order_products)) {
-				throw new Exception('No bookset items found.');
-			}
-
-			foreach ($order_products as $row) {
-
-				if (empty($row->bookset_packages_json)) {
-					continue;
+			if ($order_type === 'bookset') {
+				
+				$order_products = $this->db->select('product_id,bookset_packages_json')
+					->from('tbl_order_items')
+					->where('order_id', $order_id)
+					->get()
+					->result();
+					
+				if (empty($order_products)) {
+					throw new Exception('No bookset items found.');
 				}
 
-				$json = json_decode($row->bookset_packages_json, true);
-				if (!isset($json['packages'])) {
-					continue;
-				}
+			// ==============================
+				// LOAD ALL BOOKSETS IN ONE QUERY
+				// ==============================
+				$bookset_ids = array_unique(array_column($order_products, 'product_id'));
 
-				foreach ($json['packages'] as $package) {
+				$booksets = $this->db->select('id, has_products')
+					->from('erp_booksets')
+					->where_in('id', $bookset_ids)
+					->get()
+					->result_array();
 
-					if (empty($package['products'])) {
+				$bookset_map = array_column($booksets, 'has_products', 'id');
+
+
+				foreach ($order_products as $row) {	
+					$has_products = $bookset_map[$row->product_id] ?? 1;
+
+					if (empty($row->bookset_packages_json)) {
 						continue;
 					}
 
-					foreach ($package['products'] as $product) {
+					$json = json_decode($row->bookset_packages_json, true);
+					if (!isset($json['packages'])) {
+						continue;
+					}
 
-						$product_name = $product['display_name'] ?? 'Book';
-						$qty          = (int) ($product['quantity'] ?? 1);
-						$price_total  = (float) ($product['total_price'] ?? 0);
-						$weight_gm    = (float) ($product['weight'] ?? 0);
+					foreach ($json['packages'] as $package) {				
+						// =========================
+						// BOOKSET WITHOUT PRODUCTS
+						// =========================
+						if ($has_products == 0) {
+								$product_name = $package['package_name'] ?? 'Book';
+								$qty          = 1;
+								$price_total  = (float) ($package['package_offer_price'] ?? 0);
+								$weight_gm    = (float) ($package['package_weight'] ?? 0);
 
-						$declared_value += $price_total;
+								$declared_value += $price_total;
 
-						if ($weight_gm <= 0) {
-							$weight_gm = 500;
+								if ($weight_gm <= 0) {
+									$weight_gm = 500;
+								}
+
+								$total_weight_gm += ($weight_gm * $qty);
+
+								$product_details[] = array(
+									"product_category"               => "Others",
+									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
+									"product_name"                   => sanitize_allowed_chars($product_name),
+									"product_quantity"               => $qty,
+									"each_product_invoice_amount"    => $price_total,
+									"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
+									"hsn"                            => $package['hsn'] ?? ""
+								);
 						}
+						// =========================
+						// BOOKSET WITH PRODUCTS
+						// =========================
+						else{
+							if (empty($package['products'])) {
+								continue;
+							}					
+							foreach ($package['products'] as $product) {
+								$product_name = $product['display_name'] ?? 'Book';
+								$qty          = (int) ($product['quantity'] ?? 1);
+								$price_total  = (float) ($product['total_price'] ?? 0);
+								$weight_gm    = (float) ($product['weight'] ?? 0);
 
-						$total_weight_gm += ($weight_gm * $qty);
+								$declared_value += $price_total;
 
-						$product_details[] = array(
-							"product_category"               => "Others",
-							"product_sub_category"           => $package['package_name'] ?? "",
-							"product_name"                   => sanitize_allowed_chars($product_name),
-							"product_quantity"               => $qty,
-							"each_product_invoice_amount"    => $price_total,
-							"each_product_collectable_amount"=> 0,
-							"hsn"                            => $package['hsn'] ?? ""
-						);
+								if ($weight_gm <= 0) {
+									$weight_gm = 500;
+								}
+
+								$total_weight_gm += ($weight_gm * $qty);
+
+								$product_details[] = array(
+									"product_category"               => "Others",
+									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
+									"product_name"                   => sanitize_allowed_chars($product_name),
+									"product_quantity"               => $qty,
+									"each_product_invoice_amount"    => $price_total,
+									"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
+									"hsn"                            => $package['hsn'] ?? ""
+								);
+							}
+						}
+						
 					}
 				}
+
+				// Convert gm to kg
+				$total_weight = round($total_weight_gm / 1000, 2);
 			}
+			else {
 
-			// Convert gm to kg
-			$total_weight = round($total_weight_gm / 1000, 2);
-		}
-		else {
+				$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
+					->from('tbl_order_items')
+					->where('order_id', $order_id)
+					->get()
+					->result();
 
-			$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
-				->from('tbl_order_items')
-				->where('order_id', $order_id)
-				->get()
-				->result();
-
-			if (empty($order_products)) {
-				throw new Exception('No order items found.');
-			}
-
-			foreach ($order_products as $item) {
-
-				$product_name = $item->product_title;
-				$qty          = (int) $item->product_qty;
-				$price_total  = (float) $item->total_price;
-				$weight_gm    = (float) $item->weight;
-
-				$declared_value += $price_total;
-
-				if ($weight_gm <= 0) {
-					$weight_gm = 500;
+				if (empty($order_products)) {
+					throw new Exception('No order items found.');
 				}
 
-				$total_weight_gm += ($weight_gm * $qty);
+				foreach ($order_products as $item) {
 
-				$product_details[] = array(
-					"product_category"               => "Others",
-					"product_sub_category"           => "",
-					"product_name"                   => sanitize_allowed_chars($product_name),
-					"product_quantity"               => $qty,
-					"each_product_invoice_amount"    => $price_total / max($qty,1),
-					"each_product_collectable_amount"=> 0,
-					"hsn"                            => $item->hsn ?? ""
-				);
+					$product_name = $item->product_title;
+					$qty          = (int) $item->product_qty;
+					$price_total  = (float) $item->total_price;
+					$weight_gm    = (float) $item->weight;
+
+					$declared_value += $price_total;
+
+					if ($weight_gm <= 0) {
+						$weight_gm = 500;
+					}
+
+					$total_weight_gm += ($weight_gm * $qty);
+
+					$product_details[] = array(
+						"product_category"               => "Others",
+						"product_sub_category"           => "",
+						"product_name"                   => sanitize_allowed_chars($product_name),
+						"product_quantity"               => $qty,
+						"each_product_invoice_amount"    => $price_total / max($qty,1),
+						"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total / max($qty,1): 0,
+						"hsn"                            => $item->hsn ?? ""
+					);
+				}
+
+				$total_weight = round($total_weight_gm / 1000, 2);
 			}
-
-			$total_weight = round($total_weight_gm / 1000, 2);
-		}
 		 	/*echo json_encode([
 				'debug' => $product_details,
 				'csrf'  => [
@@ -6500,7 +6556,24 @@ class Orders extends Vendor_base
 					'hash' => $this->security->get_csrf_hash()
 				]
 			]); exit();*/
-		
+	
+			// ===============================
+			// ADD DELIVERY CHARGES AS PRODUCT
+			// ===============================	
+			// Add only if delivery exists
+			if ($order_data->delivery_charge > 0) {
+				$product_details[] = [
+					"product_category"               => "Others",
+					"product_sub_category"           => "DELIVERY CHARGES",
+					"product_name"                   => "Delivery Charges",
+					"product_quantity"               => 1,
+					"each_product_invoice_amount"    => (float) $order_data->delivery_charge,
+					"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod' 
+														? (float) $order_data->delivery_charge 
+														: 0,
+					"hsn"                            => "0000"
+				];
+			}
 		
 			switch (strtolower($third_party_provider)) {
 				case 'velocity':
