@@ -1783,18 +1783,101 @@ if (!function_exists('sanitizeAddress')) {
 
 
 if (!function_exists('sanitizeString')) {
-	function sanitizeString($lastName) {
-		// This pattern allows only alphabets, dots, and spaces
-		$pattern = '/[^a-zA-Z\s.]/';
-		$sanitizedLastName = preg_replace($pattern, '', $lastName);
-		return $sanitizedLastName;
-	} 
+	function sanitizeString($input) {
+		// Allow only alphabets, space, dash (-), slash (/)
+		$sanitized = preg_replace('/[^A-Za-z\s\-\/]/', '', $input);
+
+		$sanitized = trim($sanitized);
+
+		return trim($sanitized);
+	}
 }
-	
 if (!function_exists('sanitize_allowed_chars')) {
 	function sanitize_allowed_chars($input) {
-        $pattern = '/[^A-Za-z0-9\s\-\/\\\\]/';
-        return preg_replace($pattern, '', $input);
+     	// 1. Convert to uppercase (optional but recommended)
+		$input = strtoupper($input);
+
+		// 2. Remove all invalid characters (keep A-Z, space, -, /)
+		$input = preg_replace('/[^A-Z\s\-\/]/', '', $input);
+
+		// 3. Remove numbers already handled above, but clean extra spaces
+		$input = preg_replace('/\s+/', ' ', $input);
+
+		// 4. Trim starting & ending spaces
+		$input = trim($input);
+
+		// 5. Remove trailing dash or slash (e.g., "SET-" → "SET")
+		$input = rtrim($input, '-/');
+
+		return $input;
+    }
+}
+if (!function_exists('sanitize_sub_category')) {
+	function sanitize_sub_category($input = '') {
+     	// 1. Convert to uppercase (optional but recommended)
+		$input = strtoupper($input);
+
+		// 2. Remove all invalid characters (keep A-Z, space, -, /)
+		$input = preg_replace('/[^A-Z\s\-\/]/', '', $input);
+
+		// 3. Remove numbers already handled above, but clean extra spaces
+		$input = preg_replace('/\s+/', ' ', $input);
+
+		// 4. Trim starting & ending spaces
+		$input = trim($input);
+
+		// 5. Remove trailing dash or slash (e.g., "SET-" → "SET")
+		$input = rtrim($input, '-/');
+
+		return $input;
+	
+	}
+}  
+
+if (!function_exists('calculate_bookset_gst')) {
+    function calculate_bookset_gst($packages_array) {
+        $total_gst_amt = 0;
+        $total_price_incl_gst = 0;
+        $total_price_excl_gst = 0;
+        
+        if (!is_array($packages_array) || empty($packages_array)) {
+            return [
+                'gst_rate' => 0,
+                'gst_amt' => 0,
+                'price_excl_gst' => 0,
+                'price_incl_gst' => 0
+            ];
+        }
+        
+        foreach ($packages_array as $pkg) {
+            $price = isset($pkg['package_offer_price']) && $pkg['package_offer_price'] > 0 
+                ? (float)$pkg['package_offer_price'] 
+                : (isset($pkg['package_price']) ? (float)$pkg['package_price'] : 0);
+            
+            $gst_rate = isset($pkg['gst']) ? (float)$pkg['gst'] : 0;
+            
+            if ($gst_rate > 0 && $price > 0) {
+                $price_excl_gst = $price / (1 + ($gst_rate / 100));
+                $gst_amt = $price_excl_gst * ($gst_rate / 100);
+                $total_gst_amt += $gst_amt;
+                $total_price_incl_gst += $price;
+                $total_price_excl_gst += $price_excl_gst;
+            } else {
+                $total_price_incl_gst += $price;
+                $total_price_excl_gst += $price;
+            }
+        }
+        
+        $weighted_gst_rate = $total_price_excl_gst > 0 
+            ? ($total_gst_amt / $total_price_excl_gst) * 100 
+            : 0;
+        
+        return [
+            'gst_rate' => $weighted_gst_rate,
+            'gst_amt' => $total_gst_amt,
+            'price_excl_gst' => $total_price_excl_gst,
+            'price_incl_gst' => $total_price_incl_gst
+        ];
     }
 }
 	

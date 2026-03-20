@@ -2092,7 +2092,7 @@ class Orders extends Vendor_base
 	
 			if ($order_type === 'bookset') {
 				
-				$order_products = $this->db->select('product_id,bookset_packages_json')
+				$order_products = $this->db->select('product_id,bookset_packages_json,has_products')
 					->from('tbl_order_items')
 					->where('order_id', $order_id)
 					->get()
@@ -2105,19 +2105,11 @@ class Orders extends Vendor_base
 			// ==============================
 				// LOAD ALL BOOKSETS IN ONE QUERY
 				// ==============================
-				$bookset_ids = array_unique(array_column($order_products, 'product_id'));
-
-				$booksets = $this->db->select('id, has_products')
-					->from('erp_booksets')
-					->where_in('id', $bookset_ids)
-					->get()
-					->result_array();
-
-				$bookset_map = array_column($booksets, 'has_products', 'id');
+		 
 
 
 				foreach ($order_products as $row) {	
-					$has_products = $bookset_map[$row->product_id] ?? 1;
+					$has_products = $row->has_products;
 
 					if (empty($row->bookset_packages_json)) {
 						continue;
@@ -2136,6 +2128,7 @@ class Orders extends Vendor_base
 								$product_name = $package['package_name'] ?? 'Book';
 								$qty          = 1;
 								$price_total  = (float) ($package['package_offer_price'] ?? 0);
+								
 								$weight_gm    = (float) ($package['package_weight'] ?? 0);
 
 								$declared_value += $price_total;
@@ -6406,7 +6399,7 @@ class Orders extends Vendor_base
 		
 			if ($order_type === 'bookset') {
 				
-				$order_products = $this->db->select('product_id,bookset_packages_json')
+				$order_products = $this->db->select('product_id,bookset_packages_json,has_products')
 					->from('tbl_order_items')
 					->where('order_id', $order_id)
 					->get()
@@ -6419,19 +6412,11 @@ class Orders extends Vendor_base
 			// ==============================
 				// LOAD ALL BOOKSETS IN ONE QUERY
 				// ==============================
-				$bookset_ids = array_unique(array_column($order_products, 'product_id'));
 
-				$booksets = $this->db->select('id, has_products')
-					->from('erp_booksets')
-					->where_in('id', $bookset_ids)
-					->get()
-					->result_array();
-
-				$bookset_map = array_column($booksets, 'has_products', 'id');
 
 
 				foreach ($order_products as $row) {	
-					$has_products = $bookset_map[$row->product_id] ?? 1;
+					$has_products = $row->has_products;
 
 					if (empty($row->bookset_packages_json)) {
 						continue;

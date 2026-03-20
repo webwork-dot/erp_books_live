@@ -808,22 +808,22 @@
           <div class="row g-2">
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Length (cm)</label>
-              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" value="42" placeholder="0">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Breadth (cm)</label>
-              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" value="30" placeholder="0">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Height (cm)</label>
-              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01"  value="17" placeholder="0">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Weight (kg)</label>
-              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" value="5" placeholder="0">
             </div>
           </div>
         </div>
@@ -1514,7 +1514,7 @@ $(document).ready(function(){
         $('#thirdPartyProvider').val('');
         $('#pickupAddressSection').hide();
         $('#velocityScheduleSection').hide();
-        $('#pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight').val('');
+        //$('#pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight').val('');
         $('#saveThirdPartyBtn').prop('disabled', true);
         $('#saveBtnText').show();
         $('#saveBtnLoader').hide();
