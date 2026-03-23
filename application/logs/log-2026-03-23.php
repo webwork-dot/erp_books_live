@@ -35,3 +35,7 @@ ERROR - 2026-03-23 12:39:29 --> 404 Page Not Found: Assets/dist
 ERROR - 2026-03-23 12:39:29 --> 404 Page Not Found: Vendor/Alertify/alertify.min.css
 ERROR - 2026-03-23 12:39:29 --> 404 Page Not Found: Vendor/Alertify/default.min.css
 ERROR - 2026-03-23 12:39:29 --> 404 Page Not Found: Assets/dist
+ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
+ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
+ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
+ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
