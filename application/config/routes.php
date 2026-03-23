@@ -109,7 +109,6 @@ $route['orders/out_for_delivery'] = 'Vendor/orders/index/out_for_delivery';
 $route['orders/ready_for_shipment'] = 'Vendor/orders/index/ready_for_shipment';
 $route['orders/delivered'] = 'Vendor/orders/index/delivered';
 $route['orders/return'] = 'Vendor/orders/index/return';
-$route['orders/export'] = 'Vendor/orders/export_orders';
 $route['orders'] = 'Vendor/orders/index';
 $route['orders/move_to_processing'] = 'Vendor/orders/move_to_processing';
 $route['orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_delivery';
@@ -139,10 +138,9 @@ $route['orders/print_label/(:any)'] = 'Vendor/orders/print_label/$1';
 $route['orders/test_shipping_label/(:any)'] = 'Vendor/Orders/test_shipping_label/$1';
 $route['orders/test_barcode'] = 'Vendor/orders/test_barcode';
 $route['orders/test_barcode/(:any)'] = 'Vendor/orders/test_barcode/$1';
-// Shiprocket API helpers
-$route['orders/shiprocket_verify_login'] = 'Vendor/orders/shiprocket_verify_login';
-$route['orders/shiprocket_pickups'] = 'Vendor/orders/shiprocket_pickups';
-$route['orders/shiprocket_debug_payload'] = 'Vendor/orders/shiprocket_debug_payload';
+// Shiprocket test routes
+$route['orders/test_shiprocket_login'] = 'Vendor/orders/test_shiprocket_login';
+$route['orders/test_shiprocket_pickup'] = 'Vendor/orders/test_shiprocket_pickup';
 // Bulk shipping label download
 $route['orders/bulk_download_shipping_labels'] = 'Vendor/orders/bulk_download_shipping_labels';
 $route['orders/print_labels_bulk'] = 'Vendor/orders/print_labels_bulk';
@@ -151,10 +149,13 @@ $route['orders/print_labels_bulk'] = 'Vendor/orders/print_labels_bulk';
 // Orders shipping routes
 $route['vendor/orders/get_active_shipping_providers'] = 'Vendor/orders/get_active_shipping_providers';
 $route['shipping/bigship_token/(:any)'] = 'shipping/bigship_token/$1';
+<<<<<<< Updated upstream
 $route['cron/bigship_assign_courier/(:any)'] = 'cron/bigship_assign_courier/$1';
 $route['cron/bigship_update_failed_awb_courier/(:any)'] = 'cron/bigship_update_failed_awb_courier/$1';
 $route['cron/bigship_tracking/(:any)'] = 'cron/bigship_tracking/$1';
 $route['cron/velocity_tracking/(:any)'] = 'cron/velocity_tracking/$1';
+=======
+>>>>>>> Stashed changes
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';
@@ -189,7 +190,10 @@ $route['products/stationery/delete_image/(:num)'] = 'Vendor/products/stationery_
 $route['products/textbook'] = 'Vendor/products/textbook_index';
 $route['products/textbook/add'] = 'Vendor/products/textbook_add';
 $route['products/textbook/edit/(:num)'] = 'Vendor/products/textbook_edit/$1';
+<<<<<<< Updated upstream
 $route['products/textbook/toggle_status/(:num)'] = 'Vendor/products/textbook_toggle_status/$1';
+=======
+>>>>>>> Stashed changes
 $route['products/textbook/delete/(:num)'] = 'Vendor/products/textbook_delete/$1';
 $route['products/textbook/add_type'] = 'Vendor/products/textbook_add_type';
 $route['products/textbook/add_publisher'] = 'Vendor/products/textbook_add_publisher';
@@ -203,7 +207,6 @@ $route['products/notebooks'] = 'Vendor/products/notebook_index';
 $route['products/notebooks/add'] = 'Vendor/products/notebook_add';
 $route['products/notebooks/edit/(:num)'] = 'Vendor/products/notebook_edit/$1';
 $route['products/notebooks/delete/(:num)'] = 'Vendor/products/notebook_delete/$1';
-$route['products/notebooks/toggle_status/(:num)'] = 'Vendor/products/notebook_toggle_status/$1';
 $route['products/notebooks/add_type'] = 'Vendor/products/notebook_add_type';
 $route['products/notebooks/add_brand'] = 'Vendor/products/notebook_add_brand';
 $route['products/notebooks/delete_image/(:num)'] = 'Vendor/products/notebook_delete_image/$1';
@@ -290,21 +293,20 @@ $route['customers/get_customer_details/(:num)'] = 'Vendor/customers/get_customer
 $route['products/(:any)/(:any)'] = 'Vendor/products/$1/$2'; // Products feature method routes (e.g., /products/books/add)
 $route['products/(:any)'] = 'Vendor/products/index/$1'; // Products feature routes (e.g., /products/books)
 
-// Shipping routes (must be before generic vendor catch-all)
-$route['shipping/customer_invoice/(:any)'] = 'Shipping/customer_invoice/$1';
-$route['shipping/(:any)'] = 'Shipping/index/$1'; // Public shipping details route (for QR code scanning)
-
 // Generic vendor routes (must be last)
 $route['(:any)/(:any)/(:any)'] = 'Vendor/$2/$3'; // Vendor controller/method routes (controller/method -> Vendor/controller/method)
 $route['(:any)/(:any)'] = 'Vendor/$2'; // Vendor controller routes (controller -> Vendor/controller)
+
+// Default route
+// Public shipping details route (for QR code scanning)
+$route['shipping/(:any)'] = 'Shipping/index/$1';
 
 $route['default_controller'] = 'Welcome';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
 
-$route['shiprocket_verify_login'] = 'Vendor/Orders/shiprocket_verify_login';
-$route['shiprocket_pickups'] = 'Vendor/Orders/shiprocket_pickups';
-$route['shiprocket_debug_payload'] = 'Vendor/Orders/shiprocket_debug_payload';
+$route['test_shiprocket_login'] = 'Vendor/Orders/test_shiprocket_login';
+$route['test_shiprocket_pickup'] = 'Vendor/Orders/test_shiprocket_pickup';
 
 

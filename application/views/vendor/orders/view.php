@@ -213,22 +213,23 @@ if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_products))
   }
 }
 
-// Calculate tax for bookset orders from order items
-if (isset($order_type) && $order_type == 'bookset' && !empty($items_arr)) {
-  foreach ($items_arr as $val) {
-    if (isset($val->order_type) && $val->order_type == 'bookset') {
-      if (isset($val->total_gst_amt) && $val->total_gst_amt > 0) {
-        $_total_tax += (float)$val->total_gst_amt;
+// Calculate tax for bookset orders - use bookset_products as source of truth (not tbl_order_items)
+// Bookset orders (e.g. school books) may have 0% tax; items_arr/order_data gst_total can be stale/incorrect
+if (isset($order_type) && $order_type == 'bookset') {
+  if (!empty($bookset_products)) {
+    foreach ($bookset_products as $bookset_product) {
+      if (isset($bookset_product->total_gst_amt) && $bookset_product->total_gst_amt > 0) {
+        $_total_tax += (float)$bookset_product->total_gst_amt;
       }
-      break; // Only process first bookset item
     }
   }
-}
-
-// If tax is still 0, try to get from order details
-if ($_total_tax == 0 && !empty($order_data[0])) {
-  if (isset($order_data[0]->gst_total) && $order_data[0]->gst_total > 0) {
-    $_total_tax = (float)$order_data[0]->gst_total;
+  // Do NOT use items_arr total_gst_amt or order_data gst_total for bookset - they can be incorrect
+} else {
+  // Non-bookset: fallback to order details if tax still 0
+  if ($_total_tax == 0 && !empty($order_data[0])) {
+    if (isset($order_data[0]->gst_total) && $order_data[0]->gst_total > 0) {
+      $_total_tax = (float)$order_data[0]->gst_total;
+    }
   }
 }
 

@@ -770,7 +770,7 @@
 </div>
 
 <!-- 3rd Party Shipping Modal -->
-<div class="modal fade" id="thirdPartyShippingModal" tabindex="-1" aria-labelledby="thirdPartyShippingModalLabel" aria-hidden="true">
+<div class="modal fade" id="thirdPartyShippingModal" tabindex="-1" aria-labelledby="thirdPartyShippingModalLabel"  data-bs-backdrop="static"  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
 
