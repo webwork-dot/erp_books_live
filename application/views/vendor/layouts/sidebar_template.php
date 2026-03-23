@@ -144,6 +144,42 @@
 									</li>
 								</ul>
 							</li>
+
+							<?php
+							$pos_feature_enabled = false;
+							if (isset($enabled_features) && is_array($enabled_features)) {
+								foreach ($enabled_features as $feature_row) {
+									$feature_slug = '';
+									if (isset($feature_row['slug'])) {
+										$feature_slug = strtolower(trim((string)$feature_row['slug']));
+									} elseif (isset($feature_row['feature_slug'])) {
+										$feature_slug = strtolower(trim((string)$feature_row['feature_slug']));
+									}
+
+									if ($feature_slug === 'pos') {
+										$pos_feature_enabled = true;
+										break;
+									}
+								}
+							}
+							?>
+							<?php if ($pos_feature_enabled): ?>
+							<li class="menu-title"><span>POS</span></li>
+							<li>
+								<ul>
+									<li>
+										<a href="<?php echo base_url('pos-agents'); ?>" class="<?php echo (strpos($current_uri, 'pos-agents') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-profile-2user"></i><span>POS Agents</span>
+										</a>
+									</li>
+									<li>
+										<a href="<?php echo base_url('pos-school-qr'); ?>" class="<?php echo (strpos($current_uri, 'pos-school-qr') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-shop"></i><span>School UPI QR</span>
+										</a>
+									</li>
+								</ul>
+							</li>
+							<?php endif; ?>
 							<?php 
 							$total_products_count = isset($total_products_count) ? $total_products_count : 0;
 							$has_features = isset($enabled_features) && !empty($enabled_features);
@@ -159,6 +195,7 @@
 										// Skip Individual products - hidden but not removed
 										if (strtolower($feature['slug']) == 'individual-products' || 
 											strtolower($feature['slug']) == 'individual_products' ||
+											strtolower($feature['slug']) == 'pos' ||
 											stripos($feature['name'], 'Individual products') !== false ||
 											stripos($feature['name'], 'Individual Products') !== false) {
 											continue;

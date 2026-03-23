@@ -44,7 +44,11 @@
 								<label class="form-label">Role <span class="text-danger">*</span></label>
 								<select name="role_id" id="role_id" class="select" required>
 									<option value="">Select Role</option>
-									<option value="1" <?php echo set_select('role_id', '1', TRUE); ?>>Super Admin</option>
+									<?php if (!empty($roles)): ?>
+										<?php foreach ($roles as $role): ?>
+											<option value="<?php echo (int)$role['id']; ?>" <?php echo set_select('role_id', (string)$role['id']); ?>><?php echo htmlspecialchars($role['name']); ?></option>
+										<?php endforeach; ?>
+									<?php endif; ?>
 								</select>
 								<?php echo form_error('role_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 							</div>

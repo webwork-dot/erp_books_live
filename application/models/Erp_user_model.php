@@ -271,6 +271,22 @@ class Erp_user_model extends CI_Model
 		
 		return NULL;
 	}
+
+	/**
+	 * Get all user roles
+	 *
+	 * @return array
+	 */
+	public function getAllRoles()
+	{
+		$this->db->select('id, name, description, permissions');
+		$this->db->from('erp_user_roles');
+		$this->db->order_by('id', 'ASC');
+
+		$query = $this->db->get();
+
+		return $query->result_array();
+	}
 	
 	/**
 	 * Get or create vendor role

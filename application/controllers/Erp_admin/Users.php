@@ -28,6 +28,29 @@ class Users extends Erp_base
 		$this->load->model('Erp_user_model');
 		$this->load->library('form_validation');
 	}
+
+	/**
+	 * Validate that role exists in erp_user_roles
+	 *
+	 * @param mixed $role_id
+	 * @return bool
+	 */
+	public function role_exists($role_id)
+	{
+		$role_id = (int)$role_id;
+		$roles = $this->Erp_user_model->getAllRoles();
+
+		foreach ($roles as $role)
+		{
+			if ((int)$role['id'] === $role_id)
+			{
+				return TRUE;
+			}
+		}
+
+		$this->form_validation->set_message('role_exists', 'The selected role is invalid.');
+		return FALSE;
+	}
 	
 	/**
 	 * List all users
@@ -99,12 +122,13 @@ class Users extends Erp_base
 		$this->form_validation->set_rules('username', 'Username', 'required|trim|is_unique[erp_users.username]');
 		$this->form_validation->set_rules('email', 'Email', 'required|valid_email|is_unique[erp_users.email]');
 		$this->form_validation->set_rules('password', 'Password', 'required|min_length[6]');
-		$this->form_validation->set_rules('role_id', 'Role', 'required|integer');
+		$this->form_validation->set_rules('role_id', 'Role', 'required|integer|callback_role_exists');
 		
 		if ($this->form_validation->run() == FALSE)
 		{
 			$data['title'] = 'Add New User';
 			$data['current_user'] = $this->current_user;
+			$data['roles'] = $this->Erp_user_model->getAllRoles();
 			
 			// Load content view
 			$data['content'] = $this->load->view('erp_admin/users/add', $data, TRUE);
@@ -159,13 +183,14 @@ class Users extends Erp_base
 		
 		// Set validation rules
 		$this->form_validation->set_rules('email', 'Email', 'required|valid_email');
-		$this->form_validation->set_rules('role_id', 'Role', 'required|integer');
+		$this->form_validation->set_rules('role_id', 'Role', 'required|integer|callback_role_exists');
 		
 		if ($this->form_validation->run() == FALSE)
 		{
 			$data['user'] = $user;
 			$data['title'] = 'Edit User';
 			$data['current_user'] = $this->current_user;
+			$data['roles'] = $this->Erp_user_model->getAllRoles();
 			
 			// Load content view
 			$data['content'] = $this->load->view('erp_admin/users/edit', $data, TRUE);

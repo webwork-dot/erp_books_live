@@ -73,4 +73,12 @@ $config['picqer_barcode_upload'] = [
     'allowed_types'=> ['png'],
     'max_size'     => 5120
 ];
+
+$config['pos_upi_qr_upload'] = [
+    'base_root'    => '/www/webwork/',
+    'root_path'    => '/www/webwork/',
+    'relative_dir' => 'uploads/pos/upi_qr/',
+    'allowed_types'=> ['png','jpg','jpeg','webp'],
+    'max_size'     => 5120
+];
 ?>

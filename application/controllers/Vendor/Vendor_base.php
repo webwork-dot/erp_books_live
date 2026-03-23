@@ -346,16 +346,25 @@ class Vendor_base extends CI_Controller
 		// Try to check vendor database first (preferred method)
 		if (!empty($this->current_vendor['database_name']))
 		{
-			$this->load->library('Feature_access');
-			$this->Feature_access->setVendorDatabase($this->current_vendor['database_name']);
-			return $this->Feature_access->isEnabled($feature_slug);
+			try {
+				$this->load->library('Feature_access');
+
+				if (isset($this->Feature_access) && is_object($this->Feature_access)) {
+					$this->Feature_access->setVendorDatabase($this->current_vendor['database_name']);
+					return $this->Feature_access->isEnabled($feature_slug);
+				}
+
+				log_message('error', 'Feature_access library failed to load in checkFeatureAccess()');
+			} catch (Exception $e) {
+				log_message('error', 'Error in checkFeatureAccess() while loading Feature_access: ' . $e->getMessage());
+			}
 		}
 		
 		// Fallback to master database check
 		$vendor_features = $this->Erp_client_model->getClientFeatures($this->current_vendor['id']);
 		
 		foreach ($vendor_features as $feature) {
-			if ($feature['slug'] === $feature_slug && $feature['is_enabled'] == 1 && $feature['is_active'] == 1) {
+			if (isset($feature['slug']) && strtolower((string)$feature['slug']) === strtolower((string)$feature_slug) && $feature['is_enabled'] == 1 && $feature['is_active'] == 1) {
 				return TRUE;
 			}
 		}

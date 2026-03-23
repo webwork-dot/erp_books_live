@@ -39,3 +39,27 @@ ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
 ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
 ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
 ERROR - 2026-03-23 14:12:12 --> 404 Page Not Found: Assets/template
+ERROR - 2026-03-23 19:08:07 --> Feature_access library failed to load
+ERROR - 2026-03-23 19:08:07 --> Feature_access library failed to load
+ERROR - 2026-03-23 19:08:07 --> Feature_access library failed to load
+ERROR - 2026-03-23 14:39:17 --> Severity: error --> Exception: Table 'erp_master.erp_agent_users' doesn't exist /Applications/XAMPP/xamppfiles/htdocs/erp_books_live/system/database/drivers/mysqli/mysqli_driver.php 305
+ERROR - 2026-03-23 14:44:28 --> Severity: error --> Exception: Table 'erp_master.erp_agent_users' doesn't exist /Applications/XAMPP/xamppfiles/htdocs/erp_books_live/system/database/drivers/mysqli/mysqli_driver.php 305
+ERROR - 2026-03-23 14:50:38 --> 404 Page Not Found: Vendor/Pos-agents/index
+ERROR - 2026-03-23 14:50:43 --> 404 Page Not Found: Vendor/Pos-agents/index
+ERROR - 2026-03-23 14:51:25 --> 404 Page Not Found: Erp-admin/users
+ERROR - 2026-03-23 14:54:45 --> Exception during vendor Shipping data sync after update: CREATE command denied to user 'talha_dbz'@'43.230.47.13' for table `erp_client_varitty`.`erp_shipping_providers`
+ERROR - 2026-03-23 19:24:57 --> Severity: Warning --> Undefined property: Pos_agents::$Feature_access /Applications/XAMPP/xamppfiles/htdocs/erp_books_live/application/controllers/Vendor/Vendor_base.php 350
+ERROR - 2026-03-23 19:24:57 --> Severity: error --> Exception: Call to a member function setVendorDatabase() on null /Applications/XAMPP/xamppfiles/htdocs/erp_books_live/application/controllers/Vendor/Vendor_base.php 350
+ERROR - 2026-03-23 19:26:09 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:26:20 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:26:23 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:26:35 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 14:56:54 --> 404 Page Not Found: Erp-admin/users
+ERROR - 2026-03-23 19:27:52 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:30:36 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:31:30 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:32:59 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:33:10 --> Severity: error --> Exception: Table 'erp_master.erp_school_upi_qr' doesn't exist /Applications/XAMPP/xamppfiles/htdocs/erp_books_live/system/database/drivers/mysqli/mysqli_driver.php 305
+ERROR - 2026-03-23 19:41:52 --> Feature_access library failed to load in checkFeatureAccess()
+ERROR - 2026-03-23 19:43:45 --> Severity: Warning --> mkdir(): Read-only file system /Applications/XAMPP/xamppfiles/htdocs/erp_books_live/application/controllers/Vendor/Pos_school_qr.php 275
+ERROR - 2026-03-23 19:44:21 --> Severity: Warning --> mkdir(): Read-only file system /Applications/XAMPP/xamppfiles/htdocs/erp_books_live/application/controllers/Vendor/Pos_school_qr.php 275
