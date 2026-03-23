@@ -24,7 +24,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |
 */
 
-$config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "https" : "http");
+$config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "https" : "https");
 $config['base_url'] .= "://".$_SERVER['HTTP_HOST'];
 $config['base_url'] .= str_replace(basename($_SERVER['SCRIPT_NAME']),"",$_SERVER['SCRIPT_NAME']);
 
@@ -484,16 +484,17 @@ $config['csrf_exclude_uris'] = array(
 	'products/textbook/add_subject', 
 	'products/textbook/delete_image/.*',
 	'products/textbook/toggle_status/.*',
+	'products/notebooks/toggle_status/.*',
 	'products/notebooks/add_type',
 	'products/notebooks/add_brand',
 	'products/notebooks/delete_image/.*',
-	'products/notebooks/toggle_status/.*',
 	'products/stationery/add_category', 
 	'products/stationery/add_brand', 
 	'products/stationery/add_colour',
 	'products/stationery/delete_image/.*',
 	'products/uniforms/add_uniform_type',
 	'products/uniforms/add_material',
+	'orders/bulk_download_shipping_labels',
 	'products/uniforms/add_size_chart',
 	'products/individual-products/add_category',
 	'products/individual-products/get_subcategories',
@@ -535,15 +536,13 @@ $config['csrf_exclude_uris'] = array(
 	'schools/toggle_status',
 	'schools/delete_image/.*',
 	'branches/get_cities',
-	'schools/toggle_payment_required',
 	'schools/toggle_deliver_at_school',
 	'branches/toggle_payment_required',
 	'branches/toggle_deliver_at_school',
+	'schools/toggle_payment_required',
 	'customers/get_customer_details/.*',
 	'orders/get_order_couriers',
 	'orders/save_order_courier_awb',
-	'orders/get_vendor_address',
-	'orders/save_third_party_shipping',
 	'couriers/get_courier_orders/.*',
 	'couriers/get_courier_details/.*',
 	'couriers/toggle_status/.*',
