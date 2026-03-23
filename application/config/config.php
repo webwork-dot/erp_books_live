@@ -395,7 +395,13 @@ $config['encryption_key'] = bin2hex(random_bytes(32));
 $config['sess_driver'] = 'files';
 $config['sess_cookie_name'] = 'erp_session';
 $config['sess_expiration'] = 7200;
-$config['sess_save_path'] = sys_get_temp_dir();
+$session_save_path = APPPATH . 'cache/sessions';
+
+if (!is_dir($session_save_path)) {
+	@mkdir($session_save_path, 0777, TRUE);
+}
+
+$config['sess_save_path'] = $session_save_path;
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
 $config['sess_regenerate_destroy'] = FALSE;

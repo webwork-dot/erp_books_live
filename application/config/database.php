@@ -18,9 +18,9 @@ $query_builder = TRUE;
 // Master ERP Database Configuration
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
-	'username' => 'root',
-	'password' => '',
+	'hostname' => '72.61.228.172',
+	'username' => 'talha_dbz',
+	'password' => 'SG7Rv06q7sGKIrGm',
 	'database' => 'erp_master',
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
@@ -41,9 +41,9 @@ $db['default'] = array(
 // Master Database Configuration (alias for default/master ERP database)
 $db['master'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
-	'username' => 'root',
-	'password' => '',
+	'hostname' => '72.61.228.172',
+	'username' => 'talha_dbz',
+	'password' => 'SG7Rv06q7sGKIrGm',
 	'database' => 'erp_master',
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
@@ -64,7 +64,7 @@ $db['master'] = array(
 // Tenant Database Configuration (will be dynamically set)
 $db['tenant'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
+	'hostname' => '72.61.228.172',
 	'username' => 'root',
 	'password' => '',
 	'database' => '',

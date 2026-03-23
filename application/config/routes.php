@@ -121,6 +121,7 @@ $route['orders/mark_ready_to_ship'] = 'Vendor/orders/mark_ready_to_ship';
 $route['orders/unmark_ready_to_ship'] = 'Vendor/orders/unmark_ready_to_ship';
 $route['orders/move_back_to_processing_single'] = 'Vendor/orders/move_back_to_processing_single';
 $route['orders/move_back_to_pending_single'] = 'Vendor/orders/move_back_to_pending_single';
+$route['orders/cancel_order_single'] = 'Vendor/orders/cancel_order_single';
 $route['orders/set_shipper'] = 'Vendor/orders/set_shipper';
 $route['orders/bulk_set_shipper'] = 'Vendor/orders/bulk_set_shipper';
 $route['orders/get_order_couriers'] = 'Vendor/orders/get_order_couriers';
