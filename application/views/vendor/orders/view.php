@@ -306,9 +306,14 @@ if($order_data[0]->payment_method == 'cod'){
       <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#orderTimelineModal">
         <i class="fa fa-history"></i> Order Timeline
       </button>
+      <?php $os = $order_data[0]->order_status; ?>
+      <?php if ($os != '4' && $os != 4 && $os != '5' && $os != 5): ?>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelOrder('<?= $order_data[0]->order_unique_id ?>', this)">
+          <i class="fa fa-times me-1"></i> Cancel Order
+        </button>
+      <?php endif; ?>
     </div>
     <div class="d-flex gap-2">
-      <?php $os = $order_data[0]->order_status; ?>
       <?php if ($os == '2' || $os == 2): ?>
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveBackToPending('<?= $order_data[0]->order_unique_id ?>', this)">
           <i class="fa fa-arrow-left me-1"></i> Move Back to New Order
@@ -1497,6 +1502,7 @@ if($order_data[0]->payment_method == 'cod'){
             '6' => 'Ready for Shipment',
             '3' => 'Out for Delivery',
             '4' => 'Delivered',
+            '5' => 'Cancelled',
             '7' => 'Return'
           );
           
@@ -1602,6 +1608,9 @@ if($order_data[0]->payment_method == 'cod'){
                     break;
                   case '4':
                     $status_label = 'Delivered';
+                    break;
+                  case '5':
+                    $status_label = 'Cancelled';
                     break;
                   case 'label_generated':
                     $status_label = 'Shipping Label Generated';
@@ -2268,6 +2277,41 @@ if($order_data[0]->payment_method == 'cod'){
       });
     });
   }
+  function cancelOrder(orderUniqueId, btnElement) {
+    Swal.fire({
+      title: 'Cancel Order?',
+      text: 'Are you sure you want to cancel this order? This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, Cancel Order'
+    }).then(function(result) {
+      if (!result.isConfirmed) return;
+      var $btn = $(btnElement);
+      var originalText = $btn.html();
+      $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Cancelling...');
+      $.ajax({
+        url: '<?php echo base_url("orders/cancel_order_single"); ?>',
+        type: 'POST',
+        data: { order_unique_id: orderUniqueId },
+        dataType: 'json',
+        success: function(response) {
+          if (response.status == '200') {
+            Swal.fire({ title: 'Cancelled!', text: response.message || 'Order has been cancelled successfully.', icon: 'success' }).then(function() { location.reload(); });
+          } else {
+            Swal.fire({ title: 'Error', text: response.message || 'Error cancelling order.', icon: 'error' });
+            $btn.prop('disabled', false).html(originalText);
+          }
+        },
+        error: function() {
+          Swal.fire({ title: 'Error', text: 'Error cancelling order. Please try again.', icon: 'error' });
+          $btn.prop('disabled', false).html(originalText);
+        }
+      });
+    });
+  }
+  
 </script>
 
 <script>

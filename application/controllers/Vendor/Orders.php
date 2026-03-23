@@ -51,6 +51,9 @@ class Orders extends Vendor_base
 		$config['query_string_segment'] = 'page';
 		$config['use_page_numbers'] = TRUE;
 		$config['reuse_query_string'] = TRUE;
+
+		// Show ~10 pages at a time (5 on each side of current page)
+		$config['num_links'] = 5;
 		
 		$config['full_tag_open'] = '<ul class="pagination justify-content-center">';
 		$config['full_tag_close'] = '</ul>';
@@ -58,10 +61,10 @@ class Orders extends Vendor_base
 		$config['last_link'] = '<span aria-hidden="true">&raquo;&raquo;</span>';
 		$config['first_tag_open'] = '<li class="page-item">';
 		$config['first_tag_close'] = '</li>';
-		$config['prev_link'] = '<span aria-hidden="true">&laquo;</span>';
+		$config['prev_link'] = '<span aria-hidden="true">&laquo;</span> Prev';
 		$config['prev_tag_open'] = '<li class="page-item">';
 		$config['prev_tag_close'] = '</li>';
-		$config['next_link'] = '<span aria-hidden="true">&raquo;</span>';
+		$config['next_link'] = 'Next <span aria-hidden="true">&raquo;</span>';
 		$config['next_tag_open'] = '<li class="page-item">';
 		$config['next_tag_close'] = '</li>';
 		$config['last_tag_open'] = '<li class="page-item">';
@@ -1190,6 +1193,8 @@ class Orders extends Vendor_base
 			'2' => 'Processing',
 			'3' => 'Out for Delivery',
 			'4' => 'Delivered',
+			'5' => 'Cancelled',
+			'6' => 'Ready for Shipment',
 			'7' => 'Return'
 		);
 		
@@ -1255,6 +1260,8 @@ class Orders extends Vendor_base
 						case '2': $status_label = 'Processing'; break;
 						case '3': $status_label = 'Out for Delivery'; break;
 						case '4': $status_label = 'Delivered'; break;
+						case '5': $status_label = 'Cancelled'; break;
+						case '6': $status_label = 'Ready for Shipment'; break;
 						case 'label_generated': $status_label = 'Shipping Label Generated'; break;
 						case 'shipper_selected': $status_label = 'Shipper Selected'; break;
 						case '7': $status_label = 'Return'; break;
@@ -3133,6 +3140,67 @@ class Orders extends Vendor_base
 			echo json_encode(['status' => '400', 'message' => 'Failed to update order status.']);
 		}
 	}
+/**
+	 * Cancel a single order
+	 *
+	 * @return	void
+	 */
+	public function cancel_order_single()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+
+		if (empty($order_unique_id)) {
+			echo json_encode(['status' => '400', 'message' => 'Order ID is required.']);
+			return;
+		}
+
+		$order = $this->Order_model->get_order($order_unique_id);
+		if (empty($order)) {
+			echo json_encode(['status' => '400', 'message' => 'Order not found.']);
+			return;
+		}
+
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+
+		// Don't allow cancellation if already delivered (status 4) or already cancelled (status 5)
+		if ($order_data->order_status == '4' || $order_data->order_status == 4) {
+			echo json_encode(['status' => '400', 'message' => 'Cannot cancel an order that has already been delivered.']);
+			return;
+		}
+		if ($order_data->order_status == '5' || $order_data->order_status == 5) {
+			echo json_encode(['status' => '400', 'message' => 'Order is already cancelled.']);
+			return;
+		}
+
+		$cancel_data = array(
+			'order_status' => '5',
+			'cancelled_date' => date("Y-m-d H:i:s")
+		);
+
+		$this->db->where('id', $order_id);
+		$this->db->update('tbl_order_details', $cancel_data);
+
+		if ($this->db->affected_rows() > 0) {
+			// Update order items status to cancelled
+			$this->db->where('order_id', $order_id);
+			$this->db->update('tbl_order_items', array('pro_order_status' => '5'));
+
+			// Add status history entry for cancellation
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => '5',
+				'status_desc' => 'Order has been cancelled',
+				'created_at' => date("Y-m-d H:i:s")
+			));
+
+			echo json_encode(['status' => '200', 'message' => 'Order has been cancelled successfully.']);
+		} else {
+			echo json_encode(['status' => '400', 'message' => 'Failed to cancel order.']);
+		}
+	}
 
 	/**
 	 * Move single order back from Processing to New Order (Pending)
@@ -3263,7 +3331,7 @@ class Orders extends Vendor_base
 		// Setup pagination
 		$this->load->library('pagination');
 		$pagination_config = $this->get_pagination_config(
-			base_url($this->current_vendor['domain'] . '/orders/pending'),
+			base_url('orders/pending'),
 			$total_count,
 			$per_page
 		);
@@ -3301,15 +3369,15 @@ class Orders extends Vendor_base
 	 */
 	public function cancelled_orders()
 	{
-		// Get filter parameters
+		// Get filter parameters - same as pending_orders
 		$filter_data['date_range'] = $this->input->get('date_range');
 		$filter_data['machine']   = $this->input->get('machine');
 		$filter_data['keywords']  = $this->input->get('keywords');
 		$filter_data['pincode']   = $this->input->get('pincode');
 		$filter_data['school']    = $this->input->get('school');
 		$filter_data['grade']     = $this->input->get('grade');
-		$filter_data['is_refund'] = $this->input->get('is_refund') ? $this->input->get('is_refund') : '0';
-		$filter_data['order_status'] = $this->input->get('order_status') ? $this->input->get('order_status') : '6';
+		// For cancelled orders, we filter by order_status = '5'
+		$filter_data['order_status'] = '5';
 
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_cancelled_order_count($filter_data);
@@ -3329,10 +3397,10 @@ class Orders extends Vendor_base
 		// Get orders
 		$page_data['order_list'] = $this->Order_model->get_paginated_cancelled_order($filter_data, $per_page, $offset);
 
-		// Setup pagination
+		// Setup pagination - fix URL to match the route
 		$this->load->library('pagination');
 		$pagination_config = $this->get_pagination_config(
-			base_url($this->current_vendor['domain'] . '/orders/rejected-orders'),
+			base_url('orders/cancelled-orders'),
 			$total_count,
 			$per_page
 		);
@@ -3392,7 +3460,7 @@ class Orders extends Vendor_base
 		// Setup pagination
 		$this->load->library('pagination');
 		$pagination_config = $this->get_pagination_config(
-			base_url($this->current_vendor['domain'] . '/orders/offers'),
+			base_url('orders/offers'),
 			$total_count,
 			$per_page
 		);
@@ -6836,4 +6904,7 @@ class Orders extends Vendor_base
 	}
 
 }
+
+
+
 

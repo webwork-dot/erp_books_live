@@ -659,6 +659,10 @@
                         $pagination_base = isset($pagination_base) ? $pagination_base : 'orders';
                         $pg_filters = isset($filter_data) ? array_filter((array)$filter_data) : array();
                         unset($pg_filters['order_status']); // Remove order_status since it's already in the URL path
+                        // Prepare link filters (ensure page is not present so merging works correctly)
+                        $pg_link_filters = $pg_filters;
+                        unset($pg_link_filters['page']);
+                        unset($pg_filters['page']); // Remove page so it doesn't override our pagination links
                         $per_page_val = isset($filter_data['per_page']) ? (int)$filter_data['per_page'] : 10;
                         $allowed_per_page = array(10, 25, 50, 100);
                         ?>
@@ -676,38 +680,80 @@
                            </select>
                            <span class="text-muted small">per page</span>
                         </div>
-                        <?php if (!empty($order_list) && $total_pages > 1): ?>
+                        <?php if (!empty($order_list) && $total_pages > 1): 
+                           // Calculate sliding window for pagination (show ~10 pages at a time)
+                           $window_size = 10;
+                           $half_window = 4; // 4 on each side + current = 9, plus first/last = ~10 visible
+                           
+                           // Calculate start and end of the window
+                           if ($current_page <= $half_window) {
+                              $window_start = 1;
+                              $window_end = min($window_size, $total_pages);
+                           } elseif ($current_page > $total_pages - $half_window) {
+                              $window_start = max(1, $total_pages - $window_size + 1);
+                              $window_end = $total_pages;
+                           } else {
+                              $window_start = max(1, $current_page - $half_window);
+                              $window_end = min($total_pages, $current_page + $half_window);
+                           }
+                           
+                           // Ensure we don't go beyond total pages
+                           $window_start = max(1, $window_start);
+                           $window_end = min($total_pages, $window_end);
+                        ?>
                            <nav aria-label="Page navigation" class="d-flex justify-content-center flex-grow-1">
                               <ul class="pagination pagination-sm mb-0 justify-content-center">
                                  <?php if ($current_page > 1): ?>
                                     <li class="page-item">
-                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_filters, array('page' => $current_page - 1)))); ?>">Previous</a>
+                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_link_filters, array('page' => $current_page - 1)))); ?>">&laquo; Prev</a>
                                     </li>
                                  <?php else: ?>
                                     <li class="page-item disabled">
-                                       <span class="page-link">Previous</span>
+                                       <span class="page-link">&laquo; Prev</span>
                                     </li>
                                  <?php endif; ?>
 
-                                 <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                                 <?php if ($window_start > 1): ?>
+                                    <li class="page-item">
+                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_link_filters, array('page' => 1)))); ?>">1</a>
+                                    </li>
+                                    <?php if ($window_start > 2): ?>
+                                       <li class="page-item disabled">
+                                          <span class="page-link">...</span>
+                                       </li>
+                                    <?php endif; ?>
+                                 <?php endif; ?>
+
+                                 <?php for ($i = $window_start; $i <= $window_end; $i++): ?>
                                     <?php if ($i == $current_page): ?>
                                        <li class="page-item active">
                                           <span class="page-link"><?php echo $i; ?></span>
                                        </li>
                                     <?php else: ?>
                                        <li class="page-item">
-                                          <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
+                                          <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_link_filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
                                        </li>
                                     <?php endif; ?>
                                  <?php endfor; ?>
 
+                                 <?php if ($window_end < $total_pages): ?>
+                                    <?php if ($window_end < $total_pages - 1): ?>
+                                       <li class="page-item disabled">
+                                          <span class="page-link">...</span>
+                                       </li>
+                                    <?php endif; ?>
+                                    <li class="page-item">
+                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_link_filters, array('page' => $total_pages)))); ?>"><?php echo $total_pages; ?></a>
+                                    </li>
+                                 <?php endif; ?>
+
                                  <?php if ($current_page < $total_pages): ?>
                                     <li class="page-item">
-                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_filters, array('page' => $current_page + 1)))); ?>">Next</a>
+                                       <a class="page-link" href="<?php echo base_url($pagination_base . '?' . http_build_query(array_merge($pg_link_filters, array('page' => $current_page + 1)))); ?>">Next &raquo;</a>
                                     </li>
                                  <?php else: ?>
                                     <li class="page-item disabled">
-                                       <span class="page-link">Next</span>
+                                       <span class="page-link">Next &raquo;</span>
                                     </li>
                                  <?php endif; ?>
                               </ul>

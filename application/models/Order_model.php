@@ -1428,22 +1428,22 @@ class Order_model extends CI_Model
 		$pincode_filter = "";
 		$school_filter = "";
 		$grade_filter = "";
-		$is_refund = isset($filter_data['is_refund']) ? $filter_data['is_refund'] : '0';
-		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
+		// Use order_status = '5' for cancelled orders
+		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '5';
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
-					$keyword = trim($filter_data['keywords']);
-					$kw = $this->db->escape_like_str($keyword);
+			$keyword = trim($filter_data['keywords']);
+			$kw = $this->db->escape_like_str($keyword);
 
-					$keyword_filter = " AND (
-							d.order_type LIKE '%{$kw}%'
-							OR d.order_unique_id LIKE '%{$kw}%'
-							OR d.user_name LIKE '%{$kw}%'
-							OR d.user_phone LIKE '%{$kw}%'
-					)";
-			}
+			$keyword_filter = " AND (
+					d.order_type LIKE '%{$kw}%'
+					OR d.order_unique_id LIKE '%{$kw}%'
+					OR d.user_name LIKE '%{$kw}%'
+					OR d.user_phone LIKE '%{$kw}%'
+			)";
+		}
 
-			if (isset($filter_data['school_user_id']) && $filter_data['school_user_id'] != "") :
+		if (isset($filter_data['school_user_id']) && $filter_data['school_user_id'] != "") :
 			$keyword_filter .= " AND (
 						oi.school_id = '" . (int)$filter_data['school_user_id'] . "' AND oi.order_type = 'bookset'
 				)";
@@ -1466,37 +1466,37 @@ class Order_model extends CI_Model
 		if (isset($filter_data['grade']) && $filter_data['grade'] != "") {
 			$grade_id = (int)$filter_data['grade'];
 			$grade_filter = " AND EXISTS (
-				SELECT 1 FROM tbl_order_items oi3 
-				LEFT JOIN erp_booksets bs ON bs.id = oi3.bookset_id 
-				LEFT JOIN erp_bookset_packages bp ON bp.id = oi3.package_id 
-				WHERE oi3.order_id = d.id 
+				SELECT 1 FROM tbl_order_items oi3
+				LEFT JOIN erp_booksets bs ON bs.id = oi3.bookset_id
+				LEFT JOIN erp_bookset_packages bp ON bp.id = oi3.package_id
+				WHERE oi3.order_id = d.id
 				AND (bs.grade_id = '{$grade_id}' OR bp.grade_id = '{$grade_id}')
 			)";
 		}
 
-			if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
-					$order_date = explode(' - ', $filter_data['date_range']);
-					$from = date('Y-m-d', strtotime($order_date[0]));
-					$to   = date('Y-m-d', strtotime($order_date[1]));
+		if (isset($filter_data['date_range']) && $filter_data['date_range'] != "") {
+			$order_date = explode(' - ', $filter_data['date_range']);
+			$from = date('Y-m-d', strtotime($order_date[0]));
+			$to   = date('Y-m-d', strtotime($order_date[1]));
 
-					$order_date_filter = " AND (DATE(d.order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
-			}
+			$order_date_filter = " AND (DATE(d.order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
+		}
 
-			$query = $this->db->query("
-					SELECT COUNT(DISTINCT d.id) AS total
-					FROM tbl_order_details d
-					INNER JOIN tbl_order_items oi ON oi.order_id = d.id
-					WHERE d.is_refund = '" . $this->db->escape_str($is_refund) . "'
-						AND (d.payment_status = 'success' OR d.payment_status = 'payment_at_school' OR d.payment_method = 'payment_at_school')
-						AND d.order_status = '" . $this->db->escape_str($order_status) . "'
-						$keyword_filter
-						$machine_filter
-						$order_date_filter
-						$pincode_filter
-						$school_filter
-						$grade_filter
-			");
-			return (int) $query->row()->total;
+		// Query for cancelled orders - order_status = '5'
+		$query = $this->db->query("
+				SELECT COUNT(DISTINCT d.id) AS total
+				FROM tbl_order_details d
+				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+				WHERE d.order_status = '" . $this->db->escape_str($order_status) . "'
+					AND (d.payment_status = 'success' OR d.payment_status = 'payment_at_school' OR d.payment_method = 'payment_at_school' OR d.payment_status = 'cod' OR d.payment_method = 'cod')
+					$keyword_filter
+					$machine_filter
+					$order_date_filter
+					$pincode_filter
+					$school_filter
+					$grade_filter
+		");
+		return (int) $query->row()->total;
 	}
 
 	/**
@@ -1516,8 +1516,8 @@ class Order_model extends CI_Model
 		$pincode_filter = "";
 		$school_filter = "";
 		$grade_filter = "";
-		$is_refund = isset($filter_data['is_refund']) ? $filter_data['is_refund'] : '0';
-		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '6';
+		// Use order_status = '5' for cancelled orders
+		$order_status = isset($filter_data['order_status']) ? $filter_data['order_status'] : '5';
 
 		if (isset($filter_data['keywords']) && $filter_data['keywords'] != "") {
 				$keyword = trim($filter_data['keywords']);
@@ -1589,9 +1589,8 @@ class Order_model extends CI_Model
 						d.cancel_invoice_url
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
-				WHERE d.is_refund = '" . $this->db->escape_str($is_refund) . "'
+				WHERE d.order_status = '" . $this->db->escape_str($order_status) . "'
 					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
-					AND d.order_status = '" . $this->db->escape_str($order_status) . "'
 					$keyword_filter
 					$machine_filter
 					$order_date_filter
