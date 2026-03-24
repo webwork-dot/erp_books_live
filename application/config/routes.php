@@ -57,6 +57,18 @@ $route['school-admin/orders/cancelled-orders'] = 'School_admin/orders/cancelled_
 $route['api'] = 'api';
 $route['api/auth'] = 'api/auth';
 
+// Mobile App API Routes
+$route['app/test'] = 'App_api/test_api';
+$route['app/auth/login'] = 'App_api/login';
+$route['app/auth/verify'] = 'App_api/verify';
+$route['app/auth/logout'] = 'App_api/logout';
+$route['app/agent/profile'] = 'App_api/agent_profile';
+$route['app/agent/schools'] = 'App_api/agent_schools';
+$route['app/agent/uniforms'] = 'App_api/get_uniforms';
+$route['app/school/categories'] = 'App_api/agent_categories';
+$route['app/school/(:num)'] = 'App_api/school/$1';
+
+
 // Vendor Routes (Dynamic - must be before default)
 // These routes will catch Vendor domain URLs
 // Format: /Vendor-domain/controller/method
