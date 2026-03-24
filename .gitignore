@@ -1,2 +1,11 @@
 /application/cache
 /uploads
+application.kirtiBook/application/config/foreign_chars.php
+/application.kirtiBook
+*.png
+*.jpg
+/kirtibook_erp_frontend
+/shivam_book_frontend
+*.avif
+/application/logs
+*.zip
