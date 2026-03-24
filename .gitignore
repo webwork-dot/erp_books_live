@@ -9,3 +9,5 @@ application.kirtiBook/application/config/foreign_chars.php
 *.avif
 /application/logs
 *.zip
+/elevix-project
+/book_erp_frontend

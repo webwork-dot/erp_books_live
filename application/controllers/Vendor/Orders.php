@@ -218,9 +218,10 @@ class Orders extends Vendor_base
 
 		fputcsv($out, array('Orders Export - ' . ucfirst(str_replace('_', ' ', $status_slug))));
 		fputcsv($out, array('Export Date: ' . date('Y-m-d H:i:s')));
-		fputcsv($out, array('Total: ' . count($orders)));
+		fputcsv($out, array('Total Orders: ' . count($orders)));
 		fputcsv($out, array());
 
+		// Updated CSV header with student details columns
 		fputcsv($out, array(
 			'Order ID',
 			'Status',
@@ -235,7 +236,13 @@ class Orders extends Vendor_base
 			'Payment Method',
 			'Shipping Company',
 			'AWB Number',
-			'Invoice No'
+			'Invoice No',
+			'Student First Name',
+			'Student Middle Name',
+			'Student Last Name',
+			'Student Roll Number',
+			'Student Grade',
+			'Student Remarks'
 		));
 
 		foreach ($orders as $o) {
@@ -258,26 +265,132 @@ class Orders extends Vendor_base
 				$shipping = ucfirst(str_replace('_', ' ', $o['courier']));
 			}
 			$invoice_raw = strip_tags($o['invoice_no']);
-			fputcsv($out, array(
-				$o['order_unique_id'],
-				$status_text,
-				$o['user_name'],
-				$o['user_phone'],
-				isset($o['product_name']) ? $o['product_name'] : '-',
-				isset($o['address']) ? $o['address'] : '-',
-				isset($o['school_name']) ? $o['school_name'] : '-',
-				isset($o['grade_name']) ? $o['grade_name'] : '-',
-				$delivery,
-				$o['date'],
-				$payment,
-				$shipping,
-				isset($o['awb_no']) ? $o['awb_no'] : '',
-				$invoice_raw
-			));
+
+			// Fetch student details for this order from order items
+			$student_details = $this->_get_order_student_details($o['id']);
+
+			// If no student details found, export order with empty student fields
+			if (empty($student_details)) {
+				fputcsv($out, array(
+					$o['order_unique_id'],
+					$status_text,
+					$o['user_name'],
+					$o['user_phone'],
+					isset($o['product_name']) ? $o['product_name'] : '-',
+					isset($o['address']) ? $o['address'] : '-',
+					isset($o['school_name']) ? $o['school_name'] : '-',
+					isset($o['grade_name']) ? $o['grade_name'] : '-',
+					$delivery,
+					$o['date'],
+					$payment,
+					$shipping,
+					isset($o['awb_no']) ? $o['awb_no'] : '',
+					$invoice_raw,
+					'', // Student First Name
+					'', // Student Middle Name
+					'', // Student Last Name
+					'', // Student Roll Number
+					'', // Student Grade
+					''  // Student Remarks
+				));
+			} else {
+				// Export one row per student
+				foreach ($student_details as $student) {
+					fputcsv($out, array(
+						$o['order_unique_id'],
+						$status_text,
+						$o['user_name'],
+						$o['user_phone'],
+						isset($o['product_name']) ? $o['product_name'] : '-',
+						isset($o['address']) ? $o['address'] : '-',
+						isset($o['school_name']) ? $o['school_name'] : '-',
+						isset($o['grade_name']) ? $o['grade_name'] : '-',
+						$delivery,
+						$o['date'],
+						$payment,
+						$shipping,
+						isset($o['awb_no']) ? $o['awb_no'] : '',
+						$invoice_raw,
+						$student['f_name'],
+						$student['m_name'],
+						$student['l_name'],
+						$student['roll_number'],
+						$student['grade'],
+						$student['remarks']
+					));
+				}
+			}
 		}
 
 		fclose($out);
 		exit;
+	}
+
+	/**
+	 * Get student details for an order from order items
+	 *
+	 * @param int $order_id Order ID
+	 * @return array Array of student details
+	 */
+	private function _get_order_student_details($order_id)
+	{
+		$students = array();
+		$seen = array();
+
+		// Get student details from order items
+		// Note: s_name = surname/last name, roll_number is the direct column name
+		$items = $this->db->select('f_name, m_name, s_name, roll_number, grade, remarks, bookset_packages_json')
+			->where('order_id', $order_id)
+			->get('tbl_order_items')
+			->result();
+
+		foreach ($items as $item) {
+			// Extract student info
+			$f_name = isset($item->f_name) ? trim($item->f_name) : '';
+			$m_name = isset($item->m_name) ? trim($item->m_name) : '';
+			$s_name = isset($item->s_name) ? trim($item->s_name) : ''; // s_name = surname/last name
+			$grade = isset($item->grade) ? trim($item->grade) : '';
+			$remarks = isset($item->remarks) ? trim($item->remarks) : '';
+
+			// Get roll number - check direct field first, then JSON
+			$roll_number = '';
+			if (isset($item->roll_number) && !empty($item->roll_number)) {
+				$roll_number = trim($item->roll_number);
+			} elseif (isset($item->bookset_packages_json) && !empty($item->bookset_packages_json)) {
+				$json_data = json_decode($item->bookset_packages_json, true);
+				if (is_array($json_data)) {
+					if (isset($json_data['roll_number'])) {
+						$roll_number = $json_data['roll_number'];
+					} elseif (isset($json_data['roll_no'])) {
+						$roll_number = $json_data['roll_no'];
+					}
+				} elseif (is_object($json_data)) {
+					if (isset($json_data->roll_number)) {
+						$roll_number = $json_data->roll_number;
+					} elseif (isset($json_data->roll_no)) {
+						$roll_number = $json_data->roll_no;
+					}
+				}
+			}
+
+			// Create unique key to avoid duplicates (using s_name as last name)
+			$key = $f_name . '|' . $m_name . '|' . $s_name . '|' . $roll_number . '|' . $grade;
+
+			// Only add if has student info and not already seen
+			if (!isset($seen[$key]) && ($f_name || $m_name || $s_name || $roll_number || $grade || $remarks)) {
+				$seen[$key] = true;
+				$students[] = array(
+					'f_name' => $f_name,
+					'm_name' => $m_name,
+					'l_name' => $s_name, // s_name is the surname/last name
+					'roll_number' => $roll_number,
+					'grade' => $grade,
+					'remarks' => $remarks
+				);
+			}
+		}
+
+		return $students;
 	}
 	
 	/**
