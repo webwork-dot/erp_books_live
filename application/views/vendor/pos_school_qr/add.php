@@ -23,8 +23,9 @@
                     <input type="file" name="qr_image" class="form-control" accept=".png,.jpg,.jpeg,.webp" required>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">UPI ID (optional)</label>
-                    <input type="text" name="upi_id" class="form-control" value="<?php echo set_value('upi_id'); ?>" maxlength="120">
+                    <label class="form-label">UPI ID <span class="text-danger">*</span></label>
+                    <input type="text" name="upi_id" class="form-control" value="<?php echo set_value('upi_id'); ?>" maxlength="120" required>
+                    <?php echo form_error('upi_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Payment Note (optional)</label>

@@ -100,7 +100,7 @@
 </div>
 
 <script>
-(function() {
+$(function() {
     var schools = <?php echo json_encode($schools); ?>;
     var upiOptionsBySchool = <?php echo json_encode(isset($upi_options_by_school) ? $upi_options_by_school : array()); ?>;
     var initialCategoryMap = <?php echo json_encode($category_access); ?>;
@@ -179,5 +179,5 @@
 
     schoolSelect.on('change', renderSchoolConfigRows);
     renderSchoolConfigRows();
-})();
+});
 </script>

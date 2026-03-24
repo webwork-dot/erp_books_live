@@ -103,8 +103,10 @@ $route['pos-agents'] = 'Vendor/pos_agents/index';
 $route['pos-agents/add'] = 'Vendor/pos_agents/add';
 $route['pos-agents/edit/(:num)'] = 'Vendor/pos_agents/edit/$1';
 $route['pos-agents/delete/(:num)'] = 'Vendor/pos_agents/delete/$1';
+$route['pos-agents/delete-agent'] = 'Vendor/pos_agents/delete_agent';
 $route['pos-agents/reset-credentials/(:num)'] = 'Vendor/pos_agents/reset_credentials/$1';
 $route['pos-agents/get-vendor-schools'] = 'Vendor/pos_agents/get_vendor_schools';
+$route['pos-agents/toggle-status'] = 'Vendor/pos_agents/toggle_status';
 
 $route['pos-school-qr'] = 'Vendor/pos_school_qr/index';
 $route['pos-school-qr/add'] = 'Vendor/pos_school_qr/add';
@@ -112,6 +114,8 @@ $route['pos-school-qr/edit/(:num)'] = 'Vendor/pos_school_qr/edit/$1';
 $route['pos-school-qr/activate/(:num)'] = 'Vendor/pos_school_qr/activate/$1';
 $route['pos-school-qr/deactivate/(:num)'] = 'Vendor/pos_school_qr/deactivate/$1';
 $route['pos-school-qr/delete/(:num)'] = 'Vendor/pos_school_qr/delete/$1';
+$route['pos-school-qr/toggle-status'] = 'Vendor/pos_school_qr/toggle_status';
+$route['pos-school-qr/delete-qr'] = 'Vendor/pos_school_qr/delete_qr';
 
 // Orders routes
 $route['offers/add'] = 'Vendor/orders/add_offers';

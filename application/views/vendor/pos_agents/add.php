@@ -19,8 +19,9 @@
                     <?php echo form_error('email', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Password (Leave blank to auto-generate)</label>
-                    <input type="text" name="password" class="form-control" value="<?php echo set_value('password'); ?>">
+                    <label class="form-label">Password <span class="text-danger">*</span></label>
+                    <input type="text" name="password" class="form-control" value="<?php echo set_value('password'); ?>" required>
+                    <?php echo form_error('password', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
                 </div>
 
                 <div class="col-md-4 mb-3">
@@ -64,7 +65,7 @@
 </div>
 
 <script>
-(function() {
+$(function() {
     var schools = <?php echo json_encode($schools); ?>;
     var upiOptionsBySchool = <?php echo json_encode(isset($upi_options_by_school) ? $upi_options_by_school : array()); ?>;
     var initialCategoryMap = <?php echo json_encode($category_access); ?>;
@@ -137,11 +138,10 @@
     if (schoolSelect.length && typeof schoolSelect.select2 === 'function') {
         schoolSelect.select2({
             width: '100%',
-            placeholder: 'Select schools'
         });
     }
 
     schoolSelect.on('change', renderSchoolConfigRows);
     renderSchoolConfigRows();
-})();
+});
 </script>

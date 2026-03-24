@@ -60,7 +60,7 @@ class Pos_school_qr extends Vendor_base
     public function add()
     {
         $this->form_validation->set_rules('school_id', 'School', 'required|integer');
-        $this->form_validation->set_rules('upi_id', 'UPI ID', 'trim|max_length[120]');
+        $this->form_validation->set_rules('upi_id', 'UPI ID', 'required|trim|max_length[120]');
         $this->form_validation->set_rules('payment_note', 'Payment Note', 'trim|max_length[255]');
 
         if ($this->form_validation->run() == FALSE) {
@@ -126,7 +126,7 @@ class Pos_school_qr extends Vendor_base
         }
 
         $this->form_validation->set_rules('school_id', 'School', 'required|integer');
-        $this->form_validation->set_rules('upi_id', 'UPI ID', 'trim|max_length[120]');
+        $this->form_validation->set_rules('upi_id', 'UPI ID', 'required|trim|max_length[120]');
         $this->form_validation->set_rules('payment_note', 'Payment Note', 'trim|max_length[255]');
 
         if ($this->form_validation->run() == FALSE) {
@@ -247,6 +247,95 @@ class Pos_school_qr extends Vendor_base
         }
 
         redirect('pos-school-qr');
+    }
+
+    public function toggle_status()
+    {
+        if ($this->input->server('REQUEST_METHOD') !== 'POST') {
+            show_404();
+        }
+
+        $id = (int)$this->input->post('id');
+        $vendor_id = (int)$this->current_vendor['id'];
+        $is_active = (int)$this->input->post('is_active');
+
+        if ($id <= 0 || !in_array($is_active, array(0, 1), TRUE)) {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode(array(
+                    'status' => 'error',
+                    'message' => 'Invalid request data.'
+                )));
+        }
+
+        $row = $this->Pos_school_qr_model->getByIdForVendor($id, $vendor_id);
+        if (!$row) {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode(array(
+                    'status' => 'error',
+                    'message' => 'Record not found.'
+                )));
+        }
+
+        $actor_id = (int)$this->current_vendor['id'];
+        if ($is_active === 1) {
+            $updated = $this->Pos_school_qr_model->activateForSchool($id, $vendor_id, (int)$row['school_id'], $actor_id);
+        } else {
+            $updated = $this->Pos_school_qr_model->updateForVendor($id, $vendor_id, array(
+                'is_active' => 0,
+                'active_school_key' => NULL,
+                'updated_by' => $actor_id
+            ));
+        }
+
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode(array(
+                'status' => $updated ? 'success' : 'error',
+                'message' => $updated ? 'Status updated successfully.' : 'Failed to update status.'
+            )));
+    }
+
+    public function delete_qr()
+    {
+        if ($this->input->server('REQUEST_METHOD') !== 'POST') {
+            show_404();
+        }
+
+        $id = (int)$this->input->post('id');
+        $vendor_id = (int)$this->current_vendor['id'];
+
+        if ($id <= 0) {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode(array(
+                    'status' => 'error',
+                    'message' => 'Invalid record id.'
+                )));
+        }
+
+        $row = $this->Pos_school_qr_model->getByIdForVendor($id, $vendor_id);
+        if (!$row) {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode(array(
+                    'status' => 'error',
+                    'message' => 'Record not found.'
+                )));
+        }
+
+        $deleted = $this->Pos_school_qr_model->deleteForVendor($id, $vendor_id);
+        if ($deleted && !empty($row['qr_image_path'])) {
+            $this->deleteUploadedFile($this->buildAbsolutePath($row['qr_image_path']));
+        }
+
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode(array(
+                'status' => $deleted ? 'success' : 'error',
+                'message' => $deleted ? 'QR deleted successfully.' : 'Failed to delete QR.'
+            )));
     }
 
     private function handleQrUpload($field_name)

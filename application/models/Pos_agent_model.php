@@ -20,6 +20,7 @@ class Pos_agent_model extends CI_Model
     {
         $this->master_db->select('u.id, u.username, u.email, u.status, u.created_at');
         $this->master_db->from('erp_agent_users u');
+        $this->master_db->where('u.is_delete', 0);
 
         if (isset($filters['status']) && $filters['status'] !== '') {
             $this->master_db->where('u.status', (int)$filters['status']);
@@ -51,6 +52,7 @@ class Pos_agent_model extends CI_Model
     {
         $this->master_db->select('COUNT(DISTINCT u.id) AS total_rows', FALSE);
         $this->master_db->from('erp_agent_users u');
+        $this->master_db->where('u.is_delete', 0);
 
         if (isset($filters['status']) && $filters['status'] !== '') {
             $this->master_db->where('u.status', (int)$filters['status']);
@@ -78,6 +80,7 @@ class Pos_agent_model extends CI_Model
             ->select('u.*')
             ->from('erp_agent_users u')
             ->where('u.id', (int)$agent_user_id)
+            ->where('u.is_delete', 0)
             ->get()
             ->row_array();
     }
@@ -148,6 +151,22 @@ class Pos_agent_model extends CI_Model
             ->update('erp_agent_users', array('status' => (int)$status));
     }
 
+    public function softDeleteAgent($agent_user_id, $updated_by = 0)
+    {
+        $update_data = array(
+            'is_delete' => 1,
+            'status' => 0
+        );
+
+        if ((int)$updated_by > 0) {
+            $update_data['updated_by'] = (int)$updated_by;
+        }
+
+        return $this->master_db
+            ->where('id', (int)$agent_user_id)
+            ->update('erp_agent_users', $update_data);
+    }
+
     public function getAgentSchoolAccess($agent_user_id)
     {
         return $this->master_db
@@ -178,6 +197,146 @@ class Pos_agent_model extends CI_Model
             ->count_all_results();
 
         return (int)$count > 0;
+    }
+
+    public function getAssignedSchoolIdsByAgentIds($vendor_id, $agent_ids = array())
+    {
+        $vendor_id = (int)$vendor_id;
+        if ($vendor_id <= 0 || empty($agent_ids) || !is_array($agent_ids)) {
+            return array();
+        }
+
+        $agent_ids = array_values(array_filter(array_map('intval', $agent_ids)));
+        if (empty($agent_ids)) {
+            return array();
+        }
+
+        $rows = $this->master_db
+            ->select('agent_user_id, school_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('vendor_id', $vendor_id)
+            ->where_in('agent_user_id', $agent_ids)
+            ->order_by('agent_user_id', 'ASC')
+            ->order_by('id', 'ASC')
+            ->get()
+            ->result_array();
+
+        $mapped = array();
+        foreach ($rows as $row) {
+            $aid = (int)$row['agent_user_id'];
+            $sid = (int)$row['school_id'];
+
+            if ($aid <= 0 || $sid <= 0) {
+                continue;
+            }
+
+            if (!isset($mapped[$aid])) {
+                $mapped[$aid] = array();
+            }
+
+            if (!in_array($sid, $mapped[$aid], TRUE)) {
+                $mapped[$aid][] = $sid;
+            }
+        }
+
+        return $mapped;
+    }
+
+    public function getAssignedAccessByAgentIds($vendor_id, $agent_ids = array())
+    {
+        $vendor_id = (int)$vendor_id;
+        if ($vendor_id <= 0 || empty($agent_ids) || !is_array($agent_ids)) {
+            return array();
+        }
+
+        $agent_ids = array_values(array_filter(array_map('intval', $agent_ids)));
+        if (empty($agent_ids)) {
+            return array();
+        }
+
+        $rows = $this->master_db
+            ->select('agent_user_id, school_id, can_uniform, can_bookset, upi_qr_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('vendor_id', $vendor_id)
+            ->where_in('agent_user_id', $agent_ids)
+            ->order_by('agent_user_id', 'ASC')
+            ->order_by('id', 'ASC')
+            ->get()
+            ->result_array();
+
+        $mapped = array();
+        foreach ($rows as $row) {
+            $aid = (int)$row['agent_user_id'];
+            if ($aid <= 0) {
+                continue;
+            }
+
+            if (!isset($mapped[$aid])) {
+                $mapped[$aid] = array();
+            }
+
+            $mapped[$aid][] = array(
+                'school_id' => (int)$row['school_id'],
+                'can_uniform' => (int)$row['can_uniform'],
+                'can_bookset' => (int)$row['can_bookset'],
+                'upi_qr_id' => (int)$row['upi_qr_id']
+            );
+        }
+
+        return $mapped;
+    }
+
+    public function getUpiIdMapByQrIds($qr_ids = array())
+    {
+        if (empty($qr_ids) || !is_array($qr_ids)) {
+            return array();
+        }
+
+        $qr_ids = array_values(array_filter(array_map('intval', $qr_ids)));
+        if (empty($qr_ids)) {
+            return array();
+        }
+
+        $rows = $this->master_db
+            ->select('id, upi_id')
+            ->from('erp_school_upi_qr')
+            ->where_in('id', $qr_ids)
+            ->get()
+            ->result_array();
+
+        $upi_map = array();
+        foreach ($rows as $row) {
+            $upi_map[(int)$row['id']] = trim((string)$row['upi_id']);
+        }
+
+        return $upi_map;
+    }
+
+    public function getSchoolNameMapByIds($school_ids = array())
+    {
+        if (empty($school_ids) || !is_array($school_ids)) {
+            return array();
+        }
+
+        $school_ids = array_values(array_filter(array_map('intval', $school_ids)));
+        if (empty($school_ids)) {
+            return array();
+        }
+
+        $schools = $this->db
+            ->select('id, school_name')
+            ->from('erp_schools')
+            ->where_in('id', $school_ids)
+            ->get()
+            ->result_array();
+
+        $name_map = array();
+        foreach ($schools as $school) {
+            $sid = (int)$school['id'];
+            $name_map[$sid] = (string)$school['school_name'];
+        }
+
+        return $name_map;
     }
 
     public function getVendors()
@@ -216,6 +375,7 @@ class Pos_agent_model extends CI_Model
     {
         $this->master_db->from('erp_agent_users');
         $this->master_db->where('username', trim((string)$username));
+        $this->master_db->where('is_delete', 0);
 
         if ((int)$exclude_agent_id > 0) {
             $this->master_db->where('id !=', (int)$exclude_agent_id);
@@ -233,6 +393,7 @@ class Pos_agent_model extends CI_Model
 
         $this->master_db->from('erp_agent_users');
         $this->master_db->where('email', $email);
+        $this->master_db->where('is_delete', 0);
 
         if ((int)$exclude_agent_id > 0) {
             $this->master_db->where('id !=', (int)$exclude_agent_id);
