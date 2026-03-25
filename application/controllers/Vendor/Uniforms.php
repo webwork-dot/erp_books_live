@@ -195,6 +195,7 @@ class Uniforms extends Vendor_base
 			$data['schools'] = $this->School_model->getSchoolsByVendor($this->current_vendor['id']);
 			$data['boards'] = $this->School_board_model->getBoardsByVendor($this->current_vendor['id']);
 			$data['size_charts'] = $this->Uniform_model->getSizeChartsByVendor($this->current_vendor['id']);
+			$data['classes'] = $this->Uniform_model->getAllClasses();
 			
 			$data['title'] = 'Add New Uniform';
 			$data['current_vendor'] = $this->current_vendor;
@@ -254,6 +255,7 @@ class Uniforms extends Vendor_base
 				'meta_description' => $this->input->post('meta_description'),
 				'school_commission_type' => $commission_type,
 				'school_commission_value' => $commission_value,
+				'class_id' => $this->input->post('class_ids') ? implode(',', $this->input->post('class_ids')) : NULL,
 				'status' => $this->input->post('status') ? $this->input->post('status') : 'active',
 				'is_individual' => $this->input->post('is_individual') ? 1 : 0,
 				'is_set' => $this->input->post('is_set') ? 1 : 0
@@ -325,6 +327,8 @@ class Uniforms extends Vendor_base
 			$data['schools'] = $this->School_model->getSchoolsByVendor($this->current_vendor['id']);
 			$data['boards'] = $this->School_board_model->getBoardsByVendor($this->current_vendor['id']);
 			$data['size_charts'] = $this->Uniform_model->getSizeChartsByVendor($this->current_vendor['id']);
+			$data['classes'] = $this->Uniform_model->getAllClasses();
+			$data['selected_classes'] = !empty($uniform['class_id']) ? explode(',', $uniform['class_id']) : array();
 			
 			// Get branches for selected school
 			if ($uniform['school_id'])
@@ -430,6 +434,7 @@ class Uniforms extends Vendor_base
 				'meta_description' => $this->input->post('meta_description'),
 				'school_commission_type' => $commission_type,
 				'school_commission_value' => $commission_value,
+				'class_id' => $this->input->post('class_ids') ? implode(',', $this->input->post('class_ids')) : NULL,
 				'status' => $this->input->post('status') ? $this->input->post('status') : 'active',
 				'is_individual' => $this->input->post('is_individual') ? 1 : 0,
 				'is_set' => $this->input->post('is_set') ? 1 : 0

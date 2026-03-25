@@ -550,5 +550,18 @@ class Uniform_model extends CI_Model
 		// Stock column doesn't exist in the database
 		return 0;
 	}
+
+	/**
+	 * Get all classes
+	 *
+	 * @return	array	Array of classes
+	 */
+	public function getAllClasses()
+	{
+		$this->db->order_by('id', 'ASC');
+		$query = $this->db->get('classes');
+		
+		return $query->result_array();
+	}
 }
 

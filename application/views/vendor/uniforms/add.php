@@ -104,6 +104,19 @@
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<div class="mb-2">
+								<label class="form-label fs-13 mb-1">Classes <span class="text-danger">*</span></label>
+								<select name="class_ids[]" id="class_ids" class="form-select form-select-sm select2" multiple required data-placeholder="Select Classes">
+									<?php if (!empty($classes)): ?>
+										<?php foreach ($classes as $class): ?>
+											<option value="<?php echo $class['id']; ?>" <?php echo set_select('class_ids[]', $class['id']); ?>><?php echo htmlspecialchars($class['class_name']); ?></option>
+										<?php endforeach; ?>
+									<?php endif; ?>
+								</select>
+								<?php echo form_error('class_ids[]', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
+							</div>
+						</div>
+						<div class="col-xl-3 col-lg-4 col-md-6">
+							<div class="mb-2">
 								<label class="form-label fs-13 mb-1">Gender <span class="text-danger">*</span></label>
 								<select name="gender" id="gender" class="form-select form-select-sm" required>
 									<option value="">Select Gender</option>
