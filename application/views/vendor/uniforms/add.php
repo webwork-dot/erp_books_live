@@ -837,13 +837,34 @@ document.addEventListener('DOMContentLoaded', function() {
 	$(document).ready(function() {
 		// Wait for Select2 to initialize
 		setTimeout(function() {
+			// Use select2:select for more reliable handling with Select2
+			$('#size_id').on('select2:select', function(e) {
+				var data = e.params.data;
+				var sizeId = data.id;
+				var sizeName = data.text;
+				
+				console.log('Size select2:select event:', sizeId, sizeName);
+				
+				if (sizeId && sizeName !== 'Select Size') {
+					// Disable the selected option
+					var $option = $(this).find('option[value="' + sizeId + '"]');
+					$option.prop('disabled', true);
+					
+					addSizePriceRow(sizeId, sizeName);
+					
+					// Reset the select value
+					$(this).val('').trigger('change');
+					
+					// Force Select2 results to re-render while open
+					$(this).select2('close').select2('open');
+				}
+			});
+			
+			// Regular change handler as fallback or for other cases
 			$('#size_id').on('change', function() {
 				var sizeId = $(this).val();
-				var sizeName = $(this).find('option:selected').text();
-				if (sizeId && sizeName !== 'Select Size') {
-					addSizePriceRow(sizeId, sizeName);
-					// Reset the select to allow selecting another size
-					$(this).val('').trigger('change');
+				if (sizeId && sizeId !== '') {
+					// This handles non-select2 or manual changes if needed
 				}
 			});
 		}, 500);
@@ -1202,7 +1223,12 @@ function loadSizes(sizeChartId) {
 		
 		if (data.status === 'success' && data.sizes && data.sizes.length > 0) {
 			data.sizes.forEach(function(size) {
-				$sizeSelect.append($('<option></option>').attr('value', size.id).text(size.name));
+				var $option = $('<option></option>').attr('value', size.id).text(size.name);
+				// Check if this size is already in the pricing list
+				if (document.querySelector('[data-size-id="' + size.id + '"]')) {
+					$option.prop('disabled', true);
+				}
+				$sizeSelect.append($option);
 			});
 		} else {
 			console.warn('No sizes found for size chart:', sizeChartId);
@@ -1210,6 +1236,24 @@ function loadSizes(sizeChartId) {
 		
 		// Trigger Select2 update
 		$sizeSelect.trigger('change');
+		
+		// Initialize Select2 with closeOnSelect: false for size dropdown
+		$sizeSelect.select2({
+			theme: 'bootstrap-5',
+			placeholder: 'Select Size',
+			allowClear: true,
+			width: '100%',
+			closeOnSelect: false,
+			templateResult: function(data) {
+				if (!data.id) { return data.text; }
+				var $result = $('<span>' + data.text + '</span>');
+				// Check if this size is already in the pricing list
+				if (document.querySelector('[data-size-id="' + data.id + '"]')) {
+					$result.css('color', '#adb5bd').css('font-style', 'italic');
+				}
+				return $result;
+			}
+		});
 	})
 	.catch(error => {
 		console.error('Error loading sizes:', error);
@@ -1252,6 +1296,10 @@ function addSizePriceRow(sizeId, sizeName) {
 		</div>
 	`;
 	container.appendChild(row);
+	
+	// Disable the selected size in the dropdown
+	$('#size_id option[value="' + sizeId + '"]').prop('disabled', true);
+	$('#size_id').trigger('change');
 	
 	// Add validation event listeners
 	var mrpInput = document.getElementById('mrp_' + sizeId);
@@ -1319,6 +1367,10 @@ function validateAllPrices() {
 function removeSizePriceRow(button) {
 	var row = button.closest('.row');
 	if (row) {
+		var sizeId = row.getAttribute('data-size-id');
+		// Re-enable the size in the dropdown
+		$('#size_id option[value="' + sizeId + '"]').prop('disabled', false);
+		$('#size_id').trigger('change');
 		row.remove();
 	}
 }
@@ -1386,4 +1438,15 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 });
 </script>
+
+<style>
+/* Ensure disabled options in Select2 are visually distinct and stay visible */
+.select2-results__option[aria-disabled=true] {
+    display: block !important;
+    color: #adb5bd !important;
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+</style>
 

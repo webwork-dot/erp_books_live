@@ -24590,10 +24590,15 @@ span.flatpickr-weekday,
 }
 
 .select2-container .select2-selection--single .select2-selection__rendered {
-  line-height: 36px;
+  line-height: 30px;
   padding-left: 12px;
   padding-right: 28px;
   color: var(--gray-900);
+}
+
+.select2-container--bootstrap-5 .select2-selection {
+  font-size: 14px;
+
 }
 
 .select2-container .select2-selection--single .select2-selection__arrow {
@@ -24713,7 +24718,7 @@ span.flatpickr-weekday,
 .select2-container .select2-search--inline .select2-search__field {
   /* margin-top: 7px; */
   font-family: "Instrument Sans", sans-serif;
-    position: absolute;
+  position: absolute;
 }
 
 .select2-container .select2-search textarea::placeholder {
