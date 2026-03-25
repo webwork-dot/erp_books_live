@@ -65,6 +65,7 @@ $route['app/auth/logout'] = 'App_api/logout';
 $route['app/agent/profile'] = 'App_api/agent_profile';
 $route['app/agent/schools'] = 'App_api/agent_schools';
 $route['app/agent/uniforms'] = 'App_api/get_uniforms';
+$route['app/agent/upiInfo'] = 'App_api/get_upi_info';
 $route['app/school/categories'] = 'App_api/agent_categories';
 $route['app/school/(:num)'] = 'App_api/school/$1';
 

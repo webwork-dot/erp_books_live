@@ -175,6 +175,24 @@ class App_api extends CI_Controller
         }
         $this->simple_json_output($response);
     }
+    public function get_upi_info()
+    {
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method != 'POST') {
+            $response = array('status' => 400, 'message' => 'Bad request.');
+        } else {
+            $params = json_decode(file_get_contents('php://input'), TRUE);
+            $schoolId = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+
+            if ($schoolId <= 0) {
+                $response = array('status' => 400, 'message' => 'Enter school id !');
+            } else {
+                $upiInfo = $this->App_model->getSchoolupiInfo($schoolId);
+                $response = array('status' => 200, 'message' => 'Success', 'upi_info' => $upiInfo );
+            }
+        }
+        $this->simple_json_output($response);
+    }
 
     public function school($school_id = 0)
     {

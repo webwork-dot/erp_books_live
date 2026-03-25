@@ -483,12 +483,9 @@ class App_model extends CI_Model
 
         // STEP 3: Fetch uniforms with image, size, and price
         $uniforms = $vendor_db
-            ->select('u.*, img.image_path, sz.size_name, sz.selling_price as price')
+            ->select('u.*, img.image_path')
             ->from('erp_uniforms u')
-            // Get first image for each uniform (if exists)
             ->join('(SELECT uniform_id, image_path FROM erp_uniform_images WHERE image_path IS NOT NULL AND image_path != "" GROUP BY uniform_id) img', 'img.uniform_id = u.id', 'left')
-            // Get first size/price for each uniform (if exists)
-            ->join('(SELECT usp.uniform_id, s.name as size_name, usp.selling_price FROM erp_uniform_size_prices usp LEFT JOIN erp_sizes s ON s.id = usp.size_id GROUP BY usp.uniform_id ORDER BY usp.selling_price ASC LIMIT 1) sz', 'sz.uniform_id = u.id', 'left')
             ->where('u.school_id', $school_id)
             ->where('u.status', 1)
             ->order_by('u.id', 'ASC')
@@ -498,6 +495,13 @@ class App_model extends CI_Model
         // Only return required fields for API, prefix image_path with domain
         $result = array();
         foreach ($uniforms as $row) {
+            $sizes = $vendor_db
+                ->select('s.id, s.name as size_name, usp.selling_price')
+                ->from('erp_sizes s')
+                ->join('erp_uniform_size_prices usp', 'usp.size_id = s.id AND usp.uniform_id = ' . $row['id'], 'left')
+                ->where('s.size_chart_id', $row['size_chart_id'])
+                ->get()
+                ->result_array();
             $img_url = '';
             if (!empty($row['image_path'])) {
                 $img_url = $base_url . ltrim($row['image_path'], '/');
@@ -506,10 +510,55 @@ class App_model extends CI_Model
                 'id' => $row['id'],
                 'product_name' => $row['product_name'],
                 'image_path' => $img_url,
-                'size' => $row['size_name'],
+                'size' => $sizes,
                 'price' => $row['price'],
             );
         }
+        return $result;
+    }
+    public function getSchoolupiInfo($school_id)
+    {
+        $school_id = (int) $school_id;
+
+        if ($school_id <= 0) {
+            return array();
+        }
+
+        // STEP 1: Get vendor_id
+        $row = $this->master_db
+            ->select('vendor_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('school_id', $school_id)
+            ->where('status', 1)
+            ->limit(1)
+            ->get()
+            ->row_array();
+
+        if (empty($row['vendor_id'])) {
+            return array();
+        }
+
+        $upiInfo = $this->master_db
+            ->select('qr_image_path, upi_id')
+            ->from('erp_school_upi_qr')
+            ->where('vendor_id', $row['vendor_id'])
+            ->where('school_id', $school_id)
+            ->get()
+            ->row_array();
+        $baseurl = $this->master_db
+            ->select('domain')
+            ->from('erp_clients')
+            ->where('id', $row['vendor_id'])
+            ->get()
+            ->row_array();
+        // $qr_image_url = 'https://' . $baseurl['domain'] . '/' . ltrim($upiInfo['qr_image_path'], '/');
+        $qr_image_url = 'http://' . '192.168.1.106/pos-module/erp_books_live' . '/' . ltrim($upiInfo['qr_image_path'], '/');
+
+
+        $result = array(
+            'upi_id' => isset($upiInfo['upi_id']) ? $upiInfo['upi_id'] : '',
+            'qr_image_url' => isset($qr_image_url) ? $qr_image_url : ''
+        );
         return $result;
     }
 
