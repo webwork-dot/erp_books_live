@@ -242,9 +242,9 @@
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<div class="mb-2">
-								<label class="form-label fs-13 mb-1">Material <span class="text-danger">*</span></label>
+								<label class="form-label fs-13 mb-1">Material</label>
 								<div class="input-group">
-									<select name="material_id" id="material_id" class="form-select form-select-sm" required>
+									<select name="material_id" id="material_id" class="form-select form-select-sm">
 										<option value="">Select Material</option>
 										<?php if (!empty($materials)): ?>
 											<?php foreach ($materials as $material): ?>
@@ -271,8 +271,8 @@
 					<div class="row gx-3">
 						<div class="col-12">
 							<div class="mb-3">
-								<label class="form-label">Product Description <span class="text-danger">*</span></label>
-								<textarea name="product_description" id="product_description" class="form-control ckeditor" rows="5" required><?php echo set_value('product_description', $uniform['product_description']); ?></textarea>
+								<label class="form-label">Product Description</label>
+								<textarea name="product_description" id="product_description" class="form-control ckeditor" rows="5"><?php echo set_value('product_description', $uniform['product_description']); ?></textarea>
 								<?php echo form_error('product_description', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 							</div>
 						</div>
