@@ -72,6 +72,7 @@
 							$schools_all_active = ($current_uri === 'schools' || $current_uri === 'schools/index') ? 'active' : '';
 							$schools_branches_active = strpos($current_uri, 'branches') !== false ? 'active' : '';
 							$schools_boards_active = strpos($current_uri, 'schools/boards') !== false ? 'active' : '';
+							$schools_classes_active = (strpos($current_uri, 'schools/classes') !== false || strpos($current_uri, 'classes') !== false) ? 'active' : '';
 							?>
 
 							<li class="menu-title"><span>Overview</span></li>
@@ -135,6 +136,7 @@
 											<li><a href="<?php echo base_url('schools'); ?>" class="<?php echo $schools_all_active; ?>">All Schools</a></li>
 											<li><a href="<?php echo base_url('branches'); ?>" class="<?php echo $schools_branches_active; ?>">Branches</a></li>
 											<li><a href="<?php echo base_url('schools/boards'); ?>" class="<?php echo $schools_boards_active; ?>">Boards</a></li>
+											<li><a href="<?php echo base_url('classes'); ?>" class="<?php echo $schools_classes_active; ?>">Classes</a></li>
 										</ul>
 									</li>
 									<li>

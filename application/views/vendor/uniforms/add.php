@@ -105,13 +105,18 @@
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<div class="mb-2">
 								<label class="form-label fs-13 mb-1">Classes</label>
-								<select name="class_ids[]" id="class_ids" class="form-select form-select-sm select2" multiple data-placeholder="Select Classes">
-									<?php if (!empty($classes)): ?>
-										<?php foreach ($classes as $class): ?>
-											<option value="<?php echo $class['id']; ?>" <?php echo set_select('class_ids[]', $class['id']); ?>><?php echo htmlspecialchars($class['class_name']); ?></option>
-										<?php endforeach; ?>
-									<?php endif; ?>
-								</select>
+								<div class="input-group">
+									<select name="class_ids[]" id="class_ids" class="form-select form-select-sm select2" multiple data-placeholder="Select Classes">
+										<?php if (!empty($classes)): ?>
+											<?php foreach ($classes as $class): ?>
+												<option value="<?php echo $class['id']; ?>" <?php echo set_select('class_ids[]', $class['id']); ?>><?php echo htmlspecialchars($class['class_name']); ?></option>
+											<?php endforeach; ?>
+										<?php endif; ?>
+									</select>
+									<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addClassModal" style="padding: 4px 8px;">
+										<i class="isax isax-add"></i>
+									</button>
+								</div>
 								<?php echo form_error('class_ids[]', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
@@ -543,6 +548,30 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 			<div class="modal-footer">
 				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
 				<button type="button" class="btn btn-primary" onclick="addUniformType()">Add Type</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Add Class Modal -->
+<div class="modal fade" id="addClassModal" tabindex="-1" aria-labelledby="addClassModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="addClassModalLabel">Add Class</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<form id="addClassForm">
+					<div class="mb-3">
+						<label class="form-label">Class Name <span class="text-danger">*</span></label>
+						<input type="text" name="name" id="new_class_name" class="form-control" placeholder="e.g. Class 1, 2nd Grade" required>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" onclick="addClass()">Add Class</button>
 			</div>
 		</div>
 	</div>
@@ -1437,6 +1466,36 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	}
 });
+function addClass() {
+	var name = $('#new_class_name').val();
+	
+	if (!name) {
+		alert('Please enter class name');
+		return;
+	}
+	
+	$.ajax({
+		url: '<?php echo base_url('products/uniforms/add_class'); ?>',
+		type: 'POST',
+		data: { name: name },
+		success: function(response) {
+			if (response.status === 'success') {
+				// Add to select2
+				var newOption = new Option(response.name, response.id, true, true);
+				$('#class_ids').append(newOption).trigger('change');
+				
+				// Reset and close modal
+				$('#new_class_name').val('');
+				$('#addClassModal').modal('hide');
+			} else {
+				alert(response.message);
+			}
+		},
+		error: function() {
+			alert('Failed to add class. Please try again.');
+		}
+	});
+}
 </script>
 
 <style>

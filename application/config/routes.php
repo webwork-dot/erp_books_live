@@ -113,6 +113,10 @@ $route['branches/delete/(:num)'] = 'Vendor/branches/delete/$1';
 $route['branches/toggle_payment_required'] = 'Vendor/branches/toggle_payment_required';
 $route['branches/toggle_deliver_at_school'] = 'Vendor/branches/toggle_deliver_at_school';
 $route['branches/get_cities'] = 'Vendor/branches/get_cities';
+$route['classes'] = 'Vendor/classes/index';
+$route['classes/add'] = 'Vendor/classes/add';
+$route['classes/edit/(:num)'] = 'Vendor/classes/edit/$1';
+$route['classes/delete/(:num)'] = 'Vendor/classes/delete/$1';
 
 // Vendor POS Routes
 $route['pos-agents'] = 'Vendor/pos_agents/index';
@@ -206,6 +210,7 @@ $route['products/uniforms/get_boards'] = 'Vendor/uniforms/get_boards';
 $route['products/uniforms/add_uniform_type'] = 'Vendor/uniforms/add_uniform_type';
 $route['products/uniforms/add_material'] = 'Vendor/uniforms/add_material';
 $route['products/uniforms/add_size_chart'] = 'Vendor/uniforms/add_size_chart';
+$route['products/uniforms/add_class'] = 'Vendor/uniforms/add_class';
 $route['products/uniforms/get_sizes'] = 'Vendor/uniforms/get_sizes';
 $route['products/uniforms/delete_image/(:num)'] = 'Vendor/uniforms/delete_image/$1';
 $route['products/uniforms/toggle_status/(:num)'] = 'Vendor/uniforms/toggle_status/$1';
