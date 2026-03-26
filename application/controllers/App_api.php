@@ -139,6 +139,44 @@ class App_api extends CI_Controller
         }
         $this->simple_json_output($response);
     }
+    public function school_branches()
+    {
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method != 'POST') {
+            $response = array('status' => 400, 'message' => 'Bad request.');
+        } else {
+            $params = json_decode(file_get_contents('php://input'), TRUE);
+            $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+            $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
+
+            if ($school_id <= 0) {
+                $response = array('status' => 400, 'message' => 'Enter school id !');
+            } else {
+                $schools = $this->App_model->get_school_branches($school_id, $agent_id);
+                $response = array('status' => 200, 'message' => 'Success', 'schools' => $schools);
+            }
+        }
+        $this->simple_json_output($response);
+    }
+    public function school_boards()
+    {
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method != 'POST') {
+            $response = array('status' => 400, 'message' => 'Bad request.');
+        } else {
+            $params = json_decode(file_get_contents('php://input'), TRUE);
+            $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+            $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
+
+            if ($school_id <= 0) {
+                $response = array('status' => 400, 'message' => 'Enter school id !');
+            } else {
+                $boards = $this->App_model->get_school_boards($school_id, $agent_id);
+                $response = array('status' => 200, 'message' => 'Success', 'boards' => $boards);
+            }
+        }
+        $this->simple_json_output($response);
+    }
     public function agent_categories()
     {
         $method = $_SERVER['REQUEST_METHOD'];
@@ -170,7 +208,7 @@ class App_api extends CI_Controller
                 $response = array('status' => 400, 'message' => 'Enter school id !');
             } else {
                 $uniforms = $this->App_model->getSchoolUniforms($schoolId);
-                $response = array('status' => 200, 'message' => 'Success', 'uniforms' => $uniforms );
+                $response = array('status' => 200, 'message' => 'Success', 'uniforms' => $uniforms);
             }
         }
         $this->simple_json_output($response);
@@ -188,7 +226,7 @@ class App_api extends CI_Controller
                 $response = array('status' => 400, 'message' => 'Enter school id !');
             } else {
                 $upiInfo = $this->App_model->getSchoolupiInfo($schoolId);
-                $response = array('status' => 200, 'message' => 'Success', 'upi_info' => $upiInfo );
+                $response = array('status' => 200, 'message' => 'Success', 'upi_info' => $upiInfo);
             }
         }
         $this->simple_json_output($response);

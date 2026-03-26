@@ -353,6 +353,125 @@ class App_model extends CI_Model
 
         return $formatted;
     }
+    public function get_school_branches($school_id, $agent_id)
+    {
+        $school_id = (int) $school_id;
+        $agent_id = (int) $agent_id;
+        if ($agent_id <= 0) {
+            return array();
+        }
+        $vendor_id = $this->master_db->select('vendor_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('agent_user_id', $agent_id)
+            ->where('school_id', $school_id)
+            ->get()
+            ->row()
+            ->vendor_id;
+        if ($vendor_id <= 0) {
+            return array();
+        }
+        $vendor_db = $this->getVendorDB($vendor_id);
+
+        $branches = $vendor_db->select('
+        b.id,
+        b.school_id,
+        b.vendor_id,
+        b.branch_name,
+        b.slug,
+        b.address,
+        b.pincode,
+        b.country_id,
+        b.state_id,
+        b.city_id,
+        b.status,
+        b.is_payment_required,
+        b.deliver_at_school,
+        b.created_at,
+        b.updated_at,
+        st.name AS state_name,
+        ct.name AS city_name,
+        co.name AS country_name
+    ')
+            ->from('erp_school_branches b')
+            ->join('states st', 'st.id = b.state_id', 'left')
+            ->join('cities ct', 'ct.id = b.city_id', 'left')
+            ->join('countries co', 'co.id = b.country_id', 'left')
+            ->where('b.school_id', $school_id)
+            ->where('b.vendor_id', $vendor_id)
+            ->get()
+            ->result_array();
+
+        $formatted = array();
+
+        foreach ($branches as $branch) {
+            $formatted[] = array(
+                'branch_id' => $branch['id'],
+                'school_id' => $branch['school_id'],
+                'vendor_id' => $branch['vendor_id'],
+
+                'branch_name' => $branch['branch_name'],
+                'branch_slug' => $branch['slug'],
+
+                'branch_address' => $branch['address'],
+                'branch_pincode' => $branch['pincode'],
+
+                'branch_city' => $branch['city_id'],
+                'branch_city_name' => $branch['city_name'],
+
+                'branch_state' => $branch['state_id'],
+                'branch_state_name' => $branch['state_name'],
+
+                'branch_country' => $branch['country_id'],
+                'branch_country_name' => $branch['country_name'],
+
+                'branch_status' => $branch['status'],
+
+                'is_payment_required' => $branch['is_payment_required'],
+                'deliver_at_school' => $branch['deliver_at_school'],
+
+                'branch_created_at' => $branch['created_at'],
+                'branch_updated_at' => $branch['updated_at'],
+            );
+        }
+        return $formatted;
+
+    }
+    public function get_school_boards($school_id, $agent_id)
+    {
+        $school_id = (int) $school_id;
+        $agent_id = (int) $agent_id;
+
+        if ($agent_id <= 0) {
+            return [];
+        }
+
+        // Get vendor_id
+        $vendor = $this->master_db->select('vendor_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('agent_user_id', $agent_id)
+            ->where('school_id', $school_id)
+            ->get()
+            ->row();
+
+        if (!$vendor || $vendor->vendor_id <= 0) {
+            return [];
+        }
+
+        $vendor_db = $this->getVendorDB($vendor->vendor_id);
+
+        // 🔥 Proper JOIN with mapping table
+        $boards = $vendor_db->select('b.id, b.board_name')
+            ->from('erp_school_boards_mapping m')
+            ->join('erp_school_boards b', 'b.id = m.board_id', 'left')
+            ->where('m.school_id', $school_id)
+            ->where('b.status', 1)
+            ->group_by('b.id') // avoid duplicates
+            ->order_by('b.board_name', 'ASC')
+            ->get()
+            ->result_array();
+
+        return $boards;
+    }
     public function getAgentCategories($agent_id)
     {
         $agent_id = (int) $agent_id;

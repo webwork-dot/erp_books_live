@@ -11,3 +11,4 @@ application.kirtiBook/application/config/foreign_chars.php
 *.zip
 /elevix-project
 /book_erp_frontend
+application/config/database.php
