@@ -150,8 +150,8 @@
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<div class="mb-2">
-								<label class="form-label fs-13 mb-1">Classes <span class="text-danger">*</span></label>
-								<select name="class_ids[]" id="class_ids" class="form-control form-control-sm select2" multiple required data-placeholder="Select Classes">
+								<label class="form-label fs-13 mb-1">Classes</label>
+								<select name="class_ids[]" id="class_ids" class="form-control form-control-sm select2" multiple data-placeholder="Select Classes">
 									<?php if (!empty($classes)): ?>
 										<?php foreach ($classes as $class): ?>
 											<option value="<?php echo $class['id']; ?>" <?php echo (in_array($class['id'], $selected_classes)) ? 'selected' : ''; ?>><?php echo htmlspecialchars($class['class_name']); ?></option>
@@ -163,8 +163,8 @@
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<div class="mb-2">
-								<label class="form-label fs-13 mb-1">Gender <span class="text-danger">*</span></label>
-								<select name="gender" id="gender" class="form-select form-select-sm" required>
+								<label class="form-label fs-13 mb-1">Gender</label>
+								<select name="gender" id="gender" class="form-select form-select-sm">
 									<option value="">Select Gender</option>
 									<option value="male" <?php echo ($uniform['gender'] == 'male') ? 'selected' : ''; ?>>Male</option>
 									<option value="female" <?php echo ($uniform['gender'] == 'female') ? 'selected' : ''; ?>>Female</option>

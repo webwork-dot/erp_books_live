@@ -66,6 +66,7 @@ $route['app/agent/profile'] = 'App_api/agent_profile';
 $route['app/agent/schools'] = 'App_api/agent_schools';
 $route['app/school/branches'] = 'App_api/school_branches';
 $route['app/school/boards'] = 'App_api/school_boards';
+$route['app/agent/get_classes'] = 'App_api/get_classes';
 $route['app/agent/uniforms'] = 'App_api/get_uniforms';
 $route['app/agent/upiInfo'] = 'App_api/get_upi_info';
 $route['app/school/categories'] = 'App_api/agent_categories';

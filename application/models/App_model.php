@@ -558,6 +558,45 @@ class App_model extends CI_Model
 
         return $vendor_db;
     }
+    public function getSchoolClasses($school_id)
+    {
+        $school_id = (int) $school_id;
+
+        if ($school_id <= 0) {
+            return array();
+        }
+
+        // STEP 1: Get vendor_id
+        $row = $this->master_db
+            ->select('vendor_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('school_id', $school_id)
+            ->where('status', 1)
+            ->limit(1)
+            ->get()
+            ->row_array();
+
+        if (empty($row['vendor_id'])) {
+            return array();
+        }
+
+        // STEP 2: Load vendor DB dynamically
+        $vendor_id = $row['vendor_id'];
+        $vendor_db = $this->getVendorDB($vendor_id);
+
+        if (!$vendor_db) {
+            return array();
+        }
+
+        // STEP 3: Fetch classes
+        $classes = $vendor_db
+            ->select('id, class_name')
+            ->from('classes')
+            ->get()
+            ->result_array();
+
+        return $classes;
+    }
     public function getSchoolUniforms($school_id)
     {
         $school_id = (int) $school_id;
@@ -631,6 +670,9 @@ class App_model extends CI_Model
                 'image_path' => $img_url,
                 'size' => $sizes,
                 'price' => $row['price'],
+                'class_id' => $row['class_id'],
+                'branch_id' => $row['branch_id'],
+                'board_id' => $row['board_id'],
             );
         }
         return $result;

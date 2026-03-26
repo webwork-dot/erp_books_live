@@ -177,6 +177,24 @@ class App_api extends CI_Controller
         }
         $this->simple_json_output($response);
     }
+    public function get_classes()
+    {
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method != 'POST') {
+            $response = array('status' => 400, 'message' => 'Bad request.');
+        } else {
+            $params = json_decode(file_get_contents('php://input'), TRUE);
+            $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+
+            if ($school_id <= 0) {
+                $response = array('status' => 400, 'message' => 'Enter school id !');
+            } else {
+                $classes = $this->App_model->getSchoolClasses($school_id);
+                $response = array('status' => 200, 'message' => 'Success', 'classes' => $classes);
+            }
+        }
+        $this->simple_json_output($response);
+    }
     public function agent_categories()
     {
         $method = $_SERVER['REQUEST_METHOD'];
