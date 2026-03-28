@@ -107,10 +107,10 @@
 }
 </style>
 
-<?php 
+<?php
 $currency = isset($order_data[0]->currency) ? $order_data[0]->currency : 'INR';
 $currency_code = $currency;
-$ci = &get_instance();
+$ci = & get_instance();
 
 // Calculate totals
 $_total_price = 0; // Subtotal (pre-tax)
@@ -143,7 +143,7 @@ if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_products))
     }
     $_total_qty += isset($bookset_product->quantity) ? (int)$bookset_product->quantity : 1;
   }
-  
+
   // If still 0, try to get from order items
   if ($_total_price == 0) {
     foreach ($items_arr as $val) {
@@ -160,15 +160,18 @@ if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_products))
             break;
           }
         }
-        
+
         // Fallback: use excl_price_total (pre-tax) if available, otherwise total_price
         if (isset($val->excl_price_total) && $val->excl_price_total > 0) {
           $_total_price += (float)$val->excl_price_total;
-        } elseif (isset($val->total_price) && $val->total_price > 0) {
+        }
+        elseif (isset($val->total_price) && $val->total_price > 0) {
           $_total_price += (float)$val->total_price;
-        } elseif (isset($val->product_price) && $val->product_price > 0) {
+        }
+        elseif (isset($val->product_price) && $val->product_price > 0) {
           $_total_price += (float)$val->product_price * (isset($val->product_qty) ? (int)$val->product_qty : 1);
-        } else {
+        }
+        else {
           // Last resort: try to calculate from packages
           if (!empty($val->package_id)) {
             $package_ids_array = explode(',', $val->package_id);
@@ -191,24 +194,25 @@ if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_products))
       }
     }
   }
-} else {
+}
+else {
   // Regular individual/uniform items
   foreach ($items_arr as $val) {
     // Calculate price (pre-tax)
-    $rowwise_total_price = isset($val->excl_price_total) && $val->excl_price_total > 0 
-      ? (float)$val->excl_price_total 
-      : (isset($val->total_price) && $val->total_price > 0 
-        ? (float)$val->total_price 
-        : (isset($val->product_price) && $val->product_price > 0 
-          ? (float)$val->product_price * (isset($val->product_qty) ? (int)$val->product_qty : 1) 
-          : 0));
+    $rowwise_total_price = isset($val->excl_price_total) && $val->excl_price_total > 0
+      ? (float)$val->excl_price_total
+      : (isset($val->total_price) && $val->total_price > 0
+      ? (float)$val->total_price
+      : (isset($val->product_price) && $val->product_price > 0
+      ? (float)$val->product_price * (isset($val->product_qty) ? (int)$val->product_qty : 1)
+      : 0));
     $_total_price += $rowwise_total_price;
-    
+
     // Add tax amount
     if (isset($val->total_gst_amt) && $val->total_gst_amt > 0) {
       $_total_tax += (float)$val->total_gst_amt;
     }
-    
+
     $_total_qty += isset($val->product_qty) ? (int)$val->product_qty : 1;
   }
 }
@@ -223,8 +227,9 @@ if (isset($order_type) && $order_type == 'bookset') {
       }
     }
   }
-  // Do NOT use items_arr total_gst_amt or order_data gst_total for bookset - they can be incorrect
-} else {
+// Do NOT use items_arr total_gst_amt or order_data gst_total for bookset - they can be incorrect
+}
+else {
   // Non-bookset: fallback to order details if tax still 0
   if ($_total_tax == 0 && !empty($order_data[0])) {
     if (isset($order_data[0]->gst_total) && $order_data[0]->gst_total > 0) {
@@ -237,7 +242,8 @@ if (isset($order_type) && $order_type == 'bookset') {
 if ($_total_price == 0 && isset($order_type) && $order_type == 'bookset' && !empty($order_data[0])) {
   if (isset($order_data[0]->payable_amt) && $order_data[0]->payable_amt > 0) {
     $_total_price = (float)$order_data[0]->payable_amt;
-  } elseif (isset($order_data[0]->total_amt) && $order_data[0]->total_amt > 0) {
+  }
+  elseif (isset($order_data[0]->total_amt) && $order_data[0]->total_amt > 0) {
     $_total_price = (float)$order_data[0]->total_amt;
   }
 }
@@ -245,54 +251,59 @@ if ($_total_price == 0 && isset($order_type) && $order_type == 'bookset' && !emp
 // Get status badge
 $status_badge = 'badge-warning';
 $status_text = 'Pending';
-                  if($order_data[0]->payment_status == 'pending'){ 
+if ($order_data[0]->payment_status == 'pending') {
   $status_badge = 'badge-danger';
   $status_text = 'Payment Pending';
-                  } else{ 
-                    switch ($order_data[0]->order_status) {
-                      case '1':
+}
+else {
+  switch ($order_data[0]->order_status) {
+    case '1':
       $status_badge = 'badge-warning';
       $status_text = 'Pending';
-                        break;
-                      case '2':
+      break;
+    case '2':
       $status_badge = 'badge-info';
       $status_text = 'Processing';
-                        break;
-                      case '6':
+      break;
+    case '6':
       $status_badge = 'badge-primary';
       $status_text = 'Ready for Shipment';
-                        break;
-                      case '3':
+      break;
+    case '3':
       $status_badge = 'badge-primary';
       $status_text = 'Out for Delivery';
-                        break;
-                      case '4':
+      break;
+    case '4':
       $status_badge = 'badge-success';
       $status_text = 'Delivered';
-                        break;
-                      case '7':
+      break;
+    case '7':
       $status_badge = 'badge-danger';
       $status_text = 'Return';
-                        break;
-                      default:
+      break;
+    default:
       $status_badge = 'badge-secondary';
       $status_text = 'Cancelled';
-                        break;
-                    }
-                  } 
+      break;
+  }
+}
 
 // Get payment method display name
 $payment_method_display = 'Cash On Delivery';
-if($order_data[0]->payment_method == 'cod'){ 
-  $payment_method_display = 'Cash On Delivery'; 
-} elseif($order_data[0]->payment_method == 'cashfree'){ 
-  $payment_method_display = 'Cashfree'; 
-} elseif($order_data[0]->payment_method == 'razorpay'){ 
-  $payment_method_display = 'Razorpay'; 
-} elseif($order_data[0]->payment_method == 'payment_at_school' || $order_data[0]->payment_method == 'payment_at_scho'){ 
-  $payment_method_display = 'Payment at School'; 
-} else{ 
-  $payment_method_display = ucfirst(str_replace('_', ' ', $order_data[0]->payment_method)); 
+if ($order_data[0]->payment_method == 'cod') {
+  $payment_method_display = 'Cash On Delivery';
+}
+elseif ($order_data[0]->payment_method == 'cashfree') {
+  $payment_method_display = 'Cashfree';
+}
+elseif ($order_data[0]->payment_method == 'razorpay') {
+  $payment_method_display = 'Razorpay';
+}
+elseif ($order_data[0]->payment_method == 'payment_at_school' || $order_data[0]->payment_method == 'payment_at_scho') {
+  $payment_method_display = 'Payment at School';
+}
+else {
+  $payment_method_display = ucfirst(str_replace('_', ' ', $order_data[0]->payment_method));
 }
 ?>
 
@@ -308,27 +319,31 @@ if($order_data[0]->payment_method == 'cod'){
       </button>
       <?php $os = $order_data[0]->order_status; ?>
       <?php if ($os != '4' && $os != 4 && $os != '5' && $os != 5): ?>
-        <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelOrder('<?= $order_data[0]->order_unique_id ?>', this)">
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelOrder('<?= $order_data[0]->order_unique_id?>', this)">
           <i class="fa fa-times me-1"></i> Cancel Order
         </button>
-      <?php endif; ?>
+      <?php
+endif; ?>
     </div>
     <div class="d-flex gap-2">
       <?php if ($os == '2' || $os == 2): ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveBackToPending('<?= $order_data[0]->order_unique_id ?>', this)">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveBackToPending('<?= $order_data[0]->order_unique_id?>', this)">
           <i class="fa fa-arrow-left me-1"></i> Move Back to New Order
         </button>
-      <?php endif; ?>
+      <?php
+endif; ?>
       <?php if ($os == '6' || $os == 6): ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id?>', this)">
           <i class="fa fa-arrow-left me-1"></i> Move Back to Processing
         </button>
-      <?php endif; ?>
+      <?php
+endif; ?>
       <?php if ($os == '3' || $os == 3): ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveBackToProcessing('<?= $order_data[0]->order_unique_id ?>', this)">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveBackToProcessing('<?= $order_data[0]->order_unique_id?>', this)">
           <i class="fa fa-arrow-left me-1"></i> Move Back to Processing
         </button>
-      <?php endif; ?>
+      <?php
+endif; ?>
     </div>
   </div>
   
@@ -341,31 +356,37 @@ if($order_data[0]->payment_method == 'cod'){
       <div class="card mb-3">
         <div class="card-body d-flex justify-content-between align-items-center">
           <div>
-            <h5 class="mb-1">Order #<?= $order_data[0]->order_unique_id ?></h5>
+            <h5 class="mb-1">Order #<?= $order_data[0]->order_unique_id?></h5>
             <small class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></small>
               </div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="badge <?= $status_badge ?>">Order Status: <?= $status_text ?></span>
+            <span class="badge <?= $status_badge?>">Order Status: <?= $status_text?></span>
             <?php if (isset($order_type) && $order_type == 'bookset'): ?>
               <span class="badge badge-info">Bookset Order</span>
-            <?php endif; ?>
+            <?php
+endif; ?>
             <?php if (isset($is_payment_at_school) && $is_payment_at_school): ?>
               <span class="badge badge-pill badge-payment-school">Payment at School</span>
-            <?php endif; ?>
+            <?php
+endif; ?>
             <?php if (isset($is_deliver_at_school) && $is_deliver_at_school): ?>
               <span class="badge badge-pill badge-deliver-school">Deliver at School</span>
-            <?php endif; ?>
+            <?php
+endif; ?>
             <?php if ($order_data[0]->order_status != 5): ?>
               <?php if (!empty($order_data[0]->invoice_url)): ?>
                 <a href="<?php echo base_url($order_data[0]->invoice_url); ?>" class="btn btn-sm btn-success" target="_blank">
                   <i class="fa fa-download"></i> Invoice
                 </a>
-              <?php else: ?>
+              <?php
+  else: ?>
                 <a href="<?php echo base_url('orders/download_invoice/' . $order_data[0]->order_unique_id); ?>" class="btn btn-sm btn-success" target="_blank">
                   <i class="fa fa-download"></i> Invoice
                 </a>
-              <?php endif; ?>
-            <?php endif; ?>    
+              <?php
+  endif; ?>
+            <?php
+endif; ?>    
                 </div>
               </div>
             </div>
@@ -375,7 +396,7 @@ if($order_data[0]->payment_method == 'cod'){
       <!-- PRODUCTS CARD -->
       <div class="card">
         <div class="card-header">
-          <b>Products (<?= $_total_qty ?> Items)</b>
+          <b>Products (<?= $_total_qty?> Items)</b>
           </div>
         <div class="card-body p-0">
                   <div class="table-responsive">
@@ -391,493 +412,531 @@ if($order_data[0]->payment_method == 'cod'){
                       </thead>
                       <tbody>
                         <?php
-                        // Display bookset products if order type is bookset
-                if (isset($order_type) && $order_type == 'bookset') {
-                  // Use the new structure from items_arr (packages and books arrays)
-                  $bookset_found = false;
-                  foreach ($items_arr as $item) {
-                    if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->packages)) {
-                      $bookset_found = true;
+// Display bookset products if order type is bookset
+if (isset($order_type) && $order_type == 'bookset') {
+  // Use the new structure from items_arr (packages and books arrays)
+  $bookset_found = false;
+  foreach ($items_arr as $item) {
+    if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->packages)) {
+      $bookset_found = true;
 
-                      // Display bookset SKU row first
-                      if (!empty($item->product_sku)) {
-                        ?>
+      // Display bookset SKU row first
+      if (!empty($item->product_sku)) {
+?>
                         <tr>
                           <td colspan="5" style="background-color: #e8f4f8; font-weight: bold; padding: 10px;">
-                            Bookset SKU: <?= htmlspecialchars($item->product_sku) ?>
+                            Bookset SKU: <?= htmlspecialchars($item->product_sku)?>
                           </td>
                         </tr>
                         <?php
-                      }
+      }
 
-                      // Display each package and its books
-                      foreach ($item->packages as $package) {
-                        $pkg_has_products = !empty($package['books']);
-                        ?>
+      // Display each package and its books
+      foreach ($item->packages as $package) {
+        $pkg_has_products = !empty($package['books']);
+?>
                         <tr>
                           <td colspan="5" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">
-                            Package: <?= htmlspecialchars($package['package_name']) ?>
+                            Package: <?= htmlspecialchars($package['package_name'])?>
                             <?php if (!$pkg_has_products): ?>
-                              (<?= $currency_code . ' ' . number_format($package['package_price'], 2) ?>)
-                            <?php endif; ?>
+                              (<?= $currency_code . ' ' . number_format($package['package_price'], 2)?>)
+                            <?php
+        endif; ?>
                           </td>
                         </tr>
                         <?php
 
-                        // Display each book in this package
-                        foreach ($package['books'] as $book) {
-                          // Get product image
-                          $product_image = '';
-                          if (!empty($book['product_id'])) {
-                            $product_id = $book['product_id'];
-                            $product_type = $book['product_type'];
+        // Display each book in this package
+        foreach ($package['books'] as $book) {
+          // Get product image
+          $product_image = '';
+          if (!empty($book['product_id'])) {
+            $product_id = $book['product_id'];
+            $product_type = $book['product_type'];
 
-                            $img_query = null;
-                            if ($product_type == 'textbook' && $this->db->table_exists('erp_textbook_images')) {
-                              $img_query = $this->db->select('image_path')
-                                ->from('erp_textbook_images')
-                                ->where('textbook_id', $product_id)
-                                ->where('is_main', 1)
-                                ->limit(1)
-                                ->get();
-                              if ($img_query->num_rows() == 0) {
-                                $img_query = $this->db->select('image_path')
-                                  ->from('erp_textbook_images')
-                                  ->where('textbook_id', $product_id)
-                                  ->order_by('image_order', 'ASC')
-                                  ->limit(1)
-                                  ->get();
-                              }
-                            } elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebook_images')) {
-                              $img_query = $this->db->select('image_path')
-                                ->from('erp_notebook_images')
-                                ->where('notebook_id', $product_id)
-                                ->where('is_main', 1)
-                                ->limit(1)
-                                ->get();
-                              if ($img_query->num_rows() == 0) {
-                                $img_query = $this->db->select('image_path')
-                                  ->from('erp_notebook_images')
-                                  ->where('notebook_id', $product_id)
-                                  ->order_by('image_order', 'ASC')
-                                  ->limit(1)
-                                  ->get();
-                              }
-                            } elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery_images')) {
-                              $img_query = $this->db->select('image_path')
-                                ->from('erp_stationery_images')
-                                ->where('stationery_id', $product_id)
-                                ->where('is_main', 1)
-                                ->limit(1)
-                                ->get();
-                              if ($img_query->num_rows() == 0) {
-                                $img_query = $this->db->select('image_path')
-                                  ->from('erp_stationery_images')
-                                  ->where('stationery_id', $product_id)
-                                  ->order_by('image_order', 'ASC')
-                                  ->limit(1)
-                                  ->get();
-                              }
-                            }
+            $img_query = null;
+            if ($product_type == 'textbook' && $this->db->table_exists('erp_textbook_images')) {
+              $img_query = $this->db->select('image_path')
+                ->from('erp_textbook_images')
+                ->where('textbook_id', $product_id)
+                ->where('is_main', 1)
+                ->limit(1)
+                ->get();
+              if ($img_query->num_rows() == 0) {
+                $img_query = $this->db->select('image_path')
+                  ->from('erp_textbook_images')
+                  ->where('textbook_id', $product_id)
+                  ->order_by('image_order', 'ASC')
+                  ->limit(1)
+                  ->get();
+              }
+            }
+            elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebook_images')) {
+              $img_query = $this->db->select('image_path')
+                ->from('erp_notebook_images')
+                ->where('notebook_id', $product_id)
+                ->where('is_main', 1)
+                ->limit(1)
+                ->get();
+              if ($img_query->num_rows() == 0) {
+                $img_query = $this->db->select('image_path')
+                  ->from('erp_notebook_images')
+                  ->where('notebook_id', $product_id)
+                  ->order_by('image_order', 'ASC')
+                  ->limit(1)
+                  ->get();
+              }
+            }
+            elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery_images')) {
+              $img_query = $this->db->select('image_path')
+                ->from('erp_stationery_images')
+                ->where('stationery_id', $product_id)
+                ->where('is_main', 1)
+                ->limit(1)
+                ->get();
+              if ($img_query->num_rows() == 0) {
+                $img_query = $this->db->select('image_path')
+                  ->from('erp_stationery_images')
+                  ->where('stationery_id', $product_id)
+                  ->order_by('image_order', 'ASC')
+                  ->limit(1)
+                  ->get();
+              }
+            }
 
-                            if ($img_query && $img_query->num_rows() > 0) {
-                              $product_image = $img_query->row()->image_path;
-                            }
-                          }
-                          ?>
+            if ($img_query && $img_query->num_rows() > 0) {
+              $product_image = $img_query->row()->image_path;
+            }
+          }
+?>
                           <tr>
                             <td>
                               <?php if (!empty($product_image)):
-                                $stored_path = trim($product_image);
-                                if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
-                                  $img_url = $stored_path;
-                                } else {
-                                  $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
-                                }
-                              ?>
-                                <img src="<?= $img_url ?>" alt="Product Image" class="product-image">
-                              <?php else: ?>
-                                <img src="<?= base_url('assets/images/no-image.png') ?>" alt="No Image" class="product-image">
-                              <?php endif; ?>
+            $stored_path = trim($product_image);
+            if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+              $img_url = $stored_path;
+            }
+            else {
+              $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
+            }
+?>
+                                <img src="<?= $img_url?>" alt="Product Image" class="product-image">
+                              <?php
+          else: ?>
+                                <img src="<?= base_url('assets/images/no-image.png')?>" alt="No Image" class="product-image">
+                              <?php
+          endif; ?>
                             </td>
                             <td>
-                              <strong><?= htmlspecialchars($book['product_name']) ?></strong><br>
+                              <strong><?= htmlspecialchars($book['product_name'])?></strong><br>
                               <?php if (!empty($book['isbn'])): ?>
-                                <small class="text-muted">ISBN: <?= htmlspecialchars($book['isbn']) ?></small>
-                              <?php endif; ?>
+                                <small class="text-muted">ISBN: <?= htmlspecialchars($book['isbn'])?></small>
+                              <?php
+          endif; ?>
                             </td>
-                            <td class="text-center"><?= !empty($book['sku']) ? htmlspecialchars($book['sku']) : '-' ?></td>
-                            <td class="text-center"><?= (int)$book['quantity'] ?></td>
+                            <td class="text-center"><?=!empty($book['sku']) ? htmlspecialchars($book['sku']) : '-'?></td>
+                            <td class="text-center"><?=(int)$book['quantity']?></td>
                             <td class="text-end">
-                              <?= $currency_code . ' ' . number_format($book['unit_price'], 2) ?>
+                              <?= $currency_code . ' ' . number_format($book['unit_price'], 2)?>
                               <?php if ($book['quantity'] > 1): ?>
-                                <br><small class="text-muted">(<?= $currency_code . ' ' . number_format($book['total_price'], 2) ?> total)</small>
-                              <?php endif; ?>
+                                <br><small class="text-muted">(<?= $currency_code . ' ' . number_format($book['total_price'], 2)?> total)</small>
+                              <?php
+          endif; ?>
                             </td>
                           </tr>
                           <?php
-                        }
-                      }
+        }
+      }
 
-                      break; // Only process first bookset item
-                    }
-                  }
+      break; // Only process first bookset item
+    }
+  }
 
-                  // Fallback to old bookset_products structure if new structure not found
-                  if (!$bookset_found && !empty($bookset_products)) {
-                          // Group bookset products by package
-                          $packages = array();
-                          foreach ($bookset_products as $bookset_product) {
-                            $package_id = $bookset_product->package_id;
-                            if (!isset($packages[$package_id])) {
-                              $packages[$package_id] = array(
-                                'package_name' => $bookset_product->package_name,
-                                'package_price' => $bookset_product->package_price,
-                                'products' => array()
-                              );
-                            }
-                            $packages[$package_id]['products'][] = $bookset_product;
-                          }
+  // Fallback to old bookset_products structure if new structure not found
+  if (!$bookset_found && !empty($bookset_products)) {
+    // Group bookset products by package
+    $packages = array();
+    foreach ($bookset_products as $bookset_product) {
+      $package_id = $bookset_product->package_id;
+      if (!isset($packages[$package_id])) {
+        $packages[$package_id] = array(
+          'package_name' => $bookset_product->package_name,
+          'package_price' => $bookset_product->package_price,
+          'products' => array()
+        );
+      }
+      $packages[$package_id]['products'][] = $bookset_product;
+    }
 
-                          // Calculate package prices based on products or stored price
-                          foreach ($packages as $package_id => &$package_data) {
-                            $calculated_package_price = 0;
-                            $has_products = !empty($package_data['products']);
+    // Calculate package prices based on products or stored price
+    foreach ($packages as $package_id => &$package_data) {
+      $calculated_package_price = 0;
+      $has_products = !empty($package_data['products']);
 
-                            if ($has_products) {
-                              // Calculate total from products: sum of (quantity * unit_price or discounted_mrp)
-                              foreach ($package_data['products'] as $product) {
-                                $product_price = 0;
-                                if (isset($product->unit_price) && $product->unit_price > 0) {
-                                  $product_price = (float)$product->unit_price;
-                                } elseif (isset($product->discounted_mrp) && $product->discounted_mrp > 0) {
-                                  $product_price = (float)$product->discounted_mrp;
-                                } elseif (isset($product->total_price) && $product->total_price > 0) {
-                                  $product_price = (float)$product->total_price;
-                                }
+      if ($has_products) {
+        // Calculate total from products: sum of (quantity * unit_price or discounted_mrp)
+        foreach ($package_data['products'] as $product) {
+          $product_price = 0;
+          if (isset($product->unit_price) && $product->unit_price > 0) {
+            $product_price = (float)$product->unit_price;
+          }
+          elseif (isset($product->discounted_mrp) && $product->discounted_mrp > 0) {
+            $product_price = (float)$product->discounted_mrp;
+          }
+          elseif (isset($product->total_price) && $product->total_price > 0) {
+            $product_price = (float)$product->total_price;
+          }
 
-                                $quantity = isset($product->quantity) ? (int)$product->quantity : 1;
-                                $calculated_package_price += $product_price * $quantity;
-                              }
-                            } else {
-                              // No products, use the stored package price
-                              $calculated_package_price = (float)$package_data['package_price'];
-                            }
+          $quantity = isset($product->quantity) ? (int)$product->quantity : 1;
+          $calculated_package_price += $product_price * $quantity;
+        }
+      }
+      else {
+        // No products, use the stored package price
+        $calculated_package_price = (float)$package_data['package_price'];
+      }
 
-                            // Update the package price
-                            $package_data['package_price'] = $calculated_package_price;
-                          }
-                          
-                          // Display bookset SKU row first (from tbl_order_items)
-                          $bookset_sku = '';
-                          foreach ($items_arr as $item) {
-                            if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->product_sku)) {
-                              $bookset_sku = $item->product_sku;
-                              break;
-                            }
-                          }
-                          if (!empty($bookset_sku)) {
-                            ?>
+      // Update the package price
+      $package_data['package_price'] = $calculated_package_price;
+    }
+
+    // Display bookset SKU row first (from tbl_order_items)
+    $bookset_sku = '';
+    foreach ($items_arr as $item) {
+      if (isset($item->order_type) && $item->order_type == 'bookset' && !empty($item->product_sku)) {
+        $bookset_sku = $item->product_sku;
+        break;
+      }
+    }
+    if (!empty($bookset_sku)) {
+?>
                             <tr>
                               <td colspan="5" style="background-color: #e8f4f8; font-weight: bold; padding: 10px;">
-                                Bookset SKU: <?= htmlspecialchars($bookset_sku) ?>
+                                Bookset SKU: <?= htmlspecialchars($bookset_sku)?>
                               </td>
                             </tr>
                             <?php
-                          }
-                          
-                          // Display each package and its products
-                          foreach ($packages as $package_id => $package_data) {
-                            $pkg_has_products = !empty($package_data['products']);
-                            ?>
+    }
+
+    // Display each package and its products
+    foreach ($packages as $package_id => $package_data) {
+      $pkg_has_products = !empty($package_data['products']);
+?>
                             <tr>
                       <td colspan="5" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">
-                                Package: <?= htmlspecialchars($package_data['package_name']) ?>
+                                Package: <?= htmlspecialchars($package_data['package_name'])?>
                                 <?php if (!$pkg_has_products): ?>
-                                  (<?= $currency_code . ' ' . number_format($package_data['package_price'], 2) ?>)
-                                <?php endif; ?>
+                                  (<?= $currency_code . ' ' . number_format($package_data['package_price'], 2)?>)
+                                <?php
+      endif; ?>
                               </td>
                             </tr>
                             <?php
-                            foreach ($package_data['products'] as $bookset_product) {
-                          // Get product image - fetch from legacy tables with fallback to first image when is_main not set
-                              $product_image = '';
-                              if (!empty($bookset_product->product_id)) {
-                                $product_id = $bookset_product->product_id;
-                                $product_type = $bookset_product->product_type;
+      foreach ($package_data['products'] as $bookset_product) {
+        // Get product image - fetch from legacy tables with fallback to first image when is_main not set
+        $product_image = '';
+        if (!empty($bookset_product->product_id)) {
+          $product_id = $bookset_product->product_id;
+          $product_type = $bookset_product->product_type;
 
-                                $img_query = null;
-                                if ($product_type == 'textbook' && $this->db->table_exists('erp_textbook_images')) {
-                                  $img_query = $this->db->select('image_path')
-                                    ->from('erp_textbook_images')
-                                    ->where('textbook_id', $product_id)
-                                    ->where('is_main', 1)
-                                    ->limit(1)
-                                    ->get();
-                                  if ($img_query->num_rows() == 0) {
-                                    $img_query = $this->db->select('image_path')
-                                      ->from('erp_textbook_images')
-                                      ->where('textbook_id', $product_id)
-                                      ->order_by('image_order', 'ASC')
-                                      ->limit(1)
-                                      ->get();
-                                  }
-                                } elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebook_images')) {
-                                  $img_query = $this->db->select('image_path')
-                                    ->from('erp_notebook_images')
-                                    ->where('notebook_id', $product_id)
-                                    ->where('is_main', 1)
-                                    ->limit(1)
-                                    ->get();
-                                  if ($img_query->num_rows() == 0) {
-                                    $img_query = $this->db->select('image_path')
-                                      ->from('erp_notebook_images')
-                                      ->where('notebook_id', $product_id)
-                                      ->order_by('image_order', 'ASC')
-                                      ->limit(1)
-                                      ->get();
-                                  }
-                                } elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery_images')) {
-                                  $img_query = $this->db->select('image_path')
-                                    ->from('erp_stationery_images')
-                                    ->where('stationery_id', $product_id)
-                                    ->where('is_main', 1)
-                                    ->limit(1)
-                                    ->get();
-                                  if ($img_query->num_rows() == 0) {
-                                    $img_query = $this->db->select('image_path')
-                                      ->from('erp_stationery_images')
-                                      ->where('stationery_id', $product_id)
-                                      ->order_by('image_order', 'ASC')
-                                      ->limit(1)
-                                      ->get();
-                                  }
-                                }
+          $img_query = null;
+          if ($product_type == 'textbook' && $this->db->table_exists('erp_textbook_images')) {
+            $img_query = $this->db->select('image_path')
+              ->from('erp_textbook_images')
+              ->where('textbook_id', $product_id)
+              ->where('is_main', 1)
+              ->limit(1)
+              ->get();
+            if ($img_query->num_rows() == 0) {
+              $img_query = $this->db->select('image_path')
+                ->from('erp_textbook_images')
+                ->where('textbook_id', $product_id)
+                ->order_by('image_order', 'ASC')
+                ->limit(1)
+                ->get();
+            }
+          }
+          elseif ($product_type == 'notebook' && $this->db->table_exists('erp_notebook_images')) {
+            $img_query = $this->db->select('image_path')
+              ->from('erp_notebook_images')
+              ->where('notebook_id', $product_id)
+              ->where('is_main', 1)
+              ->limit(1)
+              ->get();
+            if ($img_query->num_rows() == 0) {
+              $img_query = $this->db->select('image_path')
+                ->from('erp_notebook_images')
+                ->where('notebook_id', $product_id)
+                ->order_by('image_order', 'ASC')
+                ->limit(1)
+                ->get();
+            }
+          }
+          elseif ($product_type == 'stationery' && $this->db->table_exists('erp_stationery_images')) {
+            $img_query = $this->db->select('image_path')
+              ->from('erp_stationery_images')
+              ->where('stationery_id', $product_id)
+              ->where('is_main', 1)
+              ->limit(1)
+              ->get();
+            if ($img_query->num_rows() == 0) {
+              $img_query = $this->db->select('image_path')
+                ->from('erp_stationery_images')
+                ->where('stationery_id', $product_id)
+                ->order_by('image_order', 'ASC')
+                ->limit(1)
+                ->get();
+            }
+          }
 
-                                if ($img_query && $img_query->num_rows() > 0) {
-                                  $product_image = $img_query->row()->image_path;
-                                }
-                              }
-                            ?>
+          if ($img_query && $img_query->num_rows() > 0) {
+            $product_image = $img_query->row()->image_path;
+          }
+        }
+?>
                             <tr>
                         <td>
-                                <?php if (!empty($product_image)): 
-                                  $stored_path = trim($product_image);
-                                  if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
-                                    $img_url = $stored_path;
-                                  } else {
-                                    $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
-                                  }
-                                ?>
-                            <img src="<?= $img_url ?>" class="product-image" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />
-                                <?php else: ?>
+                                <?php if (!empty($product_image)):
+          $stored_path = trim($product_image);
+          if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+            $img_url = $stored_path;
+          }
+          else {
+            $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
+          }
+?>
+                            <img src="<?= $img_url?>" class="product-image" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />
+                                <?php
+        else: ?>
                             <div class="product-image d-flex align-items-center justify-content-center" style="background: #f5f5f5;">
                               <i class="fa fa-image text-muted"></i>
                                   </div>
-                                <?php endif; ?>
+                                <?php
+        endif; ?>
                               </td>
                         <td>
                           <div>
-                            <b><?= htmlspecialchars($bookset_product->product_name) ?></b>
-                            <br><small class="text-muted">Type: <?= ucfirst($bookset_product->product_type) ?></small>
+                            <b><?= htmlspecialchars($bookset_product->product_name)?></b>
+                            <br><small class="text-muted">Type: <?= ucfirst($bookset_product->product_type)?></small>
                           </div>
                               </td>
-                        <td class="text-center"><?= !empty($bookset_product->product_sku) ? htmlspecialchars($bookset_product->product_sku) : '-' ?></td>
-                        <td class="text-center"><?= $bookset_product->quantity ?></td>
+                        <td class="text-center"><?=!empty($bookset_product->product_sku) ? htmlspecialchars($bookset_product->product_sku) : '-'?></td>
+                        <td class="text-center"><?= $bookset_product->quantity?></td>
                         <td class="text-end">
-                          <?php 
-                          // Calculate unit price with fallbacks
-                          $display_unit_price = 0;
-                          if (isset($bookset_product->unit_price) && $bookset_product->unit_price > 0) {
-                            $display_unit_price = (float)$bookset_product->unit_price;
-                          } elseif (isset($bookset_product->total_price) && $bookset_product->total_price > 0 && isset($bookset_product->quantity) && $bookset_product->quantity > 0) {
-                            $display_unit_price = (float)$bookset_product->total_price / (int)$bookset_product->quantity;
-                          } elseif (isset($bookset_product->package_price) && $bookset_product->package_price > 0) {
-                            // If unit price is 0, try to estimate from package price
-                            // This is a rough estimate - ideally unit_price should be stored correctly
-                            $display_unit_price = (float)$bookset_product->package_price;
-                          }
-                          echo $currency_code . ' ' . number_format($display_unit_price, 2);
-                          ?>
+                          <?php
+        // Calculate unit price with fallbacks
+        $display_unit_price = 0;
+        if (isset($bookset_product->unit_price) && $bookset_product->unit_price > 0) {
+          $display_unit_price = (float)$bookset_product->unit_price;
+        }
+        elseif (isset($bookset_product->total_price) && $bookset_product->total_price > 0 && isset($bookset_product->quantity) && $bookset_product->quantity > 0) {
+          $display_unit_price = (float)$bookset_product->total_price / (int)$bookset_product->quantity;
+        }
+        elseif (isset($bookset_product->package_price) && $bookset_product->package_price > 0) {
+          // If unit price is 0, try to estimate from package price
+          // This is a rough estimate - ideally unit_price should be stored correctly
+          $display_unit_price = (float)$bookset_product->package_price;
+        }
+        echo $currency_code . ' ' . number_format($display_unit_price, 2);
+?>
                         </td>
                             </tr>
                             <?php
-                            }
-                          }
-                        } // Close fallback if (!$bookset_found && !empty($bookset_products))
-                  
-                  // Display bookset information (student details) if available
-                          if (!empty($bookset_info)) {
-                            ?>
+      }
+    }
+  } // Close fallback if (!$bookset_found && !empty($bookset_products))
+
+  // Display bookset information (student details) if available
+  if (!empty($bookset_info)) {
+?>
                             <tr>
                       <td colspan="5" style="background-color: #e8f4f8; padding: 15px;">
                                 <strong>Bookset Information:</strong><br>
                                 <?php if (!empty($bookset_info->school_name)): ?>
-                        <strong>School:</strong> <?= htmlspecialchars($bookset_info->school_name) ?><br>
-                                <?php endif; ?>
+                        <strong>School:</strong> <?= htmlspecialchars($bookset_info->school_name)?><br>
+                                <?php
+    endif; ?>
                                 <?php if (!empty($bookset_info->grade_name)): ?>
-                        <strong>Grade:</strong> <?= htmlspecialchars($bookset_info->grade_name) ?><br>
-                                <?php endif; ?>
+                        <strong>Grade:</strong> <?= htmlspecialchars($bookset_info->grade_name)?><br>
+                                <?php
+    endif; ?>
                                 <?php if (!empty($bookset_info->board_name)): ?>
-                        <strong>Board:</strong> <?= htmlspecialchars($bookset_info->board_name) ?><br>
-                                <?php endif; ?>
+                        <strong>Board:</strong> <?= htmlspecialchars($bookset_info->board_name)?><br>
+                                <?php
+    endif; ?>
                                 <?php if (!empty($bookset_info->f_name) || !empty($bookset_info->m_name) || !empty($bookset_info->s_name)): ?>
-                        <strong>Student Name:</strong> <?= trim(htmlspecialchars((isset($bookset_info->f_name) ? $bookset_info->f_name : '') . ' ' . (isset($bookset_info->m_name) ? $bookset_info->m_name : '') . ' ' . (isset($bookset_info->s_name) ? $bookset_info->s_name : ''))) ?><br>
-                        <?php endif; ?>
+                        <strong>Student Name:</strong> <?= trim(htmlspecialchars((isset($bookset_info->f_name) ? $bookset_info->f_name : '') . ' ' . (isset($bookset_info->m_name) ? $bookset_info->m_name : '') . ' ' . (isset($bookset_info->s_name) ? $bookset_info->s_name : '')))?><br>
+                        <?php
+    endif; ?>
                         <?php if (!empty($bookset_info->roll_number)): ?>
-                        <strong>Roll Number:</strong> <?= htmlspecialchars($bookset_info->roll_number) ?><br>
-                                <?php endif; ?>
+                        <strong>Roll Number:</strong> <?= htmlspecialchars($bookset_info->roll_number)?><br>
+                                <?php
+    endif; ?>
                                 <?php if (!empty($bookset_info->dob)): ?>
-                        <strong>Date of Birth:</strong> <?= date('d-m-Y', strtotime($bookset_info->dob)) ?>
-                                <?php endif; ?>
+                        <strong>Date of Birth:</strong> <?= date('d-m-Y', strtotime($bookset_info->dob))?>
+                                <?php
+    endif; ?>
                               </td>
                             </tr>
                             <?php
-                          }
-                } // Close main bookset if condition
-                else {
-                  // Display regular order items
-                  foreach ($items_arr as $key => $val) {
-                          // Get product image - for individual products, use product_image set in controller
-                          $product_image = '';
-                          if ($val->order_type == 'individual' && isset($val->product_image) && !empty($val->product_image)) {
-                            // Use thumbnail_img from tbl_order_items for individual products
-                            $product_image = $val->product_image;
-                          } elseif (isset($val->product_id) && !empty($val->product_id)) {
-                            $product_id = $val->product_id;
+  }
+} // Close main bookset if condition
+else {
+  // Display regular order items
+  foreach ($items_arr as $key => $val) {
+    // Get product image - for individual products, use product_image set in controller
+    $product_image = '';
+    if ($val->order_type == 'individual' && isset($val->product_image) && !empty($val->product_image)) {
+      // Use thumbnail_img from tbl_order_items for individual products
+      $product_image = $val->product_image;
+    }
+    elseif (isset($val->product_id) && !empty($val->product_id)) {
+      $product_id = $val->product_id;
 
-                            // Fallback: Determine product type from order_type or check tables
-                            $product_type = '';
-                            if (isset($val->order_type)) {
-                              if ($val->order_type == 'uniform') {
-                                $product_type = 'uniform';
-                              } elseif ($val->order_type == 'textbook' || $val->order_type == 'notebook' || $val->order_type == 'stationery') {
-                                $product_type = $val->order_type;
-                              }
-                            }
+      // Fallback: Determine product type from order_type or check tables
+      $product_type = '';
+      if (isset($val->order_type)) {
+        if ($val->order_type == 'uniform') {
+          $product_type = 'uniform';
+        }
+        elseif ($val->order_type == 'textbook' || $val->order_type == 'notebook' || $val->order_type == 'stationery') {
+          $product_type = $val->order_type;
+        }
+      }
 
-                            // If we couldn't determine from order_type, try to detect from tables
-                            if (empty($product_type)) {
-                              // Check if it's a uniform
-                              if ($this->db->table_exists('erp_uniforms')) {
-                                $uniform_check = $this->db->select('id')->from('erp_uniforms')->where('id', $product_id)->limit(1)->get();
-                                if ($uniform_check->num_rows() > 0) {
-                                  $product_type = 'uniform';
-                                }
-                              }
+      // If we couldn't determine from order_type, try to detect from tables
+      if (empty($product_type)) {
+        // Check if it's a uniform
+        if ($this->db->table_exists('erp_uniforms')) {
+          $uniform_check = $this->db->select('id')->from('erp_uniforms')->where('id', $product_id)->limit(1)->get();
+          if ($uniform_check->num_rows() > 0) {
+            $product_type = 'uniform';
+          }
+        }
 
-                              // Check if it's a textbook
-                              if (empty($product_type) && $this->db->table_exists('erp_textbooks')) {
-                                $textbook_check = $this->db->select('id')->from('erp_textbooks')->where('id', $product_id)->limit(1)->get();
-                                if ($textbook_check->num_rows() > 0) {
-                                  $product_type = 'textbook';
-                                }
-                              }
+        // Check if it's a textbook
+        if (empty($product_type) && $this->db->table_exists('erp_textbooks')) {
+          $textbook_check = $this->db->select('id')->from('erp_textbooks')->where('id', $product_id)->limit(1)->get();
+          if ($textbook_check->num_rows() > 0) {
+            $product_type = 'textbook';
+          }
+        }
 
-                              // Check if it's a notebook
-                              if (empty($product_type) && $this->db->table_exists('erp_notebooks')) {
-                                $notebook_check = $this->db->select('id')->from('erp_notebooks')->where('id', $product_id)->limit(1)->get();
-                                if ($notebook_check->num_rows() > 0) {
-                                  $product_type = 'notebook';
-                                }
-                              }
+        // Check if it's a notebook
+        if (empty($product_type) && $this->db->table_exists('erp_notebooks')) {
+          $notebook_check = $this->db->select('id')->from('erp_notebooks')->where('id', $product_id)->limit(1)->get();
+          if ($notebook_check->num_rows() > 0) {
+            $product_type = 'notebook';
+          }
+        }
 
-                              // Check if it's stationery
-                              if (empty($product_type) && $this->db->table_exists('erp_stationery')) {
-                                $stationery_check = $this->db->select('id')->from('erp_stationery')->where('id', $product_id)->limit(1)->get();
-                                if ($stationery_check->num_rows() > 0) {
-                                  $product_type = 'stationery';
-                                }
-                              }
-                            }
+        // Check if it's stationery
+        if (empty($product_type) && $this->db->table_exists('erp_stationery')) {
+          $stationery_check = $this->db->select('id')->from('erp_stationery')->where('id', $product_id)->limit(1)->get();
+          if ($stationery_check->num_rows() > 0) {
+            $product_type = 'stationery';
+          }
+        }
+      }
 
-                            // Fetch image based on product type (fallback only)
-                            if ($product_type == 'uniform') {
-                              $img_query = $this->db->select('image_path')
-                                ->from('erp_uniform_images')
-                                ->where('uniform_id', $product_id)
-                                ->where('is_main', 1)
-                                ->limit(1)
-                                ->get();
-                            } elseif ($product_type == 'textbook') {
-                              $img_query = $this->db->select('image_path')
-                                ->from('erp_textbook_images')
-                                ->where('textbook_id', $product_id)
-                                ->where('is_main', 1)
-                                ->limit(1)
-                                ->get();
-                            } elseif ($product_type == 'notebook') {
-                              $img_query = $this->db->select('image_path')
-                                ->from('erp_notebook_images')
-                                ->where('notebook_id', $product_id)
-                                ->where('is_main', 1)
-                                ->limit(1)
-                                ->get();
-                            } elseif ($product_type == 'stationery') {
-                              if ($this->db->table_exists('erp_stationery_images')) {
-                                $img_query = $this->db->select('image_path')
-                                  ->from('erp_stationery_images')
-                                  ->where('stationery_id', $product_id)
-                                  ->where('is_main', 1)
-                                  ->limit(1)
-                                  ->get();
-                              } else {
-                                $img_query = null;
-                              }
-                            } else {
-                              // For individual products, check the main products table
-                              $img_query = $this->db->select('image_path')
-                                ->from('product_images')
-                                ->where('product_id', $product_id)
-                                ->where('is_main', 1)
-                                ->limit(1)
-                                ->get();
-                            }
+      // Fetch image based on product type (fallback only)
+      if ($product_type == 'uniform') {
+        $img_query = $this->db->select('image_path')
+          ->from('erp_uniform_images')
+          ->where('uniform_id', $product_id)
+          ->where('is_main', 1)
+          ->limit(1)
+          ->get();
+      }
+      elseif ($product_type == 'textbook') {
+        $img_query = $this->db->select('image_path')
+          ->from('erp_textbook_images')
+          ->where('textbook_id', $product_id)
+          ->where('is_main', 1)
+          ->limit(1)
+          ->get();
+      }
+      elseif ($product_type == 'notebook') {
+        $img_query = $this->db->select('image_path')
+          ->from('erp_notebook_images')
+          ->where('notebook_id', $product_id)
+          ->where('is_main', 1)
+          ->limit(1)
+          ->get();
+      }
+      elseif ($product_type == 'stationery') {
+        if ($this->db->table_exists('erp_stationery_images')) {
+          $img_query = $this->db->select('image_path')
+            ->from('erp_stationery_images')
+            ->where('stationery_id', $product_id)
+            ->where('is_main', 1)
+            ->limit(1)
+            ->get();
+        }
+        else {
+          $img_query = null;
+        }
+      }
+      else {
+        // For individual products, check the main products table
+        $img_query = $this->db->select('image_path')
+          ->from('product_images')
+          ->where('product_id', $product_id)
+          ->where('is_main', 1)
+          ->limit(1)
+          ->get();
+      }
 
-                            if (isset($img_query) && $img_query && $img_query->num_rows() > 0) {
-                              $product_image = $img_query->row()->image_path;
-                            }
-                          }
-                        ?>
+      if (isset($img_query) && $img_query && $img_query->num_rows() > 0) {
+        $product_image = $img_query->row()->image_path;
+      }
+    }
+?>
                         <tr>
                       <td>
-                            <?php if (!empty($product_image)): 
-                              $stored_path = trim($product_image);
-                              if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
-                                $img_url = $stored_path;
-                              } else {
-                                $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
-                              }
-                            ?>
-                          <img src="<?= $img_url ?>" class="product-image" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />
-                            <?php else: ?>
+                            <?php if (!empty($product_image)):
+      $stored_path = trim($product_image);
+      if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+        $img_url = $stored_path;
+      }
+      else {
+        $img_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
+      }
+?>
+                          <img src="<?= $img_url?>" class="product-image" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';" />
+                            <?php
+    else: ?>
                           <div class="product-image d-flex align-items-center justify-content-center" style="background: #f5f5f5;">
                             <i class="fa fa-image text-muted"></i>
                               </div>
-                            <?php endif; ?>
+                            <?php
+    endif; ?>
                           </td>
                       <td>
                         <div>
-                          <b><?= isset($val->product_title) ? htmlspecialchars($val->product_title) : (isset($val->product_name) ? htmlspecialchars($val->product_name) : 'N/A') ?></b>
-                          <?php if(isset($val->is_variation) && $val->is_variation == 1 && isset($val->variation_name) && $val->variation_name != ''): ?>
-                            <br><small class="text-muted"><?= htmlspecialchars($val->variation_name) ?></small>
-                          <?php endif; ?>
+                          <b><?= isset($val->product_title) ? htmlspecialchars($val->product_title) : (isset($val->product_name) ? htmlspecialchars($val->product_name) : 'N/A')?></b>
+                          <?php if (isset($val->is_variation) && $val->is_variation == 1 && isset($val->variation_name) && $val->variation_name != ''): ?>
+                            <br><small class="text-muted"><?= htmlspecialchars($val->variation_name)?></small>
+                          <?php
+    endif; ?>
                             <?php if (!empty($val->size_name)): ?>
-                            <br><small class="text-muted">Size: <?= htmlspecialchars($val->size_name) ?></small>
-                            <?php endif; ?>
+                            <br><small class="text-muted">Size: <?= htmlspecialchars($val->size_name)?></small>
+                            <?php
+    endif; ?>
                             <?php if (!empty($val->school_name)): ?>
-                            <br><small class="text-muted">School: <?= htmlspecialchars($val->school_name) ?></small>
-                            <?php endif; ?>
+                            <br><small class="text-muted">School: <?= htmlspecialchars($val->school_name)?></small>
+                            <?php
+    endif; ?>
                         </div>
                           </td>
-                      <td class="text-center"><?= isset($val->product_sku) ? htmlspecialchars($val->product_sku) : '-' ?></td>
-                      <td class="text-center"><?= isset($val->product_qty) ? $val->product_qty : '1' ?></td>
-                      <td class="text-end"><?= $currency_code . ' ' . number_format(isset($val->product_price) ? $val->product_price : 0, 2) ?></td>
+                      <td class="text-center"><?= isset($val->product_sku) ? htmlspecialchars($val->product_sku) : '-'?></td>
+                      <td class="text-center"><?= isset($val->product_qty) ? $val->product_qty : '1'?></td>
+                      <td class="text-end"><?= $currency_code . ' ' . number_format(isset($val->product_price) ? $val->product_price : 0, 2)?></td>
                         </tr>
-                        <?php 
-                          } 
-                }
-                ?>
+                        <?php
+  }
+}
+?>
               </tbody>
             </table>
           </div>
@@ -889,7 +948,7 @@ if($order_data[0]->payment_method == 'cod'){
                 <strong>Subtotal (Pre-Tax):</strong>
               </div>
               <div class="col-md-4 text-end">
-                <strong><?= $currency_code . ' ' . number_format($_total_price, 2) ?></strong>
+                <strong><?= $currency_code . ' ' . number_format($_total_price, 2)?></strong>
               </div>
             </div>
             <?php if ($_total_tax > 0): ?>
@@ -898,26 +957,28 @@ if($order_data[0]->payment_method == 'cod'){
                 <strong>Tax/GST:</strong>
               </div>
               <div class="col-md-4 text-end">
-                <strong>+ <?= $currency_code . ' ' . number_format($_total_tax, 2) ?></strong>
+                <strong>+ <?= $currency_code . ' ' . number_format($_total_tax, 2)?></strong>
               </div>
             </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
                         <?php if (!empty($order_data[0]->coupon_code) && isset($order_data[0]->discount_amt) && $order_data[0]->discount_amt > 0): ?>
             <div class="row mt-2">
               <div class="col-md-8 text-end">
-                <strong>Coupon (<?= htmlspecialchars($order_data[0]->coupon_code) ?>):</strong>
+                <strong>Coupon (<?= htmlspecialchars($order_data[0]->coupon_code)?>):</strong>
               </div>
               <div class="col-md-4 text-end">
-                <strong>- <?= $currency_code . ' ' . number_format($order_data[0]->discount_amt, 2) ?></strong>
+                <strong>- <?= $currency_code . ' ' . number_format($order_data[0]->discount_amt, 2)?></strong>
               </div>
             </div>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
             <div class="row mt-2">
               <div class="col-md-8 text-end">
                 <strong>Delivery Charge:</strong>
               </div>
               <div class="col-md-4 text-end">
-                <strong><?= isset($order_data[0]->delivery_charge) && $order_data[0]->delivery_charge > 0 ? '+ ' . $currency_code . ' ' . number_format($order_data[0]->delivery_charge, 2) : 'Free' ?></strong>
+                <strong><?= isset($order_data[0]->delivery_charge) && $order_data[0]->delivery_charge > 0 ? '+ ' . $currency_code . ' ' . number_format($order_data[0]->delivery_charge, 2) : 'Free'?></strong>
               </div>
             </div>
                         <?php if (isset($order_data[0]->wallet_amount) && $order_data[0]->wallet_amount > 0): ?>
@@ -926,10 +987,11 @@ if($order_data[0]->payment_method == 'cod'){
                 <strong>Wallet Used:</strong>
               </div>
               <div class="col-md-4 text-end">
-                <strong>- <?= $currency_code . ' ' . number_format($order_data[0]->wallet_amount, 2) ?></strong>
+                <strong>- <?= $currency_code . ' ' . number_format($order_data[0]->wallet_amount, 2)?></strong>
               </div>
             </div>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
             <hr>
             <div class="row">
               <div class="col-md-8 text-end">
@@ -937,18 +999,18 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
               <div class="col-md-4 text-end">
                 <h5 class="mb-0"><strong>
-                  <?php 
-                  // Calculate total: Subtotal + Tax + Delivery - Discount - Wallet
-                  $calculated_total = $_total_price + $_total_tax + (isset($order_data[0]->delivery_charge) ? (float)$order_data[0]->delivery_charge : 0);
-                  $calculated_total -= (isset($order_data[0]->discount_amt) ? (float)$order_data[0]->discount_amt : 0);
-                  $calculated_total -= (isset($order_data[0]->wallet_amount) ? (float)$order_data[0]->wallet_amount : 0);
-                  
-                  // Use payable_amt if available, otherwise use calculated total
-                  $final_total = isset($order_data[0]->payable_amt) && $order_data[0]->payable_amt > 0 
-                    ? (float)$order_data[0]->payable_amt 
-                    : $calculated_total;
-                  echo $currency_code . ' ' . number_format($final_total, 2);
-                  ?>
+                  <?php
+// Calculate total: Subtotal + Tax + Delivery - Discount - Wallet
+$calculated_total = $_total_price + $_total_tax + (isset($order_data[0]->delivery_charge) ? (float)$order_data[0]->delivery_charge : 0);
+$calculated_total -= (isset($order_data[0]->discount_amt) ? (float)$order_data[0]->discount_amt : 0);
+$calculated_total -= (isset($order_data[0]->wallet_amount) ? (float)$order_data[0]->wallet_amount : 0);
+
+// Use payable_amt if available, otherwise use calculated total
+$final_total = isset($order_data[0]->payable_amt) && $order_data[0]->payable_amt > 0
+  ? (float)$order_data[0]->payable_amt
+  : $calculated_total;
+echo $currency_code . ' ' . number_format($final_total, 2);
+?>
                 </strong></h5>
                   </div>
                 </div>
@@ -966,18 +1028,18 @@ if($order_data[0]->payment_method == 'cod'){
           <h6 class="mb-0"><i class="fa fa-cog"></i> <strong>Order Actions</strong></h6>
       </div>
         <div class="card-body">
-          <?php 
-          $current_status = $order_data[0]->order_status;
-          $has_shipping_label = !empty($order_data[0]->shipping_label);
-          // Also check shipping_label_generated field if it exists
-          if (isset($order_data[0]->shipping_label_generated) && $order_data[0]->shipping_label_generated == 1) {
-            $has_shipping_label = true;
-          }
-          $courier = isset($order_data[0]->courier) ? $order_data[0]->courier : '';
-          $erp_courier_id = isset($order_data[0]->erp_courier_id) ? (int)$order_data[0]->erp_courier_id : 0;
-          $awb_no = isset($order_data[0]->awb_no) ? trim($order_data[0]->awb_no) : '';
-          $has_courier_selected = ($courier == 'manual' && $erp_courier_id > 0);
-          ?>
+          <?php
+$current_status = $order_data[0]->order_status;
+$has_shipping_label = !empty($order_data[0]->shipping_label);
+// Also check shipping_label_generated field if it exists
+if (isset($order_data[0]->shipping_label_generated) && $order_data[0]->shipping_label_generated == 1) {
+  $has_shipping_label = true;
+}
+$courier = isset($order_data[0]->courier) ? $order_data[0]->courier : '';
+$erp_courier_id = isset($order_data[0]->erp_courier_id) ? (int)$order_data[0]->erp_courier_id : 0;
+$awb_no = isset($order_data[0]->awb_no) ? trim($order_data[0]->awb_no) : '';
+$has_courier_selected = ($courier == 'manual' && $erp_courier_id > 0);
+?>
           
           <!-- Status 1 & 2: Pending / Processing - Shipper selection & Self Delivery flow (exclude 6 - Ready for Shipment) -->
           <?php if ($current_status == '1' || $current_status == 1 || $current_status == '2' || $current_status == 2): ?>
@@ -989,7 +1051,7 @@ if($order_data[0]->payment_method == 'cod'){
               
                 <div class="row" style="margin: 0;">
                   <div class="col-5" style="padding: 5px;">
-                    <button type="button" class="btn btn-outline-primary btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->id ?>', 'manual', this)" style="width: 100%;">
+                    <button type="button" class="btn btn-outline-primary btn-lg w-100" onclick="selectShipper('<?= $order_data[0]->id?>', 'manual', this)" style="width: 100%;">
                       <i class="fa fa-truck"></i> Self Delivery
                     </button>
   </div>
@@ -1003,7 +1065,8 @@ if($order_data[0]->payment_method == 'cod'){
                   </div>
                 </div>
               </div>
-            <?php elseif ($courier == 'manual'): ?>
+            <?php
+  elseif ($courier == 'manual'): ?>
               <!-- Self Delivery - Flow: 1) Generate Label, 2) Select Courier, 3) Ready to Ship -->
               <div class="mb-3">
                 <div class="alert alert-light border d-flex align-items-center mb-3">
@@ -1026,7 +1089,8 @@ if($order_data[0]->payment_method == 'cod'){
                     </span>
                   </a>
                 </div>
-              <?php elseif (!$has_courier_selected): ?>
+              <?php
+    elseif (!$has_courier_selected): ?>
                 <!-- Step 2: After label generated, select courier -->
                 <div class="alert alert-light border mb-2 small">
                   <i class="fa fa-check-circle text-success me-1"></i> Shipping label generated
@@ -1043,11 +1107,13 @@ if($order_data[0]->payment_method == 'cod'){
                     </button>
                   </div>
                 </div>
-              <?php else: ?>
+              <?php
+    else: ?>
                 <!-- Step 3: Label + Courier selected - Ready to Ship or Out for Delivery -->
                 <div class="alert alert-light border mb-2 small">
-                  <strong>Courier:</strong> <?= htmlspecialchars(isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-') ?>
-                  <?php if (!empty($awb_no)): ?><br><strong>AWB:</strong> <code><?= htmlspecialchars($awb_no) ?></code><?php endif; ?>
+                  <strong>Courier:</strong> <?= htmlspecialchars(isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-')?>
+                  <?php if (!empty($awb_no)): ?><br><strong>AWB:</strong> <code><?= htmlspecialchars($awb_no)?></code><?php
+      endif; ?>
                   <a href="#" class="ms-2" data-bs-toggle="modal" data-bs-target="#selectCourierModal">Edit</a>
                 </div>
                 <div class="row" style="margin: 0;">
@@ -1057,46 +1123,51 @@ if($order_data[0]->payment_method == 'cod'){
                     </a>
                   </div>
                   <div class="col-6" style="padding: 5px;">
-                    <button type="button" class="btn btn-warning btn-lg w-100" onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                    <button type="button" class="btn btn-warning btn-lg w-100" onclick="markReadyToShip('<?= $order_data[0]->order_unique_id?>', this)" style="width: 100%;">
                       <i class="fa fa-check-square-o"></i> Ready to Ship
                     </button>
                   </div>
                 </div>
-              <?php endif; ?>
-            <?php elseif ($courier == '3rd_party' || $courier == 'shiprocket'): ?>
+              <?php
+    endif; ?>
+            <?php
+  elseif ($courier == '3rd_party' || $courier == 'shiprocket'): ?>
               <!-- 3rd Party - Show provider info -->
-              <?php 
-              $third_party_provider = isset($order_data[0]->third_party_provider) ? $order_data[0]->third_party_provider : 'shiprocket';
-              $provider_label = ucfirst($third_party_provider);
-              if ($provider_label == 'Bigship') $provider_label = 'Big Ship';
-              ?>
+              <?php
+    $third_party_provider = isset($order_data[0]->third_party_provider) ? $order_data[0]->third_party_provider : 'shiprocket';
+    $provider_label = ucfirst($third_party_provider);
+    if ($provider_label == 'Bigship')
+      $provider_label = 'Big Ship';
+?>
               <div class="mb-3">
                 <div class="alert alert-info border-0 mb-3">
                   <div class="d-flex align-items-center mb-2">
                     <i class="fa fa-shipping-fast me-2"></i>
                     <strong>3rd Party Shipping</strong>
                   </div>
-                  <small class="text-muted"><?= htmlspecialchars($provider_label) ?></small>
+                  <small class="text-muted"><?= htmlspecialchars($provider_label)?></small>
                   <?php if (!empty($order_data[0]->pkg_length_cm) || !empty($order_data[0]->pkg_weight_kg)): ?>
                     <div class="mt-2 small">
                       <strong>Dimensions:</strong> 
-                      L: <?= htmlspecialchars($order_data[0]->pkg_length_cm ?? '-') ?> cm × 
-                      B: <?= htmlspecialchars($order_data[0]->pkg_breadth_cm ?? '-') ?> cm × 
-                      H: <?= htmlspecialchars($order_data[0]->pkg_height_cm ?? '-') ?> cm, 
-                      W: <?= htmlspecialchars($order_data[0]->pkg_weight_kg ?? '-') ?> kg
+                      L: <?= htmlspecialchars($order_data[0]->pkg_length_cm ?? '-')?> cm × 
+                      B: <?= htmlspecialchars($order_data[0]->pkg_breadth_cm ?? '-')?> cm × 
+                      H: <?= htmlspecialchars($order_data[0]->pkg_height_cm ?? '-')?> cm, 
+                      W: <?= htmlspecialchars($order_data[0]->pkg_weight_kg ?? '-')?> kg
                     </div>
-                  <?php endif; ?>
+                  <?php
+    endif; ?>
                   <?php if (!empty($order_data[0]->awb_no)): ?>
                     <div class="mt-2">
-                      <strong>AWB:</strong> <code><?= htmlspecialchars($order_data[0]->awb_no) ?></code>
+                      <strong>AWB:</strong> <code><?= htmlspecialchars($order_data[0]->awb_no)?></code>
                     </div>
-                  <?php endif; ?>
+                  <?php
+    endif; ?>
                 </div>
               </div>
               <?php if ($has_shipping_label): ?>
                 <div class="row" style="margin: 0;">
                   <div class="col-6" style="padding: 5px;">
-                    <button type="button" class="btn btn-warning btn-lg w-100" onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                    <button type="button" class="btn btn-warning btn-lg w-100" onclick="markReadyToShip('<?= $order_data[0]->order_unique_id?>', this)" style="width: 100%;">
                       <i class="fa fa-check-square-o"></i> Ready to Ship
                     </button>
                   </div>
@@ -1106,16 +1177,19 @@ if($order_data[0]->payment_method == 'cod'){
                     </a>
                   </div>
                 </div>
-              <?php endif; ?>
-            <?php endif; ?>
-          <?php endif; ?>
+              <?php
+    endif; ?>
+            <?php
+  endif; ?>
+          <?php
+endif; ?>
           
           <!-- Status 6: Ready for Shipment - Warehouse marked ready, show Out for Delivery button -->
           <?php if ($current_status == '6' || $current_status == 6): ?>
             <?php if ($has_shipping_label): ?>
               <div class="row" style="margin: 0;">
                 <div class="col-6" style="padding: 5px;">
-                  <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                  <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id?>', this)" style="width: 100%;">
                     <i class="fa fa-truck"></i> Out for Delivery
                   </button>
                 </div>
@@ -1125,28 +1199,31 @@ if($order_data[0]->payment_method == 'cod'){
                   </a>
                 </div>
               </div>
-            <?php else: ?>
+            <?php
+  else: ?>
               <div class="d-grid">
-                <button type="button" class="btn btn-success btn-lg" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)">
+                <button type="button" class="btn btn-success btn-lg" onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id?>', this)">
                   <i class="fa fa-truck me-2"></i> Out for Delivery
                 </button>
               </div>
-            <?php endif; ?>
+            <?php
+  endif; ?>
             <div class="row mt-2" style="margin: 0;">
               <div class="col-12" style="padding: 5px;">
-                <button type="button" class="btn btn-outline-warning btn-lg w-100" onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                <button type="button" class="btn btn-outline-warning btn-lg w-100" onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id?>', this)" style="width: 100%;">
                   <i class="fa fa-undo"></i> Unmark Ready (Move Back to Processing)
                 </button>
               </div>
             </div>
-          <?php endif; ?>
+          <?php
+endif; ?>
           
           <!-- Status 3: Out for Delivery - Show Delivered button + Move back to Processing -->
           <?php if ($current_status == '3' || $current_status == 3): ?>
             <?php if ($has_shipping_label): ?>
               <div class="row" style="margin: 0;">
                 <div class="col-6" style="padding: 5px;">
-                  <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                  <button type="button" class="btn btn-success btn-lg w-100" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id?>', this)" style="width: 100%;">
                     <i class="fa fa-check-circle"></i> Delivered
                   </button>
                 </div>
@@ -1156,14 +1233,17 @@ if($order_data[0]->payment_method == 'cod'){
                   </a>
                 </div>
               </div>
-            <?php else: ?>
+            <?php
+  else: ?>
               <div class="d-grid">
-                <button type="button" class="btn btn-success btn-lg" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)">
+                <button type="button" class="btn btn-success btn-lg" onclick="moveToDelivered('<?= $order_data[0]->order_unique_id?>', this)">
                   <i class="fa fa-check-circle me-2"></i> Mark as Delivered
                 </button>
               </div>
-            <?php endif; ?>
-          <?php endif; ?>
+            <?php
+  endif; ?>
+          <?php
+endif; ?>
           
           <!-- Status 4: Delivered - Show info only -->
           <?php if ($current_status == '4' || $current_status == 4): ?>
@@ -1174,9 +1254,10 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
               <?php if (!empty($order_data[0]->delivery_date)): ?>
                 <small class="text-muted">
-                  <?= date('D, M d, Y, h:i A', strtotime($order_data[0]->delivery_date)) ?>
+                  <?= date('D, M d, Y, h:i A', strtotime($order_data[0]->delivery_date))?>
                 </small>
-              <?php endif; ?>
+              <?php
+  endif; ?>
             </div>
             <?php if ($has_shipping_label): ?>
               <div class="d-grid">
@@ -1184,8 +1265,10 @@ if($order_data[0]->payment_method == 'cod'){
                   <i class="fa fa-download me-2"></i> Download Label
                 </a>
               </div>
-            <?php endif; ?>
-          <?php endif; ?>
+            <?php
+  endif; ?>
+          <?php
+endif; ?>
           
           <!-- TESTING: Regenerate Label Button (Always Visible) -->
           <!-- <hr class="my-3">
@@ -1205,11 +1288,11 @@ if($order_data[0]->payment_method == 'cod'){
         </div>
       </div>
       
-      <?php 
-      // Courier Information - show for self delivery when shipping label generated
-      $show_courier_block = ($courier == 'manual' && $has_shipping_label && $erp_courier_id > 0);
-      $courier_name_display = isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-';
-      ?>
+      <?php
+// Courier Information - show for self delivery when shipping label generated
+$show_courier_block = ($courier == 'manual' && $has_shipping_label && $erp_courier_id > 0);
+$courier_name_display = isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-';
+?>
       <?php if ($show_courier_block): ?>
       <?php $shipping_no = isset($order_data[0]->ship_order_id) ? trim($order_data[0]->ship_order_id) : ''; ?>
       <!-- COURIER INFORMATION CARD (Self Delivery) - Compact -->
@@ -1219,37 +1302,42 @@ if($order_data[0]->payment_method == 'cod'){
         </div>
         <div class="card-body py-2 small">
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <span class="text-primary fw-bold"><?= htmlspecialchars($courier_name_display) ?></span>
+            <span class="text-primary fw-bold"><?= htmlspecialchars($courier_name_display)?></span>
             <?php if (!empty($shipping_no)): ?>
             <span>·</span>
-            <span><strong>Shipping #:</strong> <code class="px-1"><?= htmlspecialchars($shipping_no) ?></code></span>
-            <?php endif; ?>
+            <span><strong>Shipping #:</strong> <code class="px-1"><?= htmlspecialchars($shipping_no)?></code></span>
+            <?php
+  endif; ?>
             <?php if (!empty($awb_no)): ?>
             <span>·</span>
-            <span><strong>AWB:</strong> <code class="px-1"><?= htmlspecialchars($awb_no) ?></code></span>
-            <?php endif; ?>
+            <span><strong>AWB:</strong> <code class="px-1"><?= htmlspecialchars($awb_no)?></code></span>
+            <?php
+  endif; ?>
           </div>
-          <?php if (!empty($order_data[0]->track_url)): 
-            $track_url_display = $order_data[0]->track_url;
-            $track_url_href = $track_url_display;
-            if (!empty($awb_no)) {
-              $track_url_href = str_replace(array('{{tracking_id}}', '{tracking_id}', '{{awb}}', '{awb}'), $awb_no, $track_url_display);
-            }
-          ?>
+          <?php if (!empty($order_data[0]->track_url)):
+    $track_url_display = $order_data[0]->track_url;
+    $track_url_href = $track_url_display;
+    if (!empty($awb_no)) {
+      $track_url_href = str_replace(array('{{tracking_id}}', '{tracking_id}', '{{awb}}', '{awb}'), $awb_no, $track_url_display);
+    }
+?>
           <div class="mt-1">
-            <a href="<?= htmlspecialchars($track_url_href) ?>" target="_blank" rel="noopener" class="text-break" style="font-size: 0.8rem;">
-              <?= htmlspecialchars(strlen($track_url_display) > 45 ? substr($track_url_display, 0, 45) . '…' : $track_url_display) ?>
+            <a href="<?= htmlspecialchars($track_url_href)?>" target="_blank" rel="noopener" class="text-break" style="font-size: 0.8rem;">
+              <?= htmlspecialchars(strlen($track_url_display) > 45 ? substr($track_url_display, 0, 45) . '…' : $track_url_display)?>
             </a>
           </div>
-          <?php endif; ?>
+          <?php
+  endif; ?>
           <?php if (!empty($order_data[0]->track_date)): ?>
           <div class="mt-1 text-muted" style="font-size: 0.75rem;">
-            <i class="fa fa-clock-o me-1"></i><?= date('d M Y, h:i A', strtotime($order_data[0]->track_date)) ?>
+            <i class="fa fa-clock-o me-1"></i><?= date('d M Y, h:i A', strtotime($order_data[0]->track_date))?>
           </div>
-          <?php endif; ?>
+          <?php
+  endif; ?>
         </div>
       </div>
-      <?php endif; ?>
+      <?php
+endif; ?>
       
       <!-- PACKAGE WEIGHT & BOOKSET INFO CARD -->
       <div class="card mb-3">
@@ -1257,27 +1345,28 @@ if($order_data[0]->payment_method == 'cod'){
           <b>Package Information</b>
         </div>
         <div class="card-body">
-          <?php 
-          // Display total package weight
-          $total_weight_gm = isset($order_data[0]->total_weight_gm) ? (float)$order_data[0]->total_weight_gm : 0;
-          if ($total_weight_gm > 0) {
-            $total_weight_kg = $total_weight_gm / 1000;
-            ?>
+          <?php
+// Display total package weight
+$total_weight_gm = isset($order_data[0]->total_weight_gm) ? (float)$order_data[0]->total_weight_gm : 0;
+if ($total_weight_gm > 0) {
+  $total_weight_kg = $total_weight_gm / 1000;
+?>
             <div class="mb-3">
               <div class="d-flex align-items-center">
                 <i class="fa fa-weight me-2 text-primary"></i>
                 <div>
                   <strong>Total Package Weight:</strong><br>
                   <span class="text-muted">
-                    <?= number_format($total_weight_gm, 2) ?> gm 
-                    (<?= number_format($total_weight_kg, 2) ?> kg)
+                    <?= number_format($total_weight_gm, 2)?> gm 
+                    (<?= number_format($total_weight_kg, 2)?> kg)
                   </span>
                 </div>
               </div>
             </div>
             <?php
-          } else {
-            ?>
+}
+else {
+?>
             <div class="mb-3">
               <div class="d-flex align-items-center">
                 <i class="fa fa-weight me-2 text-muted"></i>
@@ -1288,106 +1377,120 @@ if($order_data[0]->payment_method == 'cod'){
               </div>
             </div>
             <?php
-          }
-          
-          // Display bookset information if order is bookset
-          if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_info)) {
-            ?>
+}
+
+// Display bookset information if order is bookset
+if (isset($order_type) && $order_type == 'bookset' && !empty($bookset_info)) {
+?>
             <hr class="my-3">
             <div>
               <strong class="mb-2 d-block">Bookset Details:</strong>
               <?php if (!empty($bookset_info->school_name)): ?>
                 <div class="mb-2">
                   <i class="fa fa-school me-2 text-info"></i>
-                  <strong>School:</strong> <?= htmlspecialchars($bookset_info->school_name) ?>
+                  <strong>School:</strong> <?= htmlspecialchars($bookset_info->school_name)?>
                 </div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
               <?php if (!empty($bookset_info->board_name)): ?>
                 <div class="mb-2">
                   <i class="fa fa-book me-2 text-success"></i>
-                  <strong>Board:</strong> <?= htmlspecialchars($bookset_info->board_name) ?>
+                  <strong>Board:</strong> <?= htmlspecialchars($bookset_info->board_name)?>
                 </div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
               <?php if (!empty($bookset_info->grade_name)): ?>
                 <div class="mb-2">
                   <i class="fa fa-graduation-cap me-2 text-warning"></i>
-                  <strong>Grade:</strong> <?= htmlspecialchars($bookset_info->grade_name) ?>
+                  <strong>Grade:</strong> <?= htmlspecialchars($bookset_info->grade_name)?>
                 </div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
             </div>
             <?php
-          }
+}
 
-          // Display uniform order school/branch information (like bookset)
-          if (isset($order_type) && $order_type == 'uniform' && !empty($uniform_info) && (!empty($uniform_info->school_name) || !empty($uniform_info->branch_name))) {
-            ?>
+// Display uniform order school/branch information (like bookset)
+if (isset($order_type) && $order_type == 'uniform' && !empty($uniform_info) && (!empty($uniform_info->school_name) || !empty($uniform_info->branch_name))) {
+?>
             <hr class="my-3">
             <div>
               <strong class="mb-2 d-block">Uniform Order Details:</strong>
               <?php if (!empty($uniform_info->school_name)): ?>
                 <div class="mb-2">
                   <i class="fa fa-school me-2 text-info"></i>
-                  <strong>School:</strong> <?= htmlspecialchars($uniform_info->school_name) ?>
+                  <strong>School:</strong> <?= htmlspecialchars($uniform_info->school_name)?>
                 </div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
               <?php if (!empty($uniform_info->branch_name)): ?>
                 <div class="mb-2">
                   <i class="fa fa-building me-2 text-primary"></i>
-                  <strong>Branch:</strong> <?= htmlspecialchars($uniform_info->branch_name) ?>
+                  <strong>Branch:</strong> <?= htmlspecialchars($uniform_info->branch_name)?>
                 </div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
               <?php if (!empty($uniform_info->address)): ?>
                 <div class="mb-2 text-muted small">
                   <i class="fa fa-map-marker-alt me-2"></i>
-                  <?= htmlspecialchars($uniform_info->address) ?>
+                  <?= htmlspecialchars($uniform_info->address)?>
                 </div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
             </div>
             <?php
-          }
+}
 
-          // Deliver at School: School/Branch with address
-          if (isset($is_deliver_at_school) && $is_deliver_at_school && ((!empty($uniform_info) && !empty($uniform_info->display_name)) || !empty($address_arr[0]->address))) {
-            ?>
+// Deliver at School: School/Branch with address
+if (isset($is_deliver_at_school) && $is_deliver_at_school && ((!empty($uniform_info) && !empty($uniform_info->display_name)) || !empty($address_arr[0]->address))) {
+?>
             <hr class="my-3">
             <div>
               <strong class="mb-2 d-block">Delivery (School/Branch):</strong>
               <div class="mb-2">
                 <i class="fa fa-school me-2 text-danger"></i>
-                <strong><?= htmlspecialchars((!empty($uniform_info) && !empty($uniform_info->display_name)) ? $uniform_info->display_name : $address_arr[0]->address) ?></strong>
+                <strong><?= htmlspecialchars((!empty($uniform_info) && !empty($uniform_info->display_name)) ? $uniform_info->display_name : $address_arr[0]->address)?></strong>
               </div>
               <?php if (!empty($uniform_info) && !empty($uniform_info->address)): ?>
               <div class="mb-2 text-muted small">
                 <i class="fa fa-map-marker-alt me-2"></i>
-                <?= htmlspecialchars($uniform_info->address) ?>
+                <?= htmlspecialchars($uniform_info->address)?>
               </div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
             </div>
             <?php
-          }
+}
 
-          // Student details for all deliver at school
-          if (isset($is_deliver_at_school) && $is_deliver_at_school) {
-            ?>
+// Student details for all deliver at school
+if (isset($is_deliver_at_school) && $is_deliver_at_school) {
+?>
             <hr class="my-3">
             <div>
               <strong class="mb-2 d-block">Student Details (Deliver at School):</strong>
               <?php if (!empty($uniform_student_details)): ?>
                 <?php foreach ($uniform_student_details as $stu): ?>
                 <div class="mb-3 p-2 rounded" style="background: #fff3cd; border: 1px solid #ffc107;">
-                  <?php if (!empty($stu->f_name)): ?><div><strong>Name:</strong> <?= htmlspecialchars($stu->f_name) ?></div><?php endif; ?>
-                  <?php if (!empty($stu->grade)): ?><div><strong>Grade:</strong> <?= htmlspecialchars($stu->grade) ?></div><?php endif; ?>
-                  <?php if (!empty($stu->roll_number)): ?><div><strong>Roll Number:</strong> <?= htmlspecialchars($stu->roll_number) ?></div><?php endif; ?>
-                  <?php if (!empty($stu->remarks)): ?><div><strong>Remarks:</strong> <?= htmlspecialchars($stu->remarks) ?></div><?php endif; ?>
+                  <?php if (!empty($stu->f_name)): ?><div><strong>Name:</strong> <?= htmlspecialchars($stu->f_name)?></div><?php
+      endif; ?>
+                  <?php if (!empty($stu->grade)): ?><div><strong>Grade:</strong> <?= htmlspecialchars($stu->grade)?></div><?php
+      endif; ?>
+                  <?php if (!empty($stu->roll_number)): ?><div><strong>Roll Number:</strong> <?= htmlspecialchars($stu->roll_number)?></div><?php
+      endif; ?>
+                  <?php if (!empty($stu->remarks)): ?><div><strong>Remarks:</strong> <?= htmlspecialchars($stu->remarks)?></div><?php
+      endif; ?>
                 </div>
-                <?php endforeach; ?>
-              <?php else: ?>
+                <?php
+    endforeach; ?>
+              <?php
+  else: ?>
                 <div class="text-muted small">No student details</div>
-              <?php endif; ?>
+              <?php
+  endif; ?>
             </div>
             <?php
-          }
-          ?>
+}
+?>
         </div>
       </div>
       
@@ -1397,10 +1500,37 @@ if($order_data[0]->payment_method == 'cod'){
           <b>Customer</b>
         </div>
         <div class="card-body">
-          <div><b><?= htmlspecialchars(isset($address_arr[0]->name) ? $address_arr[0]->name : $order_data[0]->user_name) ?></b></div>
-          <div class="text-muted"><?= htmlspecialchars(isset($address_arr[0]->mobile_no) ? $address_arr[0]->mobile_no : $order_data[0]->user_phone) ?></div>
+          <div><b><?= htmlspecialchars(isset($address_arr[0]->name) ? $address_arr[0]->name : $order_data[0]->user_name)?></b></div>
+          <div class="text-muted"><?= htmlspecialchars(isset($address_arr[0]->mobile_no) ? $address_arr[0]->mobile_no : $order_data[0]->user_phone)?></div>
         </div>
       </div>
+
+      <?php if (!empty($children_data)): ?>
+      <!-- CHILDREN DETAILS CARD -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <b><i class="fa fa-child me-1"></i>Children Details</b>
+        </div>
+        <div class="card-body p-0">
+          <?php foreach ($children_data as $i => $child): ?>
+          <div class="d-flex align-items-center px-3 py-2 <?= $i > 0 ? 'border-top' : ''?>">
+            <div class="me-3 text-center" style="width:32px;height:32px;border-radius:50%;background:#e8f0fb;display:flex;align-items:center;justify-content:center;">
+              <small class="fw-bold text-primary"><?= $i + 1?></small>
+            </div>
+            <div>
+              <div class="fw-bold text-dark"><?= htmlspecialchars(isset($child['name']) ? $child['name'] : (isset($child['childName']) ? $child['childName'] : '—'))?></div>
+              <?php if (!empty($child['grade'])): ?>
+              <div class="text-muted small"><i class="fa fa-graduation-cap me-1"></i><?= htmlspecialchars($child['grade'])?></div>
+              <?php
+    endif; ?>
+            </div>
+          </div>
+          <?php
+  endforeach; ?>
+        </div>
+      </div>
+      <?php
+endif; ?>
 
       <!-- ADDRESS CARD -->
       <div class="card mb-3">
@@ -1408,38 +1538,47 @@ if($order_data[0]->payment_method == 'cod'){
           <b>Billing & Shipping Address</b>
         </div>
         <div class="card-body">
-          <?php if (isset($address_arr[0])): 
-            $addr = $address_arr[0];
-            $use_school_address = (isset($is_deliver_at_school) && $is_deliver_at_school && !empty($uniform_info) && !empty($uniform_info->display_name));
-          ?>
-            <div><b><?= htmlspecialchars($addr->name) ?></b></div>
-            <div class="text-muted"><?= htmlspecialchars($addr->mobile_no) ?></div>
+          <?php if (isset($address_arr[0])):
+  $addr = $address_arr[0];
+  $use_school_address = (isset($is_deliver_at_school) && $is_deliver_at_school && !empty($uniform_info) && !empty($uniform_info->display_name));
+?>
+            <div><b><?= htmlspecialchars($addr->name)?></b></div>
+            <div class="text-muted"><?= htmlspecialchars($addr->mobile_no)?></div>
             <div class="mt-2">
-              <?php 
-              if ($use_school_address) { 
-                echo htmlspecialchars($uniform_info->display_name);
-                if (!empty($uniform_info->address)) {
-                  echo '<br><span class="text-muted">' . htmlspecialchars($uniform_info->address) . '</span>';
-                }
-              } else {
-                $address_parts = array();
-                if (!empty($addr->address)) $address_parts[] = htmlspecialchars($addr->address);
-                if (!empty($addr->city)) $address_parts[] = htmlspecialchars($addr->city);
-                if (!empty($addr->state)) $address_parts[] = htmlspecialchars($addr->state);
-                if (!empty($addr->pincode)) $address_parts[] = htmlspecialchars($addr->pincode);
-                if (!empty($addr->country)) $address_parts[] = htmlspecialchars($addr->country);
-                echo implode(', ', $address_parts);
-              }
-              ?>
+              <?php
+  if ($use_school_address) {
+    echo htmlspecialchars($uniform_info->display_name);
+    if (!empty($uniform_info->address)) {
+      echo '<br><span class="text-muted">' . htmlspecialchars($uniform_info->address) . '</span>';
+    }
+  }
+  else {
+    $address_parts = array();
+    if (!empty($addr->address))
+      $address_parts[] = htmlspecialchars($addr->address);
+    if (!empty($addr->city))
+      $address_parts[] = htmlspecialchars($addr->city);
+    if (!empty($addr->state))
+      $address_parts[] = htmlspecialchars($addr->state);
+    if (!empty($addr->pincode))
+      $address_parts[] = htmlspecialchars($addr->pincode);
+    if (!empty($addr->country))
+      $address_parts[] = htmlspecialchars($addr->country);
+    echo implode(', ', $address_parts);
+  }
+?>
             </div>
-            <?php if(!$use_school_address && !empty($addr->landmark)): ?>
+            <?php if (!$use_school_address && !empty($addr->landmark)): ?>
             <div class="mt-1 text-muted">
-              <small>Landmark: <?= htmlspecialchars($addr->landmark) ?></small>
+              <small>Landmark: <?= htmlspecialchars($addr->landmark)?></small>
             </div>
-            <?php endif; ?>
-          <?php else: ?>
+            <?php
+  endif; ?>
+          <?php
+else: ?>
             <div class="text-muted">No address available</div>
-          <?php endif; ?>
+          <?php
+endif; ?>
         </div>
       </div>
 
@@ -1450,30 +1589,33 @@ if($order_data[0]->payment_method == 'cod'){
         </div>
         <div class="card-body">
           <?php if (isset($is_payment_at_school) && $is_payment_at_school): ?>
-          <div><span class="badge badge-payment-school"><?= htmlspecialchars($payment_method_display) ?></span></div>
-          <?php else: ?>
-          <div><b><?= htmlspecialchars($payment_method_display) ?></b></div>
-          <?php endif; ?>
+          <div><span class="badge badge-payment-school"><?= htmlspecialchars($payment_method_display)?></span></div>
+          <?php
+else: ?>
+          <div><b><?= htmlspecialchars($payment_method_display)?></b></div>
+          <?php
+endif; ?>
           <div class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></div>
           <?php if (!empty($order_data[0]->txn_id)): ?>
           <div class="mt-2">
-            <small class="text-muted">Tran. Id: <?= htmlspecialchars($order_data[0]->txn_id) ?></small>
+            <small class="text-muted">Tran. Id: <?= htmlspecialchars($order_data[0]->txn_id)?></small>
           </div>
-          <?php endif; ?>
+          <?php
+endif; ?>
           <div class="mt-2">
             <h5 class="mb-0"><b>
-              <?php 
-              // Calculate total: Subtotal + Tax + Delivery - Discount - Wallet
-              $payment_total = $_total_price + $_total_tax + (isset($order_data[0]->delivery_charge) ? (float)$order_data[0]->delivery_charge : 0);
-              $payment_total -= (isset($order_data[0]->discount_amt) ? (float)$order_data[0]->discount_amt : 0);
-              $payment_total -= (isset($order_data[0]->wallet_amount) ? (float)$order_data[0]->wallet_amount : 0);
-              
-              // Use payable_amt if available, otherwise use calculated total
-              $final_payment = isset($order_data[0]->payable_amt) && $order_data[0]->payable_amt > 0 
-                ? (float)$order_data[0]->payable_amt 
-                : $payment_total;
-              echo $currency_code . ' ' . number_format($final_payment, 2);
-              ?>
+              <?php
+// Calculate total: Subtotal + Tax + Delivery - Discount - Wallet
+$payment_total = $_total_price + $_total_tax + (isset($order_data[0]->delivery_charge) ? (float)$order_data[0]->delivery_charge : 0);
+$payment_total -= (isset($order_data[0]->discount_amt) ? (float)$order_data[0]->discount_amt : 0);
+$payment_total -= (isset($order_data[0]->wallet_amount) ? (float)$order_data[0]->wallet_amount : 0);
+
+// Use payable_amt if available, otherwise use calculated total
+$final_payment = isset($order_data[0]->payable_amt) && $order_data[0]->payable_amt > 0
+  ? (float)$order_data[0]->payable_amt
+  : $payment_total;
+echo $currency_code . ' ' . number_format($final_payment, 2);
+?>
             </b></h5>
           </div>
         </div>
@@ -1495,221 +1637,226 @@ if($order_data[0]->payment_method == 'cod'){
       </div>
       <div class="modal-body">
           <?php
-          // Helper to map tbl_order_status.status_title to display name
-          $status_title_map = array(
-            '1' => 'New Order / Pending',
-            '2' => 'Processing',
-            '6' => 'Ready for Shipment',
-            '3' => 'Out for Delivery',
-            '4' => 'Delivered',
-            '5' => 'Cancelled',
-            '7' => 'Return'
-          );
-          
-          // Build timeline from tbl_order_status (all data where order_id = tbl_order_details.id)
-          $timeline_items = array();
-          
-          // 1. Order Placed - from tbl_order_details.order_date (initial state)
-          $timeline_items[] = array(
-            'status' => 'Order Placed',
-            'date' => $order_data[0]->order_date,
-            'completed' => true,
-            'notes' => ''
-          );
-          
-          // 2. Add ALL entries from tbl_order_status (order_id = tbl_order_details.id)
-          if (!empty($additional_status)) {
-            foreach ($additional_status as $status) {
-              $display_status = isset($status_title_map[$status->status_title]) 
-                ? $status_title_map[$status->status_title] 
-                : $status->status_title;
-              $timeline_items[] = array(
-                'status' => $display_status,
-                'date' => $status->created_at,
-                'completed' => true,
-                'notes' => isset($status->status_desc) ? $status->status_desc : ''
-              );
-            }
+// Helper to map tbl_order_status.status_title to display name
+$status_title_map = array(
+  '1' => 'New Order / Pending',
+  '2' => 'Processing',
+  '6' => 'Ready for Shipment',
+  '3' => 'Out for Delivery',
+  '4' => 'Delivered',
+  '5' => 'Cancelled',
+  '7' => 'Return'
+);
+
+// Build timeline from tbl_order_status (all data where order_id = tbl_order_details.id)
+$timeline_items = array();
+
+// 1. Order Placed - from tbl_order_details.order_date (initial state)
+$timeline_items[] = array(
+  'status' => 'Order Placed',
+  'date' => $order_data[0]->order_date,
+  'completed' => true,
+  'notes' => ''
+);
+
+// 2. Add ALL entries from tbl_order_status (order_id = tbl_order_details.id)
+if (!empty($additional_status)) {
+  foreach ($additional_status as $status) {
+    $display_status = isset($status_title_map[$status->status_title])
+      ? $status_title_map[$status->status_title]
+      : $status->status_title;
+    $timeline_items[] = array(
+      'status' => $display_status,
+      'date' => $status->created_at,
+      'completed' => true,
+      'notes' => isset($status->status_desc) ? $status->status_desc : ''
+    );
+  }
+}
+
+// 3. Add tbl_order_details entries that may not have tbl_order_status records
+// Courier Assigned - track_date (when erp_courier_id set)
+if (!empty($order_data[0]->track_date) && !empty($order_data[0]->erp_courier_id)) {
+  $has_courier = false;
+  foreach ($timeline_items as $item) {
+    if (stripos($item['status'], 'Courier') !== false || stripos($item['status'], 'Shipper') !== false) {
+      $has_courier = true;
+      break;
+    }
+  }
+  if (!$has_courier) {
+    $timeline_items[] = array(
+      'status' => 'Courier Assigned',
+      'date' => $order_data[0]->track_date,
+      'completed' => true,
+      'notes' => 'Courier and tracking details added'
+    );
+  }
+}
+// Ready to Ship - ready_to_ship_time
+if (!empty($order_data[0]->ready_to_ship_time)) {
+  $has_ready = false;
+  foreach ($timeline_items as $item) {
+    if (stripos($item['status'], 'Ready to Ship') !== false) {
+      $has_ready = true;
+      break;
+    }
+  }
+  if (!$has_ready) {
+    $timeline_items[] = array(
+      'status' => 'Ready to Ship',
+      'date' => $order_data[0]->ready_to_ship_time,
+      'completed' => true,
+      'notes' => 'Order marked as ready to ship'
+    );
+  }
+}
+// Shipping Label - fallback if no tbl_order_status entry
+if (!empty($order_data[0]->shipping_label)) {
+  $has_label = false;
+  foreach ($timeline_items as $item) {
+    if (stripos($item['status'], 'Label') !== false || stripos($item['status'], 'label') !== false) {
+      $has_label = true;
+      break;
+    }
+  }
+  if (!$has_label) {
+    $timeline_items[] = array(
+      'status' => 'Shipping Label Generated',
+      'date' => !empty($order_data[0]->processing_date) ? $order_data[0]->processing_date : $order_data[0]->order_date,
+      'completed' => true,
+      'notes' => 'Shipping label has been generated'
+    );
+  }
+}
+
+// 7. Add entries from erp_order_status_history if available
+if (!empty($status_history)) {
+  foreach ($status_history as $history) {
+    if ($history->status_type == 'order_status') {
+      $status_label = '';
+      switch ($history->new_status) {
+        case '1':
+          $status_label = 'Pending';
+          break;
+        case '2':
+          $status_label = 'Processing';
+          break;
+        case '6':
+          $status_label = 'Ready for Shipment';
+          break;
+        case '3':
+          $status_label = 'Out for Delivery';
+          break;
+        case '4':
+          $status_label = 'Delivered';
+          break;
+        case '5':
+          $status_label = 'Cancelled';
+          break;
+        case 'label_generated':
+          $status_label = 'Shipping Label Generated';
+          break;
+        case 'shipper_selected':
+          $status_label = 'Shipper Selected';
+          break;
+        case '7':
+          $status_label = 'Return';
+          break;
+        default:
+          $status_label = ucfirst($history->new_status);
+      }
+
+      // Check if this status already exists in timeline
+      $exists = false;
+      foreach ($timeline_items as $item) {
+        if (stripos($item['status'], $status_label) !== false ||
+        stripos($status_label, $item['status']) !== false) {
+          // If exists, update notes if this one has more details
+          if (!empty($history->notes) && empty($item['notes'])) {
+            $item['notes'] = $history->notes;
           }
-          
-          // 3. Add tbl_order_details entries that may not have tbl_order_status records
-          // Courier Assigned - track_date (when erp_courier_id set)
-          if (!empty($order_data[0]->track_date) && !empty($order_data[0]->erp_courier_id)) {
-            $has_courier = false;
-            foreach ($timeline_items as $item) {
-              if (stripos($item['status'], 'Courier') !== false || stripos($item['status'], 'Shipper') !== false) {
-                $has_courier = true;
-                break;
-              }
-            }
-            if (!$has_courier) {
-              $timeline_items[] = array(
-                'status' => 'Courier Assigned',
-                'date' => $order_data[0]->track_date,
-                'completed' => true,
-                'notes' => 'Courier and tracking details added'
-              );
-            }
-          }
-          // Ready to Ship - ready_to_ship_time
-          if (!empty($order_data[0]->ready_to_ship_time)) {
-            $has_ready = false;
-            foreach ($timeline_items as $item) {
-              if (stripos($item['status'], 'Ready to Ship') !== false) {
-                $has_ready = true;
-                break;
-              }
-            }
-            if (!$has_ready) {
-              $timeline_items[] = array(
-                'status' => 'Ready to Ship',
-                'date' => $order_data[0]->ready_to_ship_time,
-                'completed' => true,
-                'notes' => 'Order marked as ready to ship'
-              );
-            }
-          }
-          // Shipping Label - fallback if no tbl_order_status entry
-          if (!empty($order_data[0]->shipping_label)) {
-            $has_label = false;
-            foreach ($timeline_items as $item) {
-              if (stripos($item['status'], 'Label') !== false || stripos($item['status'], 'label') !== false) {
-                $has_label = true;
-                break;
-              }
-            }
-            if (!$has_label) {
-              $timeline_items[] = array(
-                'status' => 'Shipping Label Generated',
-                'date' => !empty($order_data[0]->processing_date) ? $order_data[0]->processing_date : $order_data[0]->order_date,
-                'completed' => true,
-                'notes' => 'Shipping label has been generated'
-              );
-            }
-          }
-          
-          // 7. Add entries from erp_order_status_history if available
-          if (!empty($status_history)) {
-            foreach ($status_history as $history) {
-              if ($history->status_type == 'order_status') {
-                $status_label = '';
-                switch ($history->new_status) {
-                  case '1':
-                    $status_label = 'Pending';
-                    break;
-                  case '2':
-                    $status_label = 'Processing';
-                    break;
-                  case '6':
-                    $status_label = 'Ready for Shipment';
-                    break;
-                  case '3':
-                    $status_label = 'Out for Delivery';
-                    break;
-                  case '4':
-                    $status_label = 'Delivered';
-                    break;
-                  case '5':
-                    $status_label = 'Cancelled';
-                    break;
-                  case 'label_generated':
-                    $status_label = 'Shipping Label Generated';
-                    break;
-                  case 'shipper_selected':
-                    $status_label = 'Shipper Selected';
-                    break;
-                  case '7':
-                    $status_label = 'Return';
-                    break;
-                  default:
-                    $status_label = ucfirst($history->new_status);
-                }
-                
-                // Check if this status already exists in timeline
-                $exists = false;
-                foreach ($timeline_items as $item) {
-                  if (stripos($item['status'], $status_label) !== false || 
-                      stripos($status_label, $item['status']) !== false) {
-                    // If exists, update notes if this one has more details
-                    if (!empty($history->notes) && empty($item['notes'])) {
-                      $item['notes'] = $history->notes;
-                    }
-                    $exists = true;
-                    break;
-                  }
-                }
-                
-                if (!$exists) {
-                  $timeline_items[] = array(
-                    'status' => $status_label,
-                    'date' => $history->created_at,
-                    'completed' => true,
-                    'notes' => $history->notes
-                  );
-                }
-              }
-            }
-          }
-          
-          // Sort timeline by date
-          usort($timeline_items, function($a, $b) {
-            return strtotime($a['date']) - strtotime($b['date']);
-          });
-          
-          // Set timezone to IST for date display
-          date_default_timezone_set('Asia/Kolkata');
-          
-          // Display timeline
-          foreach ($timeline_items as $item) {
-            $class = $item['completed'] ? 'completed' : 'pending';
-            // Format date in IST timezone
-            $display_date = '';
-            if (!empty($item['date']) && $item['date'] != '0000-00-00 00:00:00') {
-              try {
-                // Assume the date is in server timezone, convert to IST
-                $date_obj = new DateTime($item['date']);
-                $date_obj->setTimezone(new DateTimeZone('Asia/Kolkata'));
-                $display_date = $date_obj->format('D, M d, Y, h:i A');
-              } catch (Exception $e) {
-                // Fallback to simple date formatting
-                $display_date = date('D, M d, Y, h:i A', strtotime($item['date']));
-              }
-            } else {
-              $display_date = date('D, M d, Y, h:i A', strtotime($item['date']));
-            }
-            ?>
-            <div class="timeline-item <?= $class ?>">
-              <div><b>✔ <?= htmlspecialchars($item['status']) ?></b></div>
-              <small class="text-muted"><?= $display_date ?></small>
+          $exists = true;
+          break;
+        }
+      }
+
+      if (!$exists) {
+        $timeline_items[] = array(
+          'status' => $status_label,
+          'date' => $history->created_at,
+          'completed' => true,
+          'notes' => $history->notes
+        );
+      }
+    }
+  }
+}
+
+// Sort timeline by date
+usort($timeline_items, function ($a, $b) {
+  return strtotime($a['date']) - strtotime($b['date']);
+});
+
+// Set timezone to IST for date display
+date_default_timezone_set('Asia/Kolkata');
+
+// Display timeline
+foreach ($timeline_items as $item) {
+  $class = $item['completed'] ? 'completed' : 'pending';
+  // Format date in IST timezone
+  $display_date = '';
+  if (!empty($item['date']) && $item['date'] != '0000-00-00 00:00:00') {
+    try {
+      // Assume the date is in server timezone, convert to IST
+      $date_obj = new DateTime($item['date']);
+      $date_obj->setTimezone(new DateTimeZone('Asia/Kolkata'));
+      $display_date = $date_obj->format('D, M d, Y, h:i A');
+    }
+    catch (Exception $e) {
+      // Fallback to simple date formatting
+      $display_date = date('D, M d, Y, h:i A', strtotime($item['date']));
+    }
+  }
+  else {
+    $display_date = date('D, M d, Y, h:i A', strtotime($item['date']));
+  }
+?>
+            <div class="timeline-item <?= $class?>">
+              <div><b>✔ <?= htmlspecialchars($item['status'])?></b></div>
+              <small class="text-muted"><?= $display_date?></small>
               <?php if (!empty($item['notes'])): ?>
-              <div class="mt-1"><small class="text-muted"><?= htmlspecialchars($item['notes']) ?></small></div>
-              <?php endif; ?>
+              <div class="mt-1"><small class="text-muted"><?= htmlspecialchars($item['notes'])?></small></div>
+              <?php
+  endif; ?>
             </div>
             <?php
-          }
-          
-          // If no timeline items, show at least order placed
-          if (empty($timeline_items)) {
-            $order_date_display = '';
-            if (!empty($order_data[0]->order_date) && $order_data[0]->order_date != '0000-00-00 00:00:00') {
-              try {
-                $date_obj = new DateTime($order_data[0]->order_date);
-                $date_obj->setTimezone(new DateTimeZone('Asia/Kolkata'));
-                $order_date_display = $date_obj->format('D, M d, Y, h:i A');
-              } catch (Exception $e) {
-                $order_date_display = date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date));
-              }
-            } else {
-              $order_date_display = date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date));
-            }
-            ?>
+}
+
+// If no timeline items, show at least order placed
+if (empty($timeline_items)) {
+  $order_date_display = '';
+  if (!empty($order_data[0]->order_date) && $order_data[0]->order_date != '0000-00-00 00:00:00') {
+    try {
+      $date_obj = new DateTime($order_data[0]->order_date);
+      $date_obj->setTimezone(new DateTimeZone('Asia/Kolkata'));
+      $order_date_display = $date_obj->format('D, M d, Y, h:i A');
+    }
+    catch (Exception $e) {
+      $order_date_display = date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date));
+    }
+  }
+  else {
+    $order_date_display = date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date));
+  }
+?>
             <div class="timeline-item completed">
               <div><b>✔ Order Placed</b></div>
-              <small class="text-muted"><?= $order_date_display ?></small>
+              <small class="text-muted"><?= $order_date_display?></small>
             </div>
             <?php
-          }
-          ?>
+}
+?>
       </div>
     </div>
   </div>
@@ -2042,7 +2189,7 @@ if($order_data[0]->payment_method == 'cod'){
   }
 
   // 3rd Party Shipping Modal (single order uses save_third_party_shipping)
-  var orderUniqueIdForThirdParty = '<?= addslashes($order_data[0]->order_unique_id ?? '') ?>';
+  var orderUniqueIdForThirdParty = '<?= addslashes($order_data[0]->order_unique_id ?? '')?>';
   /*
   $('#thirdPartyShippingModal').on('show.bs.modal', function() {
     $('#thirdPartyProvider').val('');
@@ -2072,9 +2219,9 @@ if($order_data[0]->payment_method == 'cod'){
 
 
   // Select Courier Modal - load couriers when modal opens
-  var orderUniqueIdForCourier = '<?= $order_data[0]->order_unique_id ?>';
-  var existingCourierId = '<?= isset($order_data[0]->erp_courier_id) && $order_data[0]->erp_courier_id ? (int)$order_data[0]->erp_courier_id : 0 ?>';
-  var existingAwbNo = '<?= isset($order_data[0]->awb_no) ? addslashes(trim($order_data[0]->awb_no)) : "" ?>';
+  var orderUniqueIdForCourier = '<?= $order_data[0]->order_unique_id?>';
+  var existingCourierId = '<?= isset($order_data[0]->erp_courier_id) && $order_data[0]->erp_courier_id ? (int)$order_data[0]->erp_courier_id : 0?>';
+  var existingAwbNo = '<?= isset($order_data[0]->awb_no) ? addslashes(trim($order_data[0]->awb_no)) : ""?>';
   $('#selectCourierModal').on('show.bs.modal', function() {
     $('#courierListLoading').show();
     $('#courierListEmpty').hide();

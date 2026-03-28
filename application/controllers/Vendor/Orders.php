@@ -1230,6 +1230,16 @@ class Orders extends Vendor_base
 		$data['status_history'] = $status_history;
 		$data['additional_status'] = $additional_status;
 		$data['order_id'] = isset($order_data[0]->id) ? $order_data[0]->id : 0;
+
+		// Parse children_data JSON from order
+		$children_data = array();
+		if (!empty($order_data[0]->children_data)) {
+			$parsed = json_decode($order_data[0]->children_data, true);
+			if (is_array($parsed) && !empty($parsed)) {
+				$children_data = $parsed;
+			}
+		}
+		$data['children_data'] = $children_data;
 		
 		// Courier info for self-delivery orders (from erp_master_courier)
 		$data['courier_info'] = null;
