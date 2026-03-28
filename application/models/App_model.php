@@ -694,16 +694,64 @@ class App_model extends CI_Model
         if (!$order)
             return NULL;
 
-        $order['items'] = $vendor_db->get_where('tbl_order_items', array('order_id' => $order_id))->result_array();
+        // Get vendor domain for absolute image URLs
+        $vendor = $this->master_db
+            ->select('domain')
+            ->from('erp_clients')
+            ->where('id', $vendor_id)
+            ->get()
+            ->row_array();
+        $base_url = '';
+        if (!empty($vendor['domain'])) {
+            $base_url = rtrim('https://' . $vendor['domain'], '/') . '/';
+        }
+
+        $items = $vendor_db->get_where('tbl_order_items', array('order_id' => $order_id))->result_array();
+        
+        // Fetch images for each item
+        foreach ($items as &$item) {
+            $item['product_image'] = '';
+            if (!empty($item['product_id'])) {
+                $img = $vendor_db->select('image_path')
+                    ->from('erp_uniform_images')
+                    ->where('uniform_id', $item['product_id'])
+                    ->where('is_main', 1)
+                    ->limit(1)
+                    ->get()
+                    ->row_array();
+                
+                if (empty($img)) {
+                    // Fallback to first available image
+                    $img = $vendor_db->select('image_path')
+                        ->from('erp_uniform_images')
+                        ->where('uniform_id', $item['product_id'])
+                        ->limit(1)
+                        ->get()
+                        ->row_array();
+                }
+
+                if (!empty($img['image_path'])) {
+                    $item['product_image'] = $base_url . ltrim($img['image_path'], '/');
+                }
+            }
+        }
+        
+        $order['items'] = $items;
         $order['address'] = $vendor_db->get_where('tbl_order_address', array('order_id' => $order_id))->row_array();
         $order['status_text'] = $this->getOrderStatusText($order['order_status']);
 
-        // Fetch school name from VENDOR DB
+        // Fetch school name and logo from VENDOR DB
         if (!empty($order['school_id'])) {
-            $school = $vendor_db->select('school_name')->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
+            $has_logo = $vendor_db->field_exists('logo', 'erp_schools');
+            $select_fields = $has_logo ? 'school_name, logo' : 'school_name';
+            
+            $school = $vendor_db->select($select_fields)->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
+            
             $order['school_name'] = $school ? $school['school_name'] : 'Unknown School';
+            $order['school_logo'] = ($school && $has_logo && !empty($school['logo'])) ? $base_url . ltrim($school['logo'], '/') : '';
         } else {
             $order['school_name'] = 'N/A';
+            $order['school_logo'] = '';
         }
 
         return $order;
@@ -881,6 +929,7 @@ class App_model extends CI_Model
                 'image_path' => $img_url,
                 'size' => $sizes,
                 'price' => $row['price'],
+                'gst_percentage' => (float) $row['gst_percentage'],
                 'class_id' => $row['class_id'],
                 'branch_id' => $row['branch_id'],
                 'board_id' => $row['board_id'],
