@@ -218,6 +218,7 @@
 								<option value="Black" <?php echo set_select('color', 'Black', $uniform['color'] == 'Black'); ?>>Black</option>
 								<option value="Navy Blue" <?php echo set_select('color', 'Navy Blue', $uniform['color'] == 'Navy Blue'); ?>>Navy Blue</option>
 								<option value="Royal Blue" <?php echo set_select('color', 'Royal Blue', $uniform['color'] == 'Royal Blue'); ?>>Royal Blue</option>
+								<option value="Blue" <?php echo set_select('color', 'Blue', $uniform['color'] == 'Blue'); ?>>Blue</option>
 								<option value="Sky Blue" <?php echo set_select('color', 'Sky Blue', $uniform['color'] == 'Sky Blue'); ?>>Sky Blue</option>
 								<option value="Light Blue" <?php echo set_select('color', 'Light Blue', $uniform['color'] == 'Light Blue'); ?>>Light Blue</option>
 								<option value="Dark Blue" <?php echo set_select('color', 'Dark Blue', $uniform['color'] == 'Dark Blue'); ?>>Dark Blue</option>

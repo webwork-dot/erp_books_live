@@ -12,3 +12,4 @@ application.kirtiBook/application/config/foreign_chars.php
 /elevix-project
 /book_erp_frontend
 application/config/database.php
+/live-backup

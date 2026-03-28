@@ -141,6 +141,7 @@
 									<option value="Black" <?php echo set_select('color', 'Black'); ?>>Black</option>
 									<option value="Navy Blue" <?php echo set_select('color', 'Navy Blue'); ?>>Navy Blue</option>
 									<option value="Royal Blue" <?php echo set_select('color', 'Royal Blue'); ?>>Royal Blue</option>
+									<option value="Blue" <?php echo set_select('color', 'Blue'); ?>>Blue</option>
 									<option value="Sky Blue" <?php echo set_select('color', 'Sky Blue'); ?>>Sky Blue</option>
 									<option value="Light Blue" <?php echo set_select('color', 'Light Blue'); ?>>Light Blue</option>
 									<option value="Dark Blue" <?php echo set_select('color', 'Dark Blue'); ?>>Dark Blue</option>
