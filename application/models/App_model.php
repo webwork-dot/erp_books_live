@@ -667,6 +667,11 @@ class App_model extends CI_Model
 
             foreach ($orders as &$ord) {
                 $ord['vendor_id'] = $v_id; // useful for lookup
+                $ord['status_text'] = $this->getOrderStatusText($ord['order_status']);
+
+                // Fetch school name from VENDOR DB
+                $school = $vendor_db->select('school_name')->from('erp_schools')->where('id', $ord['school_id'])->get()->row_array();
+                $ord['school_name'] = $school ? $school['school_name'] : 'Unknown School';
             }
             $all_orders = array_merge($all_orders, $orders);
         }
@@ -675,28 +680,6 @@ class App_model extends CI_Model
         usort($all_orders, function ($a, $b) {
             return strtotime($b['order_date']) - strtotime($a['order_date']);
         });
-
-        // 3. Attach school names from master_db
-        if (!empty($all_orders)) {
-            $school_ids = array_unique(array_column($all_orders, 'school_id'));
-            if (!empty($school_ids)) {
-                $schools = $vendor_db
-                    ->select('id, school_name')
-                    ->from('erp_schools')
-                    ->where_in('id', $school_ids)
-                    ->get()
-                    ->result_array();
-
-                $school_map = array();
-                foreach ($schools as $s) {
-                    $school_map[$s['id']] = $s['school_name'];
-                }
-
-                foreach ($all_orders as &$ord) {
-                    $ord['school_name'] = isset($school_map[$ord['school_id']]) ? $school_map[$ord['school_id']] : 'Unknown School';
-                }
-            }
-        }
 
         return $all_orders;
     }
@@ -713,16 +696,32 @@ class App_model extends CI_Model
 
         $order['items'] = $vendor_db->get_where('tbl_order_items', array('order_id' => $order_id))->result_array();
         $order['address'] = $vendor_db->get_where('tbl_order_address', array('order_id' => $order_id))->row_array();
+        $order['status_text'] = $this->getOrderStatusText($order['order_status']);
 
-        // Fetch school name if school_id exists
+        // Fetch school name from VENDOR DB
         if (!empty($order['school_id'])) {
-            $school = $this->master_db->select('school_name')->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
+            $school = $vendor_db->select('school_name')->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
             $order['school_name'] = $school ? $school['school_name'] : 'Unknown School';
         } else {
             $order['school_name'] = 'N/A';
         }
 
         return $order;
+    }
+
+    private function getOrderStatusText($status)
+    {
+        $status = (int) $status;
+        $map = array(
+            1 => 'Pending',
+            2 => 'Processing',
+            3 => 'Shipped',
+            4 => 'Delivered',
+            5 => 'Cancelled',
+            6 => 'Return Processed',
+            0 => 'Confirmed'
+        );
+        return isset($map[$status]) ? $map[$status] : 'Unknown (' . $status . ')';
     }
 
     private function getVendorDB($vendor_id)

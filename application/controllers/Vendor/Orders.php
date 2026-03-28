@@ -31,7 +31,7 @@ class Orders extends Vendor_base
 		$this->load->model('Pdf_model');
 		$this->load->model('Courier_model');
 	}
-	
+
 	/**
 	 * Get pagination configuration
 	 *
@@ -43,7 +43,7 @@ class Orders extends Vendor_base
 	private function get_pagination_config($base_url, $total_rows, $per_page)
 	{
 		$config = array();
-		
+
 		$config['base_url'] = $base_url;
 		$config['total_rows'] = $total_rows;
 		$config['per_page'] = $per_page;
@@ -54,7 +54,7 @@ class Orders extends Vendor_base
 
 		// Show ~10 pages at a time (5 on each side of current page)
 		$config['num_links'] = 5;
-		
+
 		$config['full_tag_open'] = '<ul class="pagination justify-content-center">';
 		$config['full_tag_close'] = '</ul>';
 		$config['first_link'] = '<span aria-hidden="true">&laquo;&laquo;</span>';
@@ -74,10 +74,10 @@ class Orders extends Vendor_base
 		$config['num_tag_open'] = '<li class="page-item">';
 		$config['num_tag_close'] = '</li>';
 		$config['attributes'] = array('class' => 'page-link');
-		
+
 		return $config;
 	}
-	 
+
 	/**
 	 * Index - List all orders with filters
 	 *
@@ -91,19 +91,19 @@ class Orders extends Vendor_base
 
 		// Get filter parameters
 		$filter_data['date_range'] = $this->input->get('date_range');
-		$filter_data['machine']   = $this->input->get('machine');
-		$filter_data['keywords']  = $this->input->get('keywords');
-		$filter_data['pincode']   = $this->input->get('pincode');
-		$filter_data['school']    = $this->input->get('school');
-		$filter_data['grade']     = $this->input->get('grade');
+		$filter_data['machine'] = $this->input->get('machine');
+		$filter_data['keywords'] = $this->input->get('keywords');
+		$filter_data['pincode'] = $this->input->get('pincode');
+		$filter_data['school'] = $this->input->get('school');
+		$filter_data['grade'] = $this->input->get('grade');
 		$filter_data['payment_method'] = $this->input->get('payment_method');
-		$filter_data['delivery_type']  = $this->input->get('delivery_type');
-		$filter_data['order_status']  = ($param1 != "" ? $param1 : 'all');
-		$page_data['order_status']  = $filter_data['order_status'];
+		$filter_data['delivery_type'] = $this->input->get('delivery_type');
+		$filter_data['order_status'] = ($param1 != "" ? $param1 : 'all');
+		$page_data['order_status'] = $filter_data['order_status'];
 
 		// Per-page: allow 10, 25, 50, 100
 		$allowed_per_page = array(10, 25, 50, 100);
-		$per_page = (int)$this->input->get('per_page');
+		$per_page = (int) $this->input->get('per_page');
 		if (!in_array($per_page, $allowed_per_page)) {
 			$per_page = 10;
 		}
@@ -112,18 +112,19 @@ class Orders extends Vendor_base
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_orders_count($vendor_id, $filter_data);
 		$page_data['total_count'] = $total_count;
-		
+
 		// Get order counts for each status (for tabs)
 		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
-		
+
 		// Pagination setup
-		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
-		if ($page < 1) $page = 1;
+		$page = $this->input->get('page') ? (int) $this->input->get('page') : 1;
+		if ($page < 1)
+			$page = 1;
 		$offset = ($page - 1) * $per_page;
-		
+
 		// Get orders
 		$page_data['order_list'] = $this->Order_model->get_paginated_orders($vendor_id, $filter_data, $per_page, $offset);
-		
+
 		// Update seen status (if common_model exists)
 		// $data_update = array('is_seen' => 1);
 		// $this->load->model('common_model');
@@ -139,7 +140,7 @@ class Orders extends Vendor_base
 			$total_count,
 			$per_page
 		);
-		
+
 		$this->pagination->initialize($pagination_config);
 		$page_data['pagination'] = $this->pagination->create_links();
 
@@ -150,24 +151,24 @@ class Orders extends Vendor_base
 		$page_data['pagination_base'] = $pagination_base;
 
 		// Prepare page data
-		$page_data['page_name']    = 'orders';
-		$page_data['page_title']   = 'Orders';
+		$page_data['page_name'] = 'orders';
+		$page_data['page_title'] = 'Orders';
 		$page_data['current_page'] = 'Orders';
-		$page_data['navigate']     = 'Orders';
+		$page_data['navigate'] = 'Orders';
 		$page_data['current_vendor'] = $this->current_vendor;
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
-		
+
 		// Get schools and grades for filter dropdowns
 		$page_data['schools'] = $this->get_schools_for_filter();
 		$page_data['grades'] = $this->get_grades_for_filter();
-		
+
 		// Load content view
 		$data['title'] = 'Orders - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->current_vendor['domain'];
 		$data['content'] = $this->load->view('vendor/orders/index', $page_data, TRUE);
-		
+
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
@@ -183,14 +184,14 @@ class Orders extends Vendor_base
 
 		// Same filter parameters as index
 		$filter_data['date_range'] = $this->input->get('date_range');
-		$filter_data['machine']   = $this->input->get('machine');
-		$filter_data['keywords']  = $this->input->get('keywords');
-		$filter_data['pincode']   = $this->input->get('pincode');
-		$filter_data['school']    = $this->input->get('school');
-		$filter_data['grade']     = $this->input->get('grade');
+		$filter_data['machine'] = $this->input->get('machine');
+		$filter_data['keywords'] = $this->input->get('keywords');
+		$filter_data['pincode'] = $this->input->get('pincode');
+		$filter_data['school'] = $this->input->get('school');
+		$filter_data['grade'] = $this->input->get('grade');
 		$filter_data['payment_method'] = $this->input->get('payment_method');
-		$filter_data['delivery_type']  = $this->input->get('delivery_type');
-		$filter_data['order_status']   = $this->input->get('order_status') ?: 'all';
+		$filter_data['delivery_type'] = $this->input->get('delivery_type');
+		$filter_data['order_status'] = $this->input->get('order_status') ?: 'all';
 
 		// Fetch all matching orders (no pagination)
 		$limit = 50000;
@@ -214,7 +215,7 @@ class Orders extends Vendor_base
 
 		$out = fopen('php://output', 'w');
 		// BOM for Excel UTF-8
-		fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+		fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
 		fputcsv($out, array('Orders Export - ' . ucfirst(str_replace('_', ' ', $status_slug))));
 		fputcsv($out, array('Export Date: ' . date('Y-m-d H:i:s')));
@@ -392,7 +393,7 @@ class Orders extends Vendor_base
 
 		return $students;
 	}
-	
+
 	/**
 	 * Get order details (AJAX)
 	 *
@@ -402,12 +403,11 @@ class Orders extends Vendor_base
 	public function get_order_details($order_id)
 	{
 		$vendor_id = $this->current_vendor['id'];
-		
+
 		// Get order details
 		$order = $this->Order_model->getOrderById($order_id, $vendor_id);
-		
-		if (!$order)
-		{
+
+		if (!$order) {
 			$this->output
 				->set_content_type('application/json')
 				->set_output(json_encode(array(
@@ -416,7 +416,7 @@ class Orders extends Vendor_base
 				)));
 			return;
 		}
-		
+
 		// Return JSON response
 		$this->output
 			->set_content_type('application/json')
@@ -425,7 +425,7 @@ class Orders extends Vendor_base
 				'order' => $order
 			)));
 	}
-	
+
 	/**
 	 * View order details
 	 *
@@ -436,17 +436,16 @@ class Orders extends Vendor_base
 	{
 		// Get order details using get_order method
 		$order_data = $this->Order_model->get_order($order_no);
-		
-		if (!$order_data)
-		{
+
+		if (!$order_data) {
 			show_error('Order not found', 404);
 			return;
 		}
-		
+
 		// Verify order belongs to vendor through order items
 		$order_id = $order_data[0]->id;
-		
-		
+
+
 		// Get order items
 		$items_arr = $this->db->select('*')
 			->from('tbl_order_items')
@@ -454,7 +453,7 @@ class Orders extends Vendor_base
 			->order_by('id', 'ASC')
 			->get()
 			->result();
-		
+
 		// Add school, branch, and bookset information for each item
 		foreach ($items_arr as $item) {
 			$item->school_name = '';
@@ -469,7 +468,7 @@ class Orders extends Vendor_base
 			if ($item->order_type === 'bookset') {
 				// Get school name
 				if (isset($item->school_id) && !empty($item->school_id)) {
-					$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . (int)$item->school_id . "' LIMIT 1");
+					$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . (int) $item->school_id . "' LIMIT 1");
 					if ($school_query->num_rows() > 0) {
 						$item->school_name = $school_query->row()->school_name;
 					}
@@ -483,7 +482,7 @@ class Orders extends Vendor_base
 							SELECT tg.name as grade_name
 							FROM erp_booksets bs
 							LEFT JOIN erp_textbook_grades tg ON tg.id = bs.grade_id
-							WHERE bs.id = '" . (int)$bookset_id . "'
+							WHERE bs.id = '" . (int) $bookset_id . "'
 							LIMIT 1
 						");
 						if ($grade_query->num_rows() > 0) {
@@ -500,7 +499,7 @@ class Orders extends Vendor_base
 								SELECT tg.name as grade_name
 								FROM erp_bookset_packages bp
 								LEFT JOIN erp_textbook_grades tg ON tg.id = bp.grade_id
-								WHERE bp.id = '" . (int)$first_package_id . "'
+								WHERE bp.id = '" . (int) $first_package_id . "'
 								LIMIT 1
 							");
 							if ($grade_query->num_rows() > 0) {
@@ -532,7 +531,7 @@ class Orders extends Vendor_base
 								eop.total_price,
 								0 as weight
 							FROM erp_bookset_order_products eop
-							WHERE eop.order_id = '" . (int)$order_id . "'
+							WHERE eop.order_id = '" . (int) $order_id . "'
 							ORDER BY eop.package_id, eop.id ASC
 						");
 
@@ -609,7 +608,7 @@ class Orders extends Vendor_base
 								AND bpp.product_type = tobp.product_type
 								AND bpp.product_id = tobp.product_id
 								AND bpp.status = 'active'
-							WHERE tobp.order_item_id = '" . (int)$order_item_id . "'
+							WHERE tobp.order_item_id = '" . (int) $order_item_id . "'
 							ORDER BY tobp.package_id, tobp.id ASC
 						");
 
@@ -657,10 +656,11 @@ class Orders extends Vendor_base
 					$package_ids = array_filter(array_map('trim', $package_ids));
 
 					foreach ($package_ids as $package_id) {
-						if (empty($package_id)) continue;
+						if (empty($package_id))
+							continue;
 
 						// Get package details
-						$package_query = $this->db->query("SELECT id, package_name, package_price, package_offer_price, category, is_it FROM erp_bookset_packages WHERE id = '" . (int)$package_id . "' LIMIT 1");
+						$package_query = $this->db->query("SELECT id, package_name, package_price, package_offer_price, category, is_it FROM erp_bookset_packages WHERE id = '" . (int) $package_id . "' LIMIT 1");
 						if ($package_query->num_rows() > 0) {
 							$package = $package_query->row_array();
 
@@ -685,7 +685,7 @@ class Orders extends Vendor_base
 									'' as isbn,
 									bpp.weight as product_weight
 								FROM erp_bookset_package_products bpp
-								WHERE bpp.package_id = '" . (int)$package_id . "'
+								WHERE bpp.package_id = '" . (int) $package_id . "'
 								AND bpp.status = 'active'
 								ORDER BY bpp.id ASC
 							");
@@ -706,16 +706,18 @@ class Orders extends Vendor_base
 
 					// Check if it's a uniform (has erp_uniforms table with school_id and branch_id)
 					// IMPORTANT: Prefer order item's school_id/branch_id (from tbl_order_items) over product's - order item reflects the branch the customer selected
-					$use_school_id = isset($item->school_id) && !empty($item->school_id) ? (int)$item->school_id : null;
-					$use_branch_id = isset($item->branch_id) && !empty($item->branch_id) ? (int)$item->branch_id : null;
+					$use_school_id = isset($item->school_id) && !empty($item->school_id) ? (int) $item->school_id : null;
+					$use_branch_id = isset($item->branch_id) && !empty($item->branch_id) ? (int) $item->branch_id : null;
 
-					$uniform_query = $this->db->query("SELECT u.school_id, u.branch_id, usp.size_id FROM erp_uniforms u LEFT JOIN erp_uniform_size_prices usp ON u.id = usp.uniform_id WHERE u.id = '" . (int)$item->product_id . "' LIMIT 1");
+					$uniform_query = $this->db->query("SELECT u.school_id, u.branch_id, usp.size_id FROM erp_uniforms u LEFT JOIN erp_uniform_size_prices usp ON u.id = usp.uniform_id WHERE u.id = '" . (int) $item->product_id . "' LIMIT 1");
 					if ($uniform_query->num_rows() > 0) {
 						$uniform = $uniform_query->row();
 
 						// Fallback to product's school/branch if order item doesn't have them
-						if (empty($use_school_id) && !empty($uniform->school_id)) $use_school_id = (int)$uniform->school_id;
-						if (empty($use_branch_id) && !empty($uniform->branch_id)) $use_branch_id = (int)$uniform->branch_id;
+						if (empty($use_school_id) && !empty($uniform->school_id))
+							$use_school_id = (int) $uniform->school_id;
+						if (empty($use_branch_id) && !empty($uniform->branch_id))
+							$use_branch_id = (int) $uniform->branch_id;
 
 						// Get school name if school_id exists
 						if (!empty($use_school_id)) {
@@ -735,19 +737,19 @@ class Orders extends Vendor_base
 
 						// Get size name if size_id exists
 						if (!empty($uniform->size_id)) {
-							$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . (int)$uniform->size_id . "' LIMIT 1");
+							$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . (int) $uniform->size_id . "' LIMIT 1");
 							if ($size_query->num_rows() > 0) {
 								$item->size_name = $size_query->row()->name;
 							}
 						}
 					} else {
 						// Check if it's a regular product (has product_variations table)
-						$variation_query = $this->db->query("SELECT pvar.size FROM products p INNER JOIN product_variations pvar ON p.id = pvar.product_id WHERE p.id = '" . (int)$item->product_id . "' LIMIT 1");
+						$variation_query = $this->db->query("SELECT pvar.size FROM products p INNER JOIN product_variations pvar ON p.id = pvar.product_id WHERE p.id = '" . (int) $item->product_id . "' LIMIT 1");
 						if ($variation_query->num_rows() > 0) {
 							$variation = $variation_query->row();
 							if (!empty($variation->size)) {
 								// Get size name from oc_attribute_values
-								$size_query = $this->db->query("SELECT name FROM oc_attribute_values WHERE attribute_id = '" . (int)$variation->size . "' LIMIT 1");
+								$size_query = $this->db->query("SELECT name FROM oc_attribute_values WHERE attribute_id = '" . (int) $variation->size . "' LIMIT 1");
 								if ($size_query->num_rows() > 0) {
 									$item->size_name = $size_query->row()->name;
 								}
@@ -763,7 +765,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Get order addresses (billing and shipping)
 		$address_arr = $this->db->select('*')
 			->from('tbl_order_address')
@@ -771,10 +773,9 @@ class Orders extends Vendor_base
 			->order_by('id', 'ASC')
 			->get()
 			->result();
-		
+
 		// If no addresses found, create default from order data
-		if (empty($address_arr))
-		{
+		if (empty($address_arr)) {
 			$default_address = new stdClass();
 			$default_address->name = $order_data[0]->user_name;
 			$default_address->mobile_no = $order_data[0]->user_phone;
@@ -786,7 +787,7 @@ class Orders extends Vendor_base
 			$default_address->landmark = '';
 			$address_arr = array($default_address);
 		}
-		
+
 		// When deliver at school/branch: if address is empty, use school/branch from order items with full address
 		$addr_first = $address_arr[0];
 		$addr_empty = empty($addr_first->address) && empty($addr_first->city) && empty($addr_first->state) && empty($addr_first->pincode);
@@ -799,11 +800,12 @@ class Orders extends Vendor_base
 						->join('erp_schools s', 's.id = sb.school_id', 'left')
 						->join('cities c', 'c.id = sb.city_id', 'left')
 						->join('states st', 'st.id = sb.state_id', 'left')
-						->where('sb.id', (int)$oi->branch_id)
+						->where('sb.id', (int) $oi->branch_id)
 						->limit(1)->get()->row();
 					if ($br) {
 						$addr_first->address = $br->branch_name . (!empty($br->school_name) ? ' (' . $br->school_name . ')' : '');
-						if (!empty($br->address)) $addr_first->address .= ', ' . $br->address;
+						if (!empty($br->address))
+							$addr_first->address .= ', ' . $br->address;
 						$addr_first->city = isset($br->city_name) ? $br->city_name : '';
 						$addr_first->state = isset($br->state_name) ? $br->state_name : '';
 						$addr_first->pincode = isset($br->pincode) ? $br->pincode : '';
@@ -815,11 +817,12 @@ class Orders extends Vendor_base
 						->from('erp_schools s')
 						->join('cities c', 'c.id = s.city_id', 'left')
 						->join('states st', 'st.id = s.state_id', 'left')
-						->where('s.id', (int)$oi->school_id)
+						->where('s.id', (int) $oi->school_id)
 						->limit(1)->get()->row();
 					if ($sch) {
 						$addr_first->address = $sch->school_name;
-						if (!empty($sch->address)) $addr_first->address .= ', ' . $sch->address;
+						if (!empty($sch->address))
+							$addr_first->address .= ', ' . $sch->address;
 						$addr_first->city = isset($sch->city_name) ? $sch->city_name : '';
 						$addr_first->state = isset($sch->state_name) ? $sch->state_name : '';
 						$addr_first->pincode = isset($sch->pincode) ? $sch->pincode : '';
@@ -829,7 +832,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Determine order type - first check type_order field in tbl_order_details
 		$order_type = 'individual';
 		if (!empty($order_data[0]->type_order)) {
@@ -838,7 +841,7 @@ class Orders extends Vendor_base
 			// Fallback: determine from order items
 			$has_bookset = false;
 			$has_uniform = false;
-			
+
 			foreach ($items_arr as $item) {
 				if (isset($item->order_type)) {
 					if ($item->order_type == 'bookset' || $item->order_type == 'package') {
@@ -849,14 +852,14 @@ class Orders extends Vendor_base
 					}
 				}
 			}
-			
+
 			if ($has_bookset) {
 				$order_type = 'bookset';
 			} elseif ($has_uniform) {
 				$order_type = 'uniform';
 			}
 		}
-		
+
 		// Get bookset products and info if order type is bookset
 		$bookset_products = array();
 		$bookset_info = null;
@@ -871,7 +874,7 @@ class Orders extends Vendor_base
 					->get()
 					->result();
 			}
-			
+
 			// If no products from tbl_order_bookset_products, try erp_bookset_order_products
 			if (empty($bookset_products) && $this->db->table_exists('erp_bookset_order_products')) {
 				$bookset_products = $this->db->select('*')
@@ -881,7 +884,7 @@ class Orders extends Vendor_base
 					->get()
 					->result();
 			}
-			
+
 			// If no products from erp_bookset_order_products, try to get from bookset_packages_json in tbl_order_items
 			if (empty($bookset_products) && !empty($items_arr)) {
 				foreach ($items_arr as $item) {
@@ -890,12 +893,12 @@ class Orders extends Vendor_base
 						// Note: This field might be stored in a different way, so we'll use the data we have
 						$bookset_id = isset($item->product_id) ? $item->product_id : null;
 						$package_ids = isset($item->package_id) ? $item->package_id : '';
-						
+
 						// If package_ids exist, fetch products from packages
 						if (!empty($package_ids)) {
 							$package_id_array = explode(',', $package_ids);
 							$package_id_array = array_filter(array_map('trim', $package_id_array));
-							
+
 							if (!empty($package_id_array) && $this->db->table_exists('erp_bookset_package_products')) {
 								$package_products = $this->db->select('bpp.*, bp.package_name, bp.package_price')
 									->from('erp_bookset_package_products bpp')
@@ -906,9 +909,9 @@ class Orders extends Vendor_base
 									->order_by('bpp.id', 'ASC')
 									->get()
 									->result();
-								
+
 								foreach ($package_products as $pkg_prod) {
-									$bookset_products[] = (object)array(
+									$bookset_products[] = (object) array(
 										'package_id' => $pkg_prod->package_id,
 										'package_name' => $pkg_prod->package_name,
 										'package_price' => $pkg_prod->package_price,
@@ -927,7 +930,7 @@ class Orders extends Vendor_base
 					}
 				}
 			}
-			
+
 			// Get bookset info (school, grade, board, student details) from order items
 			if (!empty($items_arr)) {
 				foreach ($items_arr as $item) {
@@ -939,8 +942,10 @@ class Orders extends Vendor_base
 						$bookset_info->board_id = isset($item->board_id) ? $item->board_id : null;
 
 						// If IDs are not set in direct fields, try to get them from bookset_packages_json
-						if ((empty($bookset_info->school_id) || empty($bookset_info->grade_id) || empty($bookset_info->board_id)) &&
-							isset($item->bookset_packages_json) && !empty($item->bookset_packages_json)) {
+						if (
+							(empty($bookset_info->school_id) || empty($bookset_info->grade_id) || empty($bookset_info->board_id)) &&
+							isset($item->bookset_packages_json) && !empty($item->bookset_packages_json)
+						) {
 							$json_data = json_decode($item->bookset_packages_json, true);
 
 							if (empty($bookset_info->school_id)) {
@@ -974,7 +979,7 @@ class Orders extends Vendor_base
 						$bookset_info->m_name = isset($item->m_name) ? $item->m_name : '';
 						$bookset_info->s_name = isset($item->s_name) ? $item->s_name : '';
 						$bookset_info->dob = isset($item->dob) ? $item->dob : '';
-						
+
 						// Get roll_number - check direct field first, then JSON
 						$roll_number = '';
 						if (isset($item->roll_number) && !empty($item->roll_number)) {
@@ -995,7 +1000,7 @@ class Orders extends Vendor_base
 							}
 						}
 						$bookset_info->roll_number = $roll_number;
-						
+
 						// Fetch school name if school_id exists
 						if (!empty($bookset_info->school_id) && $this->db->table_exists('erp_schools')) {
 							$school_row = $this->db->select('school_name')
@@ -1008,7 +1013,7 @@ class Orders extends Vendor_base
 								$bookset_info->school_name = $school_row->school_name;
 							}
 						}
-						
+
 						// Fetch grade name if grade_id exists
 						if (!empty($bookset_info->grade_id) && $this->db->table_exists('erp_textbook_grades')) {
 							$grade_row = $this->db->select('name as grade_name')
@@ -1021,7 +1026,7 @@ class Orders extends Vendor_base
 								$bookset_info->grade_name = $grade_row->grade_name;
 							}
 						}
-						
+
 						// Fetch board name if board_id exists
 						if (!empty($bookset_info->board_id) && $this->db->table_exists('erp_school_boards')) {
 							$board_row = $this->db->select('board_name')
@@ -1034,7 +1039,7 @@ class Orders extends Vendor_base
 								$bookset_info->board_name = $board_row->board_name;
 							}
 						}
-						
+
 						break; // Only process first bookset item
 					}
 				}
@@ -1042,7 +1047,7 @@ class Orders extends Vendor_base
 		}
 
 		// Use is_deliver_at_school from tbl_order_details (single source of truth)
-		$is_deliver_at_school = (isset($order_data[0]->is_deliver_at_school) && (int)$order_data[0]->is_deliver_at_school === 1);
+		$is_deliver_at_school = (isset($order_data[0]->is_deliver_at_school) && (int) $order_data[0]->is_deliver_at_school === 1);
 
 		// Build uniform_info when school/branch available in order items (all uniform orders, or any order with school/branch)
 		$uniform_info = null;
@@ -1068,7 +1073,7 @@ class Orders extends Vendor_base
 						->join('erp_schools s', 's.id = sb.school_id', 'left')
 						->join('cities c', 'c.id = sb.city_id', 'left')
 						->join('states st', 'st.id = sb.state_id', 'left')
-						->where('sb.id', (int)$first_oi->branch_id)
+						->where('sb.id', (int) $first_oi->branch_id)
 						->limit(1)->get()->row();
 					if ($br) {
 						$uniform_info->branch_name = $br->branch_name;
@@ -1087,7 +1092,7 @@ class Orders extends Vendor_base
 						->from('erp_schools s')
 						->join('cities c', 'c.id = s.city_id', 'left')
 						->join('states st', 'st.id = s.state_id', 'left')
-						->where('s.id', (int)$first_oi->school_id)
+						->where('s.id', (int) $first_oi->school_id)
 						->limit(1)->get()->row();
 					if ($sch) {
 						$uniform_info->school_name = isset($sch->school_name) ? $sch->school_name : '';
@@ -1112,7 +1117,7 @@ class Orders extends Vendor_base
 					$key = $f_name . '|' . $grade . '|' . $roll_number;
 					if (!isset($seen_students[$key]) && ($f_name || $grade || $roll_number || $remarks)) {
 						$seen_students[$key] = true;
-						$uniform_student_details[] = (object)array(
+						$uniform_student_details[] = (object) array(
 							'f_name' => $f_name,
 							'grade' => $grade,
 							'roll_number' => $roll_number,
@@ -1122,7 +1127,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// When is_deliver_at_school and uniform_info not built from items, try address_from_school_branch
 		if ($is_deliver_at_school && empty($uniform_info) && $address_from_school_branch && !empty($addr_first)) {
 			$uniform_info = new stdClass();
@@ -1136,7 +1141,7 @@ class Orders extends Vendor_base
 			$uniform_info->school_name = '';
 			$uniform_info->branch_name = '';
 		}
-		
+
 		// When deliver at school, collect student details from all items if not yet collected
 		if ($is_deliver_at_school && empty($uniform_student_details) && !empty($items_arr)) {
 			$seen_students = array();
@@ -1148,7 +1153,7 @@ class Orders extends Vendor_base
 				$key = $f_name . '|' . $grade . '|' . $roll_number;
 				if (!isset($seen_students[$key]) && ($f_name || $grade || $roll_number || $remarks)) {
 					$seen_students[$key] = true;
-					$uniform_student_details[] = (object)array(
+					$uniform_student_details[] = (object) array(
 						'f_name' => $f_name,
 						'grade' => $grade,
 						'roll_number' => $roll_number,
@@ -1157,7 +1162,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Get order status history from erp_order_status_history
 		$status_history = array();
 		if ($this->db->table_exists('erp_order_status_history')) {
@@ -1169,9 +1174,9 @@ class Orders extends Vendor_base
 				->limit(1)
 				->get()
 				->row();
-			
+
 			$erp_order_id = !empty($erp_order) ? $erp_order->id : null;
-			
+
 			// If order not found in erp_orders, it might be from tbl_order_details
 			// In that case, check if there's a relationship via order_id
 			// Since erp_order_status_history references erp_orders.id, 
@@ -1185,7 +1190,7 @@ class Orders extends Vendor_base
 					->result();
 			}
 		}
-		
+
 		// Get ALL status entries from tbl_order_status (order_id = tbl_order_details.id)
 		$additional_status = array();
 		if (!empty($order_data[0]->id)) {
@@ -1196,7 +1201,7 @@ class Orders extends Vendor_base
 				->get()
 				->result();
 		}
-		
+
 		// Payment at School flag (is_deliver_at_school already set from tbl_order_details above)
 		$is_payment_at_school = ($order_data[0]->payment_method == 'payment_at_school' || $order_data[0]->payment_method == 'payment_at_scho');
 
@@ -1240,21 +1245,37 @@ class Orders extends Vendor_base
 			}
 		}
 		$data['children_data'] = $children_data;
-		
+
 		// Courier info for self-delivery orders (from erp_master_courier)
 		$data['courier_info'] = null;
-		$erp_courier_id = isset($order_data[0]->erp_courier_id) ? (int)$order_data[0]->erp_courier_id : 0;
+		$erp_courier_id = isset($order_data[0]->erp_courier_id) ? (int) $order_data[0]->erp_courier_id : 0;
 		if ($erp_courier_id > 0) {
 			$data['courier_info'] = $this->Courier_model->get_courier_by_id($erp_courier_id, $this->current_vendor['id']);
 		}
-		
+
+		// Agent and School info for App orders
+		$data['agent_name'] = '';
+		$data['app_school_name'] = '';
+		if (isset($order_data[0]->source) && $order_data[0]->source == 'app') {
+			if (!empty($order_data[0]->agent_id)) {
+				// Load master database for agent info
+				$master_db = $this->load->database('master', TRUE);
+				$agent = $master_db->select('username')->from('erp_agent_users')->where('id', $order_data[0]->agent_id)->get()->row();
+				$data['agent_name'] = $agent ? $agent->username : 'Unknown Agent';
+			}
+			if (!empty($order_data[0]->school_id)) {
+				$school = $this->db->select('school_name')->from('erp_schools')->where('id', $order_data[0]->school_id)->get()->row();
+				$data['app_school_name'] = $school ? $school->school_name : 'Unknown School';
+			}
+		}
+
 		// Load content view
 		$data['content'] = $this->load->view('vendor/orders/view', $data, TRUE);
-		
+
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
-	
+
 	/**
 	 * Get order timeline HTML (AJAX) for display in orders list modal
 	 *
@@ -1269,9 +1290,9 @@ class Orders extends Vendor_base
 			echo '<p class="text-muted">Order not found.</p>';
 			return;
 		}
-		
+
 		$order_id = $order_data[0]->id;
-		
+
 		// Get status history from erp_order_status_history
 		$status_history = array();
 		if ($this->db->table_exists('erp_order_status_history')) {
@@ -1282,7 +1303,7 @@ class Orders extends Vendor_base
 					->where('order_id', $erp_order_id)->order_by('created_at', 'ASC')->get()->result();
 			}
 		}
-		
+
 		// Get ALL status entries from tbl_order_status (order_id = tbl_order_details.id)
 		$additional_status = array();
 		if (!empty($order_id)) {
@@ -1290,17 +1311,17 @@ class Orders extends Vendor_base
 				->where('order_id', $order_id)
 				->order_by('created_at', 'ASC')->get()->result();
 		}
-		
+
 		// Build timeline items (same logic as order view)
 		$timeline_items = $this->_build_timeline_items($order_data, $additional_status, $status_history);
-		
+
 		$data['order_data'] = $order_data;
 		$data['timeline_items'] = $timeline_items;
 		$data['order_no'] = $order_no;
-		
+
 		$this->load->view('vendor/orders/timeline_partial', $data);
 	}
-	
+
 	/**
 	 * Build timeline items array from order data and status history
 	 *
@@ -1320,22 +1341,22 @@ class Orders extends Vendor_base
 			'6' => 'Ready for Shipment',
 			'7' => 'Return'
 		);
-		
+
 		$timeline_items = array();
 		$od = $order_data[0];
-		
+
 		$timeline_items[] = array('status' => 'Order Placed', 'date' => $od->order_date, 'completed' => true, 'notes' => '');
-		
+
 		// Add ALL entries from tbl_order_status (order_id = tbl_order_details.id)
 		if (!empty($additional_status)) {
 			foreach ($additional_status as $status) {
-				$display_status = isset($status_title_map[$status->status_title]) 
-					? $status_title_map[$status->status_title] 
+				$display_status = isset($status_title_map[$status->status_title])
+					? $status_title_map[$status->status_title]
 					: $status->status_title;
 				$timeline_items[] = array('status' => $display_status, 'date' => $status->created_at, 'completed' => true, 'notes' => isset($status->status_desc) ? $status->status_desc : '');
 			}
 		}
-		
+
 		// Add tbl_order_details entries that may not have tbl_order_status records
 		if (!empty($od->track_date) && !empty($od->erp_courier_id)) {
 			$has_courier = false;
@@ -1373,22 +1394,41 @@ class Orders extends Vendor_base
 				$timeline_items[] = array('status' => 'Shipping Label Generated', 'date' => !empty($od->processing_date) ? $od->processing_date : $od->order_date, 'completed' => true, 'notes' => 'Shipping label has been generated');
 			}
 		}
-		
+
 		if (!empty($status_history)) {
 			foreach ($status_history as $history) {
 				if (isset($history->status_type) && $history->status_type == 'order_status') {
 					$status_label = '';
 					switch (isset($history->new_status) ? $history->new_status : '') {
-						case '1': $status_label = 'Pending'; break;
-						case '2': $status_label = 'Processing'; break;
-						case '3': $status_label = 'Out for Delivery'; break;
-						case '4': $status_label = 'Delivered'; break;
-						case '5': $status_label = 'Cancelled'; break;
-						case '6': $status_label = 'Ready for Shipment'; break;
-						case 'label_generated': $status_label = 'Shipping Label Generated'; break;
-						case 'shipper_selected': $status_label = 'Shipper Selected'; break;
-						case '7': $status_label = 'Return'; break;
-						default: $status_label = ucfirst(isset($history->new_status) ? $history->new_status : '');
+						case '1':
+							$status_label = 'Pending';
+							break;
+						case '2':
+							$status_label = 'Processing';
+							break;
+						case '3':
+							$status_label = 'Out for Delivery';
+							break;
+						case '4':
+							$status_label = 'Delivered';
+							break;
+						case '5':
+							$status_label = 'Cancelled';
+							break;
+						case '6':
+							$status_label = 'Ready for Shipment';
+							break;
+						case 'label_generated':
+							$status_label = 'Shipping Label Generated';
+							break;
+						case 'shipper_selected':
+							$status_label = 'Shipper Selected';
+							break;
+						case '7':
+							$status_label = 'Return';
+							break;
+						default:
+							$status_label = ucfirst(isset($history->new_status) ? $history->new_status : '');
 					}
 					$exists = false;
 					foreach ($timeline_items as $item) {
@@ -1403,14 +1443,14 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
-		usort($timeline_items, function($a, $b) {
+
+		usort($timeline_items, function ($a, $b) {
 			return strtotime($a['date']) - strtotime($b['date']);
 		});
-		
+
 		return $timeline_items;
 	}
-	
+
 	/**
 	 * Move orders to processing status
 	 *
@@ -1418,30 +1458,28 @@ class Orders extends Vendor_base
 	 */
 	public function move_to_processing()
 	{
-		
+
 		$order_ids = $this->input->post('order_id');
-		
-		if (empty($order_ids) || !is_array($order_ids))
-		{
+
+		if (empty($order_ids) || !is_array($order_ids)) {
 			$this->session->set_flashdata('error', 'No orders selected.');
 			redirect($this->current_vendor['domain'] . '/orders/pending');
 			return;
 		}
-		
+
 		// Update orders status from 1 (pending) to 2 (processing) and set processing_date
 		$processing_date = date("Y-m-d H:i:s");
 		$updated_count = 0;
-		
-		foreach ($order_ids as $order_id)
-		{
+
+		foreach ($order_ids as $order_id) {
 			// Verify order belongs to vendor (check through order items)
 			$order_check = $this->db->query("SELECT od.id, od.invoice_no FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
-				WHERE od.id = ? AND od.order_status = '1'", 
-				array($order_id))->row();
-			
-			if ($order_check)
-			{
+				WHERE od.id = ? AND od.order_status = '1'",
+				array($order_id)
+			)->row();
+
+			if ($order_check) {
 				$update_data = array(
 					'order_status' => '2',
 					'processing_date' => $processing_date
@@ -1453,16 +1491,14 @@ class Orders extends Vendor_base
 				$this->db->where('id', $order_id);
 				$this->db->where('order_status', '1'); // Only update pending orders
 				$this->db->update('tbl_order_details', $update_data);
-				
-				if ($this->db->affected_rows() > 0)
-				{
+
+				if ($this->db->affected_rows() > 0) {
 					$updated_count++;
 				}
 			}
 		}
-		
-		if ($updated_count > 0)
-		{
+
+		if ($updated_count > 0) {
 			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to processing successfully.');
 
 			echo json_encode([
@@ -1470,18 +1506,16 @@ class Orders extends Vendor_base
 				'message' => $updated_count . ' order(s) moved to processing successfully.',
 				'url' => base_url($this->current_vendor['domain'] . '/orders/pending')
 			]);
-		}
-		else
-		{
+		} else {
 			$this->session->set_flashdata('error', 'No orders were updated. Please ensure orders are in pending status.');
-			
+
 			echo json_encode([
 				'status' => '400',
 				'message' => 'No orders were updated. Please ensure orders are in pending status.',
 			]);
 		}
 	}
-	
+
 	/**
 	 * Move orders to out for delivery status
 	 *
@@ -1489,46 +1523,42 @@ class Orders extends Vendor_base
 	 */
 	public function move_to_out_for_delivery()
 	{
-		
+
 		$order_ids = $this->input->post('order_id');
-		
-		if (empty($order_ids) || !is_array($order_ids))
-		{
+
+		if (empty($order_ids) || !is_array($order_ids)) {
 			$this->session->set_flashdata('error', 'No orders selected.');
 			redirect($this->current_vendor['domain'] . '/orders/processing');
 			return;
 		}
-		
+
 		// Update orders status from 6 (ready for shipment) to 3 (out_for_delivery) and set shipment_date
 		$shipment_date = date("Y-m-d H:i:s");
 		$updated_count = 0;
-		
-		foreach ($order_ids as $order_id)
-		{
+
+		foreach ($order_ids as $order_id) {
 			// Verify order belongs to vendor and is in ready for shipment status (6)
 			$order_check = $this->db->query("SELECT od.id FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
-				WHERE od.id = ? AND od.order_status = '6'", 
-				array($order_id))->row();
-			
-			if ($order_check)
-			{
+				WHERE od.id = ? AND od.order_status = '6'",
+				array($order_id)
+			)->row();
+
+			if ($order_check) {
 				$this->db->where('id', $order_id);
 				$this->db->where('order_status', '6'); // Only update ready for shipment orders
 				$this->db->update('tbl_order_details', array(
 					'order_status' => '3',
 					'shipment_date' => $shipment_date
 				));
-				
-				if ($this->db->affected_rows() > 0)
-				{
+
+				if ($this->db->affected_rows() > 0) {
 					$updated_count++;
 				}
 			}
 		}
-		
-		if ($updated_count > 0)
-		{
+
+		if ($updated_count > 0) {
 			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to out for delivery successfully.');
 
 			echo json_encode([
@@ -1536,18 +1566,16 @@ class Orders extends Vendor_base
 				'message' => $updated_count . ' order(s) moved to out for delivery successfully.',
 				'url' => base_url($this->current_vendor['domain'] . '/orders/out_for_delivery')
 			]);
-		}
-		else
-		{
+		} else {
 			$this->session->set_flashdata('error', 'No orders were updated. Please ensure orders are in ready for shipment status.');
-			
+
 			echo json_encode([
 				'status' => '400',
 				'message' => 'No orders were updated. Please ensure orders are in ready for shipment status.',
 			]);
 		}
 	}
-	
+
 	/**
 	 * Move orders to delivered status
 	 *
@@ -1555,46 +1583,42 @@ class Orders extends Vendor_base
 	 */
 	public function move_to_delivered()
 	{
-		
+
 		$order_ids = $this->input->post('order_id');
-		
-		if (empty($order_ids) || !is_array($order_ids))
-		{
+
+		if (empty($order_ids) || !is_array($order_ids)) {
 			$this->session->set_flashdata('error', 'No orders selected.');
 			redirect($this->current_vendor['domain'] . '/orders/out_for_delivery');
 			return;
 		}
-		
+
 		// Update orders status from 3 (out_for_delivery) to 4 (delivered) and set delivery_date
 		$delivery_date = date("Y-m-d H:i:s");
 		$updated_count = 0;
-		
-		foreach ($order_ids as $order_id)
-		{
+
+		foreach ($order_ids as $order_id) {
 			// Verify order belongs to vendor (check through order items)
 			$order_check = $this->db->query("SELECT od.id FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
-				WHERE od.id = ? AND od.order_status = '3'", 
-				array($order_id))->row();
-			
-			if ($order_check)
-			{
+				WHERE od.id = ? AND od.order_status = '3'",
+				array($order_id)
+			)->row();
+
+			if ($order_check) {
 				$this->db->where('id', $order_id);
 				$this->db->where('order_status', '3'); // Only update out_for_delivery orders
 				$this->db->update('tbl_order_details', array(
 					'order_status' => '4',
 					'delivery_date' => $delivery_date
 				));
-				
-				if ($this->db->affected_rows() > 0)
-				{
+
+				if ($this->db->affected_rows() > 0) {
 					$updated_count++;
 				}
 			}
 		}
-		
-		if ($updated_count > 0)
-		{
+
+		if ($updated_count > 0) {
 			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to delivered successfully.');
 
 			echo json_encode([
@@ -1602,18 +1626,16 @@ class Orders extends Vendor_base
 				'message' => $updated_count . ' order(s) moved to delivered successfully.',
 				'url' => base_url($this->current_vendor['domain'] . '/orders/out_for_delivery')
 			]);
-		}
-		else
-		{
+		} else {
 			$this->session->set_flashdata('error', 'No orders were updated. Please ensure orders are in out for delivery status.');
-			
+
 			echo json_encode([
 				'status' => '400',
 				'message' => 'No orders were updated. Please ensure orders are in out for delivery status.',
 			]);
 		}
 	}
-	
+
 	/**
 	 * Move single order to processing status
 	 *
@@ -1622,7 +1644,7 @@ class Orders extends Vendor_base
 	public function move_to_processing_single()
 	{
 		$order_unique_id = $this->input->post('order_unique_id');
-		
+
 		if (empty($order_unique_id)) {
 			echo json_encode([
 				'status' => '400',
@@ -1630,10 +1652,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Get order by unique_id
 		$order = $this->Order_model->get_order($order_unique_id);
-		
+
 		if (empty($order)) {
 			echo json_encode([
 				'status' => '400',
@@ -1641,10 +1663,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		$order_data = $order[0];
 		$order_id = $order_data->id;
-		
+
 		// Verify order is in pending status
 		if ($order_data->order_status != '1' && $order_data->order_status != 1) {
 			echo json_encode([
@@ -1653,7 +1675,7 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Update order status
 		$processing_date = date("Y-m-d H:i:s");
 		$update_data = array(
@@ -1667,12 +1689,12 @@ class Orders extends Vendor_base
 		$this->db->where('id', $order_id);
 		$this->db->where('order_status', '1');
 		$this->db->update('tbl_order_details', $update_data);
-		
+
 		if ($this->db->affected_rows() > 0) {
 			// Update order items status
 			$this->db->where('order_id', $order_id);
 			$this->db->update('tbl_order_items', array('pro_order_status' => '2'));
-			
+
 			// Add status history
 			$this->db->insert('tbl_order_status', array(
 				'order_id' => $order_id,
@@ -1682,7 +1704,7 @@ class Orders extends Vendor_base
 				'status_desc' => 'Order moved to processing',
 				'created_at' => $processing_date
 			));
-			
+
 			echo json_encode([
 				'status' => '200',
 				'message' => 'Order moved to processing successfully.',
@@ -1694,15 +1716,16 @@ class Orders extends Vendor_base
 			]);
 		}
 	}
-	
+
 	//Not In Use
-	public function set_shipper___(){
+	public function set_shipper___()
+	{
 		// Debug: Log incoming data
 		log_message('debug', 'set_shipper called with POST data: ' . print_r($this->input->post(), true));
-		
+
 		$order_unique_id = $this->input->post('order_unique_id');
 		$courier = $this->input->post('courier'); // 'manual' or 'shiprocket'
-		
+
 		if (empty($order_unique_id) || empty($courier)) {
 			echo json_encode([
 				'status' => '400',
@@ -1710,7 +1733,7 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		if (!in_array($courier, ['manual', 'shiprocket'])) {
 			echo json_encode([
 				'status' => '400',
@@ -1718,10 +1741,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Get order by unique_id
 		$order = $this->Order_model->get_order($order_unique_id);
-		
+
 		if (empty($order)) {
 			echo json_encode([
 				'status' => '400',
@@ -1729,10 +1752,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		$order_data = $order[0];
 		$order_id = $order_data->id;
-		
+
 		// Verify order is in processing status
 		if ($order_data->order_status != '1' && $order_data->order_status != 1) {
 			echo json_encode([
@@ -1741,20 +1764,20 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Update courier - save as 'manual' for self delivery (enum only allows 'shiprocket', 'manual', '')
 		// Note: Database enum is ('shiprocket','manual',''), so we use 'manual' instead of 'SELF'
 		$courier_value = ($courier == 'manual') ? 'manual' : $courier;
-		
+
 		// Check current courier value first
 		$current_courier_row = $this->db->select('courier')
 			->from('tbl_order_details')
 			->where('id', $order_id)
 			->get()
 			->row();
-		
+
 		$current_courier = !empty($current_courier_row) ? $current_courier_row->courier : null;
-		
+
 		// If already set to the same value, return success
 		if ($current_courier == $courier_value) {
 			echo json_encode([
@@ -1763,20 +1786,20 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Debug: Log update attempt
 		log_message('debug', 'Updating order_id=' . $order_id . ' with courier=' . $courier_value . ' (current: ' . $current_courier . ')');
-		
+
 		// Update courier
 		$processing_date = date("Y-m-d H:i:s");
-		
+
 		$this->db->where('id', $order_id);
 		$update_result = $this->db->update('tbl_order_details', array(
 			'courier' => $courier_value,
 			'order_status' => '2',
 			'processing_date' => $processing_date
 		));
-		
+
 		// Check for database errors
 		$db_error = $this->db->error();
 		if (!empty($db_error['message'])) {
@@ -1787,19 +1810,19 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		$affected_rows = $this->db->affected_rows();
 		log_message('debug', 'Update result: ' . ($update_result ? 'true' : 'false') . ', affected_rows=' . $affected_rows . ', SQL: ' . $this->db->last_query());
-		
+
 		// Verify the update
 		$updated_courier_row = $this->db->select('courier')
 			->from('tbl_order_details')
 			->where('id', $order_id)
 			->get()
 			->row();
-		
+
 		$updated_courier = !empty($updated_courier_row) ? $updated_courier_row->courier : null;
-		
+
 		if ($updated_courier == $courier_value || $affected_rows > 0) {
 			// Add timeline entry
 			$this->db->insert('tbl_order_status', array(
@@ -1810,7 +1833,7 @@ class Orders extends Vendor_base
 				'status_desc' => 'Shipper set to ' . ($courier == 'manual' ? 'Self Delivery' : '3rd Party (Shiprocket)'),
 				'created_at' => date('Y-m-d H:i:s')
 			));
-			
+
 			echo json_encode([
 				'status' => '200',
 				'message' => 'Shipper set to ' . ($courier == 'manual' ? 'Self Delivery' : '3rd Party (Shiprocket)') . ' successfully.',
@@ -1823,16 +1846,17 @@ class Orders extends Vendor_base
 		}
 	}
 
- 
-	public function bulk_set_shipper(){
+
+	public function bulk_set_shipper()
+	{
 		header('Content-Type: application/json');
 
 		$order_ids = $this->input->post('order_ids');
-		$courier   = $this->input->post('courier');
+		$courier = $this->input->post('courier');
 
 		if (empty($order_ids) || !is_array($order_ids) || empty($courier)) {
 			echo json_encode([
-				'status'  => '400',
+				'status' => '400',
 				'message' => 'Order IDs and courier type are required.',
 			]);
 			return;
@@ -1840,7 +1864,7 @@ class Orders extends Vendor_base
 
 		if (!in_array($courier, ['manual'])) {
 			echo json_encode([
-				'status'  => '400',
+				'status' => '400',
 				'message' => 'Invalid courier type.',
 			]);
 			return;
@@ -1848,7 +1872,7 @@ class Orders extends Vendor_base
 
 		$courier_value = ($courier == 'manual') ? 'manual' : $courier;
 
-	   // ==============================
+		// ==============================
 		// ✅ STEP 1: FAST PRE-VALIDATION
 		// ==============================
 
@@ -1860,7 +1884,7 @@ class Orders extends Vendor_base
 
 		if (count($orders) !== count($order_ids)) {
 			echo json_encode([
-				'status'  => '400',
+				'status' => '400',
 				'message' => 'Some selected orders were not found.',
 			]);
 			return;
@@ -1869,14 +1893,14 @@ class Orders extends Vendor_base
 		foreach ($orders as $order) {
 			if ($order->order_status != '1') {
 				echo json_encode([
-					'status'  => '400',
+					'status' => '400',
 					'message' => "Order No {$order->order_unique_id} is not in pending status.",
 				]);
 				return;
 			}
 			if ($order->courier == $courier_value) {
 				echo json_encode([
-					'status'  => '400',
+					'status' => '400',
 					'message' => "Order No {$order->order_unique_id} already has selected shipper.",
 				]);
 				return;
@@ -1894,47 +1918,48 @@ class Orders extends Vendor_base
 
 			$this->db->where('id', $order_id);
 			$this->db->update('tbl_order_details', [
-				'courier'         => $courier_value,
-				'order_status'    => '2',
+				'courier' => $courier_value,
+				'order_status' => '2',
 				'processing_date' => $processing_date
 			]);
 
 			$this->db->insert('tbl_order_status', [
-				'order_id'     => $order_id,
-				'user_id'      => isset($this->current_vendor['id']) ? $this->current_vendor['id'] : 0,
-				'product_id'   => 0,
+				'order_id' => $order_id,
+				'user_id' => isset($this->current_vendor['id']) ? $this->current_vendor['id'] : 0,
+				'product_id' => 0,
 				'status_title' => 'Shipper Selected',
-				'status_desc'  => 'Shipper set to ' . 
-					($courier == 'manual' ? 'Self Delivery' : '3rd Party ('.$courier.')') . 
+				'status_desc' => 'Shipper set to ' .
+					($courier == 'manual' ? 'Self Delivery' : '3rd Party (' . $courier . ')') .
 					' (Bulk)',
-				'created_at'   => date('Y-m-d H:i:s')
+				'created_at' => date('Y-m-d H:i:s')
 			]);
 		}
 
 		if ($this->db->trans_status() === FALSE) {
 			$this->db->trans_rollback();
 			echo json_encode([
-				'status'  => '400',
+				'status' => '400',
 				'message' => 'Failed to update orders.',
 			]);
 		} else {
 			$this->db->trans_commit();
 			echo json_encode([
-				'status'  => '200',
+				'status' => '200',
 				'message' => count($order_ids) . ' order(s) updated successfully.',
 			]);
 		}
 	}
- 
-	public function bulk_save_third_party_shipping(){
+
+	public function bulk_save_third_party_shipping()
+	{
 		header('Content-Type: application/json');
 
-		$response = function($status, $message, $extra = []) {
+		$response = function ($status, $message, $extra = []) {
 			echo json_encode([
-				'status'  => $status,
+				'status' => $status,
 				'message' => $message,
-				'data'    => $extra,
-				'csrf'    => [
+				'data' => $extra,
+				'csrf' => [
 					'name' => $this->security->get_csrf_token_name(),
 					'hash' => $this->security->get_csrf_hash()
 				]
@@ -1944,13 +1969,13 @@ class Orders extends Vendor_base
 
 		$order_ids = $this->input->post('order_ids');
 		$third_party_provider = trim($this->input->post('third_party_provider', true));
-		$length  = (float) $this->input->post('length');
+		$length = (float) $this->input->post('length');
 		$breadth = (float) $this->input->post('breadth');
-		$height  = (float) $this->input->post('height');
-		$weight  = (float) $this->input->post('weight');
+		$height = (float) $this->input->post('height');
+		$weight = (float) $this->input->post('weight');
 		$schedule_date = $this->input->post('schedule_date', true);
-		$from_time     = $this->input->post('from_Time', true);
-		$to_time       = $this->input->post('to_Time', true);
+		$from_time = $this->input->post('from_Time', true);
+		$to_time = $this->input->post('to_Time', true);
 		$pickup_address_id = $this->input->post('pickup_address_id', true);
 
 		// ===============================
@@ -1998,7 +2023,7 @@ class Orders extends Vendor_base
 		// PRE-VALIDATION OF ALL ORDERS
 		// ===============================
 
-		$valid_orders  = [];
+		$valid_orders = [];
 		$failed_orders = [];
 
 		foreach ($orders as $order_data) {
@@ -2031,7 +2056,7 @@ class Orders extends Vendor_base
 
 			$is_deliver_at_school = (
 				isset($order_data->is_deliver_at_school) &&
-				(int)$order_data->is_deliver_at_school === 1
+				(int) $order_data->is_deliver_at_school === 1
 			);
 
 			$addr_row = null;
@@ -2051,7 +2076,7 @@ class Orders extends Vendor_base
 
 						$addr_row = $this->db->select('id')
 							->from('erp_school_branches')
-							->where('id', (int)$order_item->branch_id)
+							->where('id', (int) $order_item->branch_id)
 							->limit(1)
 							->get()
 							->row();
@@ -2060,7 +2085,7 @@ class Orders extends Vendor_base
 
 						$addr_row = $this->db->select('id')
 							->from('erp_schools')
-							->where('id', (int)$order_item->school_id)
+							->where('id', (int) $order_item->school_id)
 							->limit(1)
 							->get()
 							->row();
@@ -2117,10 +2142,10 @@ class Orders extends Vendor_base
 				// ===============================
 				// DELIVERY ADDRESS (School or Normal)
 				// ===============================
-					$is_deliver_at_school = (isset($order_data->is_deliver_at_school) 
-					&& (int)$order_data->is_deliver_at_school === 1);
+				$is_deliver_at_school = (isset($order_data->is_deliver_at_school)
+					&& (int) $order_data->is_deliver_at_school === 1);
 
-					$addr_row = null;
+				$addr_row = null;
 
 				if ($is_deliver_at_school) {
 
@@ -2149,12 +2174,12 @@ class Orders extends Vendor_base
 								->from('erp_school_branches sb')
 								->join('cities c', 'c.id = sb.city_id', 'left')
 								->join('states st', 'st.id = sb.state_id', 'left')
-								->where('sb.id', (int)$order_item->branch_id)
+								->where('sb.id', (int) $order_item->branch_id)
 								->limit(1)
 								->get()
 								->row();
 
-						} 
+						}
 						// ===============================
 						// SCHOOL ADDRESS
 						// ===============================
@@ -2170,7 +2195,7 @@ class Orders extends Vendor_base
 								->from('erp_schools s')
 								->join('cities c', 'c.id = s.city_id', 'left')
 								->join('states st', 'st.id = s.state_id', 'left')
-								->where('s.id', (int)$order_item->school_id)
+								->where('s.id', (int) $order_item->school_id)
 								->limit(1)
 								->get()
 								->row();
@@ -2194,8 +2219,8 @@ class Orders extends Vendor_base
 				if (!$addr_row) {
 					throw new Exception('Delivery address not found.');
 				}
-								
-										
+
+
 				$delivery_address_full = '';
 
 				$parts = array_filter([
@@ -2211,86 +2236,55 @@ class Orders extends Vendor_base
 
 
 				// PRODUCT DETAILS
-	
+
 				$consignments = array();
 				$product_details = array();
-				$declared_value=0;
-				$total_weight=0;
-				$total_weight_gm=0;	   
+				$declared_value = 0;
+				$total_weight = 0;
+				$total_weight_gm = 0;
 				$order_type = strtolower($order_data->type_order);
-		
-	
-			if ($order_type === 'bookset') {
-				
-				$order_products = $this->db->select('product_id,bookset_packages_json,has_products')
-					->from('tbl_order_items')
-					->where('order_id', $order_id)
-					->get()
-					->result();
-					
-				if (empty($order_products)) {
-					throw new Exception('No bookset items found.');
-				}
-
-			// ==============================
-				// LOAD ALL BOOKSETS IN ONE QUERY
-				// ==============================
-		 
 
 
-				foreach ($order_products as $row) {	
-					$has_products = $row->has_products;
+				if ($order_type === 'bookset') {
 
-					if (empty($row->bookset_packages_json)) {
-						continue;
+					$order_products = $this->db->select('product_id,bookset_packages_json,has_products')
+						->from('tbl_order_items')
+						->where('order_id', $order_id)
+						->get()
+						->result();
+
+					if (empty($order_products)) {
+						throw new Exception('No bookset items found.');
 					}
 
-					$json = json_decode($row->bookset_packages_json, true);
-					if (!isset($json['packages'])) {
-						continue;
-					}
+					// ==============================
+					// LOAD ALL BOOKSETS IN ONE QUERY
+					// ==============================
 
-					foreach ($json['packages'] as $package) {				
-						// =========================
-						// BOOKSET WITHOUT PRODUCTS
-						// =========================
-						if ($has_products == 0) {
-								$product_name = $package['package_name'] ?? 'Book';
-								$qty          = 1;
-								$price_total  = (float) ($package['package_offer_price'] ?? 0);
-								
-								$weight_gm    = (float) ($package['package_weight'] ?? 0);
 
-								$declared_value += $price_total;
 
-								if ($weight_gm <= 0) {
-									$weight_gm = 500;
-								}
+					foreach ($order_products as $row) {
+						$has_products = $row->has_products;
 
-								$total_weight_gm += ($weight_gm * $qty);
-
-								$product_details[] = array(
-									"product_category"               => "Others",
-									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
-									"product_name"                   => sanitize_allowed_chars($product_name),
-									"product_quantity"               => $qty,
-									"each_product_invoice_amount"    => $price_total,
-									"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
-									"hsn"                            => $package['hsn'] ?? ""
-								);
+						if (empty($row->bookset_packages_json)) {
+							continue;
 						}
-						// =========================
-						// BOOKSET WITH PRODUCTS
-						// =========================
-						else{
-							if (empty($package['products'])) {
-								continue;
-							}					
-							foreach ($package['products'] as $product) {
-								$product_name = $product['display_name'] ?? 'Book';
-								$qty          = (int) ($product['quantity'] ?? 1);
-								$price_total  = (float) ($product['total_price'] ?? 0);
-								$weight_gm    = (float) ($product['weight'] ?? 0);
+
+						$json = json_decode($row->bookset_packages_json, true);
+						if (!isset($json['packages'])) {
+							continue;
+						}
+
+						foreach ($json['packages'] as $package) {
+							// =========================
+							// BOOKSET WITHOUT PRODUCTS
+							// =========================
+							if ($has_products == 0) {
+								$product_name = $package['package_name'] ?? 'Book';
+								$qty = 1;
+								$price_total = (float) ($package['package_offer_price'] ?? 0);
+
+								$weight_gm = (float) ($package['package_weight'] ?? 0);
 
 								$declared_value += $price_total;
 
@@ -2301,93 +2295,123 @@ class Orders extends Vendor_base
 								$total_weight_gm += ($weight_gm * $qty);
 
 								$product_details[] = array(
-									"product_category"               => "Others",
-									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
-									"product_name"                   => sanitize_allowed_chars($product_name),
-									"product_quantity"               => $qty,
-									"each_product_invoice_amount"    => $price_total,
-									"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
-									"hsn"                            => $package['hsn'] ?? ""
+									"product_category" => "Others",
+									"product_sub_category" => sanitize_sub_category($package['package_name']) ?? "",
+									"product_name" => sanitize_allowed_chars($product_name),
+									"product_quantity" => $qty,
+									"each_product_invoice_amount" => $price_total,
+									"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod' ? (float) $price_total : 0,
+									"hsn" => $package['hsn'] ?? ""
 								);
 							}
+							// =========================
+							// BOOKSET WITH PRODUCTS
+							// =========================
+							else {
+								if (empty($package['products'])) {
+									continue;
+								}
+								foreach ($package['products'] as $product) {
+									$product_name = $product['display_name'] ?? 'Book';
+									$qty = (int) ($product['quantity'] ?? 1);
+									$price_total = (float) ($product['total_price'] ?? 0);
+									$weight_gm = (float) ($product['weight'] ?? 0);
+
+									$declared_value += $price_total;
+
+									if ($weight_gm <= 0) {
+										$weight_gm = 500;
+									}
+
+									$total_weight_gm += ($weight_gm * $qty);
+
+									$product_details[] = array(
+										"product_category" => "Others",
+										"product_sub_category" => sanitize_sub_category($package['package_name']) ?? "",
+										"product_name" => sanitize_allowed_chars($product_name),
+										"product_quantity" => $qty,
+										"each_product_invoice_amount" => $price_total,
+										"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod' ? (float) $price_total : 0,
+										"hsn" => $package['hsn'] ?? ""
+									);
+								}
+							}
+
 						}
-						
-					}
-				}
-
-				// Convert gm to kg
-				$total_weight = round($total_weight_gm / 1000, 2);
-			}
-			else {
-
-				$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
-					->from('tbl_order_items')
-					->where('order_id', $order_id)
-					->get()
-					->result();
-
-				if (empty($order_products)) {
-					throw new Exception('No order items found.');
-				}
-
-				foreach ($order_products as $item) {
-
-					$product_name = $item->product_title;
-					$qty          = (int) $item->product_qty;
-					$price_total  = (float) $item->total_price;
-					$weight_gm    = (float) $item->weight;
-
-					$declared_value += $price_total;
-
-					if ($weight_gm <= 0) {
-						$weight_gm = 500;
 					}
 
-					$total_weight_gm += ($weight_gm * $qty);
+					// Convert gm to kg
+					$total_weight = round($total_weight_gm / 1000, 2);
+				} else {
 
-					$product_details[] = array(
-						"product_category"               => "Others",
-						"product_sub_category"           => "",
-						"product_name"                   => sanitize_allowed_chars($product_name),
-						"product_quantity"               => $qty,
-						"each_product_invoice_amount"    => $price_total / max($qty,1),
-						"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total / max($qty,1): 0,
-						"hsn"                            => $item->hsn ?? ""
-					);
+					$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
+						->from('tbl_order_items')
+						->where('order_id', $order_id)
+						->get()
+						->result();
+
+					if (empty($order_products)) {
+						throw new Exception('No order items found.');
+					}
+
+					foreach ($order_products as $item) {
+
+						$product_name = $item->product_title;
+						$qty = (int) $item->product_qty;
+						$price_total = (float) $item->total_price;
+						$weight_gm = (float) $item->weight;
+
+						$declared_value += $price_total;
+
+						if ($weight_gm <= 0) {
+							$weight_gm = 500;
+						}
+
+						$total_weight_gm += ($weight_gm * $qty);
+
+						$product_details[] = array(
+							"product_category" => "Others",
+							"product_sub_category" => "",
+							"product_name" => sanitize_allowed_chars($product_name),
+							"product_quantity" => $qty,
+							"each_product_invoice_amount" => $price_total / max($qty, 1),
+							"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod' ? (float) $price_total / max($qty, 1) : 0,
+							"hsn" => $item->hsn ?? ""
+						);
+					}
+
+					$total_weight = round($total_weight_gm / 1000, 2);
 				}
 
-				$total_weight = round($total_weight_gm / 1000, 2);
-			}
 
-
-			/*echo json_encode([
-					'debug' => $product_details,
-					'csrf'  => [
-						'name' => $this->security->get_csrf_token_name(),
-						'hash' => $this->security->get_csrf_hash()
-					]
-				]);
-				exit;*/
+				/*echo json_encode([
+						'debug' => $product_details,
+						'csrf'  => [
+							'name' => $this->security->get_csrf_token_name(),
+							'hash' => $this->security->get_csrf_hash()
+						]
+					]);
+					exit;*/
 
 				// CALL PROVIDER API
 				$api_res = null;
-				
-				
+
+
 				// ===============================
 				// ADD DELIVERY CHARGES AS PRODUCT
 				// ===============================	
 				// Add only if delivery exists
 				if ($order_data->delivery_charge > 0) {
 					$product_details[] = [
-						"product_category"               => "Others",
-						"product_sub_category"           => "DELIVERY CHARGES",
-						"product_name"                   => "Delivery Charges",
-						"product_quantity"               => 1,
-						"each_product_invoice_amount"    => (float) $order_data->delivery_charge,
-						"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod' 
-															? (float) $order_data->delivery_charge 
-															: 0,
-						"hsn"                            => "0000"
+						"product_category" => "Others",
+						"product_sub_category" => "DELIVERY CHARGES",
+						"product_name" => "Delivery Charges",
+						"product_quantity" => 1,
+						"each_product_invoice_amount" => (float) $order_data->delivery_charge,
+						"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod'
+							? (float) $order_data->delivery_charge
+							: 0,
+						"hsn" => "0000"
 					];
 				}
 
@@ -2466,25 +2490,25 @@ class Orders extends Vendor_base
 				if ($this->db->table_exists('tbl_order_third_party_shipping')) {
 
 					$tp_data = [
-						'order_id'               => $order_id,
-						'order_unique_id'        => $order_unique_id,
-						'order_number'        	 => $order_data->invoice_no ?? null,
-						'delivery_address_full'  => $delivery_address_full,
-						'length_cm'              => $length ?: null,
-						'breadth_cm'             => $breadth ?: null,
-						'height_cm'              => $height ?: null,
-						'weight_kg'              => $weight ?: null,
-						'third_party_provider'   => $third_party_provider,
-						'schedule_date'          => $schedule_date ?: null,
-						'from_time'              => $from_time ?: null,
-						'to_time'                => $to_time ?: null,
-						
-						'provider_request'  	=> $provider_request,
-						'provider_response'	 	=> $provider_response,
-						'system_order_id'   	=> $system_order_id,
-						'awb_no'            	=> $awb_no,
-						'track_url'         	=> $track_url,
-						'booking_time'      	=> date('Y-m-d H:i:s')
+						'order_id' => $order_id,
+						'order_unique_id' => $order_unique_id,
+						'order_number' => $order_data->invoice_no ?? null,
+						'delivery_address_full' => $delivery_address_full,
+						'length_cm' => $length ?: null,
+						'breadth_cm' => $breadth ?: null,
+						'height_cm' => $height ?: null,
+						'weight_kg' => $weight ?: null,
+						'third_party_provider' => $third_party_provider,
+						'schedule_date' => $schedule_date ?: null,
+						'from_time' => $from_time ?: null,
+						'to_time' => $to_time ?: null,
+
+						'provider_request' => $provider_request,
+						'provider_response' => $provider_response,
+						'system_order_id' => $system_order_id,
+						'awb_no' => $awb_no,
+						'track_url' => $track_url,
+						'booking_time' => date('Y-m-d H:i:s')
 					];
 
 					$existing = $this->db->select('id')
@@ -2495,7 +2519,7 @@ class Orders extends Vendor_base
 
 					if ($existing) {
 						$this->db->where('id', $existing->id)
-								->update('tbl_order_third_party_shipping', $tp_data);
+							->update('tbl_order_third_party_shipping', $tp_data);
 					} else {
 						$this->db->insert('tbl_order_third_party_shipping', $tp_data);
 					}
@@ -2511,7 +2535,7 @@ class Orders extends Vendor_base
 						'pkg_height_cm' => $height,
 						'pkg_weight_kg' => $weight,
 						'shipment_id' => $system_order_id,
-						'awb_no'      => $awb_no,
+						'awb_no' => $awb_no,
 						'order_status' => 2,
 						'processing_date' => date('Y-m-d H:i:s')
 					]);
@@ -2540,13 +2564,14 @@ class Orders extends Vendor_base
 			}
 		}
 
-		$response('200',
+		$response(
+			'200',
 			"$success_count orders booked successfully, "
 			. count($failed_orders) . " failed.",
 			$failed_orders
 		);
 	}
-	
+
 
 	public function get_order_couriers()
 	{
@@ -2554,10 +2579,11 @@ class Orders extends Vendor_base
 		$vendor_id = $this->current_vendor['id'];
 		$couriers = $this->Courier_model->get_couriers($vendor_id);
 		// Filter only active couriers
-		$active_couriers = array_filter($couriers, function($c) { return isset($c['status']) && $c['status'] == 1; });
+		$active_couriers = array_filter($couriers, function ($c) {
+			return isset($c['status']) && $c['status'] == 1; });
 		echo json_encode(array('success' => true, 'couriers' => array_values($active_couriers)));
 	}
-	
+
 	/**
 	 * Save courier selection and AWB for self-delivery order
 	 * Saves erp_courier_id, awb_no, track_url to tbl_order_details
@@ -2570,51 +2596,51 @@ class Orders extends Vendor_base
 		$order_unique_id = $this->input->post('order_unique_id');
 		$erp_courier_id = (int) $this->input->post('erp_courier_id');
 		$awb_no = trim($this->input->post('awb_no'));
-		
+
 		if (empty($order_unique_id) || empty($erp_courier_id)) {
 			echo json_encode(array('status' => '400', 'message' => 'Order ID and courier selection are required.'));
 			return;
 		}
-		
+
 		$order = $this->Order_model->get_order($order_unique_id);
 		if (empty($order)) {
 			echo json_encode(array('status' => '400', 'message' => 'Order not found.'));
 			return;
 		}
-		
+
 		$order_data = $order[0];
 		$order_id = $order_data->id;
-		
+
 		if ($order_data->courier != 'manual') {
 			echo json_encode(array('status' => '400', 'message' => 'Order must have Self Delivery selected.'));
 			return;
 		}
-		
+
 		$vendor_id = $this->current_vendor['id'];
 		$courier = $this->Courier_model->get_courier_by_id($erp_courier_id, $vendor_id);
 		if (empty($courier)) {
 			echo json_encode(array('status' => '400', 'message' => 'Invalid courier selected.'));
 			return;
 		}
-		
+
 		// Save raw tracking_link from courier to track_url (no AWB replacement)
 		$track_url = !empty($courier['tracking_link']) ? $courier['tracking_link'] : null;
-		
+
 		$update_data = array(
 			'erp_courier_id' => $erp_courier_id,
 			'awb_no' => $awb_no ?: null,
 			'track_url' => $track_url,
 			'track_date' => date('Y-m-d H:i:s')
 		);
-		
+
 		// Check if erp_courier_id column exists (for backward compatibility)
 		if (!$this->db->field_exists('erp_courier_id', 'tbl_order_details')) {
 			unset($update_data['erp_courier_id']);
 		}
-		
+
 		$this->db->where('id', $order_id);
 		$result = $this->db->update('tbl_order_details', $update_data);
-		
+
 		if ($result) {
 			// Add tbl_order_status entry for timeline
 			$courier_name = isset($courier['courier_name']) ? $courier['courier_name'] : 'Courier';
@@ -2631,7 +2657,7 @@ class Orders extends Vendor_base
 			echo json_encode(array('status' => '400', 'message' => 'Failed to save.'));
 		}
 	}
-	
+
 	/**
 	 * Get vendor address from erp_clients (for 3rd party shipping pickup)
 	 * Fetches from tenant DB erp_clients (same as Profile - vendor's synced client data)
@@ -2665,7 +2691,7 @@ class Orders extends Vendor_base
 			'address_full' => $address_full ?: 'Please add address in Profile.'
 		));
 	}
-	
+
 	/**
 	 * Save 3rd party shipping details (Shiprocket, Big Ship)
 	 * Saves to tbl_order_details and tbl_order_third_party_shipping
@@ -2681,7 +2707,7 @@ class Orders extends Vendor_base
 		$breadth = (float) $this->input->post('breadth');
 		$height = (float) $this->input->post('height');
 		$weight = (float) $this->input->post('weight');
-		
+
 		if (empty($order_unique_id) || empty($third_party_provider)) {
 			echo json_encode(array('status' => '400', 'message' => 'Order ID and 3rd party provider are required.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()
 			]));
@@ -2691,21 +2717,21 @@ class Orders extends Vendor_base
 			echo json_encode(array('status' => '400', 'message' => 'Invalid provider. Use Shiprocket or Big Ship.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
-		
+
 		$order = $this->Order_model->get_order($order_unique_id);
 		if (empty($order)) {
 			echo json_encode(array('status' => '400', 'message' => 'Order not found.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
-		
+
 		$order_data = $order[0];
 		$order_id = $order_data->id;
-		
+
 		if ($order_data->order_status != '2' && $order_data->order_status != 2) {
 			echo json_encode(array('status' => '400', 'message' => 'Order must be in processing status.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
-		
+
 		// Build delivery address from tbl_order_address (same logic as order view)
 		$addr_row = $this->db->select('*')->from('tbl_order_address')
 			->where('order_id', $order_id)->order_by('id', 'ASC')->limit(1)->get()->row();
@@ -2763,7 +2789,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Vendor pickup address from erp_clients (tenant DB - same as get_vendor_address)
 		$pickup_row = $this->db->select('address, pincode')->from('erp_clients')->limit(1)->get()->row_array();
 		$pickup_address = isset($pickup_row['address']) ? trim($pickup_row['address']) : '';
@@ -2772,7 +2798,7 @@ class Orders extends Vendor_base
 		$pickup_country = '';
 		$pickup_parts = array_filter(array($pickup_address, $pickup_pincode));
 		$pickup_address_full = implode(', ', $pickup_parts);
-		
+
 		// Update tbl_order_details
 		$update_data = array(
 			'courier' => '3rd_party',
@@ -2782,7 +2808,7 @@ class Orders extends Vendor_base
 			'pkg_height_cm' => $height > 0 ? $height : null,
 			'pkg_weight_kg' => $weight > 0 ? $weight : null
 		);
-		
+
 		// Check if new columns exist
 		if (!$this->db->field_exists('third_party_provider', 'tbl_order_details')) {
 			unset($update_data['third_party_provider']);
@@ -2790,20 +2816,20 @@ class Orders extends Vendor_base
 		if (!$this->db->field_exists('pkg_length_cm', 'tbl_order_details')) {
 			unset($update_data['pkg_length_cm'], $update_data['pkg_breadth_cm'], $update_data['pkg_height_cm'], $update_data['pkg_weight_kg']);
 		}
-		
+
 		$this->db->where('id', $order_id);
 		$result = $this->db->update('tbl_order_details', $update_data);
-		
+
 		if (!$result) {
 			echo json_encode(array('status' => '400', 'message' => 'Failed to update order.',	'csrf' => ['name' => $this->security->get_csrf_token_name(),'hash' => $this->security->get_csrf_hash()));
 			return;
 		}
-		
+
 		// Insert or update tbl_order_third_party_shipping
 		if ($this->db->table_exists('tbl_order_third_party_shipping')) {
 			$existing = $this->db->select('id')->from('tbl_order_third_party_shipping')
 				->where('order_id', $order_id)->limit(1)->get()->row();
-			
+
 			$tp_data = array(
 				'order_id' => $order_id,
 				'order_unique_id' => $order_unique_id,
@@ -2818,7 +2844,7 @@ class Orders extends Vendor_base
 				'weight_kg' => $weight > 0 ? $weight : null,
 				'third_party_provider' => $third_party_provider
 			);
-			
+
 			if ($existing) {
 				$this->db->where('id', $existing->id);
 				$this->db->update('tbl_order_third_party_shipping', $tp_data);
@@ -2826,7 +2852,7 @@ class Orders extends Vendor_base
 				$this->db->insert('tbl_order_third_party_shipping', $tp_data);
 			}
 		}
-		
+
 		// Add tbl_order_status entry
 		$this->db->insert('tbl_order_status', array(
 			'order_id' => $order_id,
@@ -2836,10 +2862,10 @@ class Orders extends Vendor_base
 			'status_desc' => '3rd party shipping: ' . ucfirst($third_party_provider) . ' (L:' . $length . ' B:' . $breadth . ' H:' . $height . ' W:' . $weight . ' kg)',
 			'created_at' => date('Y-m-d H:i:s')
 		));
-		
+
 		echo json_encode(array('status' => '200', 'message' => '3rd party shipping saved successfully.'));
 	}*/
-	
+
 	/**
 	 * Move single order to out for delivery status
 	 *
@@ -2897,12 +2923,12 @@ class Orders extends Vendor_base
 			'order_status' => '3',
 			'shipment_date' => $shipment_date
 		));
-		
+
 		if ($this->db->affected_rows() > 0) {
 			// Update order items status
 			$this->db->where('order_id', $order_id);
 			$this->db->update('tbl_order_items', array('pro_order_status' => '3'));
-			
+
 			// Add status history
 			$this->db->insert('tbl_order_status', array(
 				'order_id' => $order_id,
@@ -2912,7 +2938,7 @@ class Orders extends Vendor_base
 				'status_desc' => 'Order moved to out for delivery',
 				'created_at' => $shipment_date
 			));
-			
+
 			echo json_encode([
 				'status' => '200',
 				'message' => 'Order moved to out for delivery successfully.',
@@ -2976,7 +3002,7 @@ class Orders extends Vendor_base
 
 		// For self delivery, verify courier is selected
 		if ($order_data->courier == 'manual') {
-			$erp_courier_id = isset($order_data->erp_courier_id) ? (int)$order_data->erp_courier_id : 0;
+			$erp_courier_id = isset($order_data->erp_courier_id) ? (int) $order_data->erp_courier_id : 0;
 			if ($erp_courier_id <= 0) {
 				echo json_encode([
 					'status' => '400',
@@ -3103,7 +3129,7 @@ class Orders extends Vendor_base
 	public function move_to_delivered_single()
 	{
 		$order_unique_id = $this->input->post('order_unique_id');
-		
+
 		if (empty($order_unique_id)) {
 			echo json_encode([
 				'status' => '400',
@@ -3111,10 +3137,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Get order by unique_id
 		$order = $this->Order_model->get_order($order_unique_id);
-		
+
 		if (empty($order)) {
 			echo json_encode([
 				'status' => '400',
@@ -3122,10 +3148,10 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		$order_data = $order[0];
 		$order_id = $order_data->id;
-		
+
 		// Verify order is in out for delivery status
 		if ($order_data->order_status != '3' && $order_data->order_status != 3) {
 			echo json_encode([
@@ -3134,7 +3160,7 @@ class Orders extends Vendor_base
 			]);
 			return;
 		}
-		
+
 		// Update order status
 		$delivery_date = date("Y-m-d H:i:s");
 		$this->db->where('id', $order_id);
@@ -3143,12 +3169,12 @@ class Orders extends Vendor_base
 			'order_status' => '4',
 			'delivery_date' => $delivery_date
 		));
-		
+
 		if ($this->db->affected_rows() > 0) {
 			// Update order items status
 			$this->db->where('order_id', $order_id);
 			$this->db->update('tbl_order_items', array('pro_order_status' => '4'));
-			
+
 			// Add status history
 			$this->db->insert('tbl_order_status', array(
 				'order_id' => $order_id,
@@ -3158,7 +3184,7 @@ class Orders extends Vendor_base
 				'status_desc' => 'Order delivered',
 				'created_at' => $delivery_date
 			));
-			
+
 			echo json_encode([
 				'status' => '200',
 				'message' => 'Order marked as delivered successfully.',
@@ -3263,7 +3289,7 @@ class Orders extends Vendor_base
 			echo json_encode(['status' => '400', 'message' => 'Failed to update order status.']);
 		}
 	}
-/**
+	/**
 	 * Cancel a single order
 	 *
 	 * @return	void
@@ -3427,27 +3453,28 @@ class Orders extends Vendor_base
 	{
 		// Get filter parameters
 		$filter_data['date_range'] = $this->input->get('date_range');
-		$filter_data['machine']   = $this->input->get('machine');
-		$filter_data['keywords']  = $this->input->get('keywords');
-		$filter_data['pincode']   = $this->input->get('pincode');
-		$filter_data['school']    = $this->input->get('school');
-		$filter_data['grade']     = $this->input->get('grade');
+		$filter_data['machine'] = $this->input->get('machine');
+		$filter_data['keywords'] = $this->input->get('keywords');
+		$filter_data['pincode'] = $this->input->get('pincode');
+		$filter_data['school'] = $this->input->get('school');
+		$filter_data['grade'] = $this->input->get('grade');
 
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_pending_order_count($filter_data);
 		$page_data['total_count'] = $total_count;
-		
+
 		// Get order counts for each status (for tabs)
 		$vendor_id = $this->current_vendor['id'];
 		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
 		$page_data['order_status'] = 'pending';
-		
+
 		// Pagination setup
 		$per_page = 10;
-		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
-		if ($page < 1) $page = 1;
+		$page = $this->input->get('page') ? (int) $this->input->get('page') : 1;
+		if ($page < 1)
+			$page = 1;
 		$offset = ($page - 1) * $per_page;
-		
+
 		// Get orders
 		$page_data['order_list'] = $this->Order_model->get_paginated_pending_order($filter_data, $per_page, $offset);
 
@@ -3458,33 +3485,33 @@ class Orders extends Vendor_base
 			$total_count,
 			$per_page
 		);
-		
+
 		$this->pagination->initialize($pagination_config);
 		$page_data['pagination'] = $this->pagination->create_links();
 
 		// Prepare page data
-		$page_data['page_name']    = 'pending_orders';
-		$page_data['page_title']   = 'Pending Orders';
+		$page_data['page_name'] = 'pending_orders';
+		$page_data['page_title'] = 'Pending Orders';
 		$page_data['current_page'] = 'Pending Orders';
-		$page_data['navigate']     = 'Pending Orders';
+		$page_data['navigate'] = 'Pending Orders';
 		$page_data['current_vendor'] = $this->current_vendor;
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
-		
+
 		// Get schools and grades for filter dropdowns
 		$page_data['schools'] = $this->get_schools_for_filter();
 		$page_data['grades'] = $this->get_grades_for_filter();
-		
+
 		// Load content view
 		$data['title'] = 'Pending Orders - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->current_vendor['domain'];
 		$data['content'] = $this->load->view('vendor/orders/pending_orders', $page_data, TRUE);
-		
+
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
-	
+
 	/**
 	 * Rejected Orders - List cancelled/rejected orders
 	 *
@@ -3494,29 +3521,30 @@ class Orders extends Vendor_base
 	{
 		// Get filter parameters - same as pending_orders
 		$filter_data['date_range'] = $this->input->get('date_range');
-		$filter_data['machine']   = $this->input->get('machine');
-		$filter_data['keywords']  = $this->input->get('keywords');
-		$filter_data['pincode']   = $this->input->get('pincode');
-		$filter_data['school']    = $this->input->get('school');
-		$filter_data['grade']     = $this->input->get('grade');
+		$filter_data['machine'] = $this->input->get('machine');
+		$filter_data['keywords'] = $this->input->get('keywords');
+		$filter_data['pincode'] = $this->input->get('pincode');
+		$filter_data['school'] = $this->input->get('school');
+		$filter_data['grade'] = $this->input->get('grade');
 		// For cancelled orders, we filter by order_status = '5'
 		$filter_data['order_status'] = '5';
 
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_cancelled_order_count($filter_data);
 		$page_data['total_count'] = $total_count;
-		
+
 		// Get order counts for each status (for tabs)
 		$vendor_id = $this->current_vendor['id'];
 		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
 		$page_data['order_status'] = 'cancelled';
-		
+
 		// Pagination setup
 		$per_page = 10;
-		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
-		if ($page < 1) $page = 1;
+		$page = $this->input->get('page') ? (int) $this->input->get('page') : 1;
+		if ($page < 1)
+			$page = 1;
 		$offset = ($page - 1) * $per_page;
-		
+
 		// Get orders
 		$page_data['order_list'] = $this->Order_model->get_paginated_cancelled_order($filter_data, $per_page, $offset);
 
@@ -3527,34 +3555,34 @@ class Orders extends Vendor_base
 			$total_count,
 			$per_page
 		);
-		
+
 		$this->pagination->initialize($pagination_config);
 		$page_data['pagination'] = $this->pagination->create_links();
 
 		// Prepare page data
-		$page_data['page_name']    = 'rejected_orders';
-		$page_data['page_title']   = 'Cancelled Orders';
+		$page_data['page_name'] = 'rejected_orders';
+		$page_data['page_title'] = 'Cancelled Orders';
 		$page_data['current_page'] = 'Cancelled Orders';
-		$page_data['navigate']     = 'Cancelled Orders';
+		$page_data['navigate'] = 'Cancelled Orders';
 		$page_data['current_vendor'] = $this->current_vendor;
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
-		
+
 		// Get schools and grades for filter dropdowns
 		$page_data['schools'] = $this->get_schools_for_filter();
 		$page_data['grades'] = $this->get_grades_for_filter();
-		
+
 		// Load content view
 		$data['title'] = 'Cancelled Orders - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->current_vendor['domain'];
 		$data['content'] = $this->load->view('vendor/orders/rejected_orders', $page_data, TRUE);
-		
+
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
 
-	
+
 	/**
 	 * Offers
 	 *
@@ -3564,19 +3592,20 @@ class Orders extends Vendor_base
 	{
 		// Get filter parameters
 		$filter_data['date_range'] = $this->input->get('date_range');
-		$filter_data['machine']   = $this->input->get('machine');
-		$filter_data['keywords']  = $this->input->get('keywords');
+		$filter_data['machine'] = $this->input->get('machine');
+		$filter_data['keywords'] = $this->input->get('keywords');
 
 		// Get total count and orders using new methods
 		$total_count = $this->Order_model->get_paginated_offers_count($filter_data);
 		$page_data['total_count'] = $total_count;
-		
+
 		// Pagination setup
 		$per_page = 10;
-		$page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
-		if ($page < 1) $page = 1;
+		$page = $this->input->get('page') ? (int) $this->input->get('page') : 1;
+		if ($page < 1)
+			$page = 1;
 		$offset = ($page - 1) * $per_page;
-		
+
 		// Get orders
 		$page_data['order_list'] = $this->Order_model->get_paginated_offers($filter_data, $per_page, $offset);
 
@@ -3587,25 +3616,25 @@ class Orders extends Vendor_base
 			$total_count,
 			$per_page
 		);
-		
+
 		$this->pagination->initialize($pagination_config);
 		$page_data['pagination'] = $this->pagination->create_links();
 
 		// Prepare page data
-		$page_data['page_name']    = 'offers';
-		$page_data['page_title']   = 'Offers';
+		$page_data['page_name'] = 'offers';
+		$page_data['page_title'] = 'Offers';
 		$page_data['current_page'] = 'Offers';
-		$page_data['navigate']     = 'Offers';
+		$page_data['navigate'] = 'Offers';
 		$page_data['current_vendor'] = $this->current_vendor;
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
-		
+
 		// Load content view
 		$data['title'] = 'Offers';
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->current_vendor['domain'];
 		$data['content'] = $this->load->view('vendor/orders/offers', $page_data, TRUE);
-		
+
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
@@ -3617,8 +3646,7 @@ class Orders extends Vendor_base
 	 */
 	public function add_offers()
 	{
-		if ($this->input->server('REQUEST_METHOD') == 'POST')
-		{
+		if ($this->input->server('REQUEST_METHOD') == 'POST') {
 			// Handle AJAX form submission
 			$resultpost = array(
 				"status" => 200,
@@ -3780,17 +3808,15 @@ class Orders extends Vendor_base
 				));
 				return;
 			}
-			
+
 			header('Content-Type: application/json');
 			echo json_encode($resultpost);
 			return;
-		}
-		else
-		{
+		} else {
 			// Get dropdown data
 			$page_data['uniform_types'] = $this->Uniform_model->getAllUniformTypes();
 			$page_data['uniforms'] = $this->Uniform_model->getUniformsByVendor($this->current_vendor['id'], array(), 1000, 0); // Get all uniforms
-			
+
 			$page_data['title'] = 'Add New Offer';
 			$page_data['current_vendor'] = $this->current_vendor;
 			$page_data['vendor_domain'] = $this->current_vendor['domain'];
@@ -3799,14 +3825,14 @@ class Orders extends Vendor_base
 				array('label' => 'Offers', 'url' => base_url($this->current_vendor['domain'] . '/offers')),
 				array('label' => 'Add', 'active' => true)
 			);
-			
+
 			$data['title'] = 'Add New Offer';
 			$data['current_vendor'] = $this->current_vendor;
 			$data['vendor_domain'] = $this->current_vendor['domain'];
-			
+
 			// Load content view
 			$data['content'] = $this->load->view('vendor/orders/add_offers', $page_data, TRUE);
-			
+
 			// Load main layout
 			$this->load->view('vendor/layouts/index_template', $data);
 		}
@@ -3854,10 +3880,12 @@ class Orders extends Vendor_base
 		$max_seq = 0;
 		$prefix_len = strlen($prefix);
 		foreach ($rows as $row) {
-			if (empty($row->invoice_no)) continue;
+			if (empty($row->invoice_no))
+				continue;
 			$suffix = substr($row->invoice_no, $prefix_len);
 			$num = (int) preg_replace('/[^0-9]/', '', $suffix);
-			if ($num > $max_seq) $max_seq = $num;
+			if ($num > $max_seq)
+				$max_seq = $num;
 		}
 		$next_seq = $max_seq + 1;
 
@@ -3892,7 +3920,8 @@ class Orders extends Vendor_base
 		}
 		// Fallback: current_vendor logo
 		$logo_path = !empty($this->current_vendor['logo']) ? trim($this->current_vendor['logo']) : '';
-		if (empty($logo_path)) return '';
+		if (empty($logo_path))
+			return '';
 		$full_path = FCPATH . ltrim($logo_path, '/');
 		if (file_exists($full_path)) {
 			$file_size = @filesize($full_path);
@@ -3934,12 +3963,15 @@ class Orders extends Vendor_base
 	private function _get_order_type_label($order_id, $order_row)
 	{
 		$type_order = isset($order_row['type_order']) ? strtolower($order_row['type_order']) : '';
-		if (!empty($type_order)) return ucfirst($type_order);
+		if (!empty($type_order))
+			return ucfirst($type_order);
 		$items = $this->db->select('order_type')->from('tbl_order_items')->where('order_id', $order_id)->get()->result();
 		foreach ($items as $item) {
 			if (isset($item->order_type)) {
-				if ($item->order_type == 'bookset' || $item->order_type == 'package') return 'Bookset';
-				if ($item->order_type == 'uniform') return 'Uniform';
+				if ($item->order_type == 'bookset' || $item->order_type == 'package')
+					return 'Bookset';
+				if ($item->order_type == 'uniform')
+					return 'Uniform';
 			}
 		}
 		return 'Individual';
@@ -3958,7 +3990,8 @@ class Orders extends Vendor_base
 	 */
 	private function _get_invoice_bookset_products($order_id, $order_type_label)
 	{
-		if ($order_type_label != 'Bookset') return array();
+		if ($order_type_label != 'Bookset')
+			return array();
 		if ($this->db->table_exists('tbl_order_bookset_products')) {
 			return $this->db->select('*')->from('tbl_order_bookset_products')->where('order_id', $order_id)->order_by('package_id', 'ASC')->order_by('id', 'ASC')->get()->result();
 		}
@@ -3973,8 +4006,10 @@ class Orders extends Vendor_base
 	 */
 	private function _get_order_school_name($order_id, $order_row)
 	{
-		if (!empty($order_row['school_name'])) return $order_row['school_name'];
-		if (!$this->db->table_exists('erp_schools')) return '';
+		if (!empty($order_row['school_name']))
+			return $order_row['school_name'];
+		if (!$this->db->table_exists('erp_schools'))
+			return '';
 		$item = $this->db->select('oi.school_id, s.school_name')->from('tbl_order_items oi')->join('erp_schools s', 's.id = oi.school_id', 'left')->where('oi.order_id', $order_id)->where('oi.school_id IS NOT NULL')->limit(1)->get()->row();
 		return !empty($item) && !empty($item->school_name) ? $item->school_name : '';
 	}
@@ -3989,19 +4024,17 @@ class Orders extends Vendor_base
 	{
 		// Get order details
 		$order_data = $this->Order_model->get_order($order_no);
-		
-		if (!$order_data || empty($order_data))
-		{
+
+		if (!$order_data || empty($order_data)) {
 			show_error('Order not found', 404);
 			return;
 		}
-		
+
 		$order = $order_data[0];
 		$order_id = $order->id;
-		
+
 		// Check if invoice already exists
-		if (!empty($order->invoice_url) && file_exists($order->invoice_url))
-		{
+		if (!empty($order->invoice_url) && file_exists($order->invoice_url)) {
 			// Download existing invoice
 			$this->load->helper('download');
 			$data = file_get_contents($order->invoice_url);
@@ -4009,22 +4042,21 @@ class Orders extends Vendor_base
 			force_download($name, $data);
 			return;
 		}
-		
+
 		// Generate invoice on the fly - get order details from tbl_order_details
 		$this->db->select('*');
 		$this->db->from('tbl_order_details');
 		$this->db->where('id', $order_id);
 		$this->db->where('(payment_status="success" OR payment_status="cod" OR payment_status="payment_at_school" OR payment_method="cod" OR payment_method="payment_at_school")');
 		$query = $this->db->get();
-		
-		if ($query->num_rows() == 0)
-		{
+
+		if ($query->num_rows() == 0) {
 			show_error('Order details not found', 404);
 			return;
 		}
-		
+
 		$order_row = $query->row_array();
-		
+
 		// Get order address (by order_id - tbl_order_address stores shipping for each order)
 		$shipping = array();
 		$this->db->select('*');
@@ -4032,27 +4064,25 @@ class Orders extends Vendor_base
 		$this->db->where('order_id', $order_id);
 		$this->db->limit(1);
 		$address_query = $this->db->get();
-		if ($address_query->num_rows() > 0)
-		{
+		if ($address_query->num_rows() > 0) {
 			$shipping = $address_query->row_array();
 		}
-		
+
 		// Get order items
 		$this->db->select('id,product_id,product_title,product_sku,product_qty,variation_name,product_mrp,product_price,product_gst,total_gst_amt,total_price,discount_amt,hsn,excl_price,excl_price_total');
 		$this->db->from('tbl_order_items');
 		$this->db->where('order_id', $order_id);
 		$items_query = $this->db->get();
 		$products = $items_query->result_array();
-		
+
 		// Calculate totals
 		$gst_total = 0;
 		$total_product_discount = 0;
-		foreach ($products as $product)
-		{
+		foreach ($products as $product) {
 			$gst_total += isset($product['total_gst_amt']) ? $product['total_gst_amt'] : 0;
 			$total_product_discount += isset($product['discount_amt']) ? $product['discount_amt'] : 0;
 		}
-		
+
 		// Format order details for invoice view
 		$order_details = array(
 			'id' => $order_row['id'],
@@ -4078,10 +4108,9 @@ class Orders extends Vendor_base
 			'freight_charges_excl' => isset($order_row['freight_charges_excl']) ? $order_row['freight_charges_excl'] : 0,
 			'freight_gst_per' => isset($order_row['freight_gst_per']) ? $order_row['freight_gst_per'] : 0,
 		);
-		
+
 		// Generate invoice number if not exists (format: INV/26-03/001)
-		if (empty($order_details['invoice_no']))
-		{
+		if (empty($order_details['invoice_no'])) {
 			$invoice_no = $this->_generate_invoice_number();
 			$this->db->where('id', $order_id);
 			$this->db->update('tbl_order_details', array('invoice_no' => $invoice_no));
@@ -4093,7 +4122,7 @@ class Orders extends Vendor_base
 
 		// Load helpers for invoice (price_format_decimal, rupees_word)
 		$this->load->helper('common');
-		
+
 		// Load PDF library
 		$this->load->library('pdf');
 
@@ -4116,35 +4145,29 @@ class Orders extends Vendor_base
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
 		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
 		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
-		$order_details['order_obj'] = (object)array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
+		$order_details['order_obj'] = (object) array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
 
 		// Prepare data for invoice view
 		$page_data['data'] = $order_details;
-		
+
 		// Prefer application invoice (Shivam Books / kirtibook design)
 		$invoice_view_path = APPPATH . 'views/invoice/invoice_bill.php';
-		if (file_exists($invoice_view_path))
-		{
+		if (file_exists($invoice_view_path)) {
 			$html_content = $this->load->view('invoice/invoice_bill', $page_data, TRUE);
-		}
-		else
-		{
+		} else {
 			// Fallback: book_erp_frontend template
 			$frontend_view_path = FCPATH . 'book_erp_frontend/application/views/invoice/invoice_bill.php';
-			if (file_exists($frontend_view_path))
-			{
+			if (file_exists($frontend_view_path)) {
 				ob_start();
 				extract($page_data);
 				include($frontend_view_path);
 				$html_content = ob_get_clean();
-			}
-			else
-			{
+			} else {
 				show_error('Invoice template not found', 500);
 				return;
 			}
 		}
-		
+
 		// Generate PDF
 		$this->pdf->set_paper("A4", "portrait");
 
@@ -4190,8 +4213,7 @@ class Orders extends Vendor_base
 	public function test_invoice($order_no)
 	{
 		$order_data = $this->Order_model->get_order($order_no);
-		if (!$order_data || empty($order_data))
-		{
+		if (!$order_data || empty($order_data)) {
 			show_error('Order not found', 404);
 			return;
 		}
@@ -4203,8 +4225,7 @@ class Orders extends Vendor_base
 		$this->db->from('tbl_order_details');
 		$this->db->where('id', $order_id);
 		$query = $this->db->get();
-		if ($query->num_rows() == 0)
-		{
+		if ($query->num_rows() == 0) {
 			show_error('Order details not found', 404);
 			return;
 		}
@@ -4216,8 +4237,7 @@ class Orders extends Vendor_base
 		$this->db->where('order_id', $order_id);
 		$this->db->limit(1);
 		$address_query = $this->db->get();
-		if ($address_query->num_rows() > 0)
-		{
+		if ($address_query->num_rows() > 0) {
 			$shipping = $address_query->row_array();
 		}
 
@@ -4228,8 +4248,7 @@ class Orders extends Vendor_base
 
 		$gst_total = 0;
 		$total_product_discount = 0;
-		foreach ($products as $product)
-		{
+		foreach ($products as $product) {
 			$gst_total += isset($product['total_gst_amt']) ? $product['total_gst_amt'] : 0;
 			$total_product_discount += isset($product['discount_amt']) ? $product['discount_amt'] : 0;
 		}
@@ -4259,8 +4278,7 @@ class Orders extends Vendor_base
 			'freight_gst_per' => isset($order_row['freight_gst_per']) ? $order_row['freight_gst_per'] : 0,
 		);
 
-		if (empty($order_details['invoice_no']))
-		{
+		if (empty($order_details['invoice_no'])) {
 			$invoice_no = $this->_generate_invoice_number();
 			$this->db->where('id', $order_id);
 			$this->db->update('tbl_order_details', array('invoice_no' => $invoice_no));
@@ -4285,16 +4303,13 @@ class Orders extends Vendor_base
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
 		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
 		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
-		$order_details['order_obj'] = (object)array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
+		$order_details['order_obj'] = (object) array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
 
 		$page_data['data'] = $order_details;
 		$invoice_view_path = APPPATH . 'views/invoice/invoice_bill.php';
-		if (file_exists($invoice_view_path))
-		{
+		if (file_exists($invoice_view_path)) {
 			$html_content = $this->load->view('invoice/invoice_bill', $page_data, TRUE);
-		}
-		else
-		{
+		} else {
 			show_error('Invoice template not found', 500);
 			return;
 		}
@@ -4331,7 +4346,7 @@ class Orders extends Vendor_base
 	private function get_schools_for_filter()
 	{
 		$vendor_id = $this->current_vendor['id'];
-		
+
 		// Get schools
 		$this->db->select('erp_schools.id, erp_schools.school_name, "school" as type');
 		$this->db->from('erp_schools');
@@ -4339,7 +4354,7 @@ class Orders extends Vendor_base
 		$this->db->where('erp_schools.status', 'active');
 		$this->db->order_by('erp_schools.school_name', 'ASC');
 		$schools = $this->db->get()->result_array();
-		
+
 		// Get branches
 		$this->db->select('erp_school_branches.id, erp_school_branches.branch_name as school_name, "branch" as type, erp_schools.school_name as parent_school_name');
 		$this->db->from('erp_school_branches');
@@ -4347,7 +4362,7 @@ class Orders extends Vendor_base
 		$this->db->where('erp_school_branches.vendor_id', $vendor_id);
 		$this->db->where('erp_school_branches.status', 'active');
 		$branches = $this->db->get()->result_array();
-		
+
 		// Combine and format
 		$all_schools = array();
 		foreach ($schools as $school) {
@@ -4364,12 +4379,12 @@ class Orders extends Vendor_base
 				'type' => 'branch'
 			);
 		}
-		
+
 		// Sort alphabetically
-		usort($all_schools, function($a, $b) {
+		usort($all_schools, function ($a, $b) {
 			return strcasecmp($a['name'], $b['name']);
 		});
-		
+
 		return $all_schools;
 	}
 
@@ -4381,14 +4396,14 @@ class Orders extends Vendor_base
 	private function get_grades_for_filter()
 	{
 		$vendor_id = $this->current_vendor['id'];
-		
+
 		$this->db->select('id, name');
 		$this->db->from('erp_textbook_grades');
 		$this->db->where('vendor_id', $vendor_id);
 		$this->db->where('status', 'active');
 		$this->db->order_by('name', 'ASC');
 		$grades = $this->db->get()->result_array();
-		
+
 		return $grades;
 	}
 
@@ -4408,7 +4423,7 @@ class Orders extends Vendor_base
 		$order_id = $order->id;
 		$payment_method = $order->payment_method;
 		$total_amt = $order->total_amt;
-		
+
 		// Get order items - same as fetch_shipping_label
 		$items_arr = $this->db->select('*')
 			->from('tbl_order_items')
@@ -4416,7 +4431,7 @@ class Orders extends Vendor_base
 			->order_by('id', 'ASC')
 			->get()
 			->result();
-		
+
 		// Get order address - same as test_shipping_label (tbl_order_address + school/branch fallback)
 		$address_arr = $this->db->select('*')
 			->from('tbl_order_address')
@@ -4425,7 +4440,7 @@ class Orders extends Vendor_base
 			->limit(1)
 			->get()
 			->result();
-		
+
 		$addr_obj = !empty($address_arr) ? $address_arr[0] : null;
 		$addr_empty = !$addr_obj || (empty($addr_obj->address) && empty($addr_obj->city) && empty($addr_obj->state) && empty($addr_obj->pincode));
 		if ($addr_empty && !empty($items_arr)) {
@@ -4436,7 +4451,7 @@ class Orders extends Vendor_base
 						->join('erp_schools s', 's.id = sb.school_id', 'left')
 						->join('cities c', 'c.id = sb.city_id', 'left')
 						->join('states st', 'st.id = sb.state_id', 'left')
-						->where('sb.id', (int)$oi->branch_id)
+						->where('sb.id', (int) $oi->branch_id)
 						->limit(1)->get()->row();
 					if ($br) {
 						$addr_obj = $addr_obj ?: new stdClass();
@@ -4455,7 +4470,7 @@ class Orders extends Vendor_base
 						->from('erp_schools s')
 						->join('cities c', 'c.id = s.city_id', 'left')
 						->join('states st', 'st.id = s.state_id', 'left')
-						->where('s.id', (int)$oi->school_id)
+						->where('s.id', (int) $oi->school_id)
 						->limit(1)->get()->row();
 					if ($sch) {
 						$addr_obj = $addr_obj ?: new stdClass();
@@ -4472,9 +4487,9 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		$address_obj = !empty($address_arr) ? $address_arr[0] : null;
-		
+
 		// Determine order type - same as fetch_shipping_label
 		$order_type_label = 'Individual';
 		$has_bookset = false;
@@ -4494,7 +4509,7 @@ class Orders extends Vendor_base
 		} elseif ($has_uniform) {
 			$order_type_label = 'Uniform';
 		}
-		
+
 		// Enrich order with school_name, grade_name, board_name via fetch_shipping_label (modifies $order by reference)
 		$shipping_number = $order_no;
 		$ship_order_id = isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : null;
@@ -4514,14 +4529,14 @@ class Orders extends Vendor_base
 		}
 		// Call fetch_shipping_label to enrich $order (school_name, grade_name, board_name, etc.)
 		$this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self', $ship_order_id);
-		
+
 		// Extract student name and roll number - same logic as fetch_shipping_label
 		$student_name = '';
 		$roll_number = '';
 		if (!empty($items_arr)) {
 			foreach ($items_arr as $item) {
 				$is_bookset_item = (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package')) || $order_type_label == 'Bookset';
-				$is_deliver_at_school = isset($order->is_deliver_at_school) && (int)$order->is_deliver_at_school === 1;
+				$is_deliver_at_school = isset($order->is_deliver_at_school) && (int) $order->is_deliver_at_school === 1;
 				if ($is_bookset_item || $is_deliver_at_school) {
 					if (empty($student_name)) {
 						$f_name = isset($item->f_name) ? trim($item->f_name) : '';
@@ -4559,11 +4574,11 @@ class Orders extends Vendor_base
 		if (empty($student_name) && !empty($address_obj) && !empty($address_obj->student_name)) {
 			$student_name = trim($address_obj->student_name);
 		}
-		
+
 		// Slot no and pincode - same as fetch_shipping_label
 		$slot_no = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $order_no);
 		$pincode = !empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '';
-		
+
 		// Shipping name, phone, address - from address_obj with order fallback (same as fetch_shipping_label)
 		$shipping_name = !empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : (!empty($order->user_name) ? $order->user_name : '');
 		$phone = !empty($address_obj) && !empty($address_obj->mobile_no) ? $address_obj->mobile_no : (!empty($order->user_phone) ? $order->user_phone : '');
@@ -4580,7 +4595,7 @@ class Orders extends Vendor_base
 			$addr_parts = array($address_line1, $address_city, $address_state, isset($address_obj->pincode) ? $address_obj->pincode : '', $address_country);
 			$address = trim(implode(', ', array_filter($addr_parts)));
 		}
-		
+
 		// Bookset display: "Bookset - {name} {grade} {board}"
 		$bookset_display_name = '';
 		if ($order_type_label == 'Bookset' && !empty($items_arr)) {
@@ -4605,8 +4620,10 @@ class Orders extends Vendor_base
 							->limit(1)->get()->row();
 						if (!empty($bs_row)) {
 							$bs_name = !empty($bs_row->bookset_name) ? $bs_row->bookset_name : trim(implode(' - ', array_filter(array($bs_row->school_name, $bs_row->board_name, $bs_row->grade_name))));
-							if (empty($bs_grade) && !empty($bs_row->grade_name)) $bs_grade = $bs_row->grade_name;
-							if (empty($bs_board) && !empty($bs_row->board_name)) $bs_board = $bs_row->board_name;
+							if (empty($bs_grade) && !empty($bs_row->grade_name))
+								$bs_grade = $bs_row->grade_name;
+							if (empty($bs_board) && !empty($bs_row->board_name))
+								$bs_board = $bs_row->board_name;
 							break;
 						}
 					}
@@ -4624,9 +4641,11 @@ class Orders extends Vendor_base
 		// Simplified Bookset: only tbl_order_items, only packages, no products inside packages
 		if ($order_type_label == 'Bookset' && !empty($items_arr)) {
 			foreach ($items_arr as $item) {
-				if (empty($item->package_id)) continue;
+				if (empty($item->package_id))
+					continue;
 				$package_ids = array_filter(array_map('trim', explode(',', $item->package_id)));
-				if (empty($package_ids)) continue;
+				if (empty($package_ids))
+					continue;
 				$packages = $this->db->select('id, package_name, package_offer_price')
 					->from('erp_bookset_packages')
 					->where_in('id', $package_ids)
@@ -4653,7 +4672,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Generate barcode/QR - same as fetch_shipping_label (3rd_party=barcode, manual=QR)
 		$shipping_number_for_code = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $order_no);
 		$shipping_label_row = $this->Pdf_model->get_shipping_label($order_no)->row();
@@ -4673,7 +4692,7 @@ class Orders extends Vendor_base
 		} else {
 			$qr_code = $this->Pdf_model->generate_qr_base64($code_no);
 		}
-		
+
 		// Get logo - base64 for print view
 		$logo_src = '';
 		$logo_row = $this->db->select('logo')
@@ -4692,7 +4711,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Get seller details from erp_clients - same as fetch_shipping_label (name, address, pincode, pan, gstin)
 		$seller_name = 'Kirti Book Agency';
 		$seller_address = 'Mumbai';
@@ -4705,13 +4724,18 @@ class Orders extends Vendor_base
 			->get()
 			->row();
 		if (!empty($seller_row)) {
-			if (!empty($seller_row->name)) $seller_name = $seller_row->name;
-			if (!empty($seller_row->address)) $seller_address = $seller_row->address;
-			if (!empty($seller_row->pincode)) $seller_pincode = $seller_row->pincode;
-			if (!empty($seller_row->pan)) $seller_pan = $seller_row->pan;
-			if (!empty($seller_row->gstin)) $seller_gstin = $seller_row->gstin;
+			if (!empty($seller_row->name))
+				$seller_name = $seller_row->name;
+			if (!empty($seller_row->address))
+				$seller_address = $seller_row->address;
+			if (!empty($seller_row->pincode))
+				$seller_pincode = $seller_row->pincode;
+			if (!empty($seller_row->pan))
+				$seller_pan = $seller_row->pan;
+			if (!empty($seller_row->gstin))
+				$seller_gstin = $seller_row->gstin;
 		}
-		
+
 		// Prepare data for view - all keys with safe defaults to avoid undefined array key errors
 		$order_date = isset($order->order_date) ? date('d M Y', strtotime($order->order_date)) : '';
 		$data = array(
@@ -4789,10 +4813,11 @@ class Orders extends Vendor_base
 			show_error('No orders selected for bulk print.');
 			return;
 		}
-		$order_ids = array_slice(array_map('trim', (array)$order_ids), 0, 50);
+		$order_ids = array_slice(array_map('trim', (array) $order_ids), 0, 50);
 		$label_data_list = array();
 		foreach ($order_ids as $oid) {
-			if (empty($oid)) continue;
+			if (empty($oid))
+				continue;
 			$data = $this->_get_print_label_data($oid);
 			if ($data) {
 				$label_data_list[] = $data;
@@ -4815,22 +4840,20 @@ class Orders extends Vendor_base
 	{
 		// Increase memory limit for PDF generation
 		ini_set('memory_limit', '256M');
-		
+
 		// Get order details
 		$order_data = $this->Order_model->get_order($order_no);
-		
-		if (!$order_data)
-		{
+
+		if (!$order_data) {
 			show_error('Order not found', 404);
 			return;
 		}
-		
+
 		$order = $order_data[0];
 		$order_id = $order->id;
-		
+
 		// Verify order is in processing status
-		if ($order->order_status != '2' && $order->order_status != 2)
-		{
+		if ($order->order_status != '2' && $order->order_status != 2) {
 			if ($mode === 'bulk') {
 				return false;
 			}
@@ -4848,10 +4871,10 @@ class Orders extends Vendor_base
 			redirect(base_url('orders/view/' . $order_no));
 			return;
 		}
-		
+
 		// Generate shipping number (tracking ID) - use order_unique_id as slot_no for compatibility
 		$shipping_number = $order_no; // Use order_unique_id as shipping number
-		
+
 		// Generate unique ship_order_id - 8 characters only (alphanumeric)
 		// First 2 letters are constant: "SH"
 		$prefix = 'SH'; // Constant prefix
@@ -4866,12 +4889,12 @@ class Orders extends Vendor_base
 				->get('tbl_order_details')
 				->num_rows();
 		} while ($check_unique > 0);
-		
+
 		// Check if shipping label already exists in vendor_shipping_label table
 		$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
 		$label_id = null;
 		$barcode_url = '';
-		
+
 		if ($shipping_label->num_rows() > 0) {
 			$label_row = $shipping_label->row();
 			$label_id = $label_row->id;
@@ -4888,11 +4911,11 @@ class Orders extends Vendor_base
 			// Create new shipping label entry in vendor_shipping_label table
 			// Use current vendor_id from order
 			$vendor_id = isset($order->vendor_id) ? $order->vendor_id : (isset($this->current_vendor['id']) ? $this->current_vendor['id'] : null);
-			
+
 			// Check if vendor_shipping_label table exists before inserting
 			if ($this->db->table_exists('vendor_shipping_label')) {
 				$label_id = $this->Pdf_model->add_shipping_label($shipping_number, $vendor_id, $shipping_number);
-				
+
 				if ($label_id) {
 					// Generate barcode using ship_order_id (not shipping_number)
 					$this->Pdf_model->get_picqer_barcode($unique_ship_order_id, $label_id, 'barcode_url');
@@ -4905,22 +4928,22 @@ class Orders extends Vendor_base
 				// Generate QR code using ship_order_id
 				try {
 					require_once APPPATH . 'vendor/autoload.php';
-					
+
 					$qrCode = \Endroid\QrCode\QrCode::create($unique_ship_order_id)
 						->setSize(300)
 						->setMargin(10);
-					
+
 					$writer = new \Endroid\QrCode\Writer\PngWriter();
 					$result = $writer->write($qrCode);
 					$barcode_data = $result->getString();
-					
+
 					// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
 					$date_folder = date('Y_m_d');
 					$relative_dir = 'uploads/vendor_picqer_barcode/';
-					
+
 					$upload_path = FCPATH . trim($relative_dir, '/') . '/'
 						. $date_folder . '/';
-					
+
 					// Create directory structure step by step
 					if (!is_dir($upload_path)) {
 						// Try to create the full path
@@ -4933,7 +4956,7 @@ class Orders extends Vendor_base
 								$current_path = dirname($current_path);
 							}
 							$dirs_to_create = array_reverse($dirs_to_create);
-							
+
 							foreach ($dirs_to_create as $dir) {
 								if (!is_dir($dir)) {
 									@mkdir($dir, 0775, true);
@@ -4941,13 +4964,13 @@ class Orders extends Vendor_base
 							}
 						}
 					}
-					
+
 					$file_name = $unique_ship_order_id . ".png";
 					$pngAbsoluteFilePath = $upload_path . $file_name;
 					$relative_path = trim($relative_dir, '/') . '/'
 						. $date_folder . '/'
 						. $file_name;
-					
+
 					@file_put_contents($pngAbsoluteFilePath, $barcode_data);
 					$barcode_url = base_url($relative_path);
 					$label_id = null;
@@ -4957,7 +4980,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Get order items to determine order type
 		$items_arr = $this->db->select('*')
 			->from('tbl_order_items')
@@ -4965,12 +4988,12 @@ class Orders extends Vendor_base
 			->order_by('id', 'ASC')
 			->get()
 			->result();
-		
+
 		// Determine order type (bookset, individual, or uniform)
 		$order_type_label = 'Individual';
 		$has_bookset = false;
 		$has_uniform = false;
-		
+
 		foreach ($items_arr as $item) {
 			// Check order_type field in tbl_order_items
 			if (isset($item->order_type)) {
@@ -4982,7 +5005,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		if ($has_bookset) {
 			$order_type_label = 'Bookset';
 		} elseif ($has_uniform) {
@@ -4990,7 +5013,7 @@ class Orders extends Vendor_base
 		} else {
 			$order_type_label = 'Individual';
 		}
-		
+
 		// Get order address
 		$address_arr = $this->db->select('*')
 			->from('tbl_order_address')
@@ -4999,7 +5022,7 @@ class Orders extends Vendor_base
 			->limit(1)
 			->get()
 			->result();
-		
+
 		// When deliver at school/branch: if address is empty, build from school/branch in order items
 		$addr_obj = !empty($address_arr) ? $address_arr[0] : null;
 		$addr_empty = !$addr_obj || (empty($addr_obj->address) && empty($addr_obj->city) && empty($addr_obj->state) && empty($addr_obj->pincode));
@@ -5012,7 +5035,7 @@ class Orders extends Vendor_base
 						->join('erp_schools s', 's.id = sb.school_id', 'left')
 						->join('cities c', 'c.id = sb.city_id', 'left')
 						->join('states st', 'st.id = sb.state_id', 'left')
-						->where('sb.id', (int)$oi->branch_id)
+						->where('sb.id', (int) $oi->branch_id)
 						->limit(1)->get()->row();
 					if ($br) {
 						$school_branch_name = $br->branch_name . (!empty($br->school_name) ? ' (' . $br->school_name . ')' : '');
@@ -5032,7 +5055,7 @@ class Orders extends Vendor_base
 						->from('erp_schools s')
 						->join('cities c', 'c.id = s.city_id', 'left')
 						->join('states st', 'st.id = s.state_id', 'left')
-						->where('s.id', (int)$oi->school_id)
+						->where('s.id', (int) $oi->school_id)
 						->limit(1)->get()->row();
 					if ($sch) {
 						$school_branch_name = $sch->school_name;
@@ -5050,19 +5073,19 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Get vendor logo directly from erp_clients table
 		$logo_path = null;
 		$logo_url = '';
 		$logo_base64 = '';
-		
+
 		// Get logo path directly from erp_clients table
 		$logo_row = $this->db->select('logo')
 			->from('erp_clients')
 			->limit(1)
 			->get()
 			->row();
-		
+
 		if (!empty($logo_row) && !empty($logo_row->logo)) {
 			$logo_path = FCPATH . ltrim($logo_row->logo, '/');
 			if (file_exists($logo_path)) {
@@ -5071,32 +5094,32 @@ class Orders extends Vendor_base
 				$logo_path = null;
 			}
 		}
-		
+
 		// Function to resize and compress image for PDF
-		$resize_image_for_pdf = function($image_path, $max_width = 200, $max_height = 100, $quality = 85) {
+		$resize_image_for_pdf = function ($image_path, $max_width = 200, $max_height = 100, $quality = 85) {
 			if (!file_exists($image_path) || !function_exists('imagecreatefromjpeg')) {
 				return false;
 			}
-			
+
 			$image_info = getimagesize($image_path);
 			if ($image_info === false) {
 				return false;
 			}
-			
+
 			$mime_type = $image_info['mime'];
 			$width = $image_info[0];
 			$height = $image_info[1];
-			
+
 			// Calculate new dimensions
 			$ratio = min($max_width / $width, $max_height / $height);
-			$new_width = (int)($width * $ratio);
-			$new_height = (int)($height * $ratio);
-			
+			$new_width = (int) ($width * $ratio);
+			$new_height = (int) ($height * $ratio);
+
 			// Create image resource based on type
 			// Suppress PNG iCCP warnings
 			$old_error_reporting = error_reporting();
 			error_reporting($old_error_reporting & ~E_WARNING);
-			
+
 			switch ($mime_type) {
 				case 'image/jpeg':
 					$source = @imagecreatefromjpeg($image_path);
@@ -5111,17 +5134,17 @@ class Orders extends Vendor_base
 					error_reporting($old_error_reporting);
 					return false;
 			}
-			
+
 			// Restore error reporting
 			error_reporting($old_error_reporting);
-			
+
 			if (!$source) {
 				return false;
 			}
-			
+
 			// Create new image
 			$new_image = imagecreatetruecolor($new_width, $new_height);
-			
+
 			// Preserve transparency for PNG
 			if ($mime_type == 'image/png') {
 				imagealphablending($new_image, false);
@@ -5129,10 +5152,10 @@ class Orders extends Vendor_base
 				$transparent = imagecolorallocatealpha($new_image, 255, 255, 255, 127);
 				imagefilledrectangle($new_image, 0, 0, $new_width, $new_height, $transparent);
 			}
-			
+
 			// Resize
 			imagecopyresampled($new_image, $source, 0, 0, 0, 0, $new_width, $new_height, $width, $height);
-			
+
 			// Output to buffer
 			ob_start();
 			switch ($mime_type) {
@@ -5148,37 +5171,37 @@ class Orders extends Vendor_base
 			}
 			$image_data = ob_get_contents();
 			ob_end_clean();
-			
+
 			// Clean up
 			imagedestroy($source);
 			imagedestroy($new_image);
-			
+
 			return array('data' => $image_data, 'mime' => $mime_type);
 		};
-		
+
 		// Convert logo to base64 for PDF compatibility (with optimization)
-			if (!empty($logo_path) && file_exists($logo_path)) {
-				$resized = $resize_image_for_pdf($logo_path, 200, 100, 85);
-				if ($resized !== false) {
-					$logo_base64 = 'data:' . $resized['mime'] . ';base64,' . base64_encode($resized['data']);
-				} else {
-					// Fallback: use original image if resize fails
-					$image_data = file_get_contents($logo_path);
-					$image_info = getimagesize($logo_path);
-					if ($image_info !== false) {
-						$mime_type = $image_info['mime'];
-						// Limit size to 500KB
-						if (strlen($image_data) < 500000) {
-							$logo_base64 = 'data:' . $mime_type . ';base64,' . base64_encode($image_data);
-						}
+		if (!empty($logo_path) && file_exists($logo_path)) {
+			$resized = $resize_image_for_pdf($logo_path, 200, 100, 85);
+			if ($resized !== false) {
+				$logo_base64 = 'data:' . $resized['mime'] . ';base64,' . base64_encode($resized['data']);
+			} else {
+				// Fallback: use original image if resize fails
+				$image_data = file_get_contents($logo_path);
+				$image_info = getimagesize($logo_path);
+				if ($image_info !== false) {
+					$mime_type = $image_info['mime'];
+					// Limit size to 500KB
+					if (strlen($image_data) < 500000) {
+						$logo_base64 = 'data:' . $mime_type . ';base64,' . base64_encode($image_data);
 					}
 				}
 			}
-		
+		}
+
 		// Get barcode and convert to base64 for PDF
 		$barcode_base64 = '';
 		$barcode_file_path = '';
-		
+
 		// First, try to get barcode path from order table
 		if (!empty($order->barcode_path)) {
 			$barcode_file_path = FCPATH . ltrim($order->barcode_path, '/');
@@ -5186,14 +5209,14 @@ class Orders extends Vendor_base
 				$barcode_url = base_url($order->barcode_path);
 			}
 		}
-		
+
 		// If not found, try to get from barcode_url
 		if (empty($barcode_file_path) && !empty($barcode_url)) {
 			// Extract relative path from URL
 			$barcode_relative = str_replace(base_url(), '', $barcode_url);
 			$barcode_relative = ltrim($barcode_relative, '/');
 			$barcode_file_path = FCPATH . $barcode_relative;
-			
+
 			// If file doesn't exist, try to get from database
 			if (!file_exists($barcode_file_path)) {
 				if ($label_id) {
@@ -5205,7 +5228,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Convert barcode to base64 for PDF
 		if (!empty($barcode_file_path) && file_exists($barcode_file_path)) {
 			$barcode_data = file_get_contents($barcode_file_path);
@@ -5213,13 +5236,13 @@ class Orders extends Vendor_base
 				$barcode_base64 = 'data:image/png;base64,' . base64_encode($barcode_data);
 			}
 		}
-		
+
 		// Get logo absolute file path (already have logo_path from above)
 		$logo_file_path = '';
 		if (!empty($logo_path) && file_exists($logo_path)) {
 			$logo_file_path = $logo_path;
 		}
-		
+
 		// Prepare data for shipping label
 		$label_data = array(
 			'order' => $order,
@@ -5234,24 +5257,24 @@ class Orders extends Vendor_base
 			'barcode_file_path' => $barcode_file_path, // Absolute file path for PDF
 			'barcode_base64' => $barcode_base64 // Base64 for PDF
 		);
-		
+
 		// Start output buffering to prevent any output before headers
 		ob_start();
-		
+
 		// Generate PDF - use fresh instance in bulk to avoid dompdf state bleeding between renders
 		// (reusing the same instance causes corrupted layout in 2nd, 3rd, etc. labels)
 		$this->load->library('pdf');
 		if ($mode === 'bulk') {
 			$this->pdf = new Pdf();
 		}
-		
+
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		$old_error_reporting = error_reporting();
 		error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
-		
+
 		// Use kirtiBook design - fetch shipping label HTML from model
 		$address_obj = !empty($address_arr) ? $address_arr[0] : null;
-		
+
 		// Embed CSS inline for PDF compatibility (PDF libraries don't load external CSS files)
 		$html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>';
 		// Bootstrap CSS (minified - include key styles for PDF)
@@ -5263,35 +5286,35 @@ class Orders extends Vendor_base
 			$html .= file_get_contents(FCPATH . 'assets/pdf/cutsom-a5.css');
 		}
 		$html .= '</style></head><body>';
-		
+
 		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self', $unique_ship_order_id);
-		
+
 		$html .= '</body></html>';
-		
+
 		// Generate PDF
 		$this->pdf->set_paper("A4", "portrait");
-		
+
 		// Clear any output that might have been generated
 		ob_clean();
-		
+
 		// Use the same upload pattern as images
 		$this->load->helper('common');
 		$this->config->load('upload');
 		$uploadCfg = $this->config->item('shipping_label_upload');
 		$vendor_folder = get_vendor_domain_folder();
 		$date_folder = date('Y_m_d');
-		
+
 		// Build upload path using the same pattern as textbook images
 		$upload_path = rtrim($uploadCfg['base_root'], '/') . '/'
 			. $vendor_folder . '/'
 			. trim($uploadCfg['relative_dir'], '/') . '/'
 			. $date_folder . '/';
-		
+
 		// Create directory if it doesn't exist (with proper permissions)
 		if (!is_dir($upload_path)) {
 			mkdir($upload_path, 0775, true);
 		}
-		
+
 		// Delete old shipping labels for this order if they exist
 		if (!empty($order->shipping_label)) {
 			// Get old file path
@@ -5299,19 +5322,19 @@ class Orders extends Vendor_base
 			$old_path_parts = explode('/', $old_relative_path);
 			$old_date_folder = isset($old_path_parts[2]) ? $old_path_parts[2] : date('Y_m_d');
 			$old_filename = end($old_path_parts);
-			
+
 			// Build old file path
 			$old_file_path = rtrim($uploadCfg['base_root'], '/') . '/'
 				. $vendor_folder . '/'
 				. trim($uploadCfg['relative_dir'], '/') . '/'
 				. $old_date_folder . '/'
 				. $old_filename;
-			
+
 			// Delete old file if it exists
 			if (file_exists($old_file_path)) {
 				@unlink($old_file_path);
 			}
-			
+
 			// Also try to delete any other shipping labels for this order (in case there are multiple)
 			$old_pattern = $upload_path . 'shipping_label_' . $order_no . '_*.pdf';
 			$old_files = glob($old_pattern);
@@ -5323,16 +5346,16 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Generate PDF filename
 		$pdf_filename = 'shipping_label_' . $order_no . '_' . time() . '.pdf';
 		$pdf_path = $upload_path . $pdf_filename;
-		
+
 		try {
 			$this->pdf->set_option('isHtml5ParserEnabled', TRUE);
 			$this->pdf->load_html($html);
 			$this->pdf->render();
-			
+
 			// Get PDF output
 			$pdf_output = $this->pdf->output();
 			file_put_contents($pdf_path, $pdf_output);
@@ -5344,18 +5367,18 @@ class Orders extends Vendor_base
 			$this->pdf->set_option('isHtml5ParserEnabled', FALSE);
 			$this->pdf->load_html($html);
 			$this->pdf->render();
-			
+
 			// Get PDF output
 			$pdf_output = $this->pdf->output();
 			file_put_contents($pdf_path, $pdf_output);
 		}
-		
+
 		// Restore original error reporting
 		error_reporting($old_error_reporting);
-		
+
 		// Store relative path in database (same pattern as images)
 		$relative_path = 'uploads/shipping_labels/' . $date_folder . '/' . $pdf_filename;
-		
+
 		// Get relative barcode path for order table (get directly from database)
 		// Barcode should be generated against ship_order_id, so check with that
 		$barcode_relative_path = '';
@@ -5365,22 +5388,22 @@ class Orders extends Vendor_base
 				$barcode_relative_path = $label_row->barcode_url; // Already a relative path
 			}
 		}
-		
+
 		// Update order with shipping label, unique shipping ID, and barcode path
 		$order_update_data = array(
 			'shipping_label' => $relative_path,
 			'ship_order_id' => $unique_ship_order_id,
 			'courier' => 'manual' // 'manual' means self delivery (enum only allows 'shiprocket', 'manual', '')
 		);
-		
+
 		// Add barcode_path if we have it
 		if (!empty($barcode_relative_path)) {
 			$order_update_data['barcode_path'] = $barcode_relative_path;
 		}
-		
+
 		$this->db->where('id', $order_id);
 		$this->db->update('tbl_order_details', $order_update_data);
-		
+
 		// Add timeline entry for shipping label generation
 		$this->db->insert('tbl_order_status', array(
 			'order_id' => $order_id,
@@ -5390,7 +5413,7 @@ class Orders extends Vendor_base
 			'status_desc' => 'Shipping label has been generated and is ready for download',
 			'created_at' => date('Y-m-d H:i:s')
 		));
-		
+
 		// Update vendor_shipping_label table with label URL if label_id exists and table exists
 		if ($label_id && $this->db->table_exists('vendor_shipping_label')) {
 			$this->db->where('id', $label_id);
@@ -5398,20 +5421,20 @@ class Orders extends Vendor_base
 				'label_url' => $relative_path
 			));
 		}
-		
+
 		// End output buffering
 		ob_end_clean();
-		
+
 		// For bulk mode, just return the relative path (no redirect/flash)
 		if ($mode === 'bulk') {
 			return $relative_path;
 		}
-		
+
 		// Set success message and redirect back to order view (page will auto-reload)
 		$this->session->set_flashdata('success', 'Shipping label generated successfully.');
 		redirect(base_url('orders/view/' . $order_no));
 	}
-	
+
 	/**
 	 * Download shipping label for an order
 	 *
@@ -5422,53 +5445,50 @@ class Orders extends Vendor_base
 	{
 		// Get order details
 		$order_data = $this->Order_model->get_order($order_no);
-		
-		if (!$order_data)
-		{
+
+		if (!$order_data) {
 			show_error('Order not found', 404);
 			return;
 		}
-		
+
 		$order = $order_data[0];
-		
-		if (empty($order->shipping_label))
-		{
+
+		if (empty($order->shipping_label)) {
 			$this->session->set_flashdata('error', 'Shipping label not found. Please generate it first.');
 			redirect(base_url('orders/view/' . $order_no));
 			return;
 		}
-		
+
 		// Use the same path pattern as images (construct full path from relative path)
 		$this->load->helper('common');
 		$this->config->load('upload');
 		$uploadCfg = $this->config->item('shipping_label_upload');
 		$vendor_folder = get_vendor_domain_folder();
-		
+
 		// Extract date folder from relative path (format: uploads/shipping_labels/2026_02_13/filename.pdf)
 		$relative_path = $order->shipping_label;
 		$path_parts = explode('/', $relative_path);
 		$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
 		$filename = end($path_parts);
-		
+
 		// Build full file path using the same pattern as upload
 		$file_path = rtrim($uploadCfg['base_root'], '/') . '/'
 			. $vendor_folder . '/'
 			. trim($uploadCfg['relative_dir'], '/') . '/'
 			. $date_folder . '/'
 			. $filename;
-		
+
 		// Fallback to FCPATH if the above path doesn't exist (for backward compatibility)
 		if (!file_exists($file_path)) {
 			$file_path = FCPATH . $relative_path;
 		}
-		
-		if (!file_exists($file_path))
-		{
+
+		if (!file_exists($file_path)) {
 			$this->session->set_flashdata('error', 'Shipping label file not found at: ' . $file_path);
 			redirect(base_url('orders/view/' . $order_no));
 			return;
 		}
-		
+
 		// Output PDF using readfile (no deprecation issues)
 		header('Content-Type: application/pdf');
 		header('Content-Disposition: attachment; filename="shipping_label_' . $order_no . '.pdf"');
@@ -5502,11 +5522,11 @@ class Orders extends Vendor_base
 		}
 
 		// Normalize and limit order IDs to avoid very heavy queries
-		$order_ids = array_map('intval', (array)$order_ids);
+		$order_ids = array_map('intval', (array) $order_ids);
 		$order_ids = array_slice($order_ids, 0, 100);
 
 		// Fetch orders ensuring they belong to current vendor
-		$vendor_id = isset($this->current_vendor['id']) ? (int)$this->current_vendor['id'] : 0;
+		$vendor_id = isset($this->current_vendor['id']) ? (int) $this->current_vendor['id'] : 0;
 
 		$orders = $this->db->select('td.id, td.order_unique_id, td.shipping_label, td.order_status, td.courier')
 			->from('tbl_order_details td')
@@ -5520,7 +5540,7 @@ class Orders extends Vendor_base
 				'message' => 'Selected orders not found.'
 			]);
 			exit;
-		}	
+		}
 
 
 		if (!class_exists('ZipArchive')) {
@@ -5561,7 +5581,7 @@ class Orders extends Vendor_base
 			// Only handle self-delivery (manual) orders for bulk label generation
 			/*if (!isset($order->courier) || $order->courier !== 'manual') {
 				continue;
-			}*/ 
+			}*/
 
 			// If no label yet, try to generate it first
 			if (empty($order->shipping_label)) {
@@ -5617,13 +5637,13 @@ class Orders extends Vendor_base
 		if ($added_files === 0 || !file_exists($zip_path)) {
 			if (file_exists($zip_path)) {
 				@unlink($zip_path);
-			} 
+			}
 			echo json_encode([
 				'status' => 'error',
 				'message' => 'No shipping labels found for selected orders.'
 			]);
 			exit;
-			
+
 		}
 
 		// Clear any output buffer before sending binary - prevents ZIP corruption
@@ -5640,7 +5660,7 @@ class Orders extends Vendor_base
 		@unlink($zip_path);
 		exit;
 	}
-	
+
 	/**
 	 * Test shipping label view for design purposes (HTML preview, not PDF)
 	 *
@@ -5651,19 +5671,18 @@ class Orders extends Vendor_base
 	{
 		// Increase memory limit for PDF generation
 		ini_set('memory_limit', '256M');
-		
+
 		// Get order details
 		$order_data = $this->Order_model->get_order($order_no);
-		
-		if (!$order_data)
-		{
+
+		if (!$order_data) {
 			show_error('Order not found', 404);
 			return;
 		}
-		
+
 		$order = $order_data[0];
 		$order_id = $order->id;
-		
+
 		// Get order items
 		$items_arr = $this->db->select('*')
 			->from('tbl_order_items')
@@ -5671,7 +5690,7 @@ class Orders extends Vendor_base
 			->order_by('id', 'ASC')
 			->get()
 			->result();
-		
+
 		// Get order address
 		$address_arr = $this->db->select('*')
 			->from('tbl_order_address')
@@ -5680,7 +5699,7 @@ class Orders extends Vendor_base
 			->limit(1)
 			->get()
 			->result();
-		
+
 		// When deliver at school/branch: if address is empty, build from school/branch in order items
 		$addr_obj = !empty($address_arr) ? $address_arr[0] : null;
 		$addr_empty = !$addr_obj || (empty($addr_obj->address) && empty($addr_obj->city) && empty($addr_obj->state) && empty($addr_obj->pincode));
@@ -5692,7 +5711,7 @@ class Orders extends Vendor_base
 						->join('erp_schools s', 's.id = sb.school_id', 'left')
 						->join('cities c', 'c.id = sb.city_id', 'left')
 						->join('states st', 'st.id = sb.state_id', 'left')
-						->where('sb.id', (int)$oi->branch_id)
+						->where('sb.id', (int) $oi->branch_id)
 						->limit(1)->get()->row();
 					if ($br) {
 						$addr_obj = $addr_obj ?: new stdClass();
@@ -5711,7 +5730,7 @@ class Orders extends Vendor_base
 						->from('erp_schools s')
 						->join('cities c', 'c.id = s.city_id', 'left')
 						->join('states st', 'st.id = s.state_id', 'left')
-						->where('s.id', (int)$oi->school_id)
+						->where('s.id', (int) $oi->school_id)
 						->limit(1)->get()->row();
 					if ($sch) {
 						$addr_obj = $addr_obj ?: new stdClass();
@@ -5728,16 +5747,16 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Get vendor logo - use URL directly for HTML preview (no need for base64)
 		$this->load->helper('common');
 		$logo_url = get_simple_vendor_logo_url();
-		
+
 		// Determine order type (bookset, individual, or uniform)
 		$order_type_label = 'Individual';
 		$has_bookset = false;
 		$has_uniform = false;
-		
+
 		foreach ($items_arr as $item) {
 			// Check order_type field in tbl_order_items
 			if (isset($item->order_type)) {
@@ -5749,7 +5768,7 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		if ($has_bookset) {
 			$order_type_label = 'Bookset';
 		} elseif ($has_uniform) {
@@ -5757,10 +5776,10 @@ class Orders extends Vendor_base
 		} else {
 			$order_type_label = 'Individual';
 		}
-		
+
 		// Use order_unique_id as shipping number for consistency
 		$shipping_number = $order_no;
-		
+
 		// Get barcode URL if it exists in order
 		$barcode_url = '';
 		if (!empty($order->barcode_path)) {
@@ -5775,15 +5794,15 @@ class Orders extends Vendor_base
 				}
 			}
 		}
-		
+
 		// Use kirtiBook design - fetch shipping label HTML from model
 		$address_obj = !empty($address_arr) ? $address_arr[0] : null;
-		
+
 		// For HTML preview, use external CSS links
 		$html = '<link rel="stylesheet" href="' . base_url() . 'assets/pdf/bootstrap.min.css">';
 		$html .= '<link rel="stylesheet" href="' . base_url() . 'assets/pdf/cutsom-a5.css">';
 		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self');
-		
+
 		echo $html;
 	}
 
@@ -5797,10 +5816,10 @@ class Orders extends Vendor_base
 	{
 		// Increase memory limit for PDF generation
 		ini_set('memory_limit', '256M');
-		
+
 		echo "<h1>Barcode Generation Test</h1>";
 		echo "<hr>";
-		
+
 		// Test 1: Check if Pdf_model is loaded
 		echo "<h2>Test 1: Model Loading</h2>";
 		if (isset($this->Pdf_model)) {
@@ -5809,7 +5828,7 @@ class Orders extends Vendor_base
 			echo "✗ Pdf_model is NOT loaded<br>";
 			return;
 		}
-		
+
 		// Test 2: Check if QR code library is available
 		echo "<h2>Test 2: QR Code Library</h2>";
 		if (class_exists('Endroid\QrCode\QrCode')) {
@@ -5825,43 +5844,43 @@ class Orders extends Vendor_base
 				return;
 			}
 		}
-		
+
 		// Test 3: Generate a test QR code using the actual upload path
 		echo "<h2>Test 3: QR Code Generation & Upload</h2>";
 		$test_code = 'TEST' . date('YmdHis');
 		try {
 			require_once APPPATH . 'vendor/autoload.php';
-			
+
 			$qrCode = \Endroid\QrCode\QrCode::create($test_code)
 				->setSize(300)
 				->setMargin(10);
-			
+
 			$writer = new \Endroid\QrCode\Writer\PngWriter();
 			$result = $writer->write($qrCode);
 			$barcode = $result->getString();
-			
+
 			if ($barcode) {
 				echo "✓ Barcode generated successfully for code: $test_code<br>";
 				echo "Barcode size: " . strlen($barcode) . " bytes<br>";
-				
+
 				// Use the same path structure as Pdf_model (main folder, not vendor-specific)
 				$date_folder = date('Y_m_d');
 				$relative_dir = 'uploads/vendor_picqer_barcode/';
-				
+
 				// Full upload path (absolute) - main folder, not vendor-specific
 				$upload_path = FCPATH . trim($relative_dir, '/') . '/'
 					. $date_folder . '/';
-				
+
 				echo "<br><strong>Upload Path Details:</strong><br>";
 				echo "FCPATH: " . FCPATH . "<br>";
 				echo "Relative Dir: $relative_dir<br>";
 				echo "Date Folder: $date_folder<br>";
 				echo "Full Upload Path: $upload_path<br>";
-				
+
 				// Check if directory exists
 				if (!is_dir($upload_path)) {
 					echo "⚠ Directory does not exist. Attempting to create...<br>";
-					
+
 					// Try to create directory structure step by step
 					$dirs_to_create = array();
 					$current_path = $upload_path;
@@ -5870,7 +5889,7 @@ class Orders extends Vendor_base
 						$current_path = dirname($current_path);
 					}
 					$dirs_to_create = array_reverse($dirs_to_create);
-					
+
 					$created = false;
 					foreach ($dirs_to_create as $dir) {
 						if (!is_dir($dir)) {
@@ -5886,7 +5905,7 @@ class Orders extends Vendor_base
 							}
 						}
 					}
-					
+
 					if ($created && is_dir($upload_path)) {
 						echo "✓ Directory structure created successfully<br>";
 					} else {
@@ -5902,7 +5921,7 @@ class Orders extends Vendor_base
 				} else {
 					echo "✓ Directory exists<br>";
 				}
-				
+
 				// Check if directory is writable
 				if (is_dir($upload_path)) {
 					echo "Directory is writable: " . (is_writable($upload_path) ? "Yes" : "No") . "<br>";
@@ -5911,18 +5930,18 @@ class Orders extends Vendor_base
 						echo "⚠ Warning: Directory exists but is not writable. You may need to set permissions manually.<br>";
 					}
 				}
-				
+
 				// Use test code as filename (like order number)
 				$test_file_name = $test_code . '.png';
 				$test_pngAbsoluteFilePath = $upload_path . $test_file_name;
 				$test_relative_path = trim($relative_dir, '/') . '/'
 					. $date_folder . '/'
 					. $test_file_name;
-				
+
 				echo "<br><strong>File Details:</strong><br>";
 				echo "Absolute File Path: $test_pngAbsoluteFilePath<br>";
 				echo "Relative Path (for DB): $test_relative_path<br>";
-				
+
 				// Try to save the file
 				$write_result = @file_put_contents($test_pngAbsoluteFilePath, $barcode);
 				if ($write_result !== false) {
@@ -5930,7 +5949,7 @@ class Orders extends Vendor_base
 				} else {
 					echo "✗ File write failed. Error: " . (error_get_last() ? error_get_last()['message'] : 'Unknown error') . "<br>";
 				}
-				
+
 				// Check if file exists
 				if (file_exists($test_pngAbsoluteFilePath)) {
 					$file_size = filesize($test_pngAbsoluteFilePath);
@@ -5961,34 +5980,34 @@ class Orders extends Vendor_base
 			echo "✗ Error generating barcode: " . $e->getMessage() . "<br>";
 			echo "Stack trace: " . $e->getTraceAsString() . "<br>";
 		}
-		
+
 		// Test 4: Test with actual order if provided
 		if (!empty($order_no)) {
 			echo "<h2>Test 4: Order Barcode Generation</h2>";
 			$order_data = $this->Order_model->get_order($order_no);
-			
+
 			if ($order_data && !empty($order_data[0])) {
 				$order = $order_data[0];
 				$order_id = $order->id;
 				$shipping_number = $order_no;
-				
+
 				echo "Order ID: $order_id<br>";
 				echo "Order Number: $order_no<br>";
 				echo "Shipping Number: $shipping_number<br>";
-		
+
 				// Check if vendor_shipping_label table exists
 				$table_exists = $this->db->table_exists('vendor_shipping_label');
 				echo "Vendor Shipping Label Table Exists: " . ($table_exists ? "Yes" : "No") . "<br>";
-				
+
 				// Check if shipping label exists
 				$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
 				$label_id = null;
-				
+
 				if ($table_exists && $shipping_label->num_rows() > 0) {
 					$label_row = $shipping_label->row();
 					$label_id = $label_row->id;
 					echo "✓ Shipping label found in database (ID: $label_id)<br>";
-					
+
 					if (!empty($label_row->barcode_url)) {
 						// Check if path is correct (should start with 'uploads/vendor_picqer_barcode/')
 						$needs_regeneration = false;
@@ -6016,7 +6035,7 @@ class Orders extends Vendor_base
 								$needs_regeneration = true;
 							}
 						}
-						
+
 						if ($needs_regeneration) {
 							$this->Pdf_model->get_picqer_barcode($shipping_number, $label_id, 'barcode_url');
 							$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
@@ -6031,11 +6050,11 @@ class Orders extends Vendor_base
 								$label_row->barcode_url = $updated_label->barcode_url;
 							}
 						}
-						
+
 						if (!empty($label_row->barcode_url)) {
 							echo "<img src='" . base_url($label_row->barcode_url) . "' alt='Order Barcode' style='max-width:400px;'><br>";
 						}
-		} else {
+					} else {
 						echo "⚠ Barcode URL is empty, generating new barcode...<br>";
 						$this->Pdf_model->get_picqer_barcode($shipping_number, $label_id, 'barcode_url');
 						$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
@@ -6056,12 +6075,12 @@ class Orders extends Vendor_base
 					} else {
 						echo "⚠ Shipping label not found, creating new entry...<br>";
 					}
-					
+
 					$vendor_id = isset($order->vendor_id) ? $order->vendor_id : (isset($this->current_vendor['id']) ? $this->current_vendor['id'] : null);
-					
+
 					if ($table_exists) {
 						$label_id = $this->Pdf_model->add_shipping_label($shipping_number, $vendor_id, $shipping_number);
-						
+
 						if ($label_id) {
 							echo "✓ Shipping label created (ID: $label_id)<br>";
 							$this->Pdf_model->get_picqer_barcode($shipping_number, $label_id, 'barcode_url');
@@ -6069,7 +6088,7 @@ class Orders extends Vendor_base
 							if (!empty($updated_label->barcode_url)) {
 								echo "✓ Barcode generated and saved: " . $updated_label->barcode_url . "<br>";
 								echo "<img src='" . base_url($updated_label->barcode_url) . "' alt='Order Barcode' style='max-width:400px;'><br>";
-								
+
 								// Update order with barcode path
 								$this->db->where('id', $order_id);
 								$this->db->update('tbl_order_details', array(
@@ -6082,36 +6101,36 @@ class Orders extends Vendor_base
 						// Generate QR code directly without vendor_shipping_label table
 						try {
 							require_once APPPATH . 'vendor/autoload.php';
-							
+
 							$qrCode = \Endroid\QrCode\QrCode::create($shipping_number)
 								->setSize(300)
 								->setMargin(10);
-							
+
 							$writer = new \Endroid\QrCode\Writer\PngWriter();
 							$result = $writer->write($qrCode);
 							$barcode_data = $result->getString();
-							
+
 							// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
 							$date_folder = date('Y_m_d');
 							$relative_dir = 'uploads/vendor_picqer_barcode/';
-							
+
 							$upload_path = FCPATH . trim($relative_dir, '/') . '/'
 								. $date_folder . '/';
-							
+
 							if (!is_dir($upload_path)) {
 								@mkdir($upload_path, 0775, true);
 							}
-							
+
 							$file_name = $shipping_number . ".png";
 							$pngAbsoluteFilePath = $upload_path . $file_name;
 							$relative_path = trim($relative_dir, '/') . '/'
 								. $date_folder . '/'
 								. $file_name;
-							
+
 							@file_put_contents($pngAbsoluteFilePath, $barcode_data);
 							echo "✓ Barcode generated and saved: " . $relative_path . "<br>";
 							echo "<img src='" . base_url($relative_path) . "' alt='Order Barcode' style='max-width:400px;'><br>";
-							
+
 							// Update order with barcode path
 							$this->db->where('id', $order_id);
 							$this->db->update('tbl_order_details', array(
@@ -6123,7 +6142,7 @@ class Orders extends Vendor_base
 						}
 					}
 				}
-				
+
 				// Check order table for barcode_path
 				$this->db->select('barcode_path');
 				$this->db->where('id', $order_id);
@@ -6140,12 +6159,12 @@ class Orders extends Vendor_base
 			echo "<h2>Test 4: Skipped (No order number provided)</h2>";
 			echo "To test with an order, use: " . base_url('orders/test_barcode/ORDER_NUMBER') . "<br>";
 		}
-		
+
 		// Test 5: Upload configuration
 		echo "<h2>Test 5: Upload Configuration</h2>";
 		$this->config->load('upload');
 		$uploadCfg = $this->config->item('picqer_barcode_upload');
-		
+
 		// Check if config file exists
 		$config_file = APPPATH . 'config/upload.php';
 		if (file_exists($config_file)) {
@@ -6153,7 +6172,7 @@ class Orders extends Vendor_base
 		} else {
 			echo "✗ Upload config file NOT found at: $config_file<br>";
 		}
-		
+
 		// If picqer config not found, use textbook config as reference
 		if (empty($uploadCfg) || !is_array($uploadCfg)) {
 			echo "⚠ picqer_barcode_upload config not found, using textbook_upload as reference...<br>";
@@ -6166,22 +6185,22 @@ class Orders extends Vendor_base
 				echo "✓ Using fallback config from textbook_upload<br>";
 			}
 		}
-		
+
 		if ($uploadCfg && !empty($uploadCfg) && is_array($uploadCfg)) {
 			echo "✓ Picqer barcode upload config found<br>";
 			echo "Relative Dir: " . (isset($uploadCfg['relative_dir']) ? $uploadCfg['relative_dir'] : 'NOT SET') . "<br>";
 			echo "Note: Barcodes are saved to main folder (not vendor-specific)<br>";
 			echo "<br><strong>Path Information:</strong><br>";
 			echo "FCPATH: " . FCPATH . "<br>";
-			
+
 			$date_folder = date('Y_m_d');
 			$relative_dir = isset($uploadCfg['relative_dir']) ? $uploadCfg['relative_dir'] : 'uploads/vendor_picqer_barcode/';
-			
+
 			// Use FCPATH directly (main folder, not vendor-specific)
 			$upload_path = FCPATH . trim($relative_dir, '/') . '/'
 				. $date_folder . '/';
 			echo "Full Upload Path: $upload_path<br>";
-			
+
 			if (is_dir($upload_path)) {
 				echo "✓ Upload directory exists<br>";
 				echo "Directory is writable: " . (is_writable($upload_path) ? "Yes" : "No") . "<br>";
@@ -6230,7 +6249,7 @@ class Orders extends Vendor_base
 			echo "FCPATH: " . FCPATH . "<br>";
 			echo "Default Upload Path: $upload_path<br>";
 		}
-		
+
 		echo "<hr>";
 		echo "<h2>Test Summary</h2>";
 		echo "<p>All tests completed. Check the results above.</p>";
@@ -6239,7 +6258,8 @@ class Orders extends Vendor_base
 
 
 
-	public function get_active_shipping_providers()	{
+	public function get_active_shipping_providers()
+	{
 		$providers = $this->db
 			->select('provider')
 			->from('erp_shipping_providers')
@@ -6253,20 +6273,21 @@ class Orders extends Vendor_base
 			'providers' => $providers
 		]);
 	}
-			
-	
 
-	
-	public function get_provider_pickup_addresses(){
+
+
+
+	public function get_provider_pickup_addresses()
+	{
 		header('Content-Type: application/json');
 
-		$provider  = strtolower(trim($this->input->post('provider')));
+		$provider = strtolower(trim($this->input->post('provider')));
 		$client_id = $this->current_vendor['id'];
 
 		if (empty($provider)) {
 			return jsonResponse(false, 'Provider is required.');
 		}
-	 
+
 		if ($provider === 'shiprocket') {
 			$this->load->model('Shipping_model');
 			$response = $this->Shipping_model->get_shiprocket_pickups($client_id);
@@ -6275,7 +6296,7 @@ class Orders extends Vendor_base
 			}
 			return jsonResponse(true, '', $response['data'] ?? []);
 		}
-	 
+
 		if ($provider === 'velocity') {
 
 			$row = $this->db->select('pickup_name, pickup_phoneno,
@@ -6293,13 +6314,13 @@ class Orders extends Vendor_base
 				return jsonResponse(false, 'Velocity pickup not configured.');
 			}
 
-			$city     = ucwords(strtolower(trim($row['pickup_city'] ?? '')));
-			$state    = ucwords(strtolower(trim($row['pickup_state'] ?? '')));
-			$address  = trim($row['pickup_address'] ?? '');
+			$city = ucwords(strtolower(trim($row['pickup_city'] ?? '')));
+			$state = ucwords(strtolower(trim($row['pickup_state'] ?? '')));
+			$address = trim($row['pickup_address'] ?? '');
 			$landmark = trim($row['pickup_landmark'] ?? '');
-			$pincode  = trim($row['pickup_pincode'] ?? '');
-			$name     = trim($row['pickup_name'] ?? '');
-			$phone    = trim($row['pickup_phoneno'] ?? '');
+			$pincode = trim($row['pickup_pincode'] ?? '');
+			$name = trim($row['pickup_name'] ?? '');
+			$phone = trim($row['pickup_phoneno'] ?? '');
 
 			$full_address = implode(', ', array_filter([
 				$name,
@@ -6314,11 +6335,10 @@ class Orders extends Vendor_base
 			return jsonResponse(true, '', [
 				[
 					'value' => 1,
-					'name'  => $full_address
+					'name' => $full_address
 				]
 			]);
-		}
-		elseif ($provider === 'bigship') {
+		} elseif ($provider === 'bigship') {
 			$this->load->model('shipping_model');
 			$response = $this->shipping_model->get_bigship_warehouses($client_id);
 
@@ -6330,11 +6350,11 @@ class Orders extends Vendor_base
 			foreach ($response['data'] as $w) {
 				$data[] = [
 					'value' => $w['warehouse_id'],
-					'name'  => $w['warehouse_name'] . ', ' .
-							   $w['address_line1'] . ', ' . 
-							   $w['address_city'] . ', ' .
-							   $w['address_state'] . ' - ' .
-							   $w['address_pincode']
+					'name' => $w['warehouse_name'] . ', ' .
+						$w['address_line1'] . ', ' .
+						$w['address_city'] . ', ' .
+						$w['address_state'] . ' - ' .
+						$w['address_pincode']
 				];
 			}
 
@@ -6343,31 +6363,32 @@ class Orders extends Vendor_base
 
 		return jsonResponse(true, '', []);
 	}
-	
-	public function save_third_party_shipping(){
+
+	public function save_third_party_shipping()
+	{
 		header('Content-Type: application/json');
 
-		$response = function($status, $message) {
+		$response = function ($status, $message) {
 			echo json_encode([
-				'status'  => $status,
+				'status' => $status,
 				'message' => $message,
-				'csrf'    => [
+				'csrf' => [
 					'name' => $this->security->get_csrf_token_name(),
 					'hash' => $this->security->get_csrf_hash()
 				]
 			]);
 			exit;
 		};
-	
-		$order_unique_id      = $this->input->post('order_unique_id', true);
+
+		$order_unique_id = $this->input->post('order_unique_id', true);
 		$third_party_provider = trim($this->input->post('third_party_provider', true));
-		$length  = (float) $this->input->post('length');
+		$length = (float) $this->input->post('length');
 		$breadth = (float) $this->input->post('breadth');
-		$height  = (float) $this->input->post('height');
-		$weight  = (float) $this->input->post('weight');
+		$height = (float) $this->input->post('height');
+		$weight = (float) $this->input->post('weight');
 		$schedule_date = $this->input->post('schedule_date', true);
-		$from_time     = $this->input->post('from_Time', true);
-		$to_time       = $this->input->post('to_Time', true);
+		$from_time = $this->input->post('from_Time', true);
+		$to_time = $this->input->post('to_Time', true);
 		$pickup_address_id = $this->input->post('pickup_address_id', true);
 
 		if (empty($order_unique_id) || empty($third_party_provider)) {
@@ -6389,13 +6410,13 @@ class Orders extends Vendor_base
 		}
 
 		$order_data = $order[0];
-		$order_id   = $order_data->id;
+		$order_id = $order_data->id;
 
 		if ($order_data->order_status != 1) {
 			$response('400', 'Order must be in pending status.');
 		}
-		
-		
+
+
 		$this->db->trans_begin();
 
 		try {
@@ -6404,8 +6425,8 @@ class Orders extends Vendor_base
 			// DELIVERY ADDRESS (School or Normal)
 			// ===============================
 
-			$is_deliver_at_school = (isset($order_data->is_deliver_at_school) 
-				&& (int)$order_data->is_deliver_at_school === 1);
+			$is_deliver_at_school = (isset($order_data->is_deliver_at_school)
+				&& (int) $order_data->is_deliver_at_school === 1);
 
 			$addr_row = null;
 
@@ -6436,12 +6457,12 @@ class Orders extends Vendor_base
 							->from('erp_school_branches sb')
 							->join('cities c', 'c.id = sb.city_id', 'left')
 							->join('states st', 'st.id = sb.state_id', 'left')
-							->where('sb.id', (int)$order_item->branch_id)
+							->where('sb.id', (int) $order_item->branch_id)
 							->limit(1)
 							->get()
 							->row();
 
-					} 
+					}
 					// ===============================
 					// SCHOOL ADDRESS
 					// ===============================
@@ -6457,7 +6478,7 @@ class Orders extends Vendor_base
 							->from('erp_schools s')
 							->join('cities c', 'c.id = s.city_id', 'left')
 							->join('states st', 'st.id = s.state_id', 'left')
-							->where('s.id', (int)$order_item->school_id)
+							->where('s.id', (int) $order_item->school_id)
 							->limit(1)
 							->get()
 							->row();
@@ -6481,8 +6502,8 @@ class Orders extends Vendor_base
 			if (!$addr_row) {
 				throw new Exception('Delivery address not found.');
 			}
-				
-						
+
+
 			$delivery_address_full = '';
 
 			$parts = array_filter([
@@ -6499,12 +6520,12 @@ class Orders extends Vendor_base
 			// UPDATE ORDER DETAILS
 			// ===============================
 			$update_data = [
-				'courier'               => '3rd_party',
-				'third_party_provider'  => $third_party_provider,
-				'pkg_length_cm'         => $length ?: null,
-				'pkg_breadth_cm'        => $breadth ?: null,
-				'pkg_height_cm'         => $height ?: null,
-				'pkg_weight_kg'         => $weight ?: null
+				'courier' => '3rd_party',
+				'third_party_provider' => $third_party_provider,
+				'pkg_length_cm' => $length ?: null,
+				'pkg_breadth_cm' => $breadth ?: null,
+				'pkg_height_cm' => $height ?: null,
+				'pkg_weight_kg' => $weight ?: null
 			];
 
 			$this->db->where('id', $order_id);
@@ -6516,18 +6537,18 @@ class Orders extends Vendor_base
 			if ($this->db->table_exists('tbl_order_third_party_shipping')) {
 
 				$tp_data = [
-					'order_id'               => $order_id,
-					'order_unique_id'        => $order_unique_id,
-					'invoice_number'         => $order_data->invoice_no ?? null,
-					'delivery_address_full'  => $delivery_address_full,
-					'length_cm'              => $length ?: null,
-					'breadth_cm'             => $breadth ?: null,
-					'height_cm'              => $height ?: null,
-					'weight_kg'              => $weight ?: null,
-					'third_party_provider'   => $third_party_provider,
-					'schedule_date'          => $schedule_date ?: null,
-					'from_time'              => $from_time ?: null,
-					'to_time'                => $to_time ?: null
+					'order_id' => $order_id,
+					'order_unique_id' => $order_unique_id,
+					'invoice_number' => $order_data->invoice_no ?? null,
+					'delivery_address_full' => $delivery_address_full,
+					'length_cm' => $length ?: null,
+					'breadth_cm' => $breadth ?: null,
+					'height_cm' => $height ?: null,
+					'weight_kg' => $weight ?: null,
+					'third_party_provider' => $third_party_provider,
+					'schedule_date' => $schedule_date ?: null,
+					'from_time' => $from_time ?: null,
+					'to_time' => $to_time ?: null
 				];
 
 				$existing = $this->db->select('id')
@@ -6538,7 +6559,7 @@ class Orders extends Vendor_base
 
 				if ($existing) {
 					$this->db->where('id', $existing->id)
-							 ->update('tbl_order_third_party_shipping', $tp_data);
+						->update('tbl_order_third_party_shipping', $tp_data);
 				} else {
 					$this->db->insert('tbl_order_third_party_shipping', $tp_data);
 				}
@@ -6548,65 +6569,65 @@ class Orders extends Vendor_base
 			// STATUS HISTORY
 			// ===============================
 			$this->db->insert('tbl_order_status', [
-				'order_id'    => $order_id,
-				'user_id'     => $this->current_vendor['id'] ?? 0,
-				'product_id'  => 0,
-				'status_title'=> '3rd Party Selected',
+				'order_id' => $order_id,
+				'user_id' => $this->current_vendor['id'] ?? 0,
+				'product_id' => 0,
+				'status_title' => '3rd Party Selected',
 				'status_desc' => ucfirst($third_party_provider) .
-								 " (L:$length B:$breadth H:$height W:$weight kg)",
-				'created_at'  => date('Y-m-d H:i:s')
+					" (L:$length B:$breadth H:$height W:$weight kg)",
+				'created_at' => date('Y-m-d H:i:s')
 			]);
-			
-			
+
+
 			// ===============================
 			// CALL PROVIDER API
 			// ===============================
-			
-				
+
+
 			$provider = $this->db->select('id,name,email,password,company_id,channel_id,token,token_expiry,pickup_city,pickup_state,pickup_address,pickup_landmark,pickup_pincode,pickup_phoneno,pickup_alt_phoneno,pickup_name,pickup_emailid')
-			->from('erp_shipping_providers')
-			->where('provider', $third_party_provider)
-			->where('client_id', $this->current_vendor['id'] ?? 0)
-			->limit(1)
-			->get()->row();
-			
+				->from('erp_shipping_providers')
+				->where('provider', $third_party_provider)
+				->where('client_id', $this->current_vendor['id'] ?? 0)
+				->limit(1)
+				->get()->row();
+
 			$this->load->model('Shipping_model');
 
 			$api_response = [];
-			
+
 
 			$consignments = array();
 			$product_details = array();
-			$declared_value=0;
-			$total_weight=0;
-			$total_weight_gm=0;	
+			$declared_value = 0;
+			$total_weight = 0;
+			$total_weight_gm = 0;
 			$order_type = $order_data->type_order;
-		
 
-			$order_id   = $order_data->id;
+
+			$order_id = $order_data->id;
 			$order_type = strtolower($order_data->type_order);
 
- 
-		
+
+
 			if ($order_type === 'bookset') {
-				
+
 				$order_products = $this->db->select('product_id,bookset_packages_json,has_products')
 					->from('tbl_order_items')
 					->where('order_id', $order_id)
 					->get()
 					->result();
-					
+
 				if (empty($order_products)) {
 					throw new Exception('No bookset items found.');
 				}
 
-			// ==============================
+				// ==============================
 				// LOAD ALL BOOKSETS IN ONE QUERY
 				// ==============================
 
 
 
-				foreach ($order_products as $row) {	
+				foreach ($order_products as $row) {
 					$has_products = $row->has_products;
 
 					if (empty($row->bookset_packages_json)) {
@@ -6618,46 +6639,46 @@ class Orders extends Vendor_base
 						continue;
 					}
 
-					foreach ($json['packages'] as $package) {				
+					foreach ($json['packages'] as $package) {
 						// =========================
 						// BOOKSET WITHOUT PRODUCTS
 						// =========================
 						if ($has_products == 0) {
-								$product_name = $package['package_name'] ?? 'Book';
-								$qty          = 1;
-								$price_total  = (float) ($package['package_offer_price'] ?? 0);
-								$weight_gm    = (float) ($package['package_weight'] ?? 0);
+							$product_name = $package['package_name'] ?? 'Book';
+							$qty = 1;
+							$price_total = (float) ($package['package_offer_price'] ?? 0);
+							$weight_gm = (float) ($package['package_weight'] ?? 0);
 
-								$declared_value += $price_total;
+							$declared_value += $price_total;
 
-								if ($weight_gm <= 0) {
-									$weight_gm = 500;
-								}
+							if ($weight_gm <= 0) {
+								$weight_gm = 500;
+							}
 
-								$total_weight_gm += ($weight_gm * $qty);
+							$total_weight_gm += ($weight_gm * $qty);
 
-								$product_details[] = array(
-									"product_category"               => "Others",
-									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
-									"product_name"                   => sanitize_allowed_chars($product_name),
-									"product_quantity"               => $qty,
-									"each_product_invoice_amount"    => $price_total,
-									"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
-									"hsn"                            => $package['hsn'] ?? ""
-								);
+							$product_details[] = array(
+								"product_category" => "Others",
+								"product_sub_category" => sanitize_sub_category($package['package_name']) ?? "",
+								"product_name" => sanitize_allowed_chars($product_name),
+								"product_quantity" => $qty,
+								"each_product_invoice_amount" => $price_total,
+								"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod' ? (float) $price_total : 0,
+								"hsn" => $package['hsn'] ?? ""
+							);
 						}
 						// =========================
 						// BOOKSET WITH PRODUCTS
 						// =========================
-						else{
+						else {
 							if (empty($package['products'])) {
 								continue;
-							}					
+							}
 							foreach ($package['products'] as $product) {
 								$product_name = $product['display_name'] ?? 'Book';
-								$qty          = (int) ($product['quantity'] ?? 1);
-								$price_total  = (float) ($product['total_price'] ?? 0);
-								$weight_gm    = (float) ($product['weight'] ?? 0);
+								$qty = (int) ($product['quantity'] ?? 1);
+								$price_total = (float) ($product['total_price'] ?? 0);
+								$weight_gm = (float) ($product['weight'] ?? 0);
 
 								$declared_value += $price_total;
 
@@ -6668,24 +6689,23 @@ class Orders extends Vendor_base
 								$total_weight_gm += ($weight_gm * $qty);
 
 								$product_details[] = array(
-									"product_category"               => "Others",
-									"product_sub_category"           => sanitize_sub_category($package['package_name']) ?? "",
-									"product_name"                   => sanitize_allowed_chars($product_name),
-									"product_quantity"               => $qty,
-									"each_product_invoice_amount"    => $price_total,
-									"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod'? (float) $price_total: 0,
-									"hsn"                            => $package['hsn'] ?? ""
+									"product_category" => "Others",
+									"product_sub_category" => sanitize_sub_category($package['package_name']) ?? "",
+									"product_name" => sanitize_allowed_chars($product_name),
+									"product_quantity" => $qty,
+									"each_product_invoice_amount" => $price_total,
+									"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod' ? (float) $price_total : 0,
+									"hsn" => $package['hsn'] ?? ""
 								);
 							}
 						}
-						
+
 					}
 				}
 
 				// Convert gm to kg
 				$total_weight = round($total_weight_gm / 1000, 2);
-			}
-			else {
+			} else {
 
 				$order_products = $this->db->select('product_title, product_qty, total_price, weight, hsn')
 					->from('tbl_order_items')
@@ -6700,9 +6720,9 @@ class Orders extends Vendor_base
 				foreach ($order_products as $item) {
 
 					$product_name = $item->product_title;
-					$qty          = (int) $item->product_qty;
-					$price_total  = (float) $item->total_price;
-					$weight_gm    = (float) $item->weight;
+					$qty = (int) $item->product_qty;
+					$price_total = (float) $item->total_price;
+					$weight_gm = (float) $item->weight;
 
 					$declared_value += $price_total;
 
@@ -6713,59 +6733,59 @@ class Orders extends Vendor_base
 					$total_weight_gm += ($weight_gm * $qty);
 
 					$product_details[] = array(
-						"product_category"               => "Others",
-						"product_sub_category"           => "",
-						"product_name"                   => sanitize_allowed_chars($product_name),
-						"product_quantity"               => $qty,
-						"each_product_invoice_amount"    => $price_total / max($qty,1),
-						"each_product_collectable_amount"=>  strtolower($order_data->payment_method) == 'cod'? (float) $price_total / max($qty,1): 0,
-						"hsn"                            => $item->hsn ?? ""
+						"product_category" => "Others",
+						"product_sub_category" => "",
+						"product_name" => sanitize_allowed_chars($product_name),
+						"product_quantity" => $qty,
+						"each_product_invoice_amount" => $price_total / max($qty, 1),
+						"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod' ? (float) $price_total / max($qty, 1) : 0,
+						"hsn" => $item->hsn ?? ""
 					);
 				}
 
 				$total_weight = round($total_weight_gm / 1000, 2);
 			}
-		 	/*echo json_encode([
-				'debug' => $product_details,
-				'csrf'  => [
-					'name' => $this->security->get_csrf_token_name(),
-					'hash' => $this->security->get_csrf_hash()
-				]
-			]); exit();*/
-	
+			/*echo json_encode([
+			   'debug' => $product_details,
+			   'csrf'  => [
+				   'name' => $this->security->get_csrf_token_name(),
+				   'hash' => $this->security->get_csrf_hash()
+			   ]
+		   ]); exit();*/
+
 			// ===============================
 			// ADD DELIVERY CHARGES AS PRODUCT
 			// ===============================	
 			// Add only if delivery exists
 			if ($order_data->delivery_charge > 0) {
 				$product_details[] = [
-					"product_category"               => "Others",
-					"product_sub_category"           => "DELIVERY CHARGES",
-					"product_name"                   => "Delivery Charges",
-					"product_quantity"               => 1,
-					"each_product_invoice_amount"    => (float) $order_data->delivery_charge,
-					"each_product_collectable_amount"=> strtolower($order_data->payment_method) == 'cod' 
-														? (float) $order_data->delivery_charge 
-														: 0,
-					"hsn"                            => "0000"
+					"product_category" => "Others",
+					"product_sub_category" => "DELIVERY CHARGES",
+					"product_name" => "Delivery Charges",
+					"product_quantity" => 1,
+					"each_product_invoice_amount" => (float) $order_data->delivery_charge,
+					"each_product_collectable_amount" => strtolower($order_data->payment_method) == 'cod'
+						? (float) $order_data->delivery_charge
+						: 0,
+					"hsn" => "0000"
 				];
 			}
-		
+
 			switch (strtolower($third_party_provider)) {
 				case 'velocity':
 
 					$api_response = $this->Shipping_model->create_velocity_booking([
-						'provider'     	  => $provider,
-						'order_data'      => $order_data,
-						'address_row'     => $addr_row,
+						'provider' => $provider,
+						'order_data' => $order_data,
+						'address_row' => $addr_row,
 						'product_details' => $product_details,
-						'length'          => $length,
-						'breadth'         => $breadth,
-						'height'          => $height,
-						'weight'          => $weight,
-						'schedule_date'   => $schedule_date ?: null,
-						'from_time'       => $from_time ?: null,
-						'to_time'         => $to_time ?: null
+						'length' => $length,
+						'breadth' => $breadth,
+						'height' => $height,
+						'weight' => $weight,
+						'schedule_date' => $schedule_date ?: null,
+						'from_time' => $from_time ?: null,
+						'to_time' => $to_time ?: null
 					]);
 
 					if ($api_response['status'] != 'success') {
@@ -6774,38 +6794,38 @@ class Orders extends Vendor_base
 					break;
 
 				case 'bigship':
-				
+
 					$api_response = $this->Shipping_model->create_bigship_booking([
-						'provider'     	  => $provider,
-						'order_data'      => $order_data,
-						'address_row'     => $addr_row,
+						'provider' => $provider,
+						'order_data' => $order_data,
+						'address_row' => $addr_row,
 						'product_details' => $product_details,
-						'length'          => $length,
-						'breadth'         => $breadth,
-						'height'          => $height,
-						'weight'          => $weight,
-						'schedule_date'   => $schedule_date ?: null,
-						'from_time'       => $from_time ?: null,
-						'to_time'         => $to_time ?: null,
-						'pickup_address_id'=> $pickup_address_id ?: null
+						'length' => $length,
+						'breadth' => $breadth,
+						'height' => $height,
+						'weight' => $weight,
+						'schedule_date' => $schedule_date ?: null,
+						'from_time' => $from_time ?: null,
+						'to_time' => $to_time ?: null,
+						'pickup_address_id' => $pickup_address_id ?: null
 					]);
 
 					if ($api_response['status'] != 'success') {
 						throw new Exception($api_response['message']);
 					}
-					
-				break;
+
+					break;
 
 				case 'shiprocket':
 					$api_response = $this->Shipping_model->create_shiprocket_booking([
-						'provider'       => $provider,
-						'order_data'     => $order_data,
-						'address_row'    => $addr_row,
-						'product_details'=> $product_details,
-						'length'         => $length,
-						'breadth'        => $breadth,
-						'height'         => $height,
-						'weight'         => $weight,
+						'provider' => $provider,
+						'order_data' => $order_data,
+						'address_row' => $addr_row,
+						'product_details' => $product_details,
+						'length' => $length,
+						'breadth' => $breadth,
+						'height' => $height,
+						'weight' => $weight,
 						'pickup_address_id' => $pickup_address_id,
 					]);
 					if ($api_response['status'] != 'success') {
@@ -6816,19 +6836,19 @@ class Orders extends Vendor_base
 				default:
 					throw new Exception('Provider API not implemented.');
 			}
-			
-			
+
+
 
 			if ($this->db->trans_status() === FALSE) {
 				throw new Exception('Database error');
 			}
- 
-			$processing_date = date("Y-m-d H:i:s");			
+
+			$processing_date = date("Y-m-d H:i:s");
 			$this->db->where('id', $order_id);
 			$update_result = $this->db->update('tbl_order_details', array(
 				'order_status' => '2',
 				'processing_date' => $processing_date
-			)); 
+			));
 
 			$this->db->trans_commit();
 
@@ -6840,23 +6860,24 @@ class Orders extends Vendor_base
 			$response('400', $e->getMessage());
 		}
 	}
-	
-	 
-	public function test(){
+
+
+	public function test()
+	{
 		echo 'xxx';
 		exit();
 		$curl = curl_init();
 
 		curl_setopt_array($curl, array(
-		CURLOPT_URL => 'https://velexp.com/corporate-bulk-booking',
-		CURLOPT_RETURNTRANSFER => true,
-		CURLOPT_ENCODING => '',
-		CURLOPT_MAXREDIRS => 10,
-		CURLOPT_TIMEOUT => 0,
-		CURLOPT_FOLLOWLOCATION => true,
-		CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-		CURLOPT_CUSTOMREQUEST => 'POST',
-		CURLOPT_POSTFIELDS =>'[{ 
+			CURLOPT_URL => 'https://velexp.com/corporate-bulk-booking',
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING => '',
+			CURLOPT_MAXREDIRS => 10,
+			CURLOPT_TIMEOUT => 0,
+			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST => 'POST',
+			CURLOPT_POSTFIELDS => '[{ 
 		"username": "corporate_user", 
 		"password": "test@123", 
 		"accno": "12351", 
@@ -6899,9 +6920,9 @@ class Orders extends Vendor_base
 		"RTO_vendorcontactno": "9876543210" 
 		}] 
 		',
-		CURLOPT_HTTPHEADER => array(
-			'Content-Type: application/json'
-		),
+			CURLOPT_HTTPHEADER => array(
+				'Content-Type: application/json'
+			),
 		));
 
 		$response = curl_exec($curl);
@@ -6952,7 +6973,7 @@ class Orders extends Vendor_base
 		echo json_encode(['status' => 'ok', 'pickup_data' => $response['data']]);
 	}
 
-	
+
 	public function shiprocket_debug_payload()
 	{
 		header('Content-Type: application/json');
@@ -6973,11 +6994,11 @@ class Orders extends Vendor_base
 			if ($oi && !empty($oi->branch_id)) {
 				$addr_row = $this->db->select('sb.branch_name as name, sb.address, sb.pincode, c.name as city, st.name as state')
 					->from('erp_school_branches sb')->join('cities c', 'c.id = sb.city_id', 'left')->join('states st', 'st.id = sb.state_id', 'left')
-					->where('sb.id', (int)$oi->branch_id)->limit(1)->get()->row();
+					->where('sb.id', (int) $oi->branch_id)->limit(1)->get()->row();
 			} elseif ($oi && !empty($oi->school_id)) {
 				$addr_row = $this->db->select('s.school_name as name, s.address, s.pincode, c.name as city, st.name as state')
 					->from('erp_schools s')->join('cities c', 'c.id = s.city_id', 'left')->join('states st', 'st.id = s.state_id', 'left')
-					->where('s.id', (int)$oi->school_id)->limit(1)->get()->row();
+					->where('s.id', (int) $oi->school_id)->limit(1)->get()->row();
 			}
 		}
 		if (!$addr_row) {
@@ -6990,7 +7011,8 @@ class Orders extends Vendor_base
 			$rows = $this->db->select('product_id, bookset_packages_json')->from('tbl_order_items')->where('order_id', $order_id)->get()->result();
 			foreach ($rows as $r) {
 				$json = json_decode($r->bookset_packages_json ?? '{}', true);
-				if (empty($json['packages'])) continue;
+				if (empty($json['packages']))
+					continue;
 				foreach ($json['packages'] as $p) {
 					$product_details[] = ['product_name' => $p['package_name'] ?? 'Book', 'product_quantity' => 1, 'each_product_invoice_amount' => $p['package_offer_price'] ?? 0, 'product_sub_category' => ''];
 				}
@@ -6999,7 +7021,7 @@ class Orders extends Vendor_base
 		if (empty($product_details)) {
 			$rows = $this->db->select('product_title, product_qty, total_price')->from('tbl_order_items')->where('order_id', $order_id)->get()->result();
 			foreach ($rows as $r) {
-				$product_details[] = ['product_name' => $r->product_title, 'product_quantity' => (int)$r->product_qty, 'each_product_invoice_amount' => $r->total_price / max(1, (int)$r->product_qty), 'product_sub_category' => ''];
+				$product_details[] = ['product_name' => $r->product_title, 'product_quantity' => (int) $r->product_qty, 'each_product_invoice_amount' => $r->total_price / max(1, (int) $r->product_qty), 'product_sub_category' => ''];
 			}
 		}
 		$provider_config = $this->db->select('*')->from('erp_shipping_providers')
@@ -7008,16 +7030,23 @@ class Orders extends Vendor_base
 			echo json_encode(['status' => 'error', 'message' => 'Shiprocket not configured.']);
 			return;
 		}
-		$length  = (float) ($this->input->get('length') ?: 1);
+		$length = (float) ($this->input->get('length') ?: 1);
 		$breadth = (float) ($this->input->get('breadth') ?: 1);
-		$height  = (float) ($this->input->get('height') ?: 1);
-		$weight  = (float) ($this->input->get('weight') ?: 1);
-		$pickup  = $this->input->get('pickup_address_id', true);
+		$height = (float) ($this->input->get('height') ?: 1);
+		$weight = (float) ($this->input->get('weight') ?: 1);
+		$pickup = $this->input->get('pickup_address_id', true);
 		$this->load->model('Shipping_model');
 		$res = $this->Shipping_model->create_shiprocket_booking([
-			'provider' => $provider_config, 'order_data' => $order_data, 'address_row' => $addr_row,
-			'product_details' => $product_details, 'length' => $length, 'breadth' => $breadth, 'height' => $height, 'weight' => $weight,
-			'pickup_address_id' => $pickup, '_debug' => true
+			'provider' => $provider_config,
+			'order_data' => $order_data,
+			'address_row' => $addr_row,
+			'product_details' => $product_details,
+			'length' => $length,
+			'breadth' => $breadth,
+			'height' => $height,
+			'weight' => $weight,
+			'pickup_address_id' => $pickup,
+			'_debug' => true
 		]);
 		if (isset($res['status']) && $res['status'] === 'debug') {
 			echo json_encode($res);
