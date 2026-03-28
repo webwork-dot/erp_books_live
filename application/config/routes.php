@@ -68,7 +68,11 @@ $route['app/school/branches'] = 'App_api/school_branches';
 $route['app/school/boards'] = 'App_api/school_boards';
 $route['app/agent/get_classes'] = 'App_api/get_classes';
 $route['app/agent/uniforms'] = 'App_api/get_uniforms';
+$route['app/agent/get_agent_orders'] = 'App_api/get_agent_orders';
+$route['app/agent/get_order_details'] = 'App_api/get_order_details';
+
 $route['app/agent/upiInfo'] = 'App_api/get_upi_info';
+$route['app/agent/place_uniform_order'] = 'App_api/place_uniform_order';
 $route['app/school/categories'] = 'App_api/agent_categories';
 $route['app/school/(:num)'] = 'App_api/school/$1';
 

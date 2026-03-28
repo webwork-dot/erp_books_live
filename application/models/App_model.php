@@ -513,6 +513,218 @@ class App_model extends CI_Model
 
         return $categories;
     }
+    public function placeUniformOrder($school_id, $parent_name, $parent_mobile, $payment_method, $items, $children_data = array(), $agent_id = 0)
+    {
+        $school_id = (int) $school_id;
+        $agent_id = (int) $agent_id;
+
+        // STEP 1: Resolve vendor_id from school_id
+        $row = $this->master_db
+            ->select('vendor_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('school_id', $school_id)
+            ->where('status', 1)
+            ->limit(1)
+            ->get()
+            ->row_array();
+
+        if (empty($row['vendor_id'])) {
+            return array('status' => 400, 'message' => 'Vendor not found for this school.');
+        }
+
+        $vendor_id = (int) $row['vendor_id'];
+
+        // STEP 2: Load vendor DB
+        $vendor_db = $this->getVendorDB($vendor_id);
+        if (!$vendor_db) {
+            return array('status' => 500, 'message' => 'Could not connect to vendor database.');
+        }
+
+        // STEP 3: Compute total
+        $total_price = 0;
+        foreach ($items as $item) {
+            $price = (float) (isset($item['selling_price']) ? $item['selling_price'] : 0);
+            $qty = (int) (isset($item['qty']) ? $item['qty'] : 1);
+            $total_price += $price * $qty;
+        }
+
+        // STEP 4: Generate unique order ID in format ORDYYMMDDXXX (e.g. ORD260328344)
+        $order_unique_id = 'ORD' . date('ymd') . rand(100, 999);
+
+        // STEP 5: Insert tbl_order_details into vendor DB
+        $order_row = array(
+            'order_unique_id' => $order_unique_id,
+            'user_id' => 0,         // NOT NULL in schema
+            'agent_id' => $agent_id,
+            'school_id' => $school_id,
+            'user_name' => $parent_name,
+            'user_phone' => $parent_mobile,
+            'order_status' => '1',       // pending
+            'payment_status' => 'success',
+            'payment_method' => $payment_method,
+            'order_type' => 'app',     // Matches enum('online','app')
+            'type_order' => 'uniform', // Matches enum/varchar for 'uniform'
+            'order_date' => date('Y-m-d H:i:s'),
+            'source' => 'app',
+            'checkout_type' => 'guest_checkout',
+            'is_deliver_at_school' => 1,
+            'children_data' => !empty($children_data) ? json_encode($children_data) : NULL,
+            'total_amt' => $total_price,
+            'payment_amount' => $total_price,
+            'payable_amt' => $total_price,
+            'order_address' => 0,         // Initialize before updating
+        );
+
+        $vendor_db->insert('tbl_order_details', $order_row);
+        $order_id = (int) $vendor_db->insert_id();
+
+        if ($order_id <= 0) {
+            return array('status' => 500, 'message' => 'Failed to create order. Please try again.');
+        }
+
+        // STEP 6: Insert tbl_order_address
+        $address_row = array(
+            'order_id' => $order_id,
+            'order_unique_id' => $order_unique_id,
+            'name' => $parent_name,
+            'mobile_no' => $parent_mobile,
+            'address' => '',
+            'city' => '',
+            'state' => '',
+            'pincode' => '',
+            'country' => 'India',
+            'address_type' => 'billing',
+        );
+        $vendor_db->insert('tbl_order_address', $address_row);
+        $address_id = (int) $vendor_db->insert_id();
+
+        // STEP 6.5: Update order with address_id (satisfy NOT NULL constraint)
+        if ($address_id > 0) {
+            $vendor_db->where('id', $order_id)->update('tbl_order_details', array('order_address' => $address_id));
+        }
+
+        // STEP 7: Insert tbl_order_items
+        foreach ($items as $item) {
+            $price = (float) (isset($item['selling_price']) ? $item['selling_price'] : 0);
+            $qty = (int) (isset($item['qty']) ? $item['qty'] : 1);
+
+            $vendor_db->insert('tbl_order_items', array(
+                'order_id' => $order_id,
+                'user_id' => 0,         // NOT NULL in schema
+                'product_id' => (int) (isset($item['uniform_id']) ? $item['uniform_id'] : 0),
+                'product_title' => isset($item['product_name']) ? $item['product_name'] : '',
+                'product_qty' => $qty,
+                'product_price' => $price,
+                'total_price' => $price * $qty,
+                'variation_id' => !empty($item['size_id']) ? (int) $item['size_id'] : NULL,
+                'variation_name' => isset($item['size_name']) ? $item['size_name'] : '',
+                'order_type' => 'uniform',
+                'school_id' => isset($item['school_id']) ? (int) $item['school_id'] : $school_id,
+                'branch_id' => !empty($item['branch_id']) ? (int) $item['branch_id'] : NULL,
+            ));
+        }
+
+        return array(
+            'status' => 200,
+            'message' => 'Order placed successfully!',
+            'order_id' => $order_id,
+            'order_unique_id' => $order_unique_id,
+        );
+    }
+
+    public function getAgentUniformOrders($agent_id)
+    {
+        $agent_id = (int) $agent_id;
+
+        // 1. Get all vendor IDs this agent has access to
+        $access = $this->master_db
+            ->select('vendor_id')
+            ->from('erp_pos_agent_school_access')
+            ->where('agent_user_id', $agent_id)
+            ->where('status', 1)
+            ->get()
+            ->result_array();
+
+        if (empty($access))
+            return array();
+
+        $unique_vendors = array_unique(array_column($access, 'vendor_id'));
+        $all_orders = array();
+
+        foreach ($unique_vendors as $v_id) {
+            $vendor_db = $this->getVendorDB($v_id);
+            if (!$vendor_db)
+                continue;
+
+            $orders = $vendor_db
+                ->select('*')
+                ->from('tbl_order_details')
+                ->where('agent_id', $agent_id)
+                ->order_by('id', 'DESC')
+                ->limit(50)
+                ->get()
+                ->result_array();
+
+            foreach ($orders as &$ord) {
+                $ord['vendor_id'] = $v_id; // useful for lookup
+            }
+            $all_orders = array_merge($all_orders, $orders);
+        }
+
+        // Sort by date DESC
+        usort($all_orders, function ($a, $b) {
+            return strtotime($b['order_date']) - strtotime($a['order_date']);
+        });
+
+        // 3. Attach school names from master_db
+        if (!empty($all_orders)) {
+            $school_ids = array_unique(array_column($all_orders, 'school_id'));
+            if (!empty($school_ids)) {
+                $schools = $vendor_db
+                    ->select('id, school_name')
+                    ->from('erp_schools')
+                    ->where_in('id', $school_ids)
+                    ->get()
+                    ->result_array();
+
+                $school_map = array();
+                foreach ($schools as $s) {
+                    $school_map[$s['id']] = $s['school_name'];
+                }
+
+                foreach ($all_orders as &$ord) {
+                    $ord['school_name'] = isset($school_map[$ord['school_id']]) ? $school_map[$ord['school_id']] : 'Unknown School';
+                }
+            }
+        }
+
+        return $all_orders;
+    }
+
+    public function getUniformOrderDetail($vendor_id, $order_id)
+    {
+        $vendor_db = $this->getVendorDB($vendor_id);
+        if (!$vendor_db)
+            return NULL;
+
+        $order = $vendor_db->get_where('tbl_order_details', array('id' => $order_id))->row_array();
+        if (!$order)
+            return NULL;
+
+        $order['items'] = $vendor_db->get_where('tbl_order_items', array('order_id' => $order_id))->result_array();
+        $order['address'] = $vendor_db->get_where('tbl_order_address', array('order_id' => $order_id))->row_array();
+
+        // Fetch school name if school_id exists
+        if (!empty($order['school_id'])) {
+            $school = $this->master_db->select('school_name')->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
+            $order['school_name'] = $school ? $school['school_name'] : 'Unknown School';
+        } else {
+            $order['school_name'] = 'N/A';
+        }
+
+        return $order;
+    }
+
     private function getVendorDB($vendor_id)
     {
         $vendor_id = (int) $vendor_id;

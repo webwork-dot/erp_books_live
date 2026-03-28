@@ -278,6 +278,79 @@ class App_api extends CI_Controller
         $this->simple_json_output($response);
     }
 
+    public function place_uniform_order()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Bad request.'));
+        }
+
+        $params = json_decode(file_get_contents('php://input'), TRUE);
+
+        $school_id      = (int)(isset($params['school_id'])      ? $params['school_id']      : 0);
+        $parent_name    = isset($params['parent_name'])    ? trim($params['parent_name'])    : '';
+        $parent_mobile  = isset($params['parent_mobile'])  ? trim($params['parent_mobile'])  : '';
+        $payment_method = isset($params['payment_method']) ? trim($params['payment_method']) : 'cash';
+        $items          = isset($params['items'])          ? $params['items']                : array();
+        $children       = isset($params['children_data'])  ? $params['children_data']        : array();
+
+        if ($school_id <= 0 || empty($parent_name) || empty($parent_mobile) || empty($items)) {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Missing required fields: school_id, parent_name, parent_mobile, items.'));
+        }
+
+        $agent_id = (int)(isset($params['agent_id']) ? $params['agent_id'] : 0);
+
+        $response = $this->App_model->placeUniformOrder(
+            $school_id,
+            $parent_name,
+            $parent_mobile,
+            $payment_method,
+            $items,
+            $children,
+            $agent_id
+        );
+
+        $this->simple_json_output($response);
+    }
+
+    public function get_agent_orders()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Bad request.'));
+        }
+
+        $params = json_decode(file_get_contents('php://input'), TRUE);
+        $agent_id = (int)(isset($params['agent_id']) ? $params['agent_id'] : 0);
+
+        if ($agent_id <= 0) {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Agent ID required.'));
+        }
+
+        $orders = $this->App_model->getAgentUniformOrders($agent_id);
+        $this->simple_json_output(array('status' => 200, 'message' => 'Orders fetched', 'orders' => $orders));
+    }
+
+    public function get_order_details()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Bad request.'));
+        }
+
+        $params = json_decode(file_get_contents('php://input'), TRUE);
+        $vendor_id = (int)(isset($params['vendor_id']) ? $params['vendor_id'] : 0);
+        $order_id  = (int)(isset($params['order_id'])  ? $params['order_id']  : 0);
+
+        if ($vendor_id <= 0 || $order_id <= 0) {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Vendor ID and Order ID required.'));
+        }
+
+        $order = $this->App_model->getUniformOrderDetail($vendor_id, $order_id);
+        if (!$order) {
+            return $this->simple_json_output(array('status' => 404, 'message' => 'Order not found.'));
+        }
+
+        $this->simple_json_output(array('status' => 200, 'message' => 'Order details fetched', 'order' => $order));
+    }
+
     private function simple_json_output($response = array())
     {
         $this->output
