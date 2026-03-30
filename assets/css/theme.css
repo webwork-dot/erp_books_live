@@ -792,3 +792,27 @@ a.btn:hover {
     border-color: var(--vendor-primary-dark, #5B2ECC) !important;
     color: #ffffff !important;
 }
+
+/* ============================================
+   Select2 Multi-Select Fixes
+   ============================================ */
+
+.select2-container .select2-selection--multiple {
+    min-height: 38px !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center;
+    flex-wrap: wrap !important;
+}
+
+.select2-selection__rendered {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    padding: 4px !important;
+    gap: 4px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}

@@ -21,8 +21,8 @@ class App_api extends CI_Controller
 
     public function test_api()
     {
-        echo 'API is working';
-        exit;
+        $response = array('status' => 200, 'message' => 'API is working');
+        $this->simple_json_output($response);
     }
 
     public function login()
@@ -353,8 +353,9 @@ class App_api extends CI_Controller
 
     private function simple_json_output($response = array())
     {
-        $this->output
-            ->set_content_type('application/json')
-            ->set_output(json_encode($response));
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit;
     }
 }

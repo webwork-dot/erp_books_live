@@ -296,8 +296,8 @@ class Uniforms extends Vendor_base
 		$this->form_validation->set_rules('gender', 'Gender', 'in_list[male,female,unisex]');
 		$this->form_validation->set_rules('product_name', 'Product Name', 'required|trim');
 		$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
-		$this->form_validation->set_rules('material_id', 'Material', 'required|integer');
-		$this->form_validation->set_rules('product_description', 'Product Description', 'required|trim');
+		$this->form_validation->set_rules('material_id', 'Material', 'integer');
+		$this->form_validation->set_rules('product_description', 'Product Description', 'trim');
 		$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
 
 		if ($this->form_validation->run() == FALSE) {
