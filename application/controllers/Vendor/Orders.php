@@ -4068,6 +4068,43 @@ class Orders extends Vendor_base
 			$shipping = $address_query->row_array();
 		}
 
+		// Check for deliver at school fallback - if true, use school address
+		$is_deliver_at_school = (isset($order->is_deliver_at_school) && (int) $order->is_deliver_at_school === 1);
+		if ($is_deliver_at_school) {
+				$this->db->select("s.school_name,CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN sb.address  ELSE s.address END as address, CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN sb.pincode ELSE s.pincode END as pincode, CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN c2.name ELSE c1.name END as city_name,CASE 
+        WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN st2.name ELSE st1.name  END as state_name", FALSE); // 🚨 VERY IMPORTANT
+
+        $this->db->from('tbl_order_items oi');
+
+$this->db->join('erp_uniforms u', 'u.id = oi.product_id', 'left');
+$this->db->join('erp_schools s', 's.id = u.school_id', 'left');
+$this->db->join('erp_school_branches sb', 'sb.id = u.branch_id', 'left');
+
+// safer joins
+$this->db->join('cities c1', 'c1.id = s.city_id', 'left');
+$this->db->join('cities c2', 'c2.id = sb.city_id', 'left');
+
+$this->db->join('states st1', 'st1.id = s.state_id', 'left');
+$this->db->join('states st2', 'st2.id = sb.state_id', 'left');
+
+$this->db->where('oi.order_id', (int)$order_id);
+$this->db->limit(1);
+
+$school_q = $this->db->get();
+
+
+			if ($school_q->num_rows() > 0) {
+				$sch = $school_q->row_array();
+				$shipping['name'] = $order->user_name . ' (' . $sch['school_name'] . ')';
+				$shipping['address'] = $sch['address'];
+				$shipping['city'] = !empty($sch['city_name']) ? $sch['city_name'] : '';
+				$shipping['state'] = !empty($sch['state_name']) ? $sch['state_name'] : '';
+				$shipping['pincode'] = !empty($sch['pincode']) ? $sch['pincode'] : '';
+				$shipping['country'] = 'India';
+				$shipping['mobile_no'] = !empty($order->user_phone) ? $order->user_phone : '';
+			}
+		}
+
 		// Get order items
 		$this->db->select('id,product_id,product_title,product_sku,product_qty,variation_name,product_mrp,product_price,product_gst,total_gst_amt,total_price,discount_amt,hsn,excl_price,excl_price_total');
 		$this->db->from('tbl_order_items');
@@ -4239,6 +4276,31 @@ class Orders extends Vendor_base
 		$address_query = $this->db->get();
 		if ($address_query->num_rows() > 0) {
 			$shipping = $address_query->row_array();
+		}
+
+		// Check for deliver at school fallback - if true, use school address
+		$is_deliver_at_school = (isset($order_row['is_deliver_at_school']) && (int)$order_row['is_deliver_at_school'] === 1);
+		if ($is_deliver_at_school) {
+			$this->db->select('s.school_name, s.address, s.pincode, c.name as city_name, st.name as state_name');
+			$this->db->from('tbl_order_items oi');
+			$this->db->join('erp_schools s', 's.id = oi.school_id', 'left');
+			$this->db->join('cities c', 'c.id = s.city_id', 'left');
+			$this->db->join('states st', 'st.id = s.state_id', 'left');
+			$this->db->where('oi.order_id', (int)$order_id);
+			$this->db->where('oi.school_id IS NOT NULL');
+			$this->db->limit(1);
+			$school_q = $this->db->get();
+
+			if ($school_q->num_rows() > 0) {
+				$sch = $school_q->row_array();
+				$shipping['name'] = $order->user_name . ' (' . $sch['school_name'] . ')';
+				$shipping['address'] = $sch['address'];
+				$shipping['city'] = !empty($sch['city_name']) ? $sch['city_name'] : '';
+				$shipping['state'] = !empty($sch['state_name']) ? $sch['state_name'] : '';
+				$shipping['pincode'] = !empty($sch['pincode']) ? $sch['pincode'] : '';
+				$shipping['country'] = 'India';
+				$shipping['mobile_no'] = !empty($order->user_phone) ? $order->user_phone : '';
+			}
 		}
 
 		$this->db->select('id,product_id,product_title,product_sku,product_qty,variation_name,product_mrp,product_price,product_gst,total_gst_amt,total_price,discount_amt,hsn,excl_price,excl_price_total');
