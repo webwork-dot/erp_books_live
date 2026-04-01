@@ -68,6 +68,7 @@
 								<?php endif; ?>
 							</div>
 							<input type="hidden" name="image_order" id="image_order" value="">
+							<input type="hidden" name="main_image_index" id="main_image_index" value="-1">
 							<input type="hidden" name="main_image_id" id="main_image_id"
 								value="<?php echo isset($main_image_id) ? $main_image_id : ''; ?>">
 							<input type="hidden" name="deleted_image_ids" id="deleted_image_ids" value="">
@@ -1068,53 +1069,9 @@ $commissionValue = set_value(
 			}, 500);
 		});
 
-		// Image preview for edit forms - image-sortable.js skips initialization when existing images are present
-		// So we need custom handler for new file uploads in edit forms
-		var imageInput = document.getElementById('images');
-		if (imageInput) {
-			// Check if this is an edit form (has existing images)
-			var preview = document.getElementById('image-preview');
-			var hasExistingImages = preview && preview.querySelectorAll('.existing-image').length > 0;
-
-			if (hasExistingImages) {
-				// Edit form - add custom handler for new uploads only
-				imageInput.addEventListener('change', function (e) {
-					if (!e.target.files || e.target.files.length === 0) return;
-
-					var preview = document.getElementById('image-preview');
-					if (!preview) return;
-
-					// Remove any previously added new preview images (not existing ones)
-					var newPreviews = preview.querySelectorAll('.image-preview-item:not(.existing-image)');
-					newPreviews.forEach(function (item) {
-						item.remove();
-					});
-
-					// Process new files
-					for (var i = 0; i < e.target.files.length; i++) {
-						var file = e.target.files[i];
-						if (file.type.startsWith('image/')) {
-							(function (file) {
-								var reader = new FileReader();
-								reader.onload = function (e) {
-									var wrapper = document.createElement('div');
-									wrapper.className = 'image-preview-item';
-									wrapper.style.cssText = 'position: relative; display: inline-block; margin: 3px; cursor: move; vertical-align: top;';
-
-									var img = document.createElement('img');
-									img.src = e.target.result;
-									img.style.cssText = 'width: 120px; height: 120px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px; display: block;';
-
-									wrapper.appendChild(img);
-									preview.appendChild(wrapper);
-								};
-								reader.readAsDataURL(file);
-							})(file);
-						}
-					}
-				});
-			}
-			// If no existing images, image-sortable.js will handle it
+		// Use shared image-sortable uploader in edit form too so new uploads get Main/Delete controls.
+		if (typeof window.initImageSortable === 'function') {
+			window.initImageSortable('image-preview', 'image_order', 'main_image_index');
 		}
 
 		// Add validation event listeners to existing price rows
@@ -1675,11 +1632,21 @@ $commissionValue = set_value(
 				btn.addEventListener('click', function (e) {
 					e.preventDefault();
 					const imageId = this.getAttribute('data-image-id');
+					const mainImageIndexInput = document.getElementById('main_image_index');
 
 					// Update main image input
 					if (mainImageInput) {
 						mainImageInput.value = imageId;
 					}
+					if (mainImageIndexInput) {
+						mainImageIndexInput.value = '-1';
+					}
+
+					document.querySelectorAll('.set-main-btn').forEach(function (newBtn) {
+						newBtn.textContent = 'Set Main';
+						newBtn.style.background = '#007bff';
+						newBtn.style.color = '#fff';
+					});
 
 					// Update all buttons
 					document.querySelectorAll('.set-main-existing-btn').forEach(function (b) {

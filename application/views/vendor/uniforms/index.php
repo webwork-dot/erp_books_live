@@ -260,6 +260,13 @@
 								</td>
 
 								<td class="text-end">
+									<button type="button"
+										class="btn btn-sm btn-outline-secondary"
+										data-bs-toggle="tooltip"
+										title="Duplicate"
+										onclick='openDuplicateUniformModal(<?php echo (int) $uniform['id']; ?>, <?php echo json_encode($uniform['product_name']); ?>)'>
+										<i class="isax isax-copy"></i>
+									</button>
 									<a href="<?php echo base_url('products/uniforms/edit/' . $uniform['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
@@ -322,7 +329,40 @@
 	</div>
 </div>
 
+<div class="modal fade" id="duplicateUniformModal" tabindex="-1" aria-labelledby="duplicateUniformModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="duplicateUniformModalLabel">Duplicate Uniform</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<?php echo form_open(base_url('products/uniforms/duplicate_uniform'), array('id' => 'duplicateUniformForm')); ?>
+			<div class="modal-body">
+				<input type="hidden" name="uniform_id" id="duplicate_uniform_id" value="">
+				<p class="mb-2">Are you sure you want to duplicate this uniform?</p>
+				<p class="mb-0 text-muted">New uniform name will be: <strong id="duplicate_uniform_new_name"></strong></p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+				<button type="submit" class="btn btn-primary">Duplicate</button>
+			</div>
+			<?php echo form_close(); ?>
+		</div>
+	</div>
+</div>
+
 <script>
+function openDuplicateUniformModal(uniformId, uniformName)
+{
+	$('#duplicate_uniform_id').val(uniformId);
+	$('#duplicate_uniform_new_name').text((uniformName || 'Uniform') + ' copy');
+	const modalEl = document.getElementById('duplicateUniformModal');
+	if (modalEl && window.bootstrap && typeof bootstrap.Modal !== 'undefined') {
+		const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+		modal.show();
+	}
+}
+
 function toggleUniformStatus(uniformId, currentStatus)
 {
 	const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';

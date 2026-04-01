@@ -218,6 +218,7 @@ $route['products/uniforms/add_size_chart'] = 'Vendor/uniforms/add_size_chart';
 $route['products/uniforms/add_class'] = 'Vendor/uniforms/add_class';
 $route['products/uniforms/get_sizes'] = 'Vendor/uniforms/get_sizes';
 $route['products/uniforms/delete_image/(:num)'] = 'Vendor/uniforms/delete_image/$1';
+$route['products/uniforms/duplicate_uniform'] = 'Vendor/uniforms/duplicate_uniform';
 $route['products/uniforms/toggle_status/(:num)'] = 'Vendor/uniforms/toggle_status/$1';
 $route['products/uniforms/toggle_status'] = 'Vendor/uniforms/toggle_status';
 

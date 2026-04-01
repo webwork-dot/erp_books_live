@@ -467,6 +467,191 @@ class Uniforms extends Vendor_base
 	}
 
 	/**
+	 * Duplicate uniform with all related data
+	 *
+	 * Copies uniform, images, and size prices.
+	 *
+	 * @return	void
+	 */
+	public function duplicate_uniform()
+	{
+		$source_uniform_id = (int) $this->input->post('uniform_id');
+
+		if ($source_uniform_id <= 0) {
+			$this->session->set_flashdata('error', 'Invalid uniform selected for duplication.');
+			redirect(base_url('products/uniforms'));
+			return;
+		}
+
+		$source_uniform = $this->db
+			->where('id', $source_uniform_id)
+			->where('vendor_id', $this->current_vendor['id'])
+			->get('erp_uniforms')
+			->row_array();
+
+		if (empty($source_uniform)) {
+			$this->session->set_flashdata('error', 'Uniform not found or unauthorized access.');
+			redirect(base_url('products/uniforms'));
+			return;
+		}
+
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('uniform_upload');
+		$vendor_folder = get_vendor_domain_folder();
+
+		if (!is_array($uploadCfg) || empty($vendor_folder) || empty($uploadCfg['base_root'])) {
+			$this->session->set_flashdata('error', 'Unable to prepare duplicate operation for this vendor.');
+			redirect(base_url('products/uniforms'));
+			return;
+		}
+
+		$this->db->trans_begin();
+
+		$base_name = trim((string) $source_uniform['product_name']);
+		if ($base_name === '') {
+			$base_name = 'Uniform';
+		}
+
+		$new_uniform_data = $source_uniform;
+		unset($new_uniform_data['id']);
+
+		if (isset($new_uniform_data['created_at'])) {
+			unset($new_uniform_data['created_at']);
+		}
+		if (isset($new_uniform_data['updated_at'])) {
+			unset($new_uniform_data['updated_at']);
+		}
+
+		$new_uniform_data['product_name'] = $base_name . ' copy';
+		$new_uniform_data['slug'] = slugify($new_uniform_data['product_name']) . '-tmp-' . time();
+
+		$this->db->insert('erp_uniforms', $new_uniform_data);
+		$new_uniform_id = (int) $this->db->insert_id();
+
+		if ($new_uniform_id <= 0) {
+			$this->db->trans_rollback();
+			$this->session->set_flashdata('error', 'Failed to duplicate uniform.');
+			redirect(base_url('products/uniforms'));
+			return;
+		}
+
+		$this->db
+			->where('id', $new_uniform_id)
+			->update('erp_uniforms', array('slug' => slugify($new_uniform_data['product_name']) . '-' . $new_uniform_id));
+
+		$source_size_prices = $this->db
+			->where('uniform_id', $source_uniform_id)
+			->get('erp_uniform_size_prices')
+			->result_array();
+
+		if (!empty($source_size_prices)) {
+			$size_batch = array();
+			foreach ($source_size_prices as $row) {
+				unset($row['id']);
+				$row['uniform_id'] = $new_uniform_id;
+				$size_batch[] = $row;
+			}
+
+			if (!empty($size_batch)) {
+				$this->db->insert_batch('erp_uniform_size_prices', $size_batch);
+			}
+		}
+
+		$source_images = $this->db
+			->where('uniform_id', $source_uniform_id)
+			->order_by('image_order', 'ASC')
+			->get('erp_uniform_images')
+			->result_array();
+
+		foreach ($source_images as $img) {
+			$cloned_path = $this->cloneUniformImagePath($img['image_path'], $new_uniform_id, $uploadCfg, $vendor_folder);
+
+			if ($cloned_path === false) {
+				$this->db->trans_rollback();
+				$this->session->set_flashdata('error', 'Failed to duplicate uniform image(s).');
+				redirect(base_url('products/uniforms'));
+				return;
+			}
+
+			$this->db->insert('erp_uniform_images', array(
+				'uniform_id' => $new_uniform_id,
+				'image_path' => $cloned_path,
+				'image_order' => isset($img['image_order']) ? (int) $img['image_order'] : 0,
+				'is_main' => !empty($img['is_main']) ? 1 : 0
+			));
+		}
+
+		if ($this->db->trans_status() === false) {
+			$this->db->trans_rollback();
+			$this->session->set_flashdata('error', 'Failed to duplicate uniform.');
+			redirect(base_url('products/uniforms'));
+			return;
+		}
+
+		$this->db->trans_commit();
+		$this->session->set_flashdata('success', 'Uniform duplicated successfully.');
+		redirect(base_url('products/uniforms/edit/' . $new_uniform_id));
+	}
+
+	/**
+	 * Clone uniform image file and return new stored relative path.
+	 *
+	 * @param	string	$stored_path	Stored image path
+	 * @param	int	$new_uniform_id	New uniform ID
+	 * @param	array	$uploadCfg	Upload config
+	 * @param	string	$vendor_folder	Vendor folder
+	 * @return	string|false
+	 */
+	private function cloneUniformImagePath($stored_path, $new_uniform_id, $uploadCfg, $vendor_folder)
+	{
+		$stored_path = trim((string) $stored_path);
+
+		if ($stored_path === '') {
+			return $stored_path;
+		}
+
+		if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+			return $stored_path;
+		}
+
+		$relative_path = ltrim($stored_path, '/');
+		$source_abs = rtrim($uploadCfg['base_root'], '/') . '/' . $vendor_folder . '/' . $relative_path;
+
+		if (!is_file($source_abs)) {
+			// Fall back to original path if source file is unavailable.
+			return $stored_path;
+		}
+
+		$ext = strtolower(pathinfo($relative_path, PATHINFO_EXTENSION));
+		$dir = dirname($relative_path);
+
+		if ($dir === '.' || $dir === '') {
+			$dir = 'uploads/uniforms/images/' . date('Y_m_d');
+		}
+
+		$new_file_name = 'uniform_' . $new_uniform_id . '_clone_' . uniqid();
+		if ($ext !== '') {
+			$new_file_name .= '.' . $ext;
+		}
+
+		$new_relative_path = trim($dir, '/') . '/' . $new_file_name;
+		$target_abs = rtrim($uploadCfg['base_root'], '/') . '/' . $vendor_folder . '/' . $new_relative_path;
+
+		$target_dir = dirname($target_abs);
+		if (!is_dir($target_dir)) {
+			if (!mkdir($target_dir, 0775, true) && !is_dir($target_dir)) {
+				return false;
+			}
+		}
+
+		if (!@copy($source_abs, $target_abs)) {
+			return false;
+		}
+
+		return $new_relative_path;
+	}
+
+	/**
 	 * Get branches by school (AJAX)
 	 *
 	 * @return	void

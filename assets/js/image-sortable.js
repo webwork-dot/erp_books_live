@@ -16,7 +16,24 @@
 
         let imageFiles = [];
         let imagePreviews = [];
-        let mainImageIndex = 0;
+        const hasExistingImages = container.querySelectorAll('.existing-image').length > 0;
+        let mainImageIndex = hasExistingImages ? -1 : 0;
+
+        if (mainImageInput) {
+            const parsedMainIndex = parseInt(mainImageInput.value, 10);
+            if (!Number.isNaN(parsedMainIndex)) {
+                mainImageIndex = parsedMainIndex;
+            } else {
+                mainImageInput.value = String(mainImageIndex);
+            }
+        }
+
+        function clearNewPreviews() {
+            container.querySelectorAll('.new-upload-image').forEach((item) => {
+                item.remove();
+            });
+            imagePreviews = [];
+        }
 
         // Handle file input change
         const fileInput = document.getElementById('images');
@@ -24,15 +41,13 @@
         if (fileInput) {
             fileInput.addEventListener('change', function(e) {
                 const files = Array.from(e.target.files);
-                // Clear previous previews if needed (for new uploads)
-                if (imageFiles.length === 0) {
-                    // Only clear if no existing images
-                    const existingImages = container.querySelectorAll('.existing-image');
-                    
-                    if (existingImages.length === 0) {
-                        container.innerHTML = '';
-                        imagePreviews = [];
-                    }
+
+                imageFiles = [];
+                clearNewPreviews();
+
+                if (mainImageInput) {
+                    mainImageIndex = hasExistingImages ? -1 : 0;
+                    mainImageInput.value = String(mainImageIndex);
                 }
                 
                 files.forEach((file, index) => {
@@ -63,7 +78,7 @@
         function addImagePreview(imageData, index) {
             console.log('Adding image preview, index:', index);
             const imageWrapper = document.createElement('div');
-            imageWrapper.className = 'image-preview-item';
+            imageWrapper.className = 'image-preview-item new-upload-image';
             imageWrapper.draggable = true;
             imageWrapper.dataset.index = index;
             imageWrapper.style.cssText = 'position: relative; display: inline-block; margin: 3px; cursor: move; vertical-align: top; width: 120px; height: 120px; overflow: visible;';
@@ -92,9 +107,10 @@
             const mainBtn = document.createElement('button');
             mainBtn.type = 'button';
             mainBtn.className = 'btn btn-sm set-main-btn';
-            mainBtn.textContent = index === mainImageIndex ? 'Main' : 'Set Main';
+            const isMain = mainImageIndex >= 0 && index === mainImageIndex;
+            mainBtn.textContent = isMain ? 'Main' : 'Set Main';
             mainBtn.style.cssText = 'font-size: 10px; padding: 3px 6px; flex: 1; line-height: 1.2; border: none; white-space: nowrap;';
-            if (index === mainImageIndex) {
+            if (isMain) {
                 mainBtn.style.background = '#28a745';
                 mainBtn.style.color = '#fff';
             } else {
@@ -164,9 +180,14 @@
             }
 
             if (draggedElement !== this) {
-                const allItems = Array.from(container.querySelectorAll('.image-preview-item'));
+                const allItems = Array.from(container.querySelectorAll('.new-upload-image'));
                 const draggedIndex = allItems.indexOf(draggedElement);
                 const targetIndex = allItems.indexOf(this);
+
+                if (draggedIndex === -1 || targetIndex === -1) {
+                    this.style.border = '';
+                    return false;
+                }
 
                 // Reorder arrays
                 const draggedData = imageFiles[draggedIndex];
@@ -185,8 +206,7 @@
                 }
 
                 // Rebuild previews
-                container.innerHTML = '';
-                imagePreviews = [];
+                clearNewPreviews();
                 imageFiles.forEach((data, idx) => {
                     addImagePreview(data, idx);
                 });
@@ -198,7 +218,7 @@
 
         function handleDragEnd(e) {
             this.style.opacity = '1';
-            const allItems = container.querySelectorAll('.image-preview-item');
+            const allItems = container.querySelectorAll('.new-upload-image');
             allItems.forEach(item => {
                 item.style.border = '';
             });
@@ -210,6 +230,20 @@
             if (mainImageInput) {
                 mainImageInput.value = index;
             }
+
+            // In edit forms, clear existing-image main selection when user picks a new upload as main.
+            const existingMainInput = document.getElementById('main_image_id');
+            if (existingMainInput) {
+                existingMainInput.value = '';
+            }
+
+            // Reset existing-image main button states in edit forms.
+            const existingMainBtns = document.querySelectorAll('.set-main-existing-btn');
+            existingMainBtns.forEach((btn) => {
+                btn.textContent = 'Set Main';
+                btn.style.background = '#007bff';
+                btn.style.color = '#fff';
+            });
             
             // Update all buttons
             const allMainBtns = container.querySelectorAll('.set-main-btn');
@@ -233,17 +267,20 @@
                 
                 // Update main image index
                 if (index === mainImageIndex) {
-                    mainImageIndex = 0; // Set first image as main
+                    mainImageIndex = imageFiles.length > 0 ? (hasExistingImages ? -1 : 0) : -1;
                 } else if (index < mainImageIndex) {
                     mainImageIndex--;
                 }
 
                 // Rebuild previews
-                container.innerHTML = '';
-                imagePreviews = [];
+                clearNewPreviews();
                 imageFiles.forEach((data, idx) => {
                     addImagePreview(data, idx);
                 });
+
+                if (mainImageInput) {
+                    mainImageInput.value = imageFiles.length > 0 ? String(mainImageIndex) : '-1';
+                }
 
                 // Update file input
                 updateFileInput();
@@ -271,7 +308,9 @@
 
         // Initialize main image
         if (mainImageInput) {
-            mainImageInput.value = '0';
+            if (mainImageInput.value === '') {
+                mainImageInput.value = String(mainImageIndex);
+            }
         }
     }
 
