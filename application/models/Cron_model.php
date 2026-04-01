@@ -792,7 +792,7 @@ class Cron_model extends CI_Model {
 			AND shipment_id IS NOT NULL
 			AND third_party_provider='shiprocket'
 			AND (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school')
-			AND order_status='2'
+			AND order_status='2' AND order_unique_id='ORD260328344'
 			ORDER BY id ASC
 			LIMIT 5
 		");
@@ -845,6 +845,8 @@ class Cron_model extends CI_Model {
 				
 				// Try to find shipment data in various possible locations
 				$shipments = null;
+				
+			
 				if (isset($ord_data['data']['shipments'])) {
 					$shipments = $ord_data['data']['shipments'];
 				} elseif (isset($ord_data['shipments'])) {
@@ -854,12 +856,17 @@ class Cron_model extends CI_Model {
 				} elseif (isset($ord_data['shipment'])) {
 					$shipments = [$ord_data['shipment']];
 				}
-
+				
+					
 				if (!empty($shipments)) {
 					// Get first shipment safely for both indexed and associative arrays
 					if (is_array($shipments)) {
+						
 						$first_shipment = reset($shipments);
 						$shipment = ($first_shipment !== false) ? $first_shipment : [];
+						
+						$shipment = $shipments;
+
 					} else {
 						$shipment = $shipments;
 					}

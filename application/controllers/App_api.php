@@ -203,11 +203,13 @@ class App_api extends CI_Controller
         } else {
             $params = json_decode(file_get_contents('php://input'), TRUE);
             $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
+            $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+
 
             if ($agent_id <= 0) {
                 $response = array('status' => 400, 'message' => 'Enter agent id !');
             } else {
-                $categories = $this->App_model->getAgentCategories($agent_id);
+                $categories = $this->App_model->getAgentCategories($agent_id , $school_id);
                 $response = array('status' => 200, 'message' => 'Success', 'categories' => $categories);
             }
         }
@@ -286,18 +288,18 @@ class App_api extends CI_Controller
 
         $params = json_decode(file_get_contents('php://input'), TRUE);
 
-        $school_id      = (int)(isset($params['school_id'])      ? $params['school_id']      : 0);
-        $parent_name    = isset($params['parent_name'])    ? trim($params['parent_name'])    : '';
-        $parent_mobile  = isset($params['parent_mobile'])  ? trim($params['parent_mobile'])  : '';
+        $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+        $parent_name = isset($params['parent_name']) ? trim($params['parent_name']) : '';
+        $parent_mobile = isset($params['parent_mobile']) ? trim($params['parent_mobile']) : '';
         $payment_method = isset($params['payment_method']) ? trim($params['payment_method']) : 'cash';
-        $items          = isset($params['items'])          ? $params['items']                : array();
-        $children       = isset($params['children_data'])  ? $params['children_data']        : array();
+        $items = isset($params['items']) ? $params['items'] : array();
+        $children = isset($params['children_data']) ? $params['children_data'] : array();
 
         if ($school_id <= 0 || empty($parent_name) || empty($parent_mobile) || empty($items)) {
             return $this->simple_json_output(array('status' => 400, 'message' => 'Missing required fields: school_id, parent_name, parent_mobile, items.'));
         }
 
-        $agent_id = (int)(isset($params['agent_id']) ? $params['agent_id'] : 0);
+        $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
 
         $response = $this->App_model->placeUniformOrder(
             $school_id,
@@ -319,7 +321,7 @@ class App_api extends CI_Controller
         }
 
         $params = json_decode(file_get_contents('php://input'), TRUE);
-        $agent_id = (int)(isset($params['agent_id']) ? $params['agent_id'] : 0);
+        $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
 
         if ($agent_id <= 0) {
             return $this->simple_json_output(array('status' => 400, 'message' => 'Agent ID required.'));
@@ -336,8 +338,8 @@ class App_api extends CI_Controller
         }
 
         $params = json_decode(file_get_contents('php://input'), TRUE);
-        $vendor_id = (int)(isset($params['vendor_id']) ? $params['vendor_id'] : 0);
-        $order_id  = (int)(isset($params['order_id'])  ? $params['order_id']  : 0);
+        $vendor_id = (int) (isset($params['vendor_id']) ? $params['vendor_id'] : 0);
+        $order_id = (int) (isset($params['order_id']) ? $params['order_id'] : 0);
 
         if ($vendor_id <= 0 || $order_id <= 0) {
             return $this->simple_json_output(array('status' => 400, 'message' => 'Vendor ID and Order ID required.'));

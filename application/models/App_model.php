@@ -472,11 +472,14 @@ class App_model extends CI_Model
 
         return $boards;
     }
-    public function getAgentCategories($agent_id)
+    public function getAgentCategories($agent_id , $school_id)
     {
         $agent_id = (int) $agent_id;
 
         if ($agent_id <= 0) {
+            return array();
+        }
+        if ($school_id <= 0) {
             return array();
         }
 
@@ -484,14 +487,16 @@ class App_model extends CI_Model
             ->select('can_bookset, can_uniform')
             ->from('erp_pos_agent_school_access')
             ->where('agent_user_id', $agent_id)
+            ->where('school_id', $school_id)
             ->where('status', 1)
+            ->limit(1)
             ->get()
             ->row_array();
 
         if (empty($access)) {
             return array();
         }
-
+        
         $categories = [];
 
         // Map flags → categories
@@ -513,6 +518,7 @@ class App_model extends CI_Model
 
         return $categories;
     }
+    
     public function placeUniformOrder($school_id, $parent_name, $parent_mobile, $payment_method, $items, $children_data = array(), $agent_id = 0)
     {
         $school_id = (int) $school_id;
@@ -629,6 +635,7 @@ class App_model extends CI_Model
             'message' => 'Order placed successfully!',
             'order_id' => $order_id,
             'order_unique_id' => $order_unique_id,
+            'vendor_id' => $vendor_id
         );
     }
 
@@ -707,7 +714,7 @@ class App_model extends CI_Model
         }
 
         $items = $vendor_db->get_where('tbl_order_items', array('order_id' => $order_id))->result_array();
-        
+
         // Fetch images for each item
         foreach ($items as &$item) {
             $item['product_image'] = '';
@@ -719,7 +726,7 @@ class App_model extends CI_Model
                     ->limit(1)
                     ->get()
                     ->row_array();
-                
+
                 if (empty($img)) {
                     // Fallback to first available image
                     $img = $vendor_db->select('image_path')
@@ -735,7 +742,7 @@ class App_model extends CI_Model
                 }
             }
         }
-        
+
         $order['items'] = $items;
         $order['address'] = $vendor_db->get_where('tbl_order_address', array('order_id' => $order_id))->row_array();
         $order['status_text'] = $this->getOrderStatusText($order['order_status']);
@@ -744,9 +751,9 @@ class App_model extends CI_Model
         if (!empty($order['school_id'])) {
             $has_logo = $vendor_db->field_exists('logo', 'erp_schools');
             $select_fields = $has_logo ? 'school_name, logo' : 'school_name';
-            
+
             $school = $vendor_db->select($select_fields)->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
-            
+
             $order['school_name'] = $school ? $school['school_name'] : 'Unknown School';
             $order['school_logo'] = ($school && $has_logo && !empty($school['logo'])) ? $base_url . ltrim($school['logo'], '/') : '';
         } else {
