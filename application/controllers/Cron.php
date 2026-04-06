@@ -98,6 +98,9 @@ class Cron extends CI_Controller {
 			echo "Done (legacy output)";
 		}
 	}
+	public function shiprocket_token() {
+        $this->cron_model->get_shiprocket_token();
+    } 
    
 }
 

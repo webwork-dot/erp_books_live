@@ -1361,5 +1361,62 @@ class Cron_model extends CI_Model {
 
 		$client_db->insert('shipping_track', $data);
 	}
+	
+   public function get_shiprocket_token()
+{
+    $curr_date = date('Y-m-d');
+    $update_date = date('Y-m-d H:i:s');
+
+    $row = $this->db->get_where('ship_auth_token', ['id' => 1])->row_array();
+
+    if (!$row) return false;
+
+    $token_date = date('Y-m-d', strtotime($row['last_updated']));
+
+    // ✅ If token missing OR expired → regenerate
+    if (empty($row['token']) || $token_date < $curr_date) {
+
+        $url = $this->url . "auth/login";
+
+        $payload = json_encode([
+            "email" => $row['email'],
+            "password" => $row['password']
+        ]);
+
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => [
+                "Content-Type: application/json"
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+        curl_close($curl);
+
+        $result = json_decode($response, true);
+
+        if (!empty($result['token'])) {
+
+            // ✅ Save new token
+            $this->db->where('id', 1)->update('ship_auth_token', [
+                'token' => $result['token'],
+                'last_updated' => $update_date
+            ]);
+
+            return $result['token'];
+        } else {
+            log_message('error', 'Shiprocket Token Failed: ' . $response);
+            return false;
+        }
+    }
+
+    // ✅ Return existing token
+    return $row['token'];
+}
 
 }
