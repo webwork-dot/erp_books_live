@@ -1333,6 +1333,195 @@ class Cron_model extends CI_Model {
 		}
 	}
 
+	public function shiprocket_tracking($vendor_id){
+		$client_db = $this->getVendorDB($vendor_id);
+		if (!$client_db) return false;
+
+		$token = $this->getShiprocketToken($vendor_id);
+		if(!$token) return false;
+
+		$curr_date = date('Y-m-d H:i:s');
+
+		$orders = $client_db->query(" 
+			SELECT id, order_unique_id, shipment_id, awb_no, track_date, user_id
+			FROM tbl_order_details
+			WHERE courier='3rd_party'
+			AND third_party_provider='shiprocket'
+			AND shipment_id IS NOT NULL
+			AND order_status IN ('3','6')
+			AND (track_date IS NULL OR track_date < DATE_SUB(NOW(),INTERVAL 2 HOUR))
+			ORDER BY id ASC
+			LIMIT 10
+		");
+
+		if ($orders->num_rows() == 0) {
+			return;
+		}
+
+		foreach ($orders->result_array() as $item){
+
+			$order_id        = $item['id'];
+			$order_unique_id = $item['order_unique_id'];
+			$shipment_id     = trim((string)$item['shipment_id']);
+			$user_id         = $item['user_id'];
+
+			if ($shipment_id === '') {
+				continue;
+			}
+
+			$endpoint = 'courier/track/shipment/' . rawurlencode($shipment_id);
+			$api_data = $this->callShiprocketAPI('GET', $endpoint, $token);
+
+			/* UPDATE TRACK DATE */
+			$client_db->where('id',$order_id);
+			$client_db->update('tbl_order_details',[
+				'track_date'=>$curr_date
+			]);
+
+			$function_name = 'tracking_check_shiprocket';
+			$remark = '2';
+			$normalized_status = '';
+			$tracking_time = '';
+
+			if (!empty($api_data)) {
+				$api_arr = is_object($api_data) ? json_decode(json_encode($api_data), true) : $api_data;
+
+				if (is_array($api_arr)) {
+					$trackData = [];
+
+					// Shiprocket may return either:
+					// 1) { tracking_data: {...} }
+					// 2) { "<shipment_id>": { tracking_data: {...} } }
+					if (isset($api_arr['tracking_data']) && is_array($api_arr['tracking_data'])) {
+						$trackData = $api_arr['tracking_data'];
+					} elseif (isset($api_arr[$shipment_id]['tracking_data']) && is_array($api_arr[$shipment_id]['tracking_data'])) {
+						$trackData = $api_arr[$shipment_id]['tracking_data'];
+					} else {
+						foreach ($api_arr as $root_value) {
+							if (is_array($root_value) && isset($root_value['tracking_data']) && is_array($root_value['tracking_data'])) {
+								$trackData = $root_value['tracking_data'];
+								break;
+							}
+						}
+					}
+
+					$shipmentTrack = [];
+					$activities = [];
+					$track_status = isset($trackData['track_status']) ? (string)$trackData['track_status'] : '';
+					$track_error = isset($trackData['error']) ? trim((string)$trackData['error']) : '';
+
+					if (isset($trackData['shipment_track']) && is_array($trackData['shipment_track']) && !empty($trackData['shipment_track'])) {
+						$shipmentTrack = $trackData['shipment_track'][0];
+					}
+
+					if (isset($trackData['shipment_track_activities']) && is_array($trackData['shipment_track_activities']) && !empty($trackData['shipment_track_activities'])) {
+						$activities = $trackData['shipment_track_activities'][0];
+					}
+
+					$status_candidates = [
+						$shipmentTrack['current_status'] ?? '',
+						$shipmentTrack['shipment_status'] ?? '',
+						$activities['activity'] ?? '',
+						$activities['status'] ?? ''
+					];
+
+					foreach ($status_candidates as $candidate) {
+						if (!empty($candidate)) {
+							$normalized_status = strtolower(str_replace([' ', '-'], '_', trim((string)$candidate)));
+							break;
+						}
+					}
+
+					$time_candidates = [
+						$activities['date'] ?? '',
+						$shipmentTrack['edd'] ?? ''
+					];
+
+					foreach ($time_candidates as $candidate_time) {
+						if (!empty($candidate_time)) {
+							$ts = strtotime($candidate_time);
+							if ($ts) {
+								$tracking_time = date('Y-m-d H:i:s', $ts);
+								break;
+							}
+						}
+					}
+
+					if (in_array($normalized_status, ['out_for_delivery','ofd'])) {
+						$ofd_date = !empty($tracking_time) ? $tracking_time : $curr_date;
+
+						$client_db->where('id',$order_id);
+						$client_db->update('tbl_order_details',[
+							'order_status' => '3',
+							'shipment_date' => $ofd_date
+						]);
+
+						$exists = $client_db->query("SELECT id FROM tbl_order_status WHERE order_id = '{$order_id}' AND status_title = '3' LIMIT 1")->num_rows();
+						if ($exists == 0) {
+							$client_db->insert('tbl_order_status', [
+								'order_id' => $order_id,
+								'user_id' => $user_id,
+								'product_id' => 0,
+								'status_title' => '3',
+								'status_desc' => 'Order Out For Delivery',
+								'created_at' => $ofd_date
+							]);
+						}
+
+						$function_name = 'order_out_for_delivery_shiprocket';
+						$remark = '1';
+					} elseif (in_array($normalized_status, ['delivered','delivered_to_consignee','dlv'])) {
+						$delivery_date = !empty($tracking_time) ? $tracking_time : $curr_date;
+
+						$client_db->where('id',$order_id);
+						$client_db->update('tbl_order_details',[
+							'order_status' => '4',
+							'delivery_date' => $delivery_date
+						]);
+
+						$exists = $client_db->query("SELECT id FROM tbl_order_status WHERE order_id = '{$order_id}' AND status_title = '4' LIMIT 1")->num_rows();
+						if ($exists == 0) {
+							$client_db->insert('tbl_order_status', [
+								'order_id' => $order_id,
+								'user_id' => $user_id,
+								'product_id' => 0,
+								'status_title' => '4',
+								'status_desc' => 'Order Delivered',
+								'created_at' => $delivery_date
+							]);
+						}
+
+						$function_name = 'order_delivered_shiprocket';
+						$remark = '1';
+					} elseif (!empty($normalized_status)) {
+						$function_name = 'order_in_transit_shiprocket';
+						$remark = '1';
+					} elseif ($track_status === '0' || stripos($track_error, 'no activities found') !== false) {
+						// Keep polling later: tracking exists but no movement events yet.
+						$function_name = 'tracking_pending_shiprocket';
+						$remark = '1';
+					}
+				} else {
+					$function_name = 'invalid_api_response';
+				}
+			} else {
+				$function_name = 'invalid_api_response';
+			}
+
+			/* CRON LOG */
+			$track_data = [
+				'json_courier' => NULL,
+				'wallet'       => 0,
+				'json_request' => json_encode($item),
+				'json_data'    => json_encode($api_data),
+				'master_awb'   => !empty($item['awb_no']) ? $item['awb_no'] : $shipment_id,
+				'remark'       => $remark
+			];
+
+			$this->add_cronjob_track($vendor_id,$order_unique_id,$function_name,$track_data);
+		}
+	}
+
 
 	
 	
@@ -1362,61 +1551,15 @@ class Cron_model extends CI_Model {
 		$client_db->insert('shipping_track', $data);
 	}
 	
-   public function get_shiprocket_token()
-{
-    $curr_date = date('Y-m-d');
-    $update_date = date('Y-m-d H:i:s');
+	public function get_shiprocket_token($vendor_id = null)
+	{
+		if (empty($vendor_id) || !is_numeric($vendor_id)) {
+			log_message('error', 'get_shiprocket_token: Invalid vendor_id');
+			return false;
+		}
 
-    $row = $this->db->get_where('ship_auth_token', ['id' => 1])->row_array();
-
-    if (!$row) return false;
-
-    $token_date = date('Y-m-d', strtotime($row['last_updated']));
-
-    // ✅ If token missing OR expired → regenerate
-    if (empty($row['token']) || $token_date < $curr_date) {
-
-        $url = $this->url . "auth/login";
-
-        $payload = json_encode([
-            "email" => $row['email'],
-            "password" => $row['password']
-        ]);
-
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => $payload,
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json"
-            ],
-        ]);
-
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        $result = json_decode($response, true);
-
-        if (!empty($result['token'])) {
-
-            // ✅ Save new token
-            $this->db->where('id', 1)->update('ship_auth_token', [
-                'token' => $result['token'],
-                'last_updated' => $update_date
-            ]);
-
-            return $result['token'];
-        } else {
-            log_message('error', 'Shiprocket Token Failed: ' . $response);
-            return false;
-        }
-    }
-
-    // ✅ Return existing token
-    return $row['token'];
-}
+		// Use vendor client DB provider config (erp_shipping_providers).
+		return $this->getShiprocketToken((int)$vendor_id);
+	}
 
 }

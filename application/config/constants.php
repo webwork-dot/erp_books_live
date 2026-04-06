@@ -90,6 +90,7 @@ define('ENC_KEY', '$#Blue');
 
 //live
 define('SECURE_KEY', 'WEBLLM2026'); 
+define('VARITTY_SHIP_KEY', 'VARITTY2026'); 
 define('BIGSHIP_URL', 'https://api.bigship.in/api/');
 define('VELOCITY_URL', 'https://velexp.com/'); 
 

@@ -199,8 +199,10 @@ $route['shipping/bigship_token/(:any)'] = 'shipping/bigship_token/$1';
 $route['cron/bigship_assign_courier/(:any)'] = 'cron/bigship_assign_courier/$1';
 $route['cron/bigship_update_failed_awb_courier/(:any)'] = 'cron/bigship_update_failed_awb_courier/$1';
 $route['cron/shiprocket_update_failed_awb_courier/(:any)'] = 'cron/shiprocket_update_failed_awb_courier/$1';
+$route['cron/shiprocket_token/(:any)'] = 'cron/shiprocket_token/$1';
 $route['cron/bigship_tracking/(:any)'] = 'cron/bigship_tracking/$1';
 $route['cron/velocity_tracking/(:any)'] = 'cron/velocity_tracking/$1';
+$route['cron/shiprocket_tracking/(:any)'] = 'cron/shiprocket_tracking/$1';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';
