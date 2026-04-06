@@ -313,6 +313,18 @@ class App_api extends CI_Controller
 
         $this->simple_json_output($response);
     }
+    
+public function test_whatsapp(){
+    $this->load->model('app_model'); // ✅ ADD THIS
+
+    $phone = '7710853921';
+    $message = 'hello';
+
+    $response = $this->app_model->send_whatsapp($phone, $message);
+
+    echo $response;
+    exit;
+}
 
     public function get_agent_orders()
     {

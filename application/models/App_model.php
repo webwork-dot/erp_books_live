@@ -629,6 +629,18 @@ class App_model extends CI_Model
                 'branch_id' => !empty($item['branch_id']) ? (int) $item['branch_id'] : NULL,
             ));
         }
+        
+        // $phone = $parent_mobile;
+
+        // $message = "Hi " . $parent_name . 
+        //   ", your order #" . $order_unique_id . 
+        //   " has been placed successfully.";
+
+        // $file_url = base_url('uploads/invoice/'.$order_unique_id.'.pdf');
+        // $response = $this->send_whatsapp($phone, $message);
+
+        // log_message('error', 'WA Response: ' . $response);
+        
 
         return array(
             'status' => 200,
@@ -638,6 +650,45 @@ class App_model extends CI_Model
             'vendor_id' => $vendor_id
         );
     }
+    
+    public function send_whatsapp($phone, $message)
+    {
+    $username = "VarittyUniform_bwa";
+    $password = "123456";
+    $sender   = "BUZWAP";
+
+$params = [
+    'user'     => $username,
+    'pass'     => $password,
+    'sender'   => $sender,
+    'phone'    => $phone,
+    'text'     => 'order_confirmation', // ✅ template name
+    'priority' => 'wa',
+    'stype'    => 'normal',
+    'Params'   => $parent_name . ',' . $order_unique_id // ✅ variables
+];
+
+    // If sending document
+    // if (!empty($file_url)) {
+    //     $params['htype'] = 'document';
+    //     $params['fname'] = 'Invoice';
+    //     $params['url']   = $file_url;
+    // }
+
+    $url = "http://bhashsms.com/api/sendmsgutil.php?" . http_build_query($params);
+
+    // CURL call
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    return $response;
+}
+
+
 
     public function getAgentUniformOrders($agent_id)
     {
