@@ -353,6 +353,224 @@ class App_api extends CI_Controller
         $this->simple_json_output(array('status' => 200, 'message' => 'Order details fetched', 'order' => $order));
     }
 
+    public function download_invoice()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            show_error('Bad request.', 400);
+            return;
+        }
+
+        $params = json_decode(file_get_contents('php://input'), TRUE);
+        $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
+        $vendor_id = (int) (isset($params['vendor_id']) ? $params['vendor_id'] : 0);
+        $order_id = (int) (isset($params['order_id']) ? $params['order_id'] : 0);
+
+        if ($agent_id <= 0 || $vendor_id <= 0 || $order_id <= 0) {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Agent ID, Vendor ID and Order ID required.'));
+        }
+
+        $order = $this->App_model->getUniformOrderDetail($vendor_id, $order_id);
+        if (empty($order)) {
+            return $this->simple_json_output(array('status' => 404, 'message' => 'Order not found.'));
+        }
+
+        if (!empty($order['school_id']) && !$this->App_model->agentHasSchoolAccess($agent_id, $order['school_id'])) {
+            return $this->simple_json_output(array('status' => 403, 'message' => 'Access denied to this order.'));
+        }
+
+        $invoice_data = $this->build_invoice_data($vendor_id, $order);
+        if (empty($invoice_data)) {
+            return $this->simple_json_output(array('status' => 500, 'message' => 'Unable to prepare invoice.'));
+        }
+
+        $this->load->helper('common');
+        $this->load->library('pdf');
+
+        // Dompdf can exceed default 128MB on long invoices; align with vendor-side safeguards.
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(120);
+
+        $page_data = array('data' => $invoice_data);
+        $invoice_view_path = APPPATH . 'views/invoice/invoice_bill.php';
+        if (!file_exists($invoice_view_path)) {
+            return $this->simple_json_output(array('status' => 500, 'message' => 'Invoice template not found.'));
+        }
+
+        $html_content = $this->load->view('invoice/invoice_bill', $page_data, TRUE);
+
+        $invoice_dir = FCPATH . 'uploads/app_invoices/';
+        if (!is_dir($invoice_dir) && !@mkdir($invoice_dir, 0775, TRUE) && !is_dir($invoice_dir)) {
+            return $this->simple_json_output(array('status' => 500, 'message' => 'Unable to create invoice directory.'));
+        }
+
+        $pdfname = 'invoice_' . $invoice_data['order_obj']->order_unique_id . '_' . time() . '.pdf';
+        $file_path = $invoice_dir . $pdfname;
+
+        $this->pdf->set_paper('A4', 'portrait');
+        $old_error_reporting = error_reporting();
+        error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
+        try {
+            $this->pdf->set_option('isHtml5ParserEnabled', TRUE);
+            $this->pdf->set_option('isRemoteEnabled', FALSE);
+            $this->pdf->load_html($html_content);
+            $this->pdf->render();
+            file_put_contents($file_path, $this->pdf->output());
+        } catch (Exception $e) {
+            error_reporting($old_error_reporting);
+            $this->pdf = new Pdf();
+            $this->pdf->set_paper('A4', 'portrait');
+            $this->pdf->set_option('isHtml5ParserEnabled', FALSE);
+            $this->pdf->set_option('isRemoteEnabled', FALSE);
+            $this->pdf->load_html($html_content);
+            $this->pdf->render();
+            file_put_contents($file_path, $this->pdf->output());
+        }
+
+        error_reporting($old_error_reporting);
+
+        return $this->simple_json_output(array(
+            'status' => 200,
+            'message' => 'Invoice generated successfully',
+            'download_url' => base_url('uploads/app_invoices/' . $pdfname),
+            'file_name' => $pdfname,
+        ));
+    }
+
+    private function build_invoice_data($vendor_id, $order)
+    {
+        if (empty($order) || !is_array($order)) {
+            return array();
+        }
+
+        $products = isset($order['items']) && is_array($order['items']) ? $order['items'] : array();
+        $items_arr = array();
+        $gst_total = 0;
+        $total_product_discount = 0;
+
+        foreach ($products as $product) {
+            $items_arr[] = (object) $product;
+            $gst_total += isset($product['total_gst_amt']) ? (float) $product['total_gst_amt'] : 0;
+            $total_product_discount += isset($product['discount_amt']) ? (float) $product['discount_amt'] : 0;
+        }
+
+        $company = $this->get_invoice_company_from_erp_clients($vendor_id);
+        $logo_src = $this->get_invoice_logo_base64($company);
+
+        $company_name = !empty($company['name']) ? $company['name'] : 'Shivam Books';
+        $company_address = !empty($company['address']) ? $company['address'] : '';
+        if (!empty($company['pincode'])) {
+            $company_address = trim($company_address . ', ' . $company['pincode']);
+        }
+
+        $order_type_label = $this->resolve_invoice_order_type($products);
+        $invoice_no = !empty($order['invoice_no']) ? $order['invoice_no'] : $order['order_unique_id'];
+        $school_name = !empty($order['school_name']) ? $order['school_name'] : '';
+
+        return array(
+            'id' => isset($order['id']) ? (int) $order['id'] : 0,
+            'order_unique_id' => isset($order['order_unique_id']) ? $order['order_unique_id'] : '',
+            'user_name' => isset($order['user_name']) ? $order['user_name'] : '',
+            'user_email' => isset($order['user_email']) ? $order['user_email'] : '',
+            'user_phone' => isset($order['user_phone']) ? $order['user_phone'] : '',
+            'order_date' => !empty($order['order_date']) ? date('d M Y | h:i A', strtotime($order['order_date'])) : '',
+            'invoice_date' => !empty($order['invoice_date']) ? date('d M Y', strtotime($order['invoice_date'])) : date('d M Y'),
+            'invoice_no' => $invoice_no,
+            'payable_amt' => isset($order['payable_amt']) ? (float) $order['payable_amt'] : 0,
+            'discount_amt' => isset($order['discount_amt']) ? (float) $order['discount_amt'] : 0,
+            'delivery_charge' => isset($order['delivery_charge']) ? (float) $order['delivery_charge'] : 0,
+            'payment_method' => isset($order['payment_method']) ? $order['payment_method'] : '',
+            'currency' => isset($order['currency']) ? $order['currency'] : 'INR',
+            'currency_code' => isset($order['currency_code']) ? $order['currency_code'] : '₹',
+            'shipping' => isset($order['address']) && is_array($order['address']) ? $order['address'] : array(),
+            'products' => $products,
+            'gst_total' => $gst_total,
+            'total_product_discount' => $total_product_discount,
+            'freight_charges' => isset($order['freight_charges']) ? (float) $order['freight_charges'] : 0,
+            'freight_gst' => isset($order['freight_gst']) ? (float) $order['freight_gst'] : 0,
+            'freight_charges_excl' => isset($order['freight_charges_excl']) ? (float) $order['freight_charges_excl'] : 0,
+            'freight_gst_per' => isset($order['freight_gst_per']) ? (float) $order['freight_gst_per'] : 0,
+            'logo_src' => $logo_src,
+            'company_name' => $company_name,
+            'company_address' => $company_address,
+            'company_gstin' => !empty($company['gstin']) ? $company['gstin'] : '-',
+            'company_pan' => !empty($company['pan']) ? $company['pan'] : '-',
+            'company_phone' => !empty($company['contact_number']) ? $company['contact_number'] : '',
+            'order_type_label' => $order_type_label,
+            'items_arr' => $items_arr,
+            'bookset_products' => array(),
+            'order_obj' => (object) array_merge($order, array('invoice_no' => $invoice_no, 'school_name' => $school_name)),
+        );
+    }
+
+    private function resolve_invoice_order_type($products)
+    {
+        if (empty($products) || !is_array($products)) {
+            return 'Individual';
+        }
+
+        foreach ($products as $product) {
+            if (!isset($product['order_type'])) {
+                continue;
+            }
+
+            $order_type = strtolower((string) $product['order_type']);
+            if ($order_type === 'bookset' || $order_type === 'package') {
+                return 'Bookset';
+            }
+            if ($order_type === 'uniform') {
+                return 'Uniform';
+            }
+        }
+
+        return 'Individual';
+    }
+
+    private function get_invoice_company_from_erp_clients($vendor_id)
+    {
+        $company = $this->App_model->getVendorInvoiceCompany((int) $vendor_id);
+        return is_array($company) ? $company : array();
+    }
+
+    private function get_invoice_logo_base64($company = array())
+    {
+        if (empty($company) || empty($company['logo'])) {
+            return '';
+        }
+
+        $logo_path = trim((string) $company['logo']);
+        if ($logo_path === '') {
+            return '';
+        }
+
+        $candidate_paths = array(
+            FCPATH . ltrim($logo_path, '/'),
+            FCPATH . 'book_erp_frontend/' . ltrim($logo_path, '/'),
+        );
+
+        foreach ($candidate_paths as $path) {
+            if (!file_exists($path)) {
+                continue;
+            }
+
+            $file_size = @filesize($path);
+            if ($file_size <= 0 || $file_size > 300000) {
+                continue;
+            }
+
+            $logo_data = @file_get_contents($path);
+            if ($logo_data === false) {
+                continue;
+            }
+
+            $image_info = @getimagesize($path);
+            $mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+            return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+        }
+
+        return '';
+    }
+
     private function simple_json_output($response = array())
     {
         ob_clean();

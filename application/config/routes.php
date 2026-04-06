@@ -70,6 +70,8 @@ $route['app/agent/get_classes'] = 'App_api/get_classes';
 $route['app/agent/uniforms'] = 'App_api/get_uniforms';
 $route['app/agent/get_agent_orders'] = 'App_api/get_agent_orders';
 $route['app/agent/get_order_details'] = 'App_api/get_order_details';
+$route['app/agent/download_invoice'] = 'App_api/download_invoice';
+$route['app/agent/download_invoice/(:num)/(:num)/(:num)'] = 'App_api/download_invoice/$1/$2/$3';
 
 $route['app/agent/upiInfo'] = 'App_api/get_upi_info';
 $route['app/agent/place_uniform_order'] = 'App_api/place_uniform_order';

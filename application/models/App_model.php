@@ -764,6 +764,36 @@ class App_model extends CI_Model
         return $order;
     }
 
+    public function getVendorInvoiceCompany($vendor_id)
+    {
+        $vendor_id = (int) $vendor_id;
+        if ($vendor_id <= 0) {
+            return array();
+        }
+
+        $vendor_db = $this->getVendorDB($vendor_id);
+        if (!$vendor_db || !$vendor_db->table_exists('erp_clients')) {
+            return array();
+        }
+
+        $cols = array('name', 'address', 'pincode', 'pan', 'gstin');
+        if ($vendor_db->field_exists('contact_number', 'erp_clients')) {
+            $cols[] = 'contact_number';
+        }
+        if ($vendor_db->field_exists('logo', 'erp_clients')) {
+            $cols[] = 'logo';
+        }
+
+        $row = $vendor_db
+            ->select(implode(', ', $cols))
+            ->from('erp_clients')
+            ->limit(1)
+            ->get()
+            ->row_array();
+
+        return is_array($row) ? $row : array();
+    }
+
     private function getOrderStatusText($status)
     {
         $status = (int) $status;
