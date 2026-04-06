@@ -320,7 +320,7 @@
                   <?php elseif ($order_status == 'pending'): ?>
                      <?php echo form_open(base_url('orders/move_to_processing'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'processing'): ?>
-                     <?php echo form_open(base_url('orders/move_to_processing'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
+                     <?php echo form_open(base_url('orders/move_to_ready_for_shipment'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'ready_for_shipment'): ?>
                      <?php echo form_open(base_url('orders/move_to_out_for_delivery'), ['id' => 'form_', 'class' => 'add-ajax-redirect-form', 'enctype' => 'multipart/form-data']); ?>
                   <?php elseif ($order_status == 'out_for_delivery'): ?>
@@ -380,6 +380,9 @@
                               <i class="fa fa-shipping-fast me-1"></i> 3rd Party (<span class="total_orders">0</span>)
                            </button>
                         <?php elseif ($order_status == 'processing'): ?>
+                           <button type="button" id="btn_process" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
+                              Move to Ready Shipment (<span class="total_orders">0</span>)
+                           </button>
                            <button type="button" id="btn_bulk_print_labels" class="btn btn-outline-primary waves-effect waves-light btn-md mb-0" disabled>
                               <i class="fa fa-print me-1"></i> Print Shipping Labels (<span class="total_orders">0</span>)
                            </button>
@@ -999,7 +1002,7 @@
          getCount();
       });
 
-      // Move to Processing button click
+      // Move to Ready Shipment button click
       $("#btn_process").click(function(e) {
          e.preventDefault();
          var selectedCount = $('input[name="order_id[]"]:checked').length;
@@ -1014,7 +1017,7 @@
 
          Swal.fire({
             title: 'Are you sure?',
-            text: "You are about to move " + selectedCount + " order(s) to Processing. Are you sure you want to proceed?",
+            text: "You are about to move " + selectedCount + " order(s) to Ready Shipment. Are you sure you want to proceed?",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
@@ -1026,7 +1029,7 @@
                // Submit form
                document.getElementsByClassName("submit_orderc")[0].click();
             } else {
-               $btn.prop('disabled', false).html('Move to Processing (<span class="total_orders">' + selectedCount + '</span>)');
+               $btn.prop('disabled', false).html('Move to Ready Shipment (<span class="total_orders">' + selectedCount + '</span>)');
                Swal.close();
             }
          });
@@ -1172,11 +1175,11 @@
 				$('.btn_verify').html('<i class="fa fa-save"></i>  Save');
 				$('.btn_verify').attr("disabled", false);
 				var t = $('input[name="order_id[]"]:checked').length;
-				$('#btn_process').html('Move to Processing Selected Orders (<span class="total_orders">'+t+'</span>)');
+            $('#btn_process').html('Move to Ready Shipment (<span class="total_orders">'+t+'</span>)');
 				$("#btn_process").prop('disabled', false);
 				Swal.fire({
 					title: "Allocation failed",
-					text: res.message || "Orders could not be moved to processing. Please try again or contact support.",
+               text: res.message || "Orders could not be moved to ready shipment. Please try again or contact support.",
 					icon: "error",
 					customClass: { confirmButton: "btn btn-primary" },
 					buttonsStyling: false
@@ -1188,7 +1191,7 @@
 				$('.btn_verify').html('<i class="fa fa-save"></i>  Save');
 				$('.btn_verify').attr("disabled", false);
 				var t = $('input[name="order_id[]"]:checked').length;
-				$('#btn_process').html('Move to Processing Selected Orders (<span class="total_orders">'+t+'</span>)');
+            $('#btn_process').html('Move to Ready Shipment (<span class="total_orders">'+t+'</span>)');
 				$("#btn_process").prop('disabled', false);
 				Swal.fire({
 					title: "Allocation failed",
@@ -1227,6 +1230,7 @@ $(document).ready(function(){
 
         var enable = count > 0;
 
+      $("#btn_process").prop('disabled', !enable);
         $("#btn_bulk_self_delivery").prop('disabled', !enable);
         $("#btn_bulk_3rd_party").prop('disabled', !enable);
         $("#btn_out_for_delivery").prop('disabled', !enable);

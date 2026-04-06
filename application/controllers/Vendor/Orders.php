@@ -1517,6 +1517,132 @@ class Orders extends Vendor_base
 	}
 
 	/**
+	 * Move orders to ready for shipment status
+	 *
+	 * @return	void
+	 */
+	public function move_to_ready_for_shipment()
+	{
+		header('Content-Type: application/json');
+
+		$order_ids = $this->input->post('order_id');
+
+		if (empty($order_ids) || !is_array($order_ids)) {
+			$this->session->set_flashdata('error', 'No orders selected.');
+			echo json_encode([
+				'status' => '400',
+				'message' => 'No orders selected.',
+			]);
+			return;
+		}
+
+		$orders = $this->db->select('id, order_unique_id, order_status, courier, shipping_label, awb_no, erp_courier_id, user_id')
+			->from('tbl_order_details')
+			->where_in('id', $order_ids)
+			->get()
+			->result();
+
+		if (count($orders) !== count($order_ids)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Some selected orders were not found.',
+			]);
+			return;
+		}
+
+		foreach ($orders as $order) {
+			if ($order->order_status != '2' && $order->order_status != 2) {
+				echo json_encode([
+					'status' => '400',
+					'message' => "Order No {$order->order_unique_id} is not in processing status.",
+				]);
+				return;
+			}
+
+			if (empty($order->awb_no)) {
+				echo json_encode([
+					'status' => '400',
+					'message' => "Order No {$order->order_unique_id} must have an AWB number before marking ready to ship.",
+				]);
+				return;
+			}
+
+			if ($order->courier == 'manual' && empty($order->shipping_label)) {
+				echo json_encode([
+					'status' => '400',
+					'message' => "Order No {$order->order_unique_id} must have a shipping label before marking ready to ship.",
+				]);
+				return;
+			}
+
+			if ($order->courier == 'manual') {
+				$erp_courier_id = isset($order->erp_courier_id) ? (int) $order->erp_courier_id : 0;
+				if ($erp_courier_id <= 0) {
+					echo json_encode([
+						'status' => '400',
+						'message' => "Please select a courier before marking order No {$order->order_unique_id} ready to ship.",
+					]);
+					return;
+				}
+			}
+		}
+
+		$this->db->trans_begin();
+		$ready_time = date("Y-m-d H:i:s");
+		$updated_count = 0;
+
+		foreach ($orders as $order) {
+			$this->db->where('id', $order->id);
+			$this->db->where('order_status', '2');
+			$this->db->update('tbl_order_details', array(
+				'order_status' => '6',
+				'ready_to_ship' => 1,
+				'ready_to_ship_time' => $ready_time
+			));
+
+			if ($this->db->affected_rows() > 0) {
+				$this->db->where('order_id', $order->id);
+				$this->db->update('tbl_order_items', array('pro_order_status' => '6'));
+
+				$this->db->insert('tbl_order_status', array(
+					'order_id' => $order->id,
+					'user_id' => $order->user_id,
+					'product_id' => 0,
+					'status_title' => '6',
+					'status_desc' => 'Order marked as ready to ship (Bulk)',
+					'created_at' => $ready_time
+				));
+				$updated_count++;
+			}
+		}
+
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			echo json_encode([
+				'status' => '400',
+				'message' => 'Failed to update orders.',
+			]);
+			return;
+		}
+
+		$this->db->trans_commit();
+
+		if ($updated_count > 0) {
+			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to ready for shipment successfully.');
+			echo json_encode([
+				'status' => '200',
+				'message' => $updated_count . ' order(s) moved to ready for shipment successfully.',
+			]);
+		} else {
+			$this->session->set_flashdata('error', 'No orders were updated. Please ensure orders are in processing status.');
+			echo json_encode([
+				'status' => '400',
+				'message' => 'No orders were updated. Please ensure orders are in processing status.',
+			]);
+		}
+	}
+
+	/**
 	 * Move orders to out for delivery status
 	 *
 	 * @return	void
@@ -2987,6 +3113,14 @@ class Orders extends Vendor_base
 			echo json_encode([
 				'status' => '400',
 				'message' => 'Order must be in processing status to mark as ready to ship.',
+			]);
+			return;
+		}
+
+		if (empty($order_data->awb_no)) {
+			echo json_encode([
+				'status' => '400',
+				'message' => 'AWB number must be generated before marking order ready to ship.',
 			]);
 			return;
 		}

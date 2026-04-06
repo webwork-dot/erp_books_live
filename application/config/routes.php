@@ -70,8 +70,6 @@ $route['app/agent/get_classes'] = 'App_api/get_classes';
 $route['app/agent/uniforms'] = 'App_api/get_uniforms';
 $route['app/agent/get_agent_orders'] = 'App_api/get_agent_orders';
 $route['app/agent/get_order_details'] = 'App_api/get_order_details';
-$route['app/agent/download_invoice'] = 'App_api/download_invoice';
-$route['app/agent/download_invoice/(:num)/(:num)/(:num)'] = 'App_api/download_invoice/$1/$2/$3';
 
 $route['app/agent/upiInfo'] = 'App_api/get_upi_info';
 $route['app/agent/place_uniform_order'] = 'App_api/place_uniform_order';
@@ -157,6 +155,7 @@ $route['orders/return'] = 'Vendor/orders/index/return';
 $route['orders/export'] = 'Vendor/orders/export_orders';
 $route['orders'] = 'Vendor/orders/index';
 $route['orders/move_to_processing'] = 'Vendor/orders/move_to_processing';
+$route['orders/move_to_ready_for_shipment'] = 'Vendor/orders/move_to_ready_for_shipment';
 $route['orders/move_to_out_for_delivery'] = 'Vendor/orders/move_to_out_for_delivery';
 $route['orders/move_to_delivered'] = 'Vendor/orders/move_to_delivered';
 $route['orders/move_to_processing_single'] = 'Vendor/orders/move_to_processing_single';
