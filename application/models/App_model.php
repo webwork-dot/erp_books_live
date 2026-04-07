@@ -630,16 +630,22 @@ class App_model extends CI_Model
             ));
         }
         
-        // $phone = $parent_mobile;
-
-        // $message = "Hi " . $parent_name . 
-        //   ", your order #" . $order_unique_id . 
-        //   " has been placed successfully.";
-
-        // $file_url = base_url('uploads/invoice/'.$order_unique_id.'.pdf');
-        // $response = $this->send_whatsapp($phone, $message);
-
-        // log_message('error', 'WA Response: ' . $response);
+        // STEP 8: Send WhatsApp Notification
+        $phone = $parent_mobile;
+        
+        // Optional PDF URL
+        $file_url = base_url('uploads/invoice/' . $order_unique_id . '.pdf');
+        
+        // Call function
+        $response = $this->send_whatsapp(
+            $phone,
+            $parent_name,
+            $order_unique_id,
+            $file_url // optional
+        );
+        
+        // Log response (important for debugging)
+        log_message('error', 'WA Response: ' . $response);
         
 
         return array(
@@ -651,38 +657,38 @@ class App_model extends CI_Model
         );
     }
     
-    public function send_whatsapp($phone, $message)
-    {
-    $username = "VarittyUniform_bwa";
-    $password = "123456";
-    $sender   = "BUZWAP";
-
-$params = [
-    'user'     => $username,
-    'pass'     => $password,
-    'sender'   => $sender,
+   public function send_whatsapp($phone, $parent_name, $order_unique_id, $file_url = ''){
+    $params = [
+    'user'     => 'VarittyUniform_bwa',
+    'pass'     => '123456',
+    'sender'   => 'BUZWAP',
     'phone'    => $phone,
-    'text'     => 'order_confirmation', // ✅ template name
+    'text'     => 'varitty_doc',
     'priority' => 'wa',
     'stype'    => 'normal',
-    'Params'   => $parent_name . ',' . $order_unique_id // ✅ variables
+    'Params'   => $parent_name . ',' . date('Y-m-d') . ',' . $order_unique_id
 ];
 
-    // If sending document
-    // if (!empty($file_url)) {
-    //     $params['htype'] = 'document';
-    //     $params['fname'] = 'Invoice';
-    //     $params['url']   = $file_url;
-    // }
+    // ✅ Add document support
+    if (!empty($file_url)) {
+        $params['htype'] = 'document';
+        $params['fname'] = 'PDF';
+        $params['url']   = $file_url;
+    }
 
     $url = "http://bhashsms.com/api/sendmsgutil.php?" . http_build_query($params);
 
-    // CURL call
+    // CURL
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
     $response = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        return curl_error($ch);
+    }
+
     curl_close($ch);
 
     return $response;
