@@ -314,17 +314,26 @@ class App_api extends CI_Controller
         $this->simple_json_output($response);
     }
     
-public function test_whatsapp(){
-    $this->load->model('app_model'); // ✅ ADD THIS
-
-    $phone = '7710853921';
-    $message = 'hello';
-
-    $response = $this->app_model->send_whatsapp($phone, $message);
-
-    echo $response;
-    exit;
-}
+    public function test_whatsapp()
+    {
+        $this->load->model('app_model');
+    
+        $phone = '9870678754';
+        $parent_name = 'Dharmesh';          // dynamic value
+        $order_unique_id = 'ORD123';     // dynamic value
+        $file_url = 'https://bhashsms.com/pushwa/iframe/files/trai.pdf'; // document
+    
+        $response = $this->app_model->send_whatsapp(
+            $phone,
+            $parent_name,
+            $order_unique_id,
+            $file_url
+        );
+    
+        echo "<pre>";
+        print_r($response);
+        exit;
+    }
 
     public function get_agent_orders()
     {
