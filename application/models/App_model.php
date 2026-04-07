@@ -630,11 +630,14 @@ class App_model extends CI_Model
             ));
         }
         
+        // Generate invoice PDF, store invoice_url, and reuse the saved URL for WhatsApp
+        $file_url = $this->generateUniformOrderInvoice($vendor_db, $vendor_id, $order_id, $order_unique_id);
+        if (empty($file_url)) {
+            log_message('error', 'Unable to generate invoice PDF for order: ' . $order_id);
+        }
+
         // STEP 8: Send WhatsApp Notification
         $phone = $parent_mobile;
-        
-        // Optional PDF URL
-        $file_url = base_url('uploads/invoice/' . $order_unique_id . '.pdf');
         
         // Call function
         $response = $this->send_whatsapp(
@@ -643,7 +646,6 @@ class App_model extends CI_Model
             $order_unique_id,
             $file_url // optional
         );
-        
         // Log response (important for debugging)
         log_message('error', 'WA Response: ' . $response);
         
@@ -693,6 +695,278 @@ class App_model extends CI_Model
 
     return $response;
 }
+
+    /**
+     * Build invoice payload for the uniform order PDF.
+     *
+     * @param int $vendor_id
+     * @param array $order
+     * @return array
+     */
+    private function buildUniformInvoiceData($vendor_id, $order)
+    {
+        if (empty($order) || !is_array($order)) {
+            return array();
+        }
+
+        $products = isset($order['items']) && is_array($order['items']) ? $order['items'] : array();
+        $items_arr = array();
+        $gst_total = 0;
+        $total_product_discount = 0;
+
+        foreach ($products as $product) {
+            $items_arr[] = (object) $product;
+            $gst_total += isset($product['total_gst_amt']) ? (float) $product['total_gst_amt'] : 0;
+            $total_product_discount += isset($product['discount_amt']) ? (float) $product['discount_amt'] : 0;
+        }
+
+        $company = $this->getVendorInvoiceCompany((int) $vendor_id);
+        $logo_src = $this->getInvoiceLogoBase64($company);
+
+        $company_name = !empty($company['name']) ? $company['name'] : 'Shivam Books';
+        $company_address = !empty($company['address']) ? $company['address'] : '';
+        if (!empty($company['pincode'])) {
+            $company_address = trim($company_address . ', ' . $company['pincode']);
+        }
+
+        $invoice_no = !empty($order['invoice_no']) ? $order['invoice_no'] : $order['order_unique_id'];
+        $school_name = !empty($order['school_name']) ? $order['school_name'] : '';
+
+        return array(
+            'id' => isset($order['id']) ? (int) $order['id'] : 0,
+            'order_unique_id' => isset($order['order_unique_id']) ? $order['order_unique_id'] : '',
+            'user_name' => isset($order['user_name']) ? $order['user_name'] : '',
+            'user_email' => isset($order['user_email']) ? $order['user_email'] : '',
+            'user_phone' => isset($order['user_phone']) ? $order['user_phone'] : '',
+            'order_date' => !empty($order['order_date']) ? date('d M Y | h:i A', strtotime($order['order_date'])) : '',
+            'invoice_date' => !empty($order['invoice_date']) ? date('d M Y', strtotime($order['invoice_date'])) : date('d M Y'),
+            'invoice_no' => $invoice_no,
+            'payable_amt' => isset($order['payable_amt']) ? (float) $order['payable_amt'] : 0,
+            'discount_amt' => isset($order['discount_amt']) ? (float) $order['discount_amt'] : 0,
+            'delivery_charge' => isset($order['delivery_charge']) ? (float) $order['delivery_charge'] : 0,
+            'payment_method' => isset($order['payment_method']) ? $order['payment_method'] : '',
+            'currency' => isset($order['currency']) ? $order['currency'] : 'INR',
+            'currency_code' => isset($order['currency_code']) ? $order['currency_code'] : '₹',
+            'shipping' => isset($order['address']) && is_array($order['address']) ? $order['address'] : array(),
+            'products' => $products,
+            'gst_total' => $gst_total,
+            'total_product_discount' => $total_product_discount,
+            'freight_charges' => isset($order['freight_charges']) ? (float) $order['freight_charges'] : 0,
+            'freight_gst' => isset($order['freight_gst']) ? (float) $order['freight_gst'] : 0,
+            'freight_charges_excl' => isset($order['freight_charges_excl']) ? (float) $order['freight_charges_excl'] : 0,
+            'freight_gst_per' => isset($order['freight_gst_per']) ? (float) $order['freight_gst_per'] : 0,
+            'logo_src' => $logo_src,
+            'company_name' => $company_name,
+            'company_address' => $company_address,
+            'company_gstin' => !empty($company['gstin']) ? $company['gstin'] : '-',
+            'company_pan' => !empty($company['pan']) ? $company['pan'] : '-',
+            'company_phone' => !empty($company['contact_number']) ? $company['contact_number'] : '',
+            'order_type_label' => 'Uniform',
+            'items_arr' => $items_arr,
+            'bookset_products' => array(),
+            'order_obj' => (object) array_merge($order, array('invoice_no' => $invoice_no, 'school_name' => $school_name)),
+        );
+    }
+
+    /**
+     * Generate the uniform order PDF and persist its path as invoice_url.
+     *
+     * @param object $vendor_db
+     * @param int $vendor_id
+     * @param int $order_id
+     * @param string $order_unique_id
+     * @return string
+     */
+    private function generateUniformOrderInvoice($vendor_db, $vendor_id, $order_id, $order_unique_id = '')
+    {
+        $vendor_id = (int) $vendor_id;
+        $order_id = (int) $order_id;
+
+        if ($vendor_id <= 0 || $order_id <= 0 || !$vendor_db) {
+            return '';
+        }
+
+        $order = $this->getUniformOrderDetail($vendor_id, $order_id);
+        if (empty($order)) {
+            return '';
+        }
+
+        $invoice_data = $this->buildUniformInvoiceData($vendor_id, $order);
+        if (empty($invoice_data)) {
+            return '';
+        }
+
+        $this->load->library('pdf');
+        $pdf = new Pdf();
+
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(120);
+
+        $page_data = array('data' => $invoice_data);
+        $html_content = $this->load->view('invoice/invoice_bill', $page_data, TRUE);
+
+        $invoice_dir = FCPATH . 'uploads/app_invoices/';
+        if (!is_dir($invoice_dir) && !@mkdir($invoice_dir, 0775, TRUE) && !is_dir($invoice_dir)) {
+            return '';
+        }
+
+        $pdfname = 'invoice_' . $invoice_data['order_obj']->order_unique_id . '.pdf';
+        $file_path = $invoice_dir . $pdfname;
+
+        $pdf->set_paper('A4', 'portrait');
+        $old_error_reporting = error_reporting();
+        error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
+        try {
+            $pdf->set_option('isHtml5ParserEnabled', TRUE);
+            $pdf->set_option('isRemoteEnabled', FALSE);
+            $pdf->load_html($html_content);
+            $pdf->render();
+            file_put_contents($file_path, $pdf->output());
+        } catch (Exception $e) {
+            error_reporting($old_error_reporting);
+            $pdf = new Pdf();
+            $pdf->set_paper('A4', 'portrait');
+            $pdf->set_option('isHtml5ParserEnabled', FALSE);
+            $pdf->set_option('isRemoteEnabled', FALSE);
+            $pdf->load_html($html_content);
+            $pdf->render();
+            file_put_contents($file_path, $pdf->output());
+        }
+
+        error_reporting($old_error_reporting);
+
+        $relative_path = 'uploads/app_invoices/' . $pdfname;
+        if (file_exists($file_path)) {
+            $vendor_db->where('id', $order_id)->update('tbl_order_details', array(
+                'invoice_url' => $relative_path
+            ));
+
+            return base_url($relative_path);
+        }
+
+        if (!empty($order_unique_id)) {
+            $legacy_path = 'uploads/invoice/' . $order_unique_id . '.pdf';
+            if (is_file(FCPATH . $legacy_path)) {
+                $vendor_db->where('id', $order_id)->update('tbl_order_details', array(
+                    'invoice_url' => $legacy_path
+                ));
+
+                return base_url($legacy_path);
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Convert a relative image path to a base64 logo payload for Dompdf.
+     *
+     * @param array $company
+     * @return string
+     */
+    private function getInvoiceLogoBase64($company = array())
+    {
+        if (empty($company) || empty($company['logo'])) {
+            return '';
+        }
+
+        $logo_path = trim((string) $company['logo']);
+        if ($logo_path === '') {
+            return '';
+        }
+
+        $candidate_paths = array(
+            FCPATH . ltrim($logo_path, '/'),
+            FCPATH . 'book_erp_frontend/' . ltrim($logo_path, '/'),
+        );
+
+        foreach ($candidate_paths as $path) {
+            if (!file_exists($path)) {
+                continue;
+            }
+
+            $file_size = @filesize($path);
+            if ($file_size <= 0 || $file_size > 300000) {
+                continue;
+            }
+
+            $logo_data = @file_get_contents($path);
+            if ($logo_data === FALSE) {
+                continue;
+            }
+
+            $image_info = @getimagesize($path);
+            $mime_type = ($image_info !== FALSE && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+            return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+        }
+
+        return '';
+    }
+
+    /**
+     * Resolve the invoice PDF URL for an order.
+     *
+     * @param object $vendor_db
+     * @param int $order_id
+     * @param string $order_unique_id
+     * @return string
+     */
+    private function getOrderInvoiceUrl($vendor_db, $order_id, $order_unique_id = '')
+    {
+        $order_id = (int) $order_id;
+        if ($order_id <= 0 || !$vendor_db) {
+            return '';
+        }
+
+        $order = $vendor_db
+            ->select('invoice_url')
+            ->from('tbl_order_details')
+            ->where('id', $order_id)
+            ->limit(1)
+            ->get()
+            ->row_array();
+
+        if (!empty($order['invoice_url'])) {
+            return $this->toAbsoluteUrl($order['invoice_url']);
+        }
+
+        $receipt_no = sprintf('%05d', $order_id);
+        $relative_path = 'uploads/invoice/' . date('Y') . '/' . date('m') . '/' . date('d') . '/invoice_' . $receipt_no . '.pdf';
+
+        if (is_file(FCPATH . $relative_path)) {
+            return base_url($relative_path);
+        }
+
+        if (!empty($order_unique_id)) {
+            $legacy_path = 'uploads/invoice/' . $order_unique_id . '.pdf';
+            if (is_file(FCPATH . $legacy_path)) {
+                return base_url($legacy_path);
+            }
+        }
+
+        return base_url($relative_path);
+    }
+
+    /**
+     * Convert a relative file path into an absolute URL.
+     *
+     * @param string $path
+     * @return string
+     */
+    private function toAbsoluteUrl($path)
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return '';
+        }
+
+        if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0) {
+            return $path;
+        }
+
+        return base_url(ltrim($path, '/'));
+    }
 
 
 
