@@ -822,13 +822,15 @@ document.addEventListener('DOMContentLoaded', function() {
 				var sizeChartId = $(this).val();
 				console.log('Size chart changed to:', sizeChartId);
 				if (sizeChartId) {
+					// Clear stale rows when switching chart
+					$('#sizePricesList').empty();
+					$('#size_id').html('<option value="">Select Size</option>').val('').trigger('change');
 					loadSizes(sizeChartId);
 				} else {
 					// Clear sizes if no chart selected
 					$('#size_id').html('<option value="">Select Size</option>').trigger('change');
+					$('#sizePricesList').empty();
 				}
-				// Clear size prices when chart changes
-				$('#sizePricesList').html('');
 			});
 		}, 500);
 	});
@@ -1234,9 +1236,6 @@ function loadSizes(sizeChartId) {
 			console.warn('No sizes found for size chart:', sizeChartId);
 		}
 		
-		// Trigger Select2 update
-		$sizeSelect.trigger('change');
-		
 		// Initialize Select2 with closeOnSelect: false for size dropdown
 		$sizeSelect.select2({
 			theme: 'bootstrap-5',
@@ -1254,6 +1253,9 @@ function loadSizes(sizeChartId) {
 				return $result;
 			}
 		});
+
+		// Trigger Select2 update
+		$sizeSelect.trigger('change');
 	})
 	.catch(error => {
 		console.error('Error loading sizes:', error);

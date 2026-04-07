@@ -492,37 +492,88 @@ class Uniform_model extends CI_Model
 	 */
 	public function saveUniformSizePrices($uniform_id, $size_prices)
 	{
-		if (empty($size_prices) || !is_array($size_prices))
-		{
-			return FALSE;
+		// Normalize
+		if (!is_array($size_prices)) {
+			$size_prices = array();
 		}
-		
-		// Delete existing size prices for this uniform
+
+		$uniform_id = (int) $uniform_id;
+
+		// Build normalized rows keyed by size_id (ignore invalid)
+		$normalized = array();
+		foreach ($size_prices as $key => $price_data) {
+			if (!is_array($price_data)) {
+				continue;
+			}
+
+			$size_id = isset($price_data['size_id']) ? (int) $price_data['size_id'] : (int) $key;
+			if ($size_id <= 0) {
+				continue;
+			}
+
+			// Allow empty strings but coerce to numeric
+			$mrp = isset($price_data['mrp']) ? (float) $price_data['mrp'] : NULL;
+			$selling_price = isset($price_data['selling_price']) ? (float) $price_data['selling_price'] : NULL;
+
+			// Skip rows without both prices
+			if ($mrp === NULL || $selling_price === NULL) {
+				continue;
+			}
+
+			$normalized[$size_id] = array(
+				'uniform_id' => $uniform_id,
+				'size_id' => $size_id,
+				'mrp' => (float) $mrp,
+				'selling_price' => (float) $selling_price
+			);
+		}
+
+		$keep_size_ids = array_keys($normalized);
+
+		$this->db->trans_begin();
+
+		// Remove stale rows for this uniform (sizes removed or chart changed)
 		$this->db->where('uniform_id', $uniform_id);
+		if (!empty($keep_size_ids)) {
+			$this->db->where_not_in('size_id', $keep_size_ids);
+		}
 		$this->db->delete('erp_uniform_size_prices');
-		
-		// Insert new size prices
-		$data = array();
-		foreach ($size_prices as $size_id => $price_data)
-		{
-			if (isset($price_data['size_id']) && isset($price_data['mrp']) && isset($price_data['selling_price']))
-			{
-				$data[] = array(
-					'uniform_id' => $uniform_id,
-					'size_id' => (int)$price_data['size_id'],
-					'mrp' => (float)$price_data['mrp'],
-					'selling_price' => (float)$price_data['selling_price']
-				);
+
+		if (!empty($keep_size_ids)) {
+			// Load existing rows for upsert
+			$existing_rows = $this->db
+				->select('id, size_id')
+				->from('erp_uniform_size_prices')
+				->where('uniform_id', $uniform_id)
+				->where_in('size_id', $keep_size_ids)
+				->get()
+				->result_array();
+
+			$existing_map = array();
+			foreach ($existing_rows as $row) {
+				$existing_map[(int) $row['size_id']] = (int) $row['id'];
+			}
+
+			foreach ($normalized as $size_id => $row) {
+				if (isset($existing_map[$size_id])) {
+					$this->db->where('id', $existing_map[$size_id]);
+					$this->db->update('erp_uniform_size_prices', array(
+						'mrp' => $row['mrp'],
+						'selling_price' => $row['selling_price']
+					));
+				} else {
+					$this->db->insert('erp_uniform_size_prices', $row);
+				}
 			}
 		}
-		
-		if (!empty($data))
-		{
-			$this->db->insert_batch('erp_uniform_size_prices', $data);
-			return $this->db->affected_rows() > 0;
+
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return FALSE;
 		}
-		
-		return TRUE; // No prices to save, but that's okay
+
+		$this->db->trans_commit();
+		return TRUE;
 	}
 	
 	/**

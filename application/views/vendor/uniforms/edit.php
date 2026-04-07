@@ -313,10 +313,15 @@
 			<div class="card-body">
 				<div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
 					<h2 class="mb-0">Size</h2>
-					<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
-						data-bs-target="#viewSizeChartsModal" title="View All Size Charts">
-						<i class="isax isax-eye"></i> View Size Charts
-					</button>
+					<div class="d-flex gap-2">
+						<a href="<?php echo base_url('size-charts'); ?>" class="btn btn-outline-primary btn-sm" title="Manage Size Charts">
+							<i class="isax isax-edit"></i> Manage Size Charts
+						</a>
+						<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
+							data-bs-target="#viewSizeChartsModal" title="View All Size Charts">
+							<i class="isax isax-eye"></i> View Size Charts
+						</button>
+					</div>
 				</div>
 				<div class="row gx-3">
 					<div class="col-lg-6 col-md-6">
@@ -645,7 +650,8 @@ $commissionValue = set_value(
 		</div>
 	</div>
 </div>
-<div class="border-top my-3 pt-3">
+<div class="uniform-edit-action-spacer"></div>
+<div class="uniform-edit-actionbar border-top">
 	<div class="d-flex align-items-center justify-content-end gap-2">
 		<a href="<?php echo base_url('products/uniforms'); ?>" class="btn btn-outline">Cancel</a>
 		<button type="submit" form="uniform-form" class="btn btn-primary" onclick="return handleFormSubmit();">Update
@@ -834,6 +840,28 @@ $commissionValue = set_value(
 	.card .card-body {
 		padding: 1rem !important;
 	}
+
+	.uniform-edit-actionbar {
+		position: fixed;
+		left: 200px;
+		right: 0;
+		bottom: 0;
+		z-index: 1030;
+		background: #ffffff;
+		padding: 10px 18px;
+		box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+	}
+
+	.uniform-edit-action-spacer {
+		height: 72px;
+	}
+
+	@media (max-width: 991px) {
+		.uniform-edit-actionbar {
+			left: 0;
+			padding: 10px 12px;
+		}
+	}
 </style>
 
 
@@ -991,10 +1019,15 @@ $commissionValue = set_value(
 					var sizeChartId = $(this).val();
 					console.log('Size chart changed to:', sizeChartId);
 					if (sizeChartId) {
+						// Clear pricing rows when chart changes to prevent stale size-wise pricing
+						$('#sizePricesList').empty();
+						// Reset size dropdown before loading new sizes
+						$('#size_id').html('<option value="">Select Size</option>').val('').trigger('change');
 						loadSizes(sizeChartId);
 					} else {
 						// Clear sizes if no chart selected
 						$('#size_id').html('<option value="">Select Size</option>').trigger('change');
+						$('#sizePricesList').empty();
 					}
 				});
 
@@ -1028,10 +1061,10 @@ $commissionValue = set_value(
 						addSizePriceRow(sizeId, sizeName);
 
 						// Reset the select value
-						$(this).val('').trigger('change');
+					$(this).val('').trigger('change');
 
-						// Force Select2 results to re-render while open
-						$(this).select2('close').select2('open');
+					// Force Select2 results to re-render while open
+					$(this).select2('close').select2('open');
 					}
 				});
 			}, 500);
@@ -1398,10 +1431,6 @@ $commissionValue = set_value(
 					console.warn('No sizes found for size chart:', sizeChartId);
 				}
 
-				// Trigger Select2 update
-				$sizeSelect.trigger('change');
-
-				// Initialize Select2 with closeOnSelect: false for size dropdown
 				$sizeSelect.select2({
 					theme: 'bootstrap-5',
 					placeholder: 'Select Size',
@@ -1418,6 +1447,9 @@ $commissionValue = set_value(
 						return $result;
 					}
 				});
+
+				// Trigger Select2 update
+				$sizeSelect.trigger('change');
 			})
 			.catch(error => {
 				console.error('Error loading sizes:', error);

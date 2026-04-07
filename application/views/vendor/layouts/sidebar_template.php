@@ -238,6 +238,13 @@
 													<i class="isax isax-box"></i><span><?php echo htmlspecialchars($feature['name']); ?></span>
 												</a>
 											</li>
+											<?php if (strtolower(trim((string)$feature['slug'])) === 'uniforms'): ?>
+												<li>
+													<a href="<?php echo base_url('size-charts'); ?>" class="<?php echo (strpos($current_uri, 'size-charts') !== false || strpos($current_uri, 'size_charts') !== false) ? 'active' : ''; ?>">
+														<i class="isax isax-ruler"></i><span>Size Charts</span>
+													</a>
+												</li>
+											<?php endif; ?>
 										<?php endif; ?>
 									<?php endforeach; ?>
 									<?php endif; ?>

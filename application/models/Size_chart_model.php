@@ -14,6 +14,13 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Size_chart_model extends CI_Model
 {
 	/**
+	 * Cache table existence checks.
+	 *
+	 * @var array
+	 */
+	private $table_exists_cache = array();
+
+	/**
 	 * Constructor
 	 *
 	 * @return	void
@@ -47,7 +54,8 @@ class Size_chart_model extends CI_Model
 		if (isset($filters['search']) && !empty($filters['search']))
 		{
 			$this->db->group_start();
-			$this->db->like('chart_name', $filters['search']);
+			// Some tenants use `name` as the chart title column.
+			$this->db->like('name', $filters['search']);
 			$this->db->or_like('description', $filters['search']);
 			$this->db->group_end();
 		}
@@ -93,9 +101,20 @@ class Size_chart_model extends CI_Model
 	 */
 	public function createSizeChart($data)
 	{
-		$data['created_at'] = date('Y-m-d H:i:s');
-		$data['updated_at'] = date('Y-m-d H:i:s');
-		
+		$now = date('Y-m-d H:i:s');
+		if ($this->db->field_exists('created_at', 'erp_size_charts') && !isset($data['created_at'])) {
+			$data['created_at'] = $now;
+		}
+		if ($this->db->field_exists('updated_at', 'erp_size_charts')) {
+			$data['updated_at'] = $now;
+		}
+
+		// Normalize title field to `name` (older schema). Ignore `chart_name` if present.
+		if (isset($data['chart_name']) && !isset($data['name'])) {
+			$data['name'] = $data['chart_name'];
+		}
+		unset($data['chart_name']);
+
 		$this->db->insert('erp_size_charts', $data);
 		return $this->db->insert_id();
 	}
@@ -110,7 +129,15 @@ class Size_chart_model extends CI_Model
 	 */
 	public function updateSizeChart($id, $data, $vendor_id = NULL)
 	{
-		$data['updated_at'] = date('Y-m-d H:i:s');
+		// Normalize title field to `name` (older schema). Ignore `chart_name` if present.
+		if (isset($data['chart_name']) && !isset($data['name'])) {
+			$data['name'] = $data['chart_name'];
+		}
+		unset($data['chart_name']);
+
+		if ($this->db->field_exists('updated_at', 'erp_size_charts')) {
+			$data['updated_at'] = date('Y-m-d H:i:s');
+		}
 		
 		$this->db->where('id', $id);
 		if ($vendor_id !== NULL)
@@ -130,13 +157,19 @@ class Size_chart_model extends CI_Model
 	 */
 	public function deleteSizeChart($id, $vendor_id = NULL)
 	{
+		// Soft delete: mark inactive
 		$this->db->where('id', $id);
 		if ($vendor_id !== NULL)
 		{
 			$this->db->where('vendor_id', $vendor_id);
 		}
-		
-		return $this->db->delete('erp_size_charts');
+
+		$data = array('status' => 'inactive');
+		if ($this->db->field_exists('updated_at', 'erp_size_charts')) {
+			$data['updated_at'] = date('Y-m-d H:i:s');
+		}
+
+		return $this->db->update('erp_size_charts', $data);
 	}
 
 	/**
@@ -159,7 +192,7 @@ class Size_chart_model extends CI_Model
 		if (isset($filters['search']) && !empty($filters['search']))
 		{
 			$this->db->group_start();
-			$this->db->like('chart_name', $filters['search']);
+			$this->db->like('name', $filters['search']);
 			$this->db->or_like('description', $filters['search']);
 			$this->db->group_end();
 		}
@@ -175,13 +208,8 @@ class Size_chart_model extends CI_Model
 	 */
 	public function getMeasurements($chart_id)
 	{
-		$this->db->select('*');
-		$this->db->from('erp_size_chart_measurements');
-		$this->db->where('chart_id', $chart_id);
-		$this->db->order_by('measurement_order', 'ASC');
-		
-		$query = $this->db->get();
-		return $query->result_array();
+		// Deprecated in this ERP: sizes are managed via `erp_sizes`.
+		return array();
 	}
 
 	/**
@@ -192,7 +220,8 @@ class Size_chart_model extends CI_Model
 	 */
 	public function addMeasurement($data)
 	{
-		return $this->db->insert('erp_size_chart_measurements', $data);
+		// Deprecated in this ERP: sizes are managed via `erp_sizes`.
+		return FALSE;
 	}
 
 	/**
@@ -204,8 +233,8 @@ class Size_chart_model extends CI_Model
 	 */
 	public function updateMeasurement($id, $data)
 	{
-		$this->db->where('id', $id);
-		return $this->db->update('erp_size_chart_measurements', $data);
+		// Deprecated in this ERP: sizes are managed via `erp_sizes`.
+		return FALSE;
 	}
 
 	/**
@@ -216,8 +245,8 @@ class Size_chart_model extends CI_Model
 	 */
 	public function deleteMeasurement($id)
 	{
-		$this->db->where('id', $id);
-		return $this->db->delete('erp_size_chart_measurements');
+		// Deprecated in this ERP: sizes are managed via `erp_sizes`.
+		return FALSE;
 	}
 
 	/**
@@ -228,7 +257,119 @@ class Size_chart_model extends CI_Model
 	 */
 	public function deleteMeasurementsByChart($chart_id)
 	{
-		$this->db->where('chart_id', $chart_id);
-		return $this->db->delete('erp_size_chart_measurements');
+		// Deprecated in this ERP: sizes are managed via `erp_sizes`.
+		return FALSE;
+	}
+
+	/**
+	 * Get sizes for a chart.
+	 *
+	 * @param int $chart_id
+	 * @param bool $include_inactive
+	 * @return array
+	 */
+	public function getSizesByChart($chart_id, $include_inactive = FALSE)
+	{
+		$this->db->from('erp_sizes');
+		$this->db->where('size_chart_id', (int) $chart_id);
+		if (!$include_inactive) {
+			$this->db->where('status', 'active');
+		}
+		$this->db->order_by('display_order', 'ASC');
+		$this->db->order_by('name', 'ASC');
+		return $this->db->get()->result_array();
+	}
+
+	/**
+	 * Add multiple sizes to chart (comma/newline input supported upstream).
+	 *
+	 * @param int $chart_id
+	 * @param array $sizes
+	 * @return bool
+	 */
+	public function addMultipleSizes($chart_id, $sizes)
+	{
+		if (empty($sizes) || !is_array($sizes)) {
+			return FALSE;
+		}
+
+		$chart_id = (int) $chart_id;
+
+		// Existing (active+inactive) names to dedupe
+		$existing = $this->db
+			->select('LOWER(TRIM(name)) as n')
+			->from('erp_sizes')
+			->where('size_chart_id', $chart_id)
+			->get()
+			->result_array();
+		$existing_map = array();
+		foreach ($existing as $row) {
+			if (!empty($row['n'])) {
+				$existing_map[$row['n']] = true;
+			}
+		}
+
+		// Start order after max display_order
+		$max_row = $this->db->select_max('display_order')->where('size_chart_id', $chart_id)->get('erp_sizes')->row_array();
+		$order = isset($max_row['display_order']) && $max_row['display_order'] !== NULL ? ((int) $max_row['display_order'] + 1) : 0;
+
+		$batch = array();
+		foreach ($sizes as $size_name) {
+			$size_name = trim((string) $size_name);
+			if ($size_name === '') {
+				continue;
+			}
+			$key = strtolower($size_name);
+			if (isset($existing_map[$key])) {
+				continue;
+			}
+			$existing_map[$key] = true;
+			$batch[] = array(
+				'size_chart_id' => $chart_id,
+				'name' => $size_name,
+				'display_order' => $order++,
+				'status' => 'active'
+			);
+		}
+
+		if (empty($batch)) {
+			return TRUE;
+		}
+
+		$this->db->insert_batch('erp_sizes', $batch);
+		return $this->db->affected_rows() > 0;
+	}
+
+	/**
+	 * Soft delete a size (mark inactive).
+	 *
+	 * @param int $chart_id
+	 * @param int $size_id
+	 * @return bool
+	 */
+	public function deactivateSize($chart_id, $size_id)
+	{
+		$this->db->where('id', (int) $size_id);
+		$this->db->where('size_chart_id', (int) $chart_id);
+		return $this->db->update('erp_sizes', array('status' => 'inactive'));
+	}
+
+	/**
+	 * Check if table exists in current tenant DB.
+	 *
+	 * @param string $table
+	 * @return bool
+	 */
+	private function tableExists($table)
+	{
+		$table = (string) $table;
+		if (isset($this->table_exists_cache[$table]))
+		{
+			return $this->table_exists_cache[$table];
+		}
+
+		$exists = $this->db->table_exists($table);
+		$this->table_exists_cache[$table] = (bool) $exists;
+		return $this->table_exists_cache[$table];
 	}
 }

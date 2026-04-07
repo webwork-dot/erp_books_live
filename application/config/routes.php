@@ -225,6 +225,13 @@ $route['products/uniforms/duplicate_uniform'] = 'Vendor/uniforms/duplicate_unifo
 $route['products/uniforms/toggle_status/(:num)'] = 'Vendor/uniforms/toggle_status/$1';
 $route['products/uniforms/toggle_status'] = 'Vendor/uniforms/toggle_status';
 
+// Size charts routes
+$route['size-charts'] = 'Vendor/size_charts/index';
+$route['size-charts/add'] = 'Vendor/size_charts/add';
+$route['size-charts/edit/(:num)'] = 'Vendor/size_charts/edit/$1';
+$route['size-charts/view/(:num)'] = 'Vendor/size_charts/view/$1';
+$route['size-charts/delete/(:num)'] = 'Vendor/size_charts/delete/$1';
+
 // Stationery routes under products
 $route['products/stationery'] = 'Vendor/products/stationery_index';
 $route['products/stationery/add'] = 'Vendor/products/stationery_add';
