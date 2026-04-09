@@ -7,6 +7,9 @@
 <div class="card">
 	<div class="card-body">
 		<form method="post" action="<?php echo base_url('size-charts/add'); ?>">
+			<input type="hidden"
+				name="<?php echo $this->security->get_csrf_token_name(); ?>"
+				value="<?php echo $this->security->get_csrf_hash(); ?>">
 			<div class="mb-3">
 				<label class="form-label">Chart Name <span class="text-danger">*</span></label>
 				<input type="text" name="chart_name" class="form-control" required value="<?php echo set_value('chart_name'); ?>">
