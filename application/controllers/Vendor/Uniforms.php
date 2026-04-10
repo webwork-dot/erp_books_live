@@ -183,6 +183,7 @@ class Uniforms extends Vendor_base
 			$data['schools'] = $this->School_model->getSchoolsByVendor($this->current_vendor['id']);
 			$data['boards'] = $this->School_board_model->getBoardsByVendor($this->current_vendor['id']);
 			$data['size_charts'] = $this->Uniform_model->getSizeChartsByVendor($this->current_vendor['id']);
+			$data['master_size_charts'] = $this->Uniform_model->getMasterSizeChartsByVendor($this->current_vendor['id'], NULL);
 			$data['classes'] = $this->Uniform_model->getAllClasses();
 
 			$data['title'] = 'Add New Uniform';
@@ -247,6 +248,10 @@ class Uniforms extends Vendor_base
 				'is_set' => $this->input->post('is_set') ? 1 : 0
 			);
 
+			if ($this->db->field_exists('master_size_chart_id', 'erp_uniforms')) {
+				$uniform_data['master_size_chart_id'] = $this->validatedMasterSizeChartId($this->input->post('master_size_chart_id'));
+			}
+
 			$uniform_id = $this->Uniform_model->createUniform($uniform_data);
 
 			if ($uniform_id) {
@@ -307,6 +312,8 @@ class Uniforms extends Vendor_base
 			$data['schools'] = $this->School_model->getSchoolsByVendor($this->current_vendor['id']);
 			$data['boards'] = $this->School_board_model->getBoardsByVendor($this->current_vendor['id']);
 			$data['size_charts'] = $this->Uniform_model->getSizeChartsByVendor($this->current_vendor['id']);
+			$include_msc = isset($uniform['master_size_chart_id']) ? (int) $uniform['master_size_chart_id'] : NULL;
+			$data['master_size_charts'] = $this->Uniform_model->getMasterSizeChartsByVendor($this->current_vendor['id'], $include_msc ?: NULL);
 			$data['classes'] = $this->Uniform_model->getAllClasses();
 			$data['selected_classes'] = !empty($uniform['class_id']) ? explode(',', $uniform['class_id']) : array();
 
@@ -405,6 +412,10 @@ class Uniforms extends Vendor_base
 				'is_individual' => $this->input->post('is_individual') ? 1 : 0,
 				'is_set' => $this->input->post('is_set') ? 1 : 0
 			);
+
+			if ($this->db->field_exists('master_size_chart_id', 'erp_uniforms')) {
+				$uniform_data['master_size_chart_id'] = $this->validatedMasterSizeChartId($this->input->post('master_size_chart_id'));
+			}
 
 			// Try to update uniform data (may return FALSE if no changes, which is OK)
 			$update_result = $this->Uniform_model->updateUniform($uniform_id, $uniform_data);
@@ -540,6 +551,9 @@ class Uniforms extends Vendor_base
 
 		$new_uniform_data = $source_uniform;
 		unset($new_uniform_data['id']);
+		if (!$this->db->field_exists('master_size_chart_id', 'erp_uniforms')) {
+			unset($new_uniform_data['master_size_chart_id']);
+		}
 
 		if (isset($new_uniform_data['created_at'])) {
 			unset($new_uniform_data['created_at']);
@@ -956,6 +970,33 @@ class Uniforms extends Vendor_base
 		} else {
 			echo json_encode(array('status' => 'error', 'message' => 'Failed to delete image'));
 		}
+	}
+
+	/**
+	 * Resolve master size chart FK: must belong to current vendor.
+	 *
+	 * @param	mixed	$raw	POST value
+	 * @return	int|null
+	 */
+	private function validatedMasterSizeChartId($raw)
+	{
+		if (!$this->db->table_exists('erp_master_size_charts') || !$this->db->field_exists('master_size_chart_id', 'erp_uniforms')) {
+			return NULL;
+		}
+		if ($raw === NULL || $raw === '') {
+			return NULL;
+		}
+		$id = (int) $raw;
+		if ($id <= 0) {
+			return NULL;
+		}
+		$row = $this->db->select('id')
+			->from('erp_master_size_charts')
+			->where('id', $id)
+			->where('vendor_id', (int) $this->current_vendor['id'])
+			->get()
+			->row_array();
+		return $row ? $id : NULL;
 	}
 
 	/**

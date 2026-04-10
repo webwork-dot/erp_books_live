@@ -36,13 +36,20 @@ class Uniform_model extends CI_Model
 	 */
 	public function getUniformsByVendor($vendor_id, $filters = array(), $limit = NULL, $offset = 0)
 	{
-		$this->db->select('erp_uniforms.*, erp_uniform_types.name as uniform_type_name, erp_schools.school_name, erp_school_branches.branch_name, erp_school_boards.board_name, erp_materials.name as material_name');
+		$select = 'erp_uniforms.*, erp_uniform_types.name as uniform_type_name, erp_schools.school_name, erp_school_branches.branch_name, erp_school_boards.board_name, erp_materials.name as material_name';
+		if ($this->db->table_exists('erp_master_size_charts') && $this->db->field_exists('master_size_chart_id', 'erp_uniforms')) {
+			$select .= ', erp_master_size_charts.name as master_size_chart_name';
+		}
+		$this->db->select($select);
 		$this->db->from('erp_uniforms');
 		$this->db->join('erp_uniform_types', 'erp_uniform_types.id = erp_uniforms.uniform_type_id', 'left');
 		$this->db->join('erp_schools', 'erp_schools.id = erp_uniforms.school_id', 'left');
 		$this->db->join('erp_school_branches', 'erp_school_branches.id = erp_uniforms.branch_id', 'left');
 		$this->db->join('erp_school_boards', 'erp_school_boards.id = erp_uniforms.board_id', 'left');
 		$this->db->join('erp_materials', 'erp_materials.id = erp_uniforms.material_id', 'left');
+		if ($this->db->table_exists('erp_master_size_charts') && $this->db->field_exists('master_size_chart_id', 'erp_uniforms')) {
+			$this->db->join('erp_master_size_charts', 'erp_master_size_charts.id = erp_uniforms.master_size_chart_id', 'left');
+		}
 		$this->db->where('erp_uniforms.vendor_id', $vendor_id);
 		
 		if (isset($filters['status']))
@@ -370,6 +377,30 @@ class Uniform_model extends CI_Model
 		$query = $this->db->get('erp_size_charts');
 		
 		return $query->result_array();
+	}
+
+	/**
+	 * Master size chart image galleries for uniform form dropdown (active + optional current id).
+	 *
+	 * @param	int		$vendor_id
+	 * @param	int|null	$include_chart_id	Always include this id even if inactive (edit form)
+	 * @return	array
+	 */
+	public function getMasterSizeChartsByVendor($vendor_id, $include_chart_id = NULL)
+	{
+		if (!$this->db->table_exists('erp_master_size_charts')) {
+			return array();
+		}
+		$this->db->from('erp_master_size_charts');
+		$this->db->where('vendor_id', (int) $vendor_id);
+		$this->db->group_start();
+		$this->db->where('status', 'active');
+		if ($include_chart_id !== NULL && (int) $include_chart_id > 0) {
+			$this->db->or_where('id', (int) $include_chart_id);
+		}
+		$this->db->group_end();
+		$this->db->order_by('name', 'ASC');
+		return $this->db->get()->result_array();
 	}
 	
 	/**

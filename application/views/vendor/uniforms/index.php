@@ -176,6 +176,7 @@
 						<th>School</th>
 						<th>Branch</th>
 						<th>Board</th>
+						<th>Size chart gallery</th>
 						<th>Gender</th>
 						<th>MRP</th>
 						<th>Selling Price</th>
@@ -211,7 +212,7 @@
 								<td><?php echo htmlspecialchars($uniform['school_name'] ? $uniform['school_name'] : '-'); ?></td>
 								<td><?php echo htmlspecialchars($uniform['branch_name'] ? $uniform['branch_name'] : '-'); ?></td>
 								<td><?php echo htmlspecialchars($uniform['board_name'] ? $uniform['board_name'] : '-'); ?></td>
-								
+								<td><?php echo !empty($uniform['master_size_chart_name']) ? htmlspecialchars($uniform['master_size_chart_name']) : '<span class="text-muted">—</span>'; ?></td>
 								<td>
 									<span class="badge badge-info"><?php echo ucfirst($uniform['gender']); ?></span>
 								</td>
@@ -278,7 +279,7 @@
 						<?php endforeach; ?>
 					<?php else: ?>
 						<tr>
-							<td colspan="13" class="text-center text-muted">No uniforms found</td>
+							<td colspan="14" class="text-center text-muted">No uniforms found</td>
 						</tr>
 					<?php endif; ?>
 				</tbody>

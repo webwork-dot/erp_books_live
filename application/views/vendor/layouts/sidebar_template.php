@@ -232,6 +232,18 @@
 													<?php endforeach; ?>
 												</ul>
 											</li>
+											<?php if (strtolower(trim((string)$feature['slug'])) === 'uniforms'): ?>
+												<li>
+													<a href="<?php echo base_url('size-charts'); ?>" class="<?php echo (strpos($current_uri, 'size-charts') !== false || strpos($current_uri, 'size_charts') !== false) ? 'active' : ''; ?>">
+														<i class="isax isax-ruler"></i><span>Size Charts</span>
+													</a>
+												</li>
+												<li>
+													<a href="<?php echo base_url('master-size-charts'); ?>" class="<?php echo (strpos($current_uri, 'master-size-charts') !== false || strpos($current_uri, 'master_size_charts') !== false) ? 'active' : ''; ?>">
+														<i class="isax isax-image"></i><span>Master Size Charts</span>
+													</a>
+												</li>
+											<?php endif; ?>
 										<?php else: ?>
 											<li>
 												<a href="<?php echo $feature_url; ?>" class="<?php echo $is_active_parent ? 'active' : ''; ?>">
@@ -242,6 +254,11 @@
 												<li>
 													<a href="<?php echo base_url('size-charts'); ?>" class="<?php echo (strpos($current_uri, 'size-charts') !== false || strpos($current_uri, 'size_charts') !== false) ? 'active' : ''; ?>">
 														<i class="isax isax-ruler"></i><span>Size Charts</span>
+													</a>
+												</li>
+												<li>
+													<a href="<?php echo base_url('master-size-charts'); ?>" class="<?php echo (strpos($current_uri, 'master-size-charts') !== false || strpos($current_uri, 'master_size_charts') !== false) ? 'active' : ''; ?>">
+														<i class="isax isax-image"></i><span>Master Size Charts</span>
 													</a>
 												</li>
 											<?php endif; ?>

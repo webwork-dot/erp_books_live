@@ -232,6 +232,13 @@ $route['size-charts/edit/(:num)'] = 'Vendor/size_charts/edit/$1';
 $route['size-charts/view/(:num)'] = 'Vendor/size_charts/view/$1';
 $route['size-charts/delete/(:num)'] = 'Vendor/size_charts/delete/$1';
 
+// Master size chart image galleries (uniforms)
+$route['master-size-charts'] = 'Vendor/master_size_charts/index';
+$route['master-size-charts/add'] = 'Vendor/master_size_charts/add';
+$route['master-size-charts/edit/(:num)'] = 'Vendor/master_size_charts/edit/$1';
+$route['master-size-charts/delete/(:num)'] = 'Vendor/master_size_charts/delete/$1';
+$route['master-size-charts/delete_image/(:num)'] = 'Vendor/master_size_charts/delete_image/$1';
+
 // Stationery routes under products
 $route['products/stationery'] = 'Vendor/products/stationery_index';
 $route['products/stationery/add'] = 'Vendor/products/stationery_add';

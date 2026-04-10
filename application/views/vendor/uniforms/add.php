@@ -254,6 +254,20 @@
 							<small class="text-muted d-block mt-1">Select a size to add pricing</small>
 						</div>
 					</div>
+					<?php if (isset($master_size_charts)): ?>
+					<div class="col-lg-6 col-md-6">
+						<div class="mb-3">
+							<label class="form-label">Size chart images (gallery)</label>
+							<select name="master_size_chart_id" id="master_size_chart_id" class="select" form="uniform-form" style="width: 100%;">
+								<option value="">None</option>
+								<?php foreach ($master_size_charts as $msc): ?>
+									<option value="<?php echo (int) $msc['id']; ?>" <?php echo set_select('master_size_chart_id', (string) $msc['id']); ?>><?php echo htmlspecialchars($msc['name']); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<small class="text-muted d-block mt-1">Managed under Catalog → Master Size Charts (storefront size chart button).</small>
+						</div>
+					</div>
+					<?php endif; ?>
 				</div>
 				
 				<!-- Size Prices Container -->

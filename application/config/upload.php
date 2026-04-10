@@ -9,6 +9,13 @@ $config['uniform_upload'] = [
     'max_size'     => 5120
 ];
 
+$config['master_size_chart_upload'] = [
+    'base_root'    => '/www/webwork/',
+    'relative_dir' => 'uploads/master_size_charts/',
+    'allowed_types'=> ['jpg','jpeg','png','gif','webp'],
+    'max_size'     => 5120
+];
+
 
 $config['school_upload'] = [
     'base_root'    => '/www/webwork/',

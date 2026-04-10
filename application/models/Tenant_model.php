@@ -382,6 +382,7 @@ class Tenant_model extends CI_Model
 			'fk_boards_vendor' => 'erp_school_boards',
 			'fk_school_branches_vendor' => 'erp_school_branches',
 			'fk_size_charts_vendor' => 'erp_size_charts',
+			'fk_master_size_charts_vendor' => 'erp_master_size_charts',
 			'fk_stationery_vendor' => 'erp_stationery',
 			'fk_stationery_brands_vendor' => 'erp_stationery_brands',
 			'fk_stationery_categories_vendor' => 'erp_stationery_categories',

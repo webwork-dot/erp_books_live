@@ -14,3 +14,5 @@ application.kirtiBook/application/config/foreign_chars.php
 application/config/database.php
 /live-backup
 erp_client_varitty (1).sql
+erp_master.sql
+*.sql
