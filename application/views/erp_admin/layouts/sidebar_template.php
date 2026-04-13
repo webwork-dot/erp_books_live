@@ -59,6 +59,11 @@
 										</a>
 									</li>
 									<li>
+										<a href="<?php echo base_url('erp-admin/notification-templates'); ?>" class="<?php echo (strpos(uri_string(), 'erp-admin/notification-templates') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-message-programming"></i><span>Notification Types</span>
+										</a>
+									</li>
+									<li>
 										<a href="<?php echo base_url('erp-admin/users'); ?>" class="<?php echo (strpos(uri_string(), 'erp-admin/users') !== false) ? 'active' : ''; ?>">
 											<i class="isax isax-profile-2user5"></i><span>Users</span>
 										</a>

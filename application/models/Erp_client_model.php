@@ -22,7 +22,9 @@ class Erp_client_model extends CI_Model
 	{
 		parent::__construct();
 		// Use master database
-		$this->load->database('default', TRUE);
+		// IMPORTANT: this model is used from tenant/vendor context too,
+		// so we must force master connection as $this->db.
+		$this->db = $this->load->database('default', TRUE);
 	}
 	
 	/**
@@ -137,6 +139,25 @@ class Erp_client_model extends CI_Model
 			return $query->row_array();
 		}
 		
+		return NULL;
+	}
+
+	/**
+	 * Get client by database_name (master DB)
+	 *
+	 * @param string $database_name
+	 * @return array|NULL
+	 */
+	public function getClientByDatabaseName($database_name)
+	{
+		$database_name = trim((string)$database_name);
+		if ($database_name === '') return NULL;
+
+		$this->db->where('database_name', $database_name);
+		$query = $this->db->get('erp_clients');
+		if ($query->num_rows() > 0) {
+			return $query->row_array();
+		}
 		return NULL;
 	}
 	

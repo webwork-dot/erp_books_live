@@ -32,6 +32,49 @@ class Orders extends Vendor_base
 		$this->load->model('Courier_model');
 	}
 
+	private function buildOrderVarsFromRow(array $row, $order_id)
+	{
+		return [
+			'order_id' => (int)$order_id,
+			'order_unique_id' => $row['order_unique_id'] ?? '',
+			'customer_name' => $row['user_name'] ?? '',
+			'email_to' => $row['user_email'] ?? '',
+			'mobile' => $row['user_phone'] ?? '',
+			'payment_method' => $row['payment_method'] ?? '',
+			'payable_amt' => $row['payable_amt'] ?? ($row['total_amt'] ?? ''),
+			'invoice_no' => $row['invoice_no'] ?? '',
+			'awb_no' => $row['awb_no'] ?? '',
+			'courier' => $row['courier'] ?? '',
+		];
+	}
+
+	private function sendOrderEventNotifications($event_key, array $order_ids)
+	{
+		$vendor_id = (int)($this->current_vendor['id'] ?? 0);
+		if ($vendor_id <= 0) return;
+
+		$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
+		$order_ids = array_filter($order_ids, function ($v) { return $v > 0; });
+		if (empty($order_ids)) return;
+
+		$rows = $this->db
+			->select('id, user_name, user_email, user_phone, order_unique_id, payment_method, payable_amt, total_amt, invoice_no, awb_no, courier')
+			->from('tbl_order_details')
+			->where_in('id', $order_ids)
+			->get()
+			->result_array();
+
+		if (empty($rows)) return;
+
+		$this->load->library('Notification_sender');
+		foreach ($rows as $r) {
+			$order_id = (int)($r['id'] ?? 0);
+			if ($order_id <= 0) continue;
+			$vars = $this->buildOrderVarsFromRow($r, $order_id);
+			$this->notification_sender->sendEvent($vendor_id, $event_key, $vars);
+		}
+	}
+
 	/**
 	 * Get pagination configuration
 	 *
@@ -1499,6 +1542,9 @@ class Orders extends Vendor_base
 		}
 
 		if ($updated_count > 0) {
+			// Send notifications for order_processed (after successful status update)
+			$this->sendOrderEventNotifications('order_processed', $order_ids);
+
 			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to processing successfully.');
 
 			echo json_encode([
@@ -1590,6 +1636,7 @@ class Orders extends Vendor_base
 		$this->db->trans_begin();
 		$ready_time = date("Y-m-d H:i:s");
 		$updated_count = 0;
+		$updated_ids = [];
 
 		foreach ($orders as $order) {
 			$this->db->where('id', $order->id);
@@ -1613,6 +1660,7 @@ class Orders extends Vendor_base
 					'created_at' => $ready_time
 				));
 				$updated_count++;
+				$updated_ids[] = (int)$order->id;
 			}
 		}
 
@@ -1628,6 +1676,9 @@ class Orders extends Vendor_base
 		$this->db->trans_commit();
 
 		if ($updated_count > 0) {
+			// Send notifications for order_shipped (mapped to ready_for_shipment action)
+			$this->sendOrderEventNotifications('order_shipped', $updated_ids);
+
 			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to ready for shipment successfully.');
 			echo json_encode([
 				'status' => '200',
@@ -1685,6 +1736,8 @@ class Orders extends Vendor_base
 		}
 
 		if ($updated_count > 0) {
+			$this->sendOrderEventNotifications('out_for_delivery', $order_ids);
+
 			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to out for delivery successfully.');
 
 			echo json_encode([
@@ -1745,6 +1798,8 @@ class Orders extends Vendor_base
 		}
 
 		if ($updated_count > 0) {
+			$this->sendOrderEventNotifications('order_delivered', $order_ids);
+
 			$this->session->set_flashdata('success', $updated_count . ' order(s) moved to delivered successfully.');
 
 			echo json_encode([
@@ -1830,6 +1885,8 @@ class Orders extends Vendor_base
 				'status_desc' => 'Order moved to processing',
 				'created_at' => $processing_date
 			));
+
+			$this->sendOrderEventNotifications('order_processed', [$order_id]);
 
 			echo json_encode([
 				'status' => '200',
@@ -3065,6 +3122,8 @@ class Orders extends Vendor_base
 				'created_at' => $shipment_date
 			));
 
+			$this->sendOrderEventNotifications('out_for_delivery', [$order_id]);
+
 			echo json_encode([
 				'status' => '200',
 				'message' => 'Order moved to out for delivery successfully.',
@@ -3168,6 +3227,8 @@ class Orders extends Vendor_base
 				'status_desc' => 'Order marked as ready to ship',
 				'created_at' => $ready_time
 			));
+
+			$this->sendOrderEventNotifications('order_shipped', [$order_id]);
 
 			echo json_encode([
 				'status' => '200',
@@ -3318,6 +3379,8 @@ class Orders extends Vendor_base
 				'status_desc' => 'Order delivered',
 				'created_at' => $delivery_date
 			));
+
+			$this->sendOrderEventNotifications('order_delivered', [$order_id]);
 
 			echo json_encode([
 				'status' => '200',

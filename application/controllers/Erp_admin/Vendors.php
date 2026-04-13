@@ -28,6 +28,7 @@ class Vendors extends Erp_base
 		$this->load->model('Erp_client_model');
 		$this->load->model('Erp_feature_model');
 		$this->load->model('Erp_user_model');
+		$this->load->model('Erp_vendor_notification_model');
 		$this->load->model('Vendor_sync_model');
 		$this->load->library('form_validation');
 		$this->load->library('Tenant');
@@ -348,6 +349,13 @@ class Vendors extends Erp_base
 		{
 			show_404();
 		}
+
+		// Load notification settings + templates (master DB)
+		$notification_settings = $this->Erp_vendor_notification_model->getSettings($vendor_id);
+		$email_templates = $this->Erp_vendor_notification_model->getEmailTemplates($vendor_id);
+		$whatsapp_templates = $this->Erp_vendor_notification_model->getWhatsappTemplates($vendor_id);
+		$sms_templates = $this->Erp_vendor_notification_model->getSmsTemplates($vendor_id);
+		$notification_events = $this->Erp_vendor_notification_model->getNotificationEvents(false);
 		
 		// Set validation rules
 		$this->form_validation->set_rules('name', 'Vendor Name', 'required|trim');
@@ -383,6 +391,42 @@ class Vendors extends Erp_base
 		$this->form_validation->set_rules('firebase_storage_bucket', 'Firebase Storage Bucket', 'trim');
 		$this->form_validation->set_rules('firebase_messaging_sender_id', 'Firebase Messaging Sender ID', 'trim');
 		$this->form_validation->set_rules('firebase_app_id', 'Firebase App ID', 'trim');
+
+		/* =====================================================
+		 * NOTIFICATIONS VALIDATION (Email/SMS/WhatsApp)
+		 * ===================================================== */
+		$notif = $this->input->post('notif');
+		$email_enabled = is_array($notif) && !empty($notif['email_enabled']);
+		$wa_enabled = is_array($notif) && !empty($notif['whatsapp_enabled']);
+		$sms_enabled = is_array($notif) && !empty($notif['sms_enabled']);
+
+		if ($email_enabled) {
+			$this->form_validation->set_rules('notif[email_smtp_host]', 'SMTP Host', 'required|trim');
+			$this->form_validation->set_rules('notif[email_smtp_port]', 'SMTP Port', 'required|trim|integer');
+			$this->form_validation->set_rules('notif[email_smtp_user]', 'SMTP Username', 'required|trim');
+			$this->form_validation->set_rules('notif[email_smtp_pass]', 'SMTP Password', 'required|trim');
+			$this->form_validation->set_rules('notif[email_from_email]', 'From Email', 'trim|valid_email');
+		} else {
+			$this->form_validation->set_rules('notif[email_from_email]', 'From Email', 'trim|valid_email');
+		}
+
+		if ($wa_enabled) {
+			$this->form_validation->set_rules('notif[whatsapp_endpoint_url]', 'WhatsApp Endpoint URL', 'required|trim');
+			$this->form_validation->set_rules('notif[whatsapp_headers_json]', 'WhatsApp Headers JSON', 'trim|callback_validate_json');
+			$this->form_validation->set_rules('notif[whatsapp_default_params_json]', 'WhatsApp Default Params JSON', 'trim|callback_validate_json');
+		} else {
+			$this->form_validation->set_rules('notif[whatsapp_headers_json]', 'WhatsApp Headers JSON', 'trim|callback_validate_json');
+			$this->form_validation->set_rules('notif[whatsapp_default_params_json]', 'WhatsApp Default Params JSON', 'trim|callback_validate_json');
+		}
+
+		if ($sms_enabled) {
+			$this->form_validation->set_rules('notif[sms_endpoint_url]', 'SMS Endpoint URL', 'required|trim');
+			$this->form_validation->set_rules('notif[sms_headers_json]', 'SMS Headers JSON', 'trim|callback_validate_json');
+			$this->form_validation->set_rules('notif[sms_default_params_json]', 'SMS Default Params JSON', 'trim|callback_validate_json');
+		} else {
+			$this->form_validation->set_rules('notif[sms_headers_json]', 'SMS Headers JSON', 'trim|callback_validate_json');
+			$this->form_validation->set_rules('notif[sms_default_params_json]', 'SMS Default Params JSON', 'trim|callback_validate_json');
+		}
 		
 		/* =====================================================
 		 * SHIPPING VALIDATION (Velocity Only)
@@ -488,6 +532,11 @@ class Vendors extends Erp_base
 			$data['vendor'] = $vendor;
 			$data['title'] = 'Edit Vendor';
 			$data['current_user'] = $this->current_user;
+			$data['notification_settings'] = $notification_settings;
+			$data['email_templates'] = $email_templates;
+			$data['whatsapp_templates'] = $whatsapp_templates;
+			$data['sms_templates'] = $sms_templates;
+			$data['notification_events'] = $notification_events;
 			
 			$shipping_records = $this->Erp_client_model->getShippingProviders($vendor_id);
 
@@ -750,6 +799,33 @@ class Vendors extends Erp_base
 				
 				
 				$update_shipping = $this->Erp_client_model->updateClientShipping($vendor_id);
+
+			// Save Notifications configuration
+			$notif_post = $this->input->post('notif');
+			if (!is_array($notif_post)) {
+				$notif_post = [];
+			}
+
+			$save_notif_ok = $this->Erp_vendor_notification_model->upsertSettings($vendor_id, $notif_post);
+
+			$templates_post = $this->input->post('wa_templates');
+			if (!is_array($templates_post)) {
+				$templates_post = [];
+			}
+			$save_tpl_ok = $this->Erp_vendor_notification_model->replaceWhatsappTemplates($vendor_id, $templates_post);
+
+			$sms_templates_post = $this->input->post('sms_templates');
+			if (!is_array($sms_templates_post)) {
+				$sms_templates_post = [];
+			}
+			$save_sms_tpl_ok = $this->Erp_vendor_notification_model->replaceSmsTemplates($vendor_id, $sms_templates_post);
+
+			// Email templates contain HTML; disable XSS cleaning for this input.
+			$email_templates_post = $this->input->post('email_templates', FALSE);
+			if (!is_array($email_templates_post)) {
+				$email_templates_post = [];
+			}
+			$save_email_tpl_ok = $this->Erp_vendor_notification_model->replaceEmailTemplates($vendor_id, $email_templates_post);
 				
 				// Update vendor user in erp_users table (non-critical, continue even if fails)
 				$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
@@ -956,13 +1032,17 @@ class Vendors extends Erp_base
 				// Consider update successful if:
 				// 1. Main update succeeded, OR
 				// 2. Features were updated (which means something changed)
-				if ($update_result || $features_updated)
+			if (($update_result || $features_updated) && $save_notif_ok && $save_tpl_ok && $save_sms_tpl_ok && $save_email_tpl_ok)
 				{
 					$this->session->set_flashdata('success', 'Vendor updated successfully.');
 					redirect('erp-admin/vendors');
 				}
 				else
 				{
+				if (!$save_notif_ok || !$save_tpl_ok || !$save_sms_tpl_ok || !$save_email_tpl_ok) {
+					$this->session->set_flashdata('error', 'Vendor updated but notifications configuration could not be saved.');
+					redirect('erp-admin/vendors/edit/' . $vendor_id);
+				}
 					// Check if there was a database error
 					$db_error = $this->db->error();
 					if (!empty($db_error['message']) && isset($db_error['code']) && $db_error['code'] != 0)
@@ -980,6 +1060,29 @@ class Vendors extends Erp_base
 					}
 				}
 			}
+
+		}
+
+	/**
+	 * Validate JSON text input (callback)
+	 * Allows empty strings.
+	 *
+	 * @param string $value
+	 * @return bool
+	 */
+	public function validate_json($value)
+	{
+		$value = trim((string)$value);
+		if ($value === '') {
+			return TRUE;
+		}
+		json_decode($value, TRUE);
+		if (json_last_error() === JSON_ERROR_NONE) {
+			return TRUE;
+		}
+
+		$this->form_validation->set_message('validate_json', 'The {field} field must be a valid JSON.');
+		return FALSE;
 	}
 	
 	/**
@@ -1984,5 +2087,143 @@ class Vendors extends Erp_base
 					'message' => 'Failed to update vendor status.'
 				]));
 		}
+	}
+
+	/**
+	 * Send test email (AJAX)
+	 *
+	 * @param int $vendor_id
+	 * @return void
+	 */
+	public function test_email($vendor_id)
+	{
+		$this->output->set_content_type('application/json');
+
+		if (!$this->hasPermission('vendors', 'update')) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Permission denied']));
+		}
+
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+		if (!$vendor) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Vendor not found']));
+		}
+
+		$to = trim((string)$this->input->post('email_to'));
+		if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Valid recipient email is required.']));
+		}
+
+		$this->load->library('Notification_sender');
+		$res = $this->notification_sender->sendEmail($vendor_id, $to, 'Test Email', '<p>This is a test email from ERP notifications.</p>');
+
+		return $this->output->set_output(json_encode([
+			'status' => !empty($res['success']) ? 'success' : 'error',
+			'message' => $res['message'] ?? 'Unknown response'
+		]));
+	}
+
+	/**
+	 * Send test WhatsApp (AJAX)
+	 *
+	 * @param int $vendor_id
+	 * @return void
+	 */
+	public function test_whatsapp($vendor_id)
+	{
+		$this->output->set_content_type('application/json');
+
+		if (!$this->hasPermission('vendors', 'update')) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Permission denied']));
+		}
+
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+		if (!$vendor) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Vendor not found']));
+		}
+
+		$mobile = preg_replace('/\s+/', '', (string)$this->input->post('mobile'));
+		$template_key = trim((string)$this->input->post('template_key'));
+
+		if ($mobile === '' || !preg_match('/^[0-9]{10,15}$/', $mobile)) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Valid mobile is required.']));
+		}
+		if ($template_key === '') {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Template key is required.']));
+		}
+
+		$this->load->library('Notification_sender');
+		$res = $this->notification_sender->sendWhatsapp($vendor_id, $mobile, $template_key, ['test' => '1']);
+
+		return $this->output->set_output(json_encode([
+			'status' => !empty($res['success']) ? 'success' : 'error',
+			'message' => $res['message'] ?? 'Unknown response',
+			'http_code' => $res['http_code'] ?? NULL,
+			'response' => $res['response'] ?? NULL,
+			'response_len' => $res['response_len'] ?? NULL,
+			'effective_url' => $res['effective_url'] ?? NULL
+		]));
+	}
+
+	/**
+	 * Send test SMS (AJAX)
+	 *
+	 * @param int $vendor_id
+	 * @return void
+	 */
+	public function test_sms($vendor_id)
+	{
+		$this->output->set_content_type('application/json');
+
+		if (!$this->hasPermission('vendors', 'update')) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Permission denied']));
+		}
+
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+		if (!$vendor) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Vendor not found']));
+		}
+
+		$mobile = preg_replace('/\s+/', '', (string)$this->input->post('mobile'));
+		$template_key = trim((string)$this->input->post('template_key'));
+		$vars_json = trim((string)$this->input->post('vars_json'));
+
+		if ($mobile === '' || !preg_match('/^[0-9]{10,15}$/', $mobile)) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Valid mobile is required.']));
+		}
+		if ($template_key === '') {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Template key is required.']));
+		}
+
+		$vars = [];
+		if ($vars_json !== '') {
+			$vars = json_decode($vars_json, TRUE);
+			if (json_last_error() !== JSON_ERROR_NONE || !is_array($vars)) {
+				return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Vars must be valid JSON.']));
+			}
+		}
+
+		// Convenience: if template uses {{otp}} and otp not provided, generate one for test
+		if (!isset($vars['otp'])) {
+			$templates = $this->Erp_vendor_notification_model->getSmsTemplates($vendor_id);
+			foreach ($templates as $t) {
+				if (!empty($t['is_active']) && isset($t['template_key']) && (string)$t['template_key'] === (string)$template_key) {
+					$msgTpl = (string)($t['message_template'] ?? '');
+					if (strpos($msgTpl, '{{otp}}') !== false || strpos($msgTpl, '{{ otp }}') !== false) {
+						$vars['otp'] = (string)rand(100000, 999999);
+					}
+					break;
+				}
+			}
+		}
+
+		$this->load->library('Notification_sender');
+		$res = $this->notification_sender->sendSmsTemplate($vendor_id, $mobile, $template_key, $vars);
+
+		return $this->output->set_output(json_encode([
+			'status' => !empty($res['success']) ? 'success' : 'error',
+			'message' => $res['message'] ?? 'Unknown response',
+			'otp' => isset($vars['otp']) ? $vars['otp'] : NULL,
+			'response' => $res['response'] ?? NULL
+		]));
 	}
 }

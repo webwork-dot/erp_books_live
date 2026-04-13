@@ -20,6 +20,177 @@ class Cron_model extends CI_Model {
         $this->load->model('Erp_client_model');
         $this->load->model('Vendor_sync_model');
     }
+
+	private function buildOrderVarsFromRow(array $row, $order_id)
+	{
+		$vars = [
+			'order_id' => (int)$order_id,
+			'order_unique_id' => $row['order_unique_id'] ?? '',
+			'order_date' => $row['order_date'] ?? '',
+			'customer_name' => $row['user_name'] ?? '',
+			'email_to' => $row['user_email'] ?? '',
+			'mobile' => $row['user_phone'] ?? '',
+			'payment_method' => $row['payment_method'] ?? '',
+			'payable_amt' => $row['payable_amt'] ?? ($row['total_amt'] ?? ''),
+			'order_amount' => $row['payable_amt'] ?? ($row['total_amt'] ?? ''),
+			'invoice_no' => $row['invoice_no'] ?? '',
+			'awb_no' => $row['awb_no'] ?? '',
+			'courier' => $row['courier'] ?? '',
+		];
+		return $vars;
+	}
+
+	/**
+	 * Send order_placed notifications for orders where is_mail_sent=0.
+	 * Marks is_mail_sent=1 only when Email was sent successfully.
+	 */
+	public function send_order_placed_notifications($vendor_id, $limit = 50)
+	{
+		$vendor_id = (int)$vendor_id;
+		$limit = (int)$limit;
+		if ($limit <= 0 || $limit > 500) $limit = 50;
+
+		$client_db = $this->getVendorDB($vendor_id);
+		if (!$client_db) {
+			return ['status' => 'error', 'message' => 'Vendor DB not available', 'processed' => 0];
+		}
+
+		// Pull orders eligible for confirmation (match existing Crud_model conditions)
+		$rows = $client_db->query(
+			"SELECT id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status,
+			        payable_amt, total_amt, invoice_no, awb_no, courier, is_mail_sent, user_id
+			 FROM tbl_order_details
+			 WHERE is_mail_sent = 0
+			   AND (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='payment_at_school')
+			 ORDER BY id ASC
+			 LIMIT ?",
+			[$limit]
+		)->result_array();
+
+		if (empty($rows)) {
+			return ['status' => 'ok', 'processed' => 0, 'email_sent' => 0, 'email_marked' => 0];
+		}
+
+		$this->load->library('Notification_sender');
+
+		$processed = 0;
+		$email_sent = 0;
+		$email_marked = 0;
+		$errors = [];
+
+		foreach ($rows as $r) {
+			$order_id = (int)($r['id'] ?? 0);
+			if ($order_id <= 0) continue;
+			$processed++;
+
+			$vars = $this->buildOrderVarsFromRow($r, $order_id);
+			// If order table doesn't store user_email, resolve from users table.
+			if (empty($vars['email_to']) && !empty($r['user_id'])) {
+				$u = $client_db->select('email')->from('users')->where('id', (int)$r['user_id'])->limit(1)->get()->row_array();
+				if ($u && !empty($u['email'])) {
+					$vars['email_to'] = (string)$u['email'];
+				}
+			}
+			$res = $this->notification_sender->sendEvent($vendor_id, 'order_placed', $vars);
+
+			$emailOk = !empty($res['results']['email']['success']);
+			// Do not send static email content; email body/subject must come from vendor templates.
+			if ($emailOk) {
+				$email_sent++;
+
+				$client_db->where('id', $order_id);
+				$client_db->update('tbl_order_details', [
+					'is_mail_sent' => 1,
+					'is_mail_date' => date('Y-m-d H:i:s'),
+				]);
+				if ($client_db->affected_rows() > 0) {
+					$email_marked++;
+				}
+			} else {
+				$errors[] = [
+					'order_id' => $order_id,
+					'message' => $res['results']['email']['message'] ?? ($res['message'] ?? 'Email not sent'),
+					'debug' => $res['results']['email']['debug'] ?? null,
+				];
+			}
+		}
+
+		return [
+			'status' => 'ok',
+			'processed' => $processed,
+			'email_sent' => $email_sent,
+			'email_marked' => $email_marked,
+			'errors' => $errors,
+		];
+	}
+
+	/**
+	 * Send order_placed notifications for all active vendors.
+	 */
+	public function send_order_placed_notifications_all($limit_per_vendor = 50)
+	{
+		$limit_per_vendor = (int)$limit_per_vendor;
+		if ($limit_per_vendor <= 0 || $limit_per_vendor > 500) $limit_per_vendor = 50;
+
+		$vendors = $this->db
+			->select('id')
+			->from('erp_clients')
+			->where('status', 'active')
+			->order_by('id', 'asc')
+			->get()
+			->result_array();
+
+		$vendors_processed = 0;
+		$orders_processed = 0;
+		$email_sent = 0;
+		$email_marked = 0;
+		$errors = [];
+
+		foreach ($vendors as $v) {
+			$vendor_id = (int)($v['id'] ?? 0);
+			if ($vendor_id <= 0) continue;
+			$vendors_processed++;
+
+			$res = $this->send_order_placed_notifications($vendor_id, $limit_per_vendor);
+			$orders_processed += (int)($res['processed'] ?? 0);
+			$email_sent += (int)($res['email_sent'] ?? 0);
+			$email_marked += (int)($res['email_marked'] ?? 0);
+
+			if (!empty($res['errors']) && is_array($res['errors'])) {
+				foreach ($res['errors'] as $e) {
+					$e['vendor_id'] = $vendor_id;
+					$errors[] = $e;
+				}
+			}
+		}
+
+		return [
+			'status' => 'ok',
+			'vendors_processed' => $vendors_processed,
+			'orders_processed' => $orders_processed,
+			'email_sent' => $email_sent,
+			'email_marked' => $email_marked,
+			'errors' => $errors,
+		];
+	}
+
+	/**
+	 * Send order_placed notifications for a single vendor database_name.
+	 */
+	public function send_order_placed_notifications_by_db($database_name, $limit = 50)
+	{
+		$database_name = trim((string)$database_name);
+		if ($database_name === '' || !preg_match('/^[a-zA-Z0-9_]+$/', $database_name)) {
+			return ['status' => 'error', 'message' => 'Invalid database key'];
+		}
+
+		$vendor = $this->Erp_client_model->getClientByDatabaseName($database_name);
+		if (!$vendor || empty($vendor['id'])) {
+			return ['status' => 'error', 'message' => 'Vendor not found for database'];
+		}
+
+		return $this->send_order_placed_notifications((int)$vendor['id'], $limit);
+	}
 		
 	
 	private function getVendorDB($vendor_id)   {

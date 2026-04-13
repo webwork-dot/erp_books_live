@@ -23,6 +23,12 @@ $route['erp-admin/vendors/create_database/(:num)'] = 'Erp_admin/vendors/create_d
 $route['erp-admin/vendors/fix_foreign_keys/(:num)'] = 'Erp_admin/vendors/fix_foreign_keys/$1';
 $route['erp-admin/vendors/sync_features/(:num)'] = 'Erp_admin/vendors/sync_features/$1';
 $route['erp-admin/vendors/sync_vendor_data/(:num)'] = 'Erp_admin/vendors/sync_vendor_data/$1';
+$route['erp-admin/vendors/test_email/(:num)'] = 'Erp_admin/vendors/test_email/$1';
+$route['erp-admin/vendors/test_whatsapp/(:num)'] = 'Erp_admin/vendors/test_whatsapp/$1';
+$route['erp-admin/vendors/test_sms/(:num)'] = 'Erp_admin/vendors/test_sms/$1';
+$route['erp-admin/notification-templates'] = 'Erp_admin/notification_templates/index';
+$route['erp-admin/notification-templates/save_event'] = 'Erp_admin/notification_templates/save_event';
+$route['erp-admin/notification-templates/delete_event/(:num)'] = 'Erp_admin/notification_templates/delete_event/$1';
 $route['erp-admin/features'] = 'Erp_admin/features';
 $route['erp-admin/features/add'] = 'Erp_admin/features/add';
 $route['erp-admin/features/edit/(:num)'] = 'Erp_admin/features/edit/$1';
@@ -203,6 +209,9 @@ $route['cron/shiprocket_token/(:any)'] = 'cron/shiprocket_token/$1';
 $route['cron/bigship_tracking/(:any)'] = 'cron/bigship_tracking/$1';
 $route['cron/velocity_tracking/(:any)'] = 'cron/velocity_tracking/$1';
 $route['cron/shiprocket_tracking/(:any)'] = 'cron/shiprocket_tracking/$1';
+$route['cron/send_order_placed_notifications/db/(:any)'] = 'cron/send_order_placed_notifications_db/$1';
+$route['cron/send_order_placed_notifications'] = 'cron/send_order_placed_notifications';
+$route['cron/send_order_placed_notifications/(:any)'] = 'cron/send_order_placed_notifications_secured/$1';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';

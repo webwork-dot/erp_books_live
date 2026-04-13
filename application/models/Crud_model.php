@@ -5861,7 +5861,50 @@ class Crud_model extends CI_Model{
 			$attachment='';
 			$page_data['data'] = $order;
 			$message = $this->load->view('emails/order_summary',$page_data,TRUE);
-			if($this->auth_model->sent_mail_attach($message,$email,$subject,$attachment)){
+			
+			$mail_sent = FALSE;
+			
+			// Prefer vendor Notifications SMTP if configured (falls back to existing mail sender)
+			$vendor_id = NULL;
+			$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+			if (strpos($http_host, ':') !== false) {
+				$http_host = substr($http_host, 0, strpos($http_host, ':'));
+			}
+			if (!empty($http_host) && strpos($http_host, 'localhost') === false && strpos($http_host, '127.0.0.1') === false) {
+				$this->load->model('Erp_client_model');
+				$vendor = $this->Erp_client_model->getClientByDomain($http_host);
+				if ($vendor && isset($vendor['id'])) {
+					$vendor_id = (int)$vendor['id'];
+				}
+			}
+			
+			if ($vendor_id) {
+				$this->load->library('Notification_sender');
+				$vars = [
+					'email_to' => $email,
+					'mobile' => $order['user_mobile'] ?? ($order['user_phone'] ?? ''),
+					'customer_name' => $order['user_name'] ?? ($order['user_fullname'] ?? ''),
+					'order_unique_id' => $order['order_unique_id'] ?? '',
+					'order_id' => $order_id,
+					'total_amt' => $order['total_amt'] ?? '',
+					'subject_default' => $subject,
+				];
+
+				$eventRes = $this->notification_sender->sendEvent($vendor_id, 'order_placed', $vars);
+				$mail_sent = !empty($eventRes['results']['email']['success']);
+
+				// If no master template mapping exists for email, fallback to vendor SMTP sendEmail
+				if (!$mail_sent) {
+					$res = $this->notification_sender->sendEmail($vendor_id, $email, $subject, $message);
+					$mail_sent = !empty($res['success']);
+				}
+			}
+			
+			if (!$mail_sent) {
+				$mail_sent = (bool)$this->auth_model->sent_mail_attach($message,$email,$subject,$attachment);
+			}
+			
+			if($mail_sent){
 			   $data = array();
 			   $data = array(
 					'is_mail_sent' => 1,
