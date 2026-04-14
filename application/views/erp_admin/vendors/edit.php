@@ -108,6 +108,7 @@
   border-radius: 2px;
 }
 
+
 .notif-sidebar .list-group-item {
   border: 1px solid transparent;
   border-radius: 0.75rem;
@@ -120,6 +121,23 @@
   align-items: center;
   gap: 0.65rem;
   transition: all 0.15s ease;
+}
+.notif-sidebar .list-group {
+  display: flex;
+  flex-direction: row !important;
+  gap: 0.6rem;
+}
+.notif-sidebar .list-group-item {
+  width: 33.33%;
+  flex: 0 0 auto;
+}
+.notif-sidebar .list-group-item span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.notif-sidebar .list-group-item .small {
+  display: none; /* keep tabs compact in horizontal mode */
 }
 .notif-sidebar .list-group-item.active {
   background: #3550dc;
@@ -140,15 +158,19 @@
   border-radius: 1rem;
 }
 .notif-shell .notif-left {
-  border-right: 1px solid #eef2ff;
+  border-right: none;
+  border-bottom: 1px solid #eef2ff;
   background: rgba(255,255,255,0.65);
   border-top-left-radius: 1rem;
-  border-bottom-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  border-bottom-left-radius: 0;
 }
 .notif-shell .notif-right {
   background: #ffffff;
   border-top-right-radius: 1rem;
   border-bottom-right-radius: 1rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 1rem;
 }
 .notif-kicker {
   font-size: 0.8rem;
@@ -1280,7 +1302,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             <div class="notif-shell">
               <div class="row g-0">
-                <div class="col-lg-3 notif-left p-3">
+                <div class="col-12 notif-left p-3">
                   <div class="notif-sidebar">
                     <div class="list-group" id="notifChannelList">
                       <button type="button" class="list-group-item list-group-item-action active" data-channel="email">
@@ -1308,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', function () {
                   </div>
                 </div>
 
-                <div class="col-lg-9 notif-right p-3 p-md-4">
+                <div class="col-12 notif-right p-3 p-md-4">
                 <!-- Email panel -->
                 <div class="notif-panel active" id="notif_email">
                   <div class="notif-panel-card">

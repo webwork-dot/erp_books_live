@@ -14,7 +14,8 @@ class Notification_sender
 	public function __construct()
 	{
 		$this->CI =& get_instance();
-		$this->CI->load->model('Erp_vendor_notification_model');
+		// Runtime must use vendor DB only
+		$this->CI->load->model('Erp_vendor_notification_vendor_model');
 		$this->CI->load->library('email');
 	}
 
@@ -37,7 +38,7 @@ class Notification_sender
 			return ['success' => false, 'message' => 'Invalid vendor_id or event_key.'];
 		}
 
-		$event = $this->CI->Erp_vendor_notification_model->getNotificationEventByKey($event_key);
+		$event = $this->CI->Erp_vendor_notification_vendor_model->getNotificationEventByKey($vendor_id, $event_key);
 		if (!$event || empty($event['id'])) {
 			log_message('error', 'Notification_sender: event not found or inactive. vendor_id=' . $vendor_id . ' event_key=' . $event_key);
 			return ['success' => false, 'message' => 'Event not found or inactive.'];
@@ -54,7 +55,7 @@ class Notification_sender
 		];
 
 		// Email (supports separate user + vendor templates per event_key)
-		$emailTpls = $this->CI->Erp_vendor_notification_model->getEmailTemplates($vendor_id);
+		$emailTpls = $this->CI->Erp_vendor_notification_vendor_model->getEmailTemplates($vendor_id);
 		$userTpl = null;
 		$vendorTpl = null;
 		foreach ($emailTpls as $t) {
@@ -72,6 +73,8 @@ class Notification_sender
 
 		$out['results']['email_user'] = null;
 		$out['results']['email_vendor'] = null;
+		// Backward compatibility: older code expects $res['results']['email']
+		$out['results']['email'] = null;
 
 		// User email
 		if ($userTpl) {
@@ -83,12 +86,14 @@ class Notification_sender
 				$cc = (string)($userTpl['cc_emails'] ?? '');
 				$res = $this->sendEmail($vendor_id, $to, $subject, $html, [], $cc);
 				$out['results']['email_user'] = $res;
+				$out['results']['email'] = $res;
 				if (empty($res['success'])) {
 					$out['success'] = false;
 					log_message('error', 'Notification_sender: user email send failed. vendor_id=' . $vendor_id . ' event_key=' . $event_key . ' to=' . $to . ' message=' . ($res['message'] ?? ''));
 				}
 			} else {
 				$out['results']['email_user'] = ['success' => false, 'message' => 'Missing email_to for email channel.'];
+				$out['results']['email'] = $out['results']['email_user'];
 				$out['success'] = false;
 				log_message('error', 'Notification_sender: missing email_to (user). vendor_id=' . $vendor_id . ' event_key=' . $event_key);
 			}
@@ -121,7 +126,7 @@ class Notification_sender
 
 		// WhatsApp (vendor WhatsApp templates mapped by event_key)
 		$waTpl = null;
-		$waTpls = $this->CI->Erp_vendor_notification_model->getWhatsappTemplates($vendor_id);
+		$waTpls = $this->CI->Erp_vendor_notification_vendor_model->getWhatsappTemplates($vendor_id);
 		foreach ($waTpls as $t) {
 			if (!empty($t['is_active']) && isset($t['event_key']) && (string)$t['event_key'] === (string)$event_key) {
 				$waTpl = $t;
@@ -142,7 +147,7 @@ class Notification_sender
 
 		// SMS (vendor SMS templates mapped by event_key)
 		$smsTpl = null;
-		$smsTpls = $this->CI->Erp_vendor_notification_model->getSmsTemplates($vendor_id);
+		$smsTpls = $this->CI->Erp_vendor_notification_vendor_model->getSmsTemplates($vendor_id);
 		foreach ($smsTpls as $t) {
 			if (!empty($t['is_active']) && isset($t['event_key']) && (string)$t['event_key'] === (string)$event_key) {
 				$smsTpl = $t;
@@ -167,7 +172,7 @@ class Notification_sender
 
 	public function sendEmail($vendor_id, $to, $subject, $html, $attachments = [], $cc = '')
 	{
-		$settings = $this->CI->Erp_vendor_notification_model->getSettings($vendor_id);
+		$settings = $this->CI->Erp_vendor_notification_vendor_model->getSettings($vendor_id);
 		if (empty($settings) || empty($settings['email_enabled'])) {
 			return ['success' => false, 'message' => 'Email is not configured for this vendor.'];
 		}
@@ -262,7 +267,7 @@ class Notification_sender
 
 	public function sendWhatsapp($vendor_id, $mobile, $template_key, $variables = [], $media_url = NULL)
 	{
-		$settings = $this->CI->Erp_vendor_notification_model->getSettings($vendor_id);
+		$settings = $this->CI->Erp_vendor_notification_vendor_model->getSettings($vendor_id);
 		if (empty($settings) || empty($settings['whatsapp_enabled'])) {
 			return ['success' => false, 'message' => 'WhatsApp is not configured for this vendor.'];
 		}
@@ -272,7 +277,7 @@ class Notification_sender
 			return ['success' => false, 'message' => 'WhatsApp endpoint URL is missing.'];
 		}
 
-		$templates = $this->CI->Erp_vendor_notification_model->getWhatsappTemplates($vendor_id);
+		$templates = $this->CI->Erp_vendor_notification_vendor_model->getWhatsappTemplates($vendor_id);
 		$template = NULL;
 		foreach ($templates as $t) {
 			if (!empty($t['is_active']) && isset($t['template_key']) && (string)$t['template_key'] === (string)$template_key) {
@@ -326,7 +331,7 @@ class Notification_sender
 
 	public function sendSms($vendor_id, $mobile, $message, $variables = [])
 	{
-		$settings = $this->CI->Erp_vendor_notification_model->getSettings($vendor_id);
+		$settings = $this->CI->Erp_vendor_notification_vendor_model->getSettings($vendor_id);
 		if (empty($settings) || empty($settings['sms_enabled'])) {
 			return ['success' => false, 'message' => 'SMS is not configured for this vendor.'];
 		}
@@ -368,7 +373,7 @@ class Notification_sender
 
 	public function sendSmsTemplate($vendor_id, $mobile, $template_key, $variables = [])
 	{
-		$templates = $this->CI->Erp_vendor_notification_model->getSmsTemplates($vendor_id);
+		$templates = $this->CI->Erp_vendor_notification_vendor_model->getSmsTemplates($vendor_id);
 		$template = NULL;
 		foreach ($templates as $t) {
 			if (!empty($t['is_active']) && isset($t['template_key']) && (string)$t['template_key'] === (string)$template_key) {

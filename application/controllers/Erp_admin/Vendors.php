@@ -833,6 +833,14 @@ class Vendors extends Erp_base
 			$save_email_tpl_ok = $this->Erp_vendor_notification_model->upsertEmailTemplates($vendor_id, $email_templates_post);
 			$delete_email_tpl_ok = $this->Erp_vendor_notification_model->deleteEmailTemplatesByEventKeys($vendor_id, $email_templates_deleted);
 			$save_email_tpl_ok = (bool)$save_email_tpl_ok && (bool)$delete_email_tpl_ok;
+
+			// Sync notification settings/templates/events to vendor DB (runtime uses vendor DB only)
+			$this->load->model('Erp_vendor_notification_vendor_model');
+			$sync_ok = $this->Erp_vendor_notification_vendor_model->syncFromMaster($vendor_id, true);
+			if (!$sync_ok) {
+				$err = $this->Erp_vendor_notification_vendor_model->getLastError();
+				log_message('error', 'Failed to sync notifications to vendor DB for vendor_id=' . $vendor_id . ($err ? ' error=' . $err : ''));
+			}
 				
 				// Update vendor user in erp_users table (non-critical, continue even if fails)
 				$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
@@ -1039,14 +1047,14 @@ class Vendors extends Erp_base
 				// Consider update successful if:
 				// 1. Main update succeeded, OR
 				// 2. Features were updated (which means something changed)
-			if (($update_result || $features_updated) && $save_notif_ok && $save_tpl_ok && $save_sms_tpl_ok && $save_email_tpl_ok)
+			if (($update_result || $features_updated) && $save_notif_ok && $save_tpl_ok && $save_sms_tpl_ok && $save_email_tpl_ok && $sync_ok)
 				{
 					$this->session->set_flashdata('success', 'Vendor updated successfully.');
 					redirect('erp-admin/vendors');
 				}
 				else
 				{
-				if (!$save_notif_ok || !$save_tpl_ok || !$save_sms_tpl_ok || !$save_email_tpl_ok) {
+				if (!$save_notif_ok || !$save_tpl_ok || !$save_sms_tpl_ok || !$save_email_tpl_ok || !$sync_ok) {
 					$this->session->set_flashdata('error', 'Vendor updated but notifications configuration could not be saved.');
 					redirect('erp-admin/vendors/edit/' . $vendor_id);
 				}
@@ -2317,5 +2325,32 @@ class Vendors extends Erp_base
 			'otp' => isset($vars['otp']) ? $vars['otp'] : NULL,
 			'response' => $res['response'] ?? NULL
 		]));
+	}
+
+	/**
+	 * Sync vendor notification configuration from master DB to vendor DB (manual re-sync)
+	 *
+	 * @param int $vendor_id
+	 * @return void
+	 */
+	public function sync_notifications($vendor_id)
+	{
+		if (!$this->hasPermission('vendors', 'update')) {
+			show_error('Permission denied', 403);
+		}
+
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+		if (!$vendor) {
+			show_404();
+		}
+
+		$this->load->model('Erp_vendor_notification_vendor_model');
+		$ok = $this->Erp_vendor_notification_vendor_model->syncFromMaster($vendor_id, true);
+		if ($ok) {
+			$this->session->set_flashdata('success', 'Notifications synced to vendor database successfully.');
+		} else {
+			$this->session->set_flashdata('error', 'Failed to sync notifications to vendor database.');
+		}
+		redirect('erp-admin/vendors/edit/' . $vendor_id);
 	}
 }
