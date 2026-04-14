@@ -78,13 +78,18 @@ class Erp_vendor_notification_model extends CI_Model
 			->result_array();
 	}
 
-	public function replaceEmailTemplates($vendor_id, array $templates)
+	/**
+	 * Upsert vendor email templates by event_key.
+	 *
+	 * - Inserts new templates for new event_keys
+	 * - Updates existing templates for same event_key
+	 * - Does NOT delete other templates (use deleteEmailTemplatesByEventKeys)
+	 */
+	public function upsertEmailTemplates($vendor_id, array $templates)
 	{
 		$vendor_id = (int)$vendor_id;
 
 		$this->db->trans_start();
-		$this->db->where('vendor_id', $vendor_id)->delete('erp_vendor_email_templates');
-
 		foreach ($templates as $t) {
 			$event_key = isset($t['event_key']) ? trim((string)$t['event_key']) : '';
 			$email_subject = isset($t['email_subject']) ? trim((string)$t['email_subject']) : '';
@@ -93,17 +98,49 @@ class Erp_vendor_notification_model extends CI_Model
 				continue;
 			}
 
-			$this->db->insert('erp_vendor_email_templates', [
+			$payload = [
 				'vendor_id' => $vendor_id,
 				'event_key' => $event_key,
 				'email_subject' => $email_subject,
 				'email_html' => $email_html,
 				'is_active' => isset($t['is_active']) ? (int)(!!$t['is_active']) : 1,
-			]);
+			];
+
+			$existing = $this->db
+				->select('id')
+				->where('vendor_id', $vendor_id)
+				->where('event_key', $event_key)
+				->get('erp_vendor_email_templates')
+				->row_array();
+
+			if ($existing && !empty($existing['id'])) {
+				$this->db->where('id', (int)$existing['id']);
+				$this->db->update('erp_vendor_email_templates', $payload);
+			} else {
+				$this->db->insert('erp_vendor_email_templates', $payload);
+			}
 		}
 
 		$this->db->trans_complete();
 		return $this->db->trans_status();
+	}
+
+	public function deleteEmailTemplatesByEventKeys($vendor_id, array $event_keys)
+	{
+		$vendor_id = (int)$vendor_id;
+		if ($vendor_id <= 0) return false;
+
+		$keys = [];
+		foreach ($event_keys as $k) {
+			$k = trim((string)$k);
+			if ($k !== '') $keys[] = $k;
+		}
+		$keys = array_values(array_unique($keys));
+		if (empty($keys)) return true;
+
+		$this->db->where('vendor_id', $vendor_id);
+		$this->db->where_in('event_key', $keys);
+		return (bool)$this->db->delete('erp_vendor_email_templates');
 	}
 
 	public function getSmsTemplates($vendor_id)

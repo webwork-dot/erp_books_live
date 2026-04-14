@@ -1595,10 +1595,15 @@ function applyCourierFilter(courierFilter) {
     });
 }
 
-// On page load: apply default Self Delivery filter so 3rd party orders don't appear until tab clicked
+// On page load: apply filter for whichever courier tab is active (prevents mixed rows initially)
 $(document).ready(function(){
-    if ($('#courierFilterTabs').length && $('#tab-self-delivery').hasClass('active')) {
-        applyCourierFilter('manual');
+    if (!$('#courierFilterTabs').length) return;
+
+    var $activeTab = $('#courierFilterTabs button[data-courier-filter].active').first();
+    var courierFilter = $activeTab.data('courier-filter');
+
+    if (courierFilter) {
+        applyCourierFilter(courierFilter);
     }
 });
 

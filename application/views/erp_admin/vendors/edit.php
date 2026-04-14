@@ -8,6 +8,7 @@
 <!-- End Breadcrumb -->
 
 <?php echo form_open_multipart('erp-admin/vendors/edit/' . $vendor['id']); ?>
+<div id="emailTemplatesDeletedWrap"></div>
 
 <!-- Vendor Edit Tabs -->
 <style>
@@ -2291,6 +2292,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Email templates add/remove
   var emailAddRowBtn = document.getElementById('emailAddRow');
   var emailRows = document.getElementById('emailTemplateRows');
+  var emailDeletedWrap = document.getElementById('emailTemplatesDeletedWrap');
   function emailNextIndex() {
     if (!emailRows) return 0;
     var inputs = emailRows.querySelectorAll('input[name^=\"email_templates[\"]');
@@ -2306,6 +2308,17 @@ document.addEventListener('DOMContentLoaded', function() {
     emailRows.querySelectorAll('.email-remove-row').forEach(function(btn) {
       btn.onclick = function() {
         var tr = this.closest('tr');
+        if (tr && emailDeletedWrap) {
+          var sel = tr.querySelector('select[name^="email_templates["][name$="[event_key]"]');
+          var eventKey = sel ? (sel.value || '').trim() : '';
+          if (eventKey !== '') {
+            var hid = document.createElement('input');
+            hid.type = 'hidden';
+            hid.name = 'email_templates_deleted[]';
+            hid.value = eventKey;
+            emailDeletedWrap.appendChild(hid);
+          }
+        }
         if (tr) tr.remove();
       };
     });

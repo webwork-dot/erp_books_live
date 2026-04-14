@@ -34,18 +34,227 @@ class Orders extends Vendor_base
 
 	private function buildOrderVarsFromRow(array $row, $order_id)
 	{
-		return [
+		$vendor_id = (int)($this->current_vendor['id'] ?? 0);
+		$vendor_domain = trim((string)($this->current_vendor['domain'] ?? ''), " \t\n\r\0\x0B./");
+
+		$vars = [
 			'order_id' => (int)$order_id,
 			'order_unique_id' => $row['order_unique_id'] ?? '',
+			'order_date' => $row['order_date'] ?? '',
+			'payment_status' => $row['payment_status'] ?? '',
+
+			// Common aliases (match template token names)
+			'user_name' => $row['user_name'] ?? '',
+			'user_email' => $row['user_email'] ?? '',
+			'user_phone' => $row['user_phone'] ?? '',
+
 			'customer_name' => $row['user_name'] ?? '',
 			'email_to' => $row['user_email'] ?? '',
 			'mobile' => $row['user_phone'] ?? '',
+
 			'payment_method' => $row['payment_method'] ?? '',
 			'payable_amt' => $row['payable_amt'] ?? ($row['total_amt'] ?? ''),
 			'invoice_no' => $row['invoice_no'] ?? '',
 			'awb_no' => $row['awb_no'] ?? '',
 			'courier' => $row['courier'] ?? '',
 		];
+
+		// Shipping (tbl_order_address)
+		$ship = $this->db->select('*')->from('tbl_order_address')->where('order_id', (int)$order_id)->order_by('id', 'ASC')->limit(1)->get()->row_array();
+		if (!empty($ship)) {
+			$vars['shipping_name'] = (string)($ship['name'] ?? '');
+			$vars['shipping_phone'] = (string)($ship['mobile_no'] ?? '');
+			$vars['shipping_address'] = (string)($ship['address'] ?? '');
+			$vars['shipping_city'] = (string)($ship['city'] ?? '');
+			$vars['shipping_state'] = (string)($ship['state'] ?? '');
+			$vars['shipping_pincode'] = (string)($ship['pincode'] ?? '');
+		} else {
+			$vars['shipping_name'] = (string)($row['user_name'] ?? '');
+			$vars['shipping_phone'] = (string)($row['user_phone'] ?? '');
+			$vars['shipping_address'] = '';
+			$vars['shipping_city'] = '';
+			$vars['shipping_state'] = '';
+			$vars['shipping_pincode'] = '';
+		}
+
+		// Items (tbl_order_items) + HTML rows for {order_items}
+		$items = $this->db->select('product_id, product_title, product_qty, product_price, total_price, variation_name, thumbnail_img, order_type, size_id, f_name, grade, school_id, branch_id, grade_id, board_id')
+			->from('tbl_order_items')
+			->where('order_id', (int)$order_id)
+			->order_by('id', 'ASC')
+			->get()->result_array();
+
+		$total_qty = 0;
+		$subtotal = 0;
+		$order_items_html = '';
+
+		$this->load->helper('common_helper');
+
+		foreach ($items as $it) {
+			$qty = (int)($it['product_qty'] ?? 1);
+			if ($qty <= 0) $qty = 1;
+			$total_qty += $qty;
+
+			$unit_price = (float)($it['product_price'] ?? 0);
+			$row_total = (float)($it['total_price'] ?? 0);
+			if ($row_total <= 0 && $unit_price > 0) $row_total = $unit_price * $qty;
+			$subtotal += $row_total;
+
+			$name = (string)($it['product_title'] ?? '');
+			$size = (string)($it['variation_name'] ?? '');
+
+			// Image: prefer order item thumbnail_img, else lookup product_images/erp_product_images.
+			$img_url = '';
+			$thumb = (string)($it['thumbnail_img'] ?? '');
+			if ($thumb !== '') {
+				// Always use vendor storefront domain for email images.
+				if (stripos($thumb, 'http://') === 0 || stripos($thumb, 'https://') === 0) {
+					$u = @parse_url($thumb);
+					$path = isset($u['path']) ? $u['path'] : '';
+					$query = isset($u['query']) ? ('?' . $u['query']) : '';
+					$img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain) : '') . $path . $query;
+				} else {
+					$img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($thumb, '/');
+				}
+			} else {
+				$pid = (int)($it['product_id'] ?? 0);
+				if ($pid > 0) {
+					if ($this->db->table_exists('erp_product_images')) {
+						$img = $this->db->select('image')->from('erp_product_images')->where('product_id', $pid)->where('vendor_id', $vendor_id)->order_by('is_main', 'DESC')->order_by('image_order', 'ASC')->limit(1)->get()->row_array();
+						if (!empty($img['image'])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img['image'], '/');
+					}
+					if ($img_url === '' && $this->db->table_exists('product_images')) {
+						$img = $this->db->select('image')->from('product_images')->where('product_id', $pid)->order_by('is_main', 'DESC')->order_by('id', 'ASC')->limit(1)->get()->row_array();
+						if (!empty($img['image'])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img['image'], '/');
+					}
+				}
+			}
+			// Ensure https scheme.
+			if (stripos($img_url, 'http://') === 0) $img_url = 'https://' . substr($img_url, 7);
+
+			$img_cell = '';
+			if ($img_url !== '') {
+				$img_cell = '<img src="' . htmlspecialchars($img_url) . '" width="48" height="48" style="display:block;object-fit:cover;border:1px solid #e5e7eb;" alt="">';
+			}
+
+			$order_items_html .= '<tr>'
+				. '<td style="padding:8px;border-bottom:1px solid #f1f5f9;">'
+				. '<table cellpadding="0" cellspacing="0" border="0"><tr>'
+				. '<td style="padding-right:10px;vertical-align:top;">' . $img_cell . '</td>'
+				. '<td style="vertical-align:top;"><div style="font-weight:600;">' . htmlspecialchars($name) . '</div></td>'
+				. '</tr></table>'
+				. '</td>'
+				. '<td style="padding:8px;border-bottom:1px solid #f1f5f9;">' . htmlspecialchars($size) . '</td>'
+				. '<td align="center" style="padding:8px;border-bottom:1px solid #f1f5f9;">' . (int)$qty . '</td>'
+				. '<td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;">' . htmlspecialchars((string)$row_total) . '</td>'
+				. '</tr>';
+		}
+
+		$vars['order_items'] = $order_items_html;
+		$vars['total_qty'] = $total_qty;
+		$vars['subtotal'] = $subtotal;
+		$vars['delivery_charge'] = $row['delivery_charge'] ?? '';
+		$vars['discount_amt'] = $row['discount_amt'] ?? '';
+		$vars['currency_code'] = $row['currency_code'] ?? ($row['currency'] ?? '');
+		$vars['vendor_name'] = $this->current_vendor['name'] ?? '';
+
+		// School/Board/Grade/Child: try from children_data JSON first, then from order items (bookset/uniform).
+		$vars['school_name'] = '';
+		$vars['board_name'] = '';
+		$vars['grade_name'] = '';
+		$vars['child_name'] = '';
+		$vars['child_class'] = '';
+		$vars['child_section'] = '';
+		$school_id_for_board = 0;
+
+		if (!empty($row['children_data'])) {
+			$parsed = json_decode((string)$row['children_data'], true);
+			if (is_array($parsed) && !empty($parsed)) {
+				$first = $parsed[0];
+				if (is_array($first)) {
+					$vars['child_name'] = (string)($first['name'] ?? ($first['childName'] ?? ''));
+					$vars['child_class'] = (string)($first['grade'] ?? ($first['class'] ?? ''));
+					$vars['child_section'] = (string)($first['section'] ?? '');
+				}
+			}
+		}
+
+		// Bookset: fetch school/grade/board names from IDs in first bookset item (if present).
+		foreach ($items as $it) {
+			$otype = strtolower((string)($it['order_type'] ?? ''));
+			if ($otype === 'bookset' || $otype === 'package') {
+				$school_id = (int)($it['school_id'] ?? 0);
+				$grade_id = (int)($it['grade_id'] ?? 0);
+				$board_id = (int)($it['board_id'] ?? 0);
+				if ($school_id_for_board <= 0 && $school_id > 0) $school_id_for_board = $school_id;
+
+				if ($vars['school_name'] === '' && $school_id > 0 && $this->db->table_exists('erp_schools')) {
+					$s = $this->db->select('school_name')->from('erp_schools')->where('id', $school_id)->limit(1)->get()->row_array();
+					if (!empty($s['school_name'])) $vars['school_name'] = (string)$s['school_name'];
+				}
+				if ($vars['grade_name'] === '' && $grade_id > 0 && $this->db->table_exists('erp_textbook_grades')) {
+					$g = $this->db->select('name as grade_name')->from('erp_textbook_grades')->where('id', $grade_id)->limit(1)->get()->row_array();
+					if (!empty($g['grade_name'])) $vars['grade_name'] = (string)$g['grade_name'];
+				}
+				if ($vars['board_name'] === '' && $board_id > 0 && $this->db->table_exists('erp_school_boards')) {
+					$b = $this->db->select('board_name')->from('erp_school_boards')->where('id', $board_id)->limit(1)->get()->row_array();
+					if (!empty($b['board_name'])) $vars['board_name'] = (string)$b['board_name'];
+				}
+
+				// Student name for bookset if stored in order items
+				if ($vars['child_name'] === '') {
+					$fn = trim((string)($it['f_name'] ?? ''));
+					if ($fn !== '') $vars['child_name'] = $fn;
+				}
+				break;
+			}
+		}
+
+		// Uniform / school delivery: if school is still missing, try branch_id/school_id from first item.
+		if ($vars['school_name'] === '') {
+			foreach ($items as $it) {
+				$branch_id = (int)($it['branch_id'] ?? 0);
+				$school_id = (int)($it['school_id'] ?? 0);
+				if ($school_id_for_board <= 0 && $school_id > 0) $school_id_for_board = $school_id;
+				if ($branch_id > 0 && $this->db->table_exists('erp_school_branches')) {
+					$br = $this->db->select('sb.branch_name, s.school_name')
+						->from('erp_school_branches sb')
+						->join('erp_schools s', 's.id = sb.school_id', 'left')
+						->where('sb.id', $branch_id)->limit(1)->get()->row_array();
+					if (!empty($br['school_name'])) $vars['school_name'] = (string)$br['school_name'];
+				} elseif ($school_id > 0 && $this->db->table_exists('erp_schools')) {
+					$s = $this->db->select('school_name')->from('erp_schools')->where('id', $school_id)->limit(1)->get()->row_array();
+					if (!empty($s['school_name'])) $vars['school_name'] = (string)$s['school_name'];
+				}
+				if ($vars['school_name'] !== '') break;
+			}
+		}
+
+		// If board_name is still missing but school_id exists, pick first board mapped to school.
+		if ($vars['board_name'] === '' && $school_id_for_board > 0 && $this->db->table_exists('erp_school_boards_mapping') && $this->db->table_exists('erp_school_boards')) {
+			$b = $this->db->select('sb.board_name')
+				->from('erp_school_boards_mapping sbm')
+				->join('erp_school_boards sb', 'sb.id = sbm.board_id', 'left')
+				->where('sbm.school_id', $school_id_for_board)
+				->limit(1)->get()->row_array();
+			if (!empty($b['board_name'])) $vars['board_name'] = (string)$b['board_name'];
+		}
+
+		// Uniform: student name sometimes in f_name / grade on items
+		if ($vars['child_name'] === '') {
+			foreach ($items as $it) {
+				$fn = trim((string)($it['f_name'] ?? ''));
+				if ($fn !== '') {
+					$vars['child_name'] = $fn;
+					if ($vars['child_class'] === '') {
+						$vars['child_class'] = (string)($it['grade'] ?? '');
+					}
+					break;
+				}
+			}
+		}
+
+		return $vars;
 	}
 
 	private function sendOrderEventNotifications($event_key, array $order_ids)
@@ -58,7 +267,7 @@ class Orders extends Vendor_base
 		if (empty($order_ids)) return;
 
 		$rows = $this->db
-			->select('id, user_name, user_email, user_phone, order_unique_id, payment_method, payable_amt, total_amt, invoice_no, awb_no, courier')
+			->select('id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, delivery_charge, discount_amt, currency_code, currency, children_data')
 			->from('tbl_order_details')
 			->where_in('id', $order_ids)
 			->get()

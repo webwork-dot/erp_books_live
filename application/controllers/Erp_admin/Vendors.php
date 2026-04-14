@@ -825,7 +825,14 @@ class Vendors extends Erp_base
 			if (!is_array($email_templates_post)) {
 				$email_templates_post = [];
 			}
-			$save_email_tpl_ok = $this->Erp_vendor_notification_model->replaceEmailTemplates($vendor_id, $email_templates_post);
+			$email_templates_deleted = $this->input->post('email_templates_deleted');
+			if (!is_array($email_templates_deleted)) {
+				$email_templates_deleted = [];
+			}
+
+			$save_email_tpl_ok = $this->Erp_vendor_notification_model->upsertEmailTemplates($vendor_id, $email_templates_post);
+			$delete_email_tpl_ok = $this->Erp_vendor_notification_model->deleteEmailTemplatesByEventKeys($vendor_id, $email_templates_deleted);
+			$save_email_tpl_ok = (bool)$save_email_tpl_ok && (bool)$delete_email_tpl_ok;
 				
 				// Update vendor user in erp_users table (non-critical, continue even if fails)
 				$vendor_role_id = $this->Erp_user_model->getOrCreateVendorRole();
