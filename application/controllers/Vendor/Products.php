@@ -672,33 +672,31 @@ class Products extends Vendor_base
 		}
 
 		$snapshot_rows = $this->db
-			->select('item_type,item_ref_id,variation_key,qty_available')
+			->select('item_type,item_ref_id,variation_key,school_id,branch_id,qty_available')
 			->from('inventory_stock_snapshot')
 			->where('location_id', (int)$location_id)
-			->where('school_id', NULL)
-			->where('branch_id', NULL)
 			->get()
 			->result_array();
 		foreach ($snapshot_rows as $s) {
-			$key = strtolower((string)$s['item_type']) . '|' . (int)$s['item_ref_id'] . '|' . strtolower((string)($s['variation_key'] ?: 'default'));
+			$key = strtolower((string)$s['item_type']) . '|' . (int)$s['item_ref_id'] . '|' . strtolower((string)($s['variation_key'] ?: 'default')) . '|' . (int)$s['school_id'] . '|' . (int)$s['branch_id'];
 			$snapshot_map[$key] = (float)$s['qty_available'];
 		}
 
 		$movement_rows = $this->db
-			->select('item_type,item_ref_id,variation_key,MAX(created_at) AS last_update')
+			->select('item_type,item_ref_id,variation_key,school_id,branch_id,MAX(created_at) AS last_update')
 			->from('inventory_stock_movements')
 			->where('location_id', (int)$location_id)
-			->group_by(array('item_type', 'item_ref_id', 'variation_key'))
+			->group_by(array('item_type', 'item_ref_id', 'variation_key', 'school_id', 'branch_id'))
 			->get()
 			->result_array();
 		foreach ($movement_rows as $m) {
-			$key = strtolower((string)$m['item_type']) . '|' . (int)$m['item_ref_id'] . '|' . strtolower((string)($m['variation_key'] ?: 'default'));
+			$key = strtolower((string)$m['item_type']) . '|' . (int)$m['item_ref_id'] . '|' . strtolower((string)($m['variation_key'] ?: 'default')) . '|' . (int)$m['school_id'] . '|' . (int)$m['branch_id'];
 			$movement_map[$key] = $m['last_update'];
 		}
 
 		if ($this->db->table_exists('erp_uniforms') && $this->db->table_exists('erp_uniform_size_prices')) {
 			$uniform_rows = $this->db
-				->select('u.id AS product_id,u.product_name,u.gender,u.class_id,u.school_id,u.board_id,ut.name AS uniform_type_name,sch.school_name,br.branch_name,bo.board_name,ui.image_path AS image_path,s.name AS size_name')
+				->select('u.id AS product_id,u.product_name,u.gender,u.class_id,u.school_id,u.branch_id,u.board_id,ut.name AS uniform_type_name,sch.school_name,br.branch_name,bo.board_name,ui.image_path AS image_path,s.name AS size_name')
 				->from('erp_uniforms u')
 				->join('erp_uniform_size_prices usp', 'usp.uniform_id = u.id', 'left')
 				->join('erp_sizes s', 's.id = usp.size_id', 'left')
@@ -716,7 +714,9 @@ class Products extends Vendor_base
 
 			foreach ($uniform_rows as $u) {
 				$variation_key = !empty($u['size_name']) ? (string)$u['size_name'] : 'default';
-				$key = 'uniform|' . (int)$u['product_id'] . '|' . strtolower($variation_key);
+				$row_school_id = isset($u['school_id']) ? (int)$u['school_id'] : 0;
+				$row_branch_id = isset($u['branch_id']) ? (int)$u['branch_id'] : 0;
+				$key = 'uniform|' . (int)$u['product_id'] . '|' . strtolower($variation_key) . '|' . $row_school_id . '|' . $row_branch_id;
 				$grade_name = '-';
 				if (!empty($u['class_id'])) {
 					$class_ids = array_filter(array_map('intval', explode(',', (string)$u['class_id'])));
@@ -741,7 +741,8 @@ class Products extends Vendor_base
 					'branch_name' => !empty($u['branch_name']) ? (string)$u['branch_name'] : '',
 					'board_name' => !empty($u['board_name']) ? (string)$u['board_name'] : '-',
 					'grade_name' => $grade_name,
-					'school_id' => isset($u['school_id']) ? (int)$u['school_id'] : 0,
+					'school_id' => $row_school_id,
+					'branch_id' => $row_branch_id,
 					'board_id' => isset($u['board_id']) ? (int)$u['board_id'] : 0,
 					'grade_ids' => !empty($u['class_id']) ? array_values(array_filter(array_map('intval', explode(',', (string)$u['class_id'])))) : array(),
 					'variation_key' => $variation_key,
@@ -764,7 +765,7 @@ class Products extends Vendor_base
 				->result_array();
 
 			foreach ($product_rows as $p) {
-				$key = 'book|' . (int)$p['id'] . '|default';
+				$key = 'book|' . (int)$p['id'] . '|default|0|0';
 				$rows[] = array(
 					'item_type' => 'book',
 					'item_ref_id' => (int)$p['id'],
@@ -777,6 +778,7 @@ class Products extends Vendor_base
 					'board_name' => '-',
 					'grade_name' => '-',
 					'school_id' => 0,
+					'branch_id' => 0,
 					'board_id' => 0,
 					'grade_ids' => array(),
 					'variation_key' => 'default',
