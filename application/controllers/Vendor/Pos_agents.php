@@ -131,6 +131,27 @@ class Pos_agents extends Vendor_base
         $this->load->view('vendor/layouts/index_template', $data);
     }
 
+    public function stock($agent_user_id)
+    {
+        $agent_user_id = (int)$agent_user_id;
+        $vendor_id = (int)$this->current_vendor['id'];
+        if ($agent_user_id <= 0 || !$this->Pos_agent_model->isAgentMappedToVendor($agent_user_id, $vendor_id)) {
+            show_404();
+        }
+
+        $agent = $this->Pos_agent_model->getAgentById($agent_user_id);
+        if (!$agent) {
+            show_404();
+        }
+
+        $data['agent'] = $agent;
+        $data['title'] = 'POS Agent Stock';
+        $data['current_vendor'] = $this->current_vendor;
+        $data['vendor_domain'] = $this->getVendorDomainForUrl();
+        $data['content'] = $this->load->view('vendor/pos_agents/stock', $data, TRUE);
+        $this->load->view('vendor/layouts/index_template', $data);
+    }
+
     public function add()
     {
         $this->form_validation->set_rules('username', 'Username', 'required|trim');
@@ -399,6 +420,227 @@ class Pos_agents extends Vendor_base
             )));
     }
 
+    public function stock_catalog()
+    {
+        $vendor_id = (int)$this->current_vendor['id'];
+        $agent_id = (int)$this->input->get('agent_user_id', TRUE);
+        $q = trim((string)$this->input->get('q', TRUE));
+        if ($q === '') {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'items' => array())));
+        }
+
+        $rows = $this->buildStockCatalogRows($vendor_id);
+        $items = array();
+        foreach ($rows as $row) {
+            $hay = strtolower($row['product_name'] . ' ' . $row['variation_key'] . ' ' . $row['school_name'] . ' ' . $row['board_name']);
+            if (strpos($hay, strtolower($q)) === FALSE) {
+                continue;
+            }
+            $row['main_qty'] = $this->getSnapshotQty($this->getMainAdminLocationId(), $row['item_type'], (int)$row['item_ref_id'], (string)$row['variation_key']);
+            $row['agent_qty'] = $agent_id > 0 ? $this->getSnapshotQty($this->getOrCreateAgentLocationId($agent_id), $row['item_type'], (int)$row['item_ref_id'], (string)$row['variation_key']) : 0;
+            $items[] = $row;
+            if (count($items) >= 5) {
+                break;
+            }
+        }
+        return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'items' => $items)));
+    }
+
+    public function stock_summary()
+    {
+        $agent_id = (int)$this->input->get('agent_user_id', TRUE);
+        $vendor_id = (int)$this->current_vendor['id'];
+        if ($agent_id <= 0 || !$this->Pos_agent_model->isAgentMappedToVendor($agent_id, $vendor_id)) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Invalid agent')));
+        }
+        $agent_location_id = $this->getAgentLocationId($agent_id);
+        if (!$agent_location_id) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'holdings' => array(), 'movements' => array())));
+        }
+
+        $holdings = $this->db
+            ->select('item_type,item_ref_id,variation_key,qty_available,updated_at')
+            ->from('inventory_stock_snapshot')
+            ->where('location_id', $agent_location_id)
+            ->order_by('updated_at', 'DESC')
+            ->limit(100)
+            ->get()->result_array();
+
+        $movements = $this->db
+            ->select('movement_type,item_type,item_ref_id,variation_key,qty_delta,qty_before,qty_after,created_at,remarks')
+            ->from('inventory_stock_movements')
+            ->where('location_id', $agent_location_id)
+            ->order_by('id', 'DESC')
+            ->limit(100)
+            ->get()->result_array();
+
+        $catalog = $this->buildStockCatalogRows($vendor_id);
+        $catalog_map = array();
+        foreach ($catalog as $c) {
+            $ckey = strtolower((string)$c['item_type']) . '|' . (int)$c['item_ref_id'] . '|' . strtolower((string)($c['variation_key'] ?: 'default'));
+            $catalog_map[$ckey] = $c;
+        }
+
+        $stats_map = array();
+        foreach ($movements as $m) {
+            $mkey = strtolower((string)$m['item_type']) . '|' . (int)$m['item_ref_id'] . '|' . strtolower((string)($m['variation_key'] ?: 'default'));
+            if (!isset($stats_map[$mkey])) {
+                $stats_map[$mkey] = array(
+                    'total_qty' => 0.0,
+                    'sold_qty' => 0.0,
+                    'last_assigned_date' => ''
+                );
+            }
+            if ((string)$m['movement_type'] === 'pos_assign_in' && (float)$m['qty_delta'] > 0) {
+                $stats_map[$mkey]['total_qty'] += (float)$m['qty_delta'];
+                if (empty($stats_map[$mkey]['last_assigned_date']) || strtotime($m['created_at']) > strtotime($stats_map[$mkey]['last_assigned_date'])) {
+                    $stats_map[$mkey]['last_assigned_date'] = (string)$m['created_at'];
+                }
+            }
+            // "Sold Qty" kept simple as all outflow from agent stock.
+            if ((float)$m['qty_delta'] < 0) {
+                $stats_map[$mkey]['sold_qty'] += abs((float)$m['qty_delta']);
+            }
+        }
+
+        $holdings_enriched = array();
+        foreach ($holdings as $h) {
+            $hkey = strtolower((string)$h['item_type']) . '|' . (int)$h['item_ref_id'] . '|' . strtolower((string)($h['variation_key'] ?: 'default'));
+            $meta = isset($catalog_map[$hkey]) ? $catalog_map[$hkey] : array();
+            $stats = isset($stats_map[$hkey]) ? $stats_map[$hkey] : array('total_qty' => (float)$h['qty_available'], 'sold_qty' => 0.0, 'last_assigned_date' => '');
+            $holdings_enriched[] = array(
+                'item_type' => (string)$h['item_type'],
+                'item_ref_id' => (int)$h['item_ref_id'],
+                'product_name' => isset($meta['product_name']) ? (string)$meta['product_name'] : ('Item #' . (int)$h['item_ref_id']),
+                'uniform_type_name' => isset($meta['uniform_type_name']) ? (string)$meta['uniform_type_name'] : '-',
+                'variation_key' => (string)$h['variation_key'],
+                'gender' => isset($meta['gender']) ? (string)$meta['gender'] : '-',
+                'school_name' => isset($meta['school_name']) ? (string)$meta['school_name'] : '-',
+                'branch_name' => isset($meta['branch_name']) ? (string)$meta['branch_name'] : '',
+                'board_name' => isset($meta['board_name']) ? (string)$meta['board_name'] : '-',
+                'grade_name' => isset($meta['grade_name']) ? (string)$meta['grade_name'] : '-',
+                'total_qty' => (float)$stats['total_qty'],
+                'sold_qty' => (float)$stats['sold_qty'],
+                'remain_qty' => (float)$h['qty_available'],
+                'last_assigned_date' => !empty($stats['last_assigned_date']) ? date('d-m-Y h:i:s A', strtotime($stats['last_assigned_date'])) : '-',
+                'updated_at' => !empty($h['updated_at']) ? date('d-m-Y h:i:s A', strtotime($h['updated_at'])) : '-'
+            );
+        }
+
+        $movements_enriched = array();
+        foreach ($movements as $m) {
+            $mkey = strtolower((string)$m['item_type']) . '|' . (int)$m['item_ref_id'] . '|' . strtolower((string)($m['variation_key'] ?: 'default'));
+            $meta = isset($catalog_map[$mkey]) ? $catalog_map[$mkey] : array();
+            $movements_enriched[] = array(
+                'movement_type' => (string)$m['movement_type'],
+                'product_name' => isset($meta['product_name']) ? (string)$meta['product_name'] : ('Item #' . (int)$m['item_ref_id']),
+                'variation_key' => (string)$m['variation_key'],
+                'qty' => abs((float)$m['qty_delta']),
+                'direction' => ((float)$m['qty_delta'] >= 0 ? 'IN' : 'OUT'),
+                'created_at' => !empty($m['created_at']) ? date('d-m-Y h:i:s A', strtotime($m['created_at'])) : '-',
+                'remarks' => (string)$m['remarks']
+            );
+        }
+
+        return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'holdings' => $holdings_enriched, 'movements' => $movements_enriched)));
+    }
+
+    public function stock_transfer()
+    {
+        if ($this->input->server('REQUEST_METHOD') !== 'POST') {
+            show_404();
+        }
+        $vendor_id = (int)$this->current_vendor['id'];
+        $agent_id = (int)$this->input->post('agent_user_id', TRUE);
+        $item_type = trim((string)$this->input->post('item_type', TRUE));
+        $item_ref_id = (int)$this->input->post('item_ref_id', TRUE);
+        $variation_key = trim((string)$this->input->post('variation_key', TRUE));
+        $action = trim((string)$this->input->post('action', TRUE)); // assign|return
+        $qty = (float)$this->input->post('qty', TRUE);
+        $remarks = trim((string)$this->input->post('remarks', TRUE));
+        if ($variation_key === '') $variation_key = 'default';
+        if (!in_array($action, array('assign', 'return'), TRUE) || $agent_id <= 0 || $item_type === '' || $item_ref_id <= 0 || $qty <= 0) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Invalid request')));
+        }
+        if (!$this->Pos_agent_model->isAgentMappedToVendor($agent_id, $vendor_id)) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Agent not mapped')));
+        }
+
+        $admin_location_id = $this->getMainAdminLocationId();
+        $agent_location_id = $this->getOrCreateAgentLocationId($agent_id);
+        $admin_qty = $this->getSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key);
+        $agent_qty = $this->getSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key);
+
+        if ($action === 'assign' && $admin_qty < $qty) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Insufficient main stock')));
+        }
+        if ($action === 'return' && $agent_qty < $qty) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Insufficient agent stock')));
+        }
+
+        $this->db->trans_begin();
+        if ($action === 'assign') {
+            $this->setSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key, $admin_qty - $qty);
+            $this->setSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key, $agent_qty + $qty);
+            $this->insertMovement($admin_location_id, 'pos_assign_out', $item_type, $item_ref_id, $variation_key, -1 * $qty, $admin_qty, $admin_qty - $qty, $remarks);
+            $this->insertMovement($agent_location_id, 'pos_assign_in', $item_type, $item_ref_id, $variation_key, $qty, $agent_qty, $agent_qty + $qty, $remarks);
+        } else {
+            $this->setSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key, $agent_qty - $qty);
+            $this->setSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key, $admin_qty + $qty);
+            $this->insertMovement($agent_location_id, 'pos_return_out', $item_type, $item_ref_id, $variation_key, -1 * $qty, $agent_qty, $agent_qty - $qty, $remarks);
+            $this->insertMovement($admin_location_id, 'pos_return_in', $item_type, $item_ref_id, $variation_key, $qty, $admin_qty, $admin_qty + $qty, $remarks);
+        }
+        if ($this->db->trans_status() === FALSE) {
+            $this->db->trans_rollback();
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Transfer failed')));
+        }
+        $this->db->trans_commit();
+        return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'message' => 'Stock updated')));
+    }
+
+    public function stock_history()
+    {
+        $agent_id = (int)$this->input->get('agent_user_id', TRUE);
+        $item_type = trim((string)$this->input->get('item_type', TRUE));
+        $item_ref_id = (int)$this->input->get('item_ref_id', TRUE);
+        $variation_key = trim((string)$this->input->get('variation_key', TRUE));
+        $vendor_id = (int)$this->current_vendor['id'];
+        if ($variation_key === '') $variation_key = 'default';
+        if ($agent_id <= 0 || $item_type === '' || $item_ref_id <= 0) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Invalid request')));
+        }
+        if (!$this->Pos_agent_model->isAgentMappedToVendor($agent_id, $vendor_id)) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Agent not mapped')));
+        }
+        $location_id = $this->getAgentLocationId($agent_id);
+        if ($location_id <= 0) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'history' => array())));
+        }
+        $rows = $this->db
+            ->select('movement_type,qty_delta,qty_before,qty_after,created_at,remarks')
+            ->from('inventory_stock_movements')
+            ->where('location_id', (int)$location_id)
+            ->where('item_type', $item_type)
+            ->where('item_ref_id', $item_ref_id)
+            ->where('variation_key', $variation_key)
+            ->order_by('id', 'DESC')
+            ->limit(100)
+            ->get()->result_array();
+        $history = array();
+        foreach ($rows as $r) {
+            $history[] = array(
+                'direction' => ((float)$r['qty_delta'] >= 0 ? 'IN' : 'OUT'),
+                'source' => str_replace(array('pos_', '_in', '_out'), '', (string)$r['movement_type']),
+                'qty' => abs((float)$r['qty_delta']),
+                'before' => (float)$r['qty_before'],
+                'after' => (float)$r['qty_after'],
+                'date' => !empty($r['created_at']) ? date('d-m-Y h:i:s A', strtotime($r['created_at'])) : '-',
+                'remarks' => (string)$r['remarks']
+            );
+        }
+        return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'history' => $history)));
+    }
+
     private function buildSchoolAccessRows($vendor_id, $actor_id)
     {
         $school_ids = $this->input->post('school_ids');
@@ -458,6 +700,112 @@ class Pos_agents extends Vendor_base
         }
 
         return $rows;
+    }
+
+    private function buildStockCatalogRows($vendor_id)
+    {
+        $rows = array();
+        if ($this->db->table_exists('erp_uniforms') && $this->db->table_exists('erp_uniform_size_prices')) {
+            $has_class_table = $this->db->table_exists('erp_classes');
+            $uniform_select = 'u.id AS item_ref_id,u.product_name,ut.name AS uniform_type_name,u.gender,s.name AS variation_key,sch.school_name,br.branch_name,bo.board_name';
+            $uniform_select .= $has_class_table ? ',g.name AS grade_name' : ',"-" AS grade_name';
+            $uniform_rows = $this->db
+                ->select($uniform_select)
+                ->from('erp_uniforms u')
+                ->join('erp_uniform_size_prices usp', 'usp.uniform_id = u.id', 'left')
+                ->join('erp_sizes s', 's.id = usp.size_id', 'left')
+                ->join('erp_uniform_types ut', 'ut.id = u.uniform_type_id', 'left')
+                ->join('erp_schools sch', 'sch.id = u.school_id', 'left')
+                ->join('erp_school_branches br', 'br.id = u.branch_id', 'left')
+                ->join('erp_school_boards bo', 'bo.id = u.board_id', 'left')
+                ->where('u.vendor_id', (int)$vendor_id)
+                ->where('u.status', 'active')
+                ->order_by('u.product_name', 'ASC')
+                ;
+            if ($has_class_table) {
+                $this->db->join('erp_classes g', 'g.id = u.class_id', 'left');
+            }
+            $uniform_rows = $this->db->get()->result_array();
+            foreach ($uniform_rows as $r) {
+                $r['item_type'] = 'uniform';
+                if (empty($r['variation_key'])) $r['variation_key'] = 'default';
+                $rows[] = $r;
+            }
+        }
+        if ($this->db->table_exists('erp_products')) {
+            $products = $this->db->select('id AS item_ref_id,product_name')->from('erp_products')->where('vendor_id', (int)$vendor_id)->where('is_deleted',0)->where('status','active')->where('type !=','uniform')->order_by('product_name','ASC')->get()->result_array();
+            foreach ($products as $p) {
+                $rows[] = array(
+                    'item_type' => 'book',
+                    'item_ref_id' => (int)$p['item_ref_id'],
+                    'product_name' => (string)$p['product_name'],
+                    'uniform_type_name' => '-',
+                    'gender' => '-',
+                    'variation_key' => 'default',
+                    'school_name' => '-',
+                    'branch_name' => '',
+                    'board_name' => '-',
+                    'grade_name' => '-'
+                );
+            }
+        }
+        return $rows;
+    }
+
+    private function getMainAdminLocationId()
+    {
+        $row = $this->db->select('id')->from('inventory_locations')->where('location_type','admin')->where('location_ref_id',0)->limit(1)->get()->row_array();
+        if (!empty($row['id'])) return (int)$row['id'];
+        $this->db->insert('inventory_locations', array('location_type' => 'admin', 'location_ref_id' => 0, 'name' => 'Main Admin Stock', 'is_active' => 1));
+        return (int)$this->db->insert_id();
+    }
+
+    private function getAgentLocationId($agent_id)
+    {
+        $row = $this->db->select('id')->from('inventory_locations')->where('location_type','pos_agent')->where('location_ref_id',(int)$agent_id)->limit(1)->get()->row_array();
+        return !empty($row['id']) ? (int)$row['id'] : 0;
+    }
+
+    private function getOrCreateAgentLocationId($agent_id)
+    {
+        $id = $this->getAgentLocationId($agent_id);
+        if ($id > 0) return $id;
+        $this->db->insert('inventory_locations', array('location_type' => 'pos_agent', 'location_ref_id' => (int)$agent_id, 'name' => 'POS Agent #' . (int)$agent_id, 'is_active' => 1));
+        return (int)$this->db->insert_id();
+    }
+
+    private function getSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key)
+    {
+        $row = $this->db->select('qty_available')->from('inventory_stock_snapshot')->where('location_id',(int)$location_id)->where('item_type',$item_type)->where('item_ref_id',(int)$item_ref_id)->where('variation_key',$variation_key)->where('school_id',NULL)->where('branch_id',NULL)->limit(1)->get()->row_array();
+        return !empty($row['qty_available']) ? (float)$row['qty_available'] : 0.0;
+    }
+
+    private function setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $qty)
+    {
+        $row = $this->db->select('id')->from('inventory_stock_snapshot')->where('location_id',(int)$location_id)->where('item_type',$item_type)->where('item_ref_id',(int)$item_ref_id)->where('variation_key',$variation_key)->where('school_id',NULL)->where('branch_id',NULL)->limit(1)->get()->row_array();
+        if (!empty($row['id'])) {
+            $this->db->where('id',(int)$row['id'])->update('inventory_stock_snapshot', array('qty_available' => (float)$qty));
+            return;
+        }
+        $this->db->insert('inventory_stock_snapshot', array('location_id' => (int)$location_id, 'item_type' => $item_type, 'item_ref_id' => (int)$item_ref_id, 'variation_key' => $variation_key, 'school_id' => NULL, 'branch_id' => NULL, 'qty_available' => (float)$qty));
+    }
+
+    private function insertMovement($location_id, $movement_type, $item_type, $item_ref_id, $variation_key, $delta, $before, $after, $remarks)
+    {
+        $this->db->insert('inventory_stock_movements', array(
+            'movement_type' => $movement_type,
+            'external_ref' => $movement_type . ':' . $location_id . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . microtime(TRUE),
+            'location_id' => (int)$location_id,
+            'item_type' => $item_type,
+            'item_ref_id' => (int)$item_ref_id,
+            'variation_key' => $variation_key,
+            'qty_delta' => (float)$delta,
+            'qty_before' => (float)$before,
+            'qty_after' => (float)$after,
+            'actor_type' => 'vendor_admin',
+            'actor_id' => (int)$this->current_vendor['id'],
+            'remarks' => $remarks
+        ));
     }
 
     private function generateRandomPassword($length = 10)

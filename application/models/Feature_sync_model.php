@@ -70,6 +70,7 @@ class Feature_sync_model extends CI_Model
 		$success = TRUE;
 		$synced_count = 0;
 		$failed_count = 0;
+		$stock_management_enabled = FALSE;
 		
 		// Sync all features (including disabled ones to prevent data loss)
 		foreach ($vendor_features as $feature)
@@ -92,6 +93,13 @@ class Feature_sync_model extends CI_Model
 				'has_size' => isset($feature_details['has_size']) ? (int)$feature_details['has_size'] : 0,
 				'has_colour' => isset($feature_details['has_colour']) ? (int)$feature_details['has_colour'] : 0
 			);
+			if (
+				isset($feature_data['feature_slug']) &&
+				$feature_data['feature_slug'] === 'stock_management' &&
+				(int)$feature_data['is_enabled'] === 1
+			) {
+				$stock_management_enabled = TRUE;
+			}
 			
 			if ($this->syncFeatureToDatabase($vendor_db, $feature_data))
 			{
@@ -136,6 +144,17 @@ class Feature_sync_model extends CI_Model
 				$subcat_failed_count++;
 				$success = FALSE;
 				log_message('error', 'Failed to sync subcategory ID: ' . $subcategory['subcategory_id'] . ' to vendor database: ' . $vendor['database_name']);
+			}
+		}
+
+		// Provision inventory tables in vendor DB only when stock management is enabled.
+		if ($stock_management_enabled)
+		{
+			$this->load->model('Tenant_model');
+			if (!$this->Tenant_model->ensureStockManagementTables($vendor_db))
+			{
+				$success = FALSE;
+				log_message('error', 'Failed to provision stock tables for vendor ID: ' . $vendor_id);
 			}
 		}
 		

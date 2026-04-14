@@ -137,6 +137,11 @@ $route['pos-agents/delete-agent'] = 'Vendor/pos_agents/delete_agent';
 $route['pos-agents/reset-credentials/(:num)'] = 'Vendor/pos_agents/reset_credentials/$1';
 $route['pos-agents/get-vendor-schools'] = 'Vendor/pos_agents/get_vendor_schools';
 $route['pos-agents/toggle-status'] = 'Vendor/pos_agents/toggle_status';
+$route['pos-agents/stock/(:num)'] = 'Vendor/pos_agents/stock/$1';
+$route['pos-agents/stock/catalog'] = 'Vendor/pos_agents/stock_catalog';
+$route['pos-agents/stock/summary'] = 'Vendor/pos_agents/stock_summary';
+$route['pos-agents/stock/history'] = 'Vendor/pos_agents/stock_history';
+$route['pos-agents/stock/transfer'] = 'Vendor/pos_agents/stock_transfer';
 
 $route['pos-school-qr'] = 'Vendor/pos_school_qr/index';
 $route['pos-school-qr/add'] = 'Vendor/pos_school_qr/add';
@@ -337,6 +342,12 @@ $route['products/individual-products/get_subcategories'] = 'Vendor/products/indi
 $route['products/individual-products/add_color'] = 'Vendor/products/individual_products_add_color';
 $route['products/individual-products/get_sizes'] = 'Vendor/products/individual_products_get_sizes';
 $route['products/individual-products/delete/(:num)'] = 'Vendor/products/individual_products_delete/$1';
+$route['products/stock_management'] = 'Vendor/products/stock_management';
+$route['products/stock_management/adjust'] = 'Vendor/products/stock_management_adjust';
+$route['products/stock_management/adjust_bulk'] = 'Vendor/products/stock_management_adjust_bulk';
+$route['products/stock_management/search_items'] = 'Vendor/products/stock_management_search_items';
+$route['products/stock_management/export'] = 'Vendor/products/stock_management_export';
+$route['products/stock_management/item_history'] = 'Vendor/products/stock_management_item_history';
 
 // Variation management routes
 $route['products/variations'] = 'Vendor/products/variations';

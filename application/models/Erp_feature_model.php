@@ -204,5 +204,41 @@ class Erp_feature_model extends CI_Model
 		
 		return $this->db->affected_rows() > 0;
 	}
+
+	/**
+	 * Ensure stock management feature exists as a main feature.
+	 *
+	 * @return	int|FALSE	Feature ID on success
+	 */
+	public function ensureStockManagementFeature()
+	{
+		$feature = $this->getFeatureBySlug('stock_management');
+		if (!empty($feature))
+		{
+			// Keep it active/visible in case old record exists but disabled.
+			$this->updateFeature($feature['id'], array(
+				'name' => 'Stock Management',
+				'is_active' => 1,
+				'parent_id' => NULL
+			));
+			return (int)$feature['id'];
+		}
+
+		$this->db->insert('erp_features', array(
+			'name' => 'Stock Management',
+			'slug' => 'stock_management',
+			'description' => 'Inventory and stock movement controls',
+			'parent_id' => NULL,
+			'is_active' => 1,
+			'created_at' => date('Y-m-d H:i:s')
+		));
+
+		if ($this->db->affected_rows() > 0)
+		{
+			return (int)$this->db->insert_id();
+		}
+
+		return FALSE;
+	}
 }
 
