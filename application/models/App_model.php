@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * App Model
@@ -434,7 +434,6 @@ class App_model extends CI_Model
             );
         }
         return $formatted;
-
     }
     public function get_school_boards($school_id, $agent_id)
     {
@@ -472,7 +471,7 @@ class App_model extends CI_Model
 
         return $boards;
     }
-    public function getAgentCategories($agent_id , $school_id)
+    public function getAgentCategories($agent_id, $school_id)
     {
         $agent_id = (int) $agent_id;
 
@@ -496,7 +495,7 @@ class App_model extends CI_Model
         if (empty($access)) {
             return array();
         }
-        
+
         $categories = [];
 
         // Map flags → categories
@@ -518,7 +517,7 @@ class App_model extends CI_Model
 
         return $categories;
     }
-    
+
     public function placeUniformOrder($school_id, $parent_name, $parent_mobile, $payment_method, $items, $children_data = array(), $agent_id = 0)
     {
         $school_id = (int) $school_id;
@@ -629,7 +628,7 @@ class App_model extends CI_Model
                 'branch_id' => !empty($item['branch_id']) ? (int) $item['branch_id'] : NULL,
             ));
         }
-        
+
         // Generate invoice PDF, store invoice_url, and reuse the saved URL for WhatsApp
         $file_url = $this->generateUniformOrderInvoice($vendor_db, $vendor_id, $order_id, $order_unique_id);
         if (empty($file_url)) {
@@ -638,7 +637,7 @@ class App_model extends CI_Model
 
         // STEP 8: Send WhatsApp Notification
         $phone = $parent_mobile;
-        
+
         // Call function
         $response = $this->send_whatsapp(
             $phone,
@@ -648,7 +647,7 @@ class App_model extends CI_Model
         );
         // Log response (important for debugging)
         log_message('error', 'WA Response: ' . $response);
-        
+
 
         return array(
             'status' => 200,
@@ -658,43 +657,44 @@ class App_model extends CI_Model
             'vendor_id' => $vendor_id
         );
     }
-    
-   public function send_whatsapp($phone, $parent_name, $order_unique_id, $file_url = ''){
-    $params = [
-    'user'     => 'VarittyUniform_bwa',
-    'pass'     => '123456',
-    'sender'   => 'BUZWAP',
-    'phone'    => $phone,
-    'text'     => 'varitty_doc',
-    'priority' => 'wa',
-    'stype'    => 'normal',
-    'Params'   => $parent_name . ',' . date('Y-m-d') . ',' . $order_unique_id
-];
 
-    // ✅ Add document support
-    if (!empty($file_url)) {
-        $params['htype'] = 'document';
-        $params['fname'] = 'PDF';
-        $params['url']   = $file_url;
+    public function send_whatsapp($phone, $parent_name, $order_unique_id, $file_url = '')
+    {
+        $params = [
+            'user'     => 'VarittyUniform_bwa',
+            'pass'     => '123456',
+            'sender'   => 'BUZWAP',
+            'phone'    => $phone,
+            'text'     => 'varitty_doc',
+            'priority' => 'wa',
+            'stype'    => 'normal',
+            'Params'   => $parent_name . ',' . date('Y-m-d') . ',' . $order_unique_id
+        ];
+
+        // ✅ Add document support
+        if (!empty($file_url)) {
+            $params['htype'] = 'document';
+            $params['fname'] = 'PDF';
+            $params['url']   = $file_url;
+        }
+
+        $url = "http://bhashsms.com/api/sendmsgutil.php?" . http_build_query($params);
+
+        // CURL
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+        $response = curl_exec($ch);
+
+        if (curl_errno($ch)) {
+            return curl_error($ch);
+        }
+
+        curl_close($ch);
+
+        return $response;
     }
-
-    $url = "http://bhashsms.com/api/sendmsgutil.php?" . http_build_query($params);
-
-    // CURL
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    $response = curl_exec($ch);
-
-    if (curl_errno($ch)) {
-        return curl_error($ch);
-    }
-
-    curl_close($ch);
-
-    return $response;
-}
 
     /**
      * Build invoice payload for the uniform order PDF.
@@ -723,7 +723,7 @@ class App_model extends CI_Model
         $company = $this->getVendorInvoiceCompany((int) $vendor_id);
         $logo_src = $this->getInvoiceLogoBase64($company);
 
-        $company_name = !empty($company['name']) ? $company['name'] : 'Shivam Books';
+        $company_name = !empty($company['name']) ? $company['name'] : '-';
         $company_address = !empty($company['address']) ? $company['address'] : '';
         if (!empty($company['pincode'])) {
             $company_address = trim($company_address . ', ' . $company['pincode']);

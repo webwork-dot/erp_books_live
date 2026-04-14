@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * App API Controller
@@ -209,7 +209,7 @@ class App_api extends CI_Controller
             if ($agent_id <= 0) {
                 $response = array('status' => 400, 'message' => 'Enter agent id !');
             } else {
-                $categories = $this->App_model->getAgentCategories($agent_id , $school_id);
+                $categories = $this->App_model->getAgentCategories($agent_id, $school_id);
                 $response = array('status' => 200, 'message' => 'Success', 'categories' => $categories);
             }
         }
@@ -313,23 +313,23 @@ class App_api extends CI_Controller
 
         $this->simple_json_output($response);
     }
-    
+
     public function test_whatsapp()
     {
         $this->load->model('app_model');
-    
+
         $phone = '9870678754';
         $parent_name = 'Dharmesh';          // dynamic value
         $order_unique_id = 'ORD123';     // dynamic value
         $file_url = 'https://bhashsms.com/pushwa/iframe/files/trai.pdf'; // document
-    
+
         $response = $this->app_model->send_whatsapp(
             $phone,
             $parent_name,
             $order_unique_id,
             $file_url
         );
-    
+
         echo "<pre>";
         print_r($response);
         exit;
@@ -478,7 +478,7 @@ class App_api extends CI_Controller
         $company = $this->get_invoice_company_from_erp_clients($vendor_id);
         $logo_src = $this->get_invoice_logo_base64($company);
 
-        $company_name = !empty($company['name']) ? $company['name'] : 'Shivam Books';
+        $company_name = !empty($company['name']) ? $company['name'] : '-';
         $company_address = !empty($company['address']) ? $company['address'] : '';
         if (!empty($company['pincode'])) {
             $company_address = trim($company_address . ', ' . $company['pincode']);
