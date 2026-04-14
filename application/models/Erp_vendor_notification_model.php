@@ -92,6 +92,12 @@ class Erp_vendor_notification_model extends CI_Model
 		$this->db->trans_start();
 		foreach ($templates as $t) {
 			$event_key = isset($t['event_key']) ? trim((string)$t['event_key']) : '';
+			$audience = isset($t['audience']) ? strtolower(trim((string)$t['audience'])) : 'user';
+			if (!in_array($audience, ['user', 'vendor'], true)) {
+				$audience = 'user';
+			}
+			$to_emails = isset($t['to_emails']) ? trim((string)$t['to_emails']) : '';
+			$cc_emails = isset($t['cc_emails']) ? trim((string)$t['cc_emails']) : '';
 			$email_subject = isset($t['email_subject']) ? trim((string)$t['email_subject']) : '';
 			$email_html = isset($t['email_html']) ? (string)$t['email_html'] : '';
 			if ($event_key === '' || $email_subject === '' || trim($email_html) === '') {
@@ -101,6 +107,9 @@ class Erp_vendor_notification_model extends CI_Model
 			$payload = [
 				'vendor_id' => $vendor_id,
 				'event_key' => $event_key,
+				'audience' => $audience,
+				'to_emails' => $to_emails !== '' ? $to_emails : NULL,
+				'cc_emails' => $cc_emails !== '' ? $cc_emails : NULL,
 				'email_subject' => $email_subject,
 				'email_html' => $email_html,
 				'is_active' => isset($t['is_active']) ? (int)(!!$t['is_active']) : 1,
@@ -110,6 +119,7 @@ class Erp_vendor_notification_model extends CI_Model
 				->select('id')
 				->where('vendor_id', $vendor_id)
 				->where('event_key', $event_key)
+				->where('audience', $audience)
 				->get('erp_vendor_email_templates')
 				->row_array();
 
@@ -130,17 +140,67 @@ class Erp_vendor_notification_model extends CI_Model
 		$vendor_id = (int)$vendor_id;
 		if ($vendor_id <= 0) return false;
 
-		$keys = [];
-		foreach ($event_keys as $k) {
+		// Backward compatible:
+		// - old payload: ['order_placed', 'order_processed']
+		// - new payload: [ 'order_placed|user', 'order_placed|vendor', ... ]
+		$plainKeys = [];
+		$pairs = [];
+		foreach ((array)$event_keys as $k) {
+			if (is_array($k)) {
+				$ek = isset($k['event_key']) ? trim((string)$k['event_key']) : '';
+				$aud = isset($k['audience']) ? strtolower(trim((string)$k['audience'])) : 'user';
+				if ($aud !== 'vendor') $aud = 'user';
+				if ($ek !== '') {
+					$pairs[] = ['event_key' => $ek, 'audience' => $aud];
+				}
+				continue;
+			}
 			$k = trim((string)$k);
-			if ($k !== '') $keys[] = $k;
-		}
-		$keys = array_values(array_unique($keys));
-		if (empty($keys)) return true;
+			if ($k === '') continue;
 
-		$this->db->where('vendor_id', $vendor_id);
-		$this->db->where_in('event_key', $keys);
-		return (bool)$this->db->delete('erp_vendor_email_templates');
+			// Preferred new format: "event_key|audience"
+			if (strpos($k, '|') !== false) {
+				$parts = explode('|', $k, 2);
+				$ek = trim((string)($parts[0] ?? ''));
+				$aud = strtolower(trim((string)($parts[1] ?? 'user')));
+				if ($aud !== 'vendor') $aud = 'user';
+				if ($ek !== '') {
+					$pairs[] = ['event_key' => $ek, 'audience' => $aud];
+					continue;
+				}
+			}
+
+			// Legacy: plain event_key
+			$plainKeys[] = $k;
+		}
+
+		$plainKeys = array_values(array_unique($plainKeys));
+		if (!empty($plainKeys)) {
+			$this->db->where('vendor_id', $vendor_id);
+			$this->db->where_in('event_key', $plainKeys);
+			$this->db->delete('erp_vendor_email_templates');
+		}
+
+		if (empty($pairs)) {
+			return true;
+		}
+
+		// De-dupe pairs
+		$tmp = [];
+		foreach ($pairs as $p) {
+			$tmp[$p['event_key'] . '|' . $p['audience']] = $p;
+		}
+		$pairs = array_values($tmp);
+
+		$this->db->trans_start();
+		foreach ($pairs as $p) {
+			$this->db->where('vendor_id', $vendor_id);
+			$this->db->where('event_key', $p['event_key']);
+			$this->db->where('audience', $p['audience']);
+			$this->db->delete('erp_vendor_email_templates');
+		}
+		$this->db->trans_complete();
+		return $this->db->trans_status();
 	}
 
 	public function getSmsTemplates($vendor_id)
