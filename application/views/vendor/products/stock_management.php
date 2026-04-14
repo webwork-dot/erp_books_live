@@ -172,6 +172,8 @@
 													data-item-type="<?php echo htmlspecialchars((string)$row['item_type']); ?>"
 													data-item-ref-id="<?php echo (int)$row['item_ref_id']; ?>"
 													data-variation-key="<?php echo htmlspecialchars((string)$row['variation_key']); ?>"
+													data-school-id="<?php echo (int)$row['school_id']; ?>"
+													data-branch-id="<?php echo (int)$row['branch_id']; ?>"
 													data-product-name="<?php echo htmlspecialchars((string)$row['product_name']); ?>"
 													data-uniform-type="<?php echo htmlspecialchars((string)$row['uniform_type_name']); ?>"
 													data-gender="<?php echo htmlspecialchars((string)$row['gender']); ?>"
@@ -399,6 +401,8 @@ document.addEventListener('DOMContentLoaded', function() {
 			hidden += '<input type="hidden" name="adjustments[' + idx + '][item_type]" value="' + (item.item_type || '') + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][item_ref_id]" value="' + (item.item_ref_id || '') + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][variation_key]" value="' + (item.variation_key || 'default') + '">' +
+				'<input type="hidden" name="adjustments[' + idx + '][school_id]" value="' + (item.school_id || 0) + '">' +
+				'<input type="hidden" name="adjustments[' + idx + '][branch_id]" value="' + (item.branch_id || 0) + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][operation]" value="' + (item.operation || 'add') + '" class="adj-op-hidden" data-idx="' + idx + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][qty]" value="' + (item.qty || 1) + '" class="adj-qty-hidden" data-idx="' + idx + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][remarks]" value="' + (item.remarks || '') + '" class="adj-remark-hidden" data-idx="' + idx + '">';
@@ -518,6 +522,8 @@ document.addEventListener('DOMContentLoaded', function() {
 				item_type: btn.getAttribute('data-item-type') || '',
 				item_ref_id: btn.getAttribute('data-item-ref-id') || '',
 				variation_key: btn.getAttribute('data-variation-key') || 'default',
+				school_id: Number(btn.getAttribute('data-school-id') || 0),
+				branch_id: Number(btn.getAttribute('data-branch-id') || 0),
 				product_name: btn.getAttribute('data-product-name') || '',
 				uniform_type_name: btn.getAttribute('data-uniform-type') || '',
 				gender: btn.getAttribute('data-gender') || '',
@@ -567,6 +573,8 @@ document.addEventListener('DOMContentLoaded', function() {
 			hidden += '<input type="hidden" name="adjustments[' + idx + '][item_type]" value="' + (item.item_type || '') + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][item_ref_id]" value="' + (item.item_ref_id || '') + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][variation_key]" value="' + (item.variation_key || 'default') + '">' +
+				'<input type="hidden" name="adjustments[' + idx + '][school_id]" value="' + (item.school_id || 0) + '">' +
+				'<input type="hidden" name="adjustments[' + idx + '][branch_id]" value="' + (item.branch_id || 0) + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][operation]" value="' + (item.operation || 'add') + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][qty]" value="' + (item.qty || 1) + '">' +
 				'<input type="hidden" name="adjustments[' + idx + '][remarks]" value="' + (item.remarks || '') + '">';

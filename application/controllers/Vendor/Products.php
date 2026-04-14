@@ -415,6 +415,8 @@ class Products extends Vendor_base
 		$item_type = trim((string)$this->input->post('item_type', TRUE));
 		$item_ref_id = (int)$this->input->post('item_ref_id', TRUE);
 		$variation_key = trim((string)$this->input->post('variation_key', TRUE));
+		$school_id = (int)$this->input->post('school_id', TRUE);
+		$branch_id = (int)$this->input->post('branch_id', TRUE);
 		$operation = trim((string)$this->input->post('operation', TRUE));
 		$qty = (float)$this->input->post('qty', TRUE);
 		$remarks = trim((string)$this->input->post('remarks', TRUE));
@@ -427,14 +429,17 @@ class Products extends Vendor_base
 			return;
 		}
 
+		$school_id = $school_id > 0 ? $school_id : NULL;
+		$branch_id = $branch_id > 0 ? $branch_id : NULL;
+
 		$location_id = $this->getMainAdminStockLocationId();
 		$snapshot = $this->db
 			->where('location_id', $location_id)
 			->where('item_type', $item_type)
 			->where('item_ref_id', $item_ref_id)
 			->where('variation_key', $variation_key)
-			->where('school_id', NULL)
-			->where('branch_id', NULL)
+			->where('school_id', $school_id)
+			->where('branch_id', $branch_id)
 			->limit(1)
 			->get('inventory_stock_snapshot')
 			->row_array();
@@ -448,7 +453,7 @@ class Products extends Vendor_base
 		}
 
 		$this->db->trans_begin();
-		$this->setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $after_qty);
+		$this->setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id, $after_qty);
 		$this->db->insert('inventory_stock_movements', array(
 			'movement_type' => $operation === 'add' ? 'manual_add' : 'manual_subtract',
 			'external_ref' => 'manual_adjust:' . $operation . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . microtime(TRUE),
@@ -456,6 +461,8 @@ class Products extends Vendor_base
 			'item_type' => $item_type,
 			'item_ref_id' => $item_ref_id,
 			'variation_key' => $variation_key,
+			'school_id' => $school_id,
+			'branch_id' => $branch_id,
 			'qty_delta' => $delta,
 			'qty_before' => $before_qty,
 			'qty_after' => $after_qty,
@@ -499,6 +506,8 @@ class Products extends Vendor_base
 			$item_type = isset($adj['item_type']) ? trim((string)$adj['item_type']) : '';
 			$item_ref_id = isset($adj['item_ref_id']) ? (int)$adj['item_ref_id'] : 0;
 			$variation_key = isset($adj['variation_key']) ? trim((string)$adj['variation_key']) : 'default';
+			$school_id = isset($adj['school_id']) ? (int)$adj['school_id'] : 0;
+			$branch_id = isset($adj['branch_id']) ? (int)$adj['branch_id'] : 0;
 			$operation = isset($adj['operation']) ? trim((string)$adj['operation']) : '';
 			$qty = isset($adj['qty']) ? (float)$adj['qty'] : 0;
 			$remarks = isset($adj['remarks']) ? trim((string)$adj['remarks']) : '';
@@ -508,6 +517,8 @@ class Products extends Vendor_base
 			if ($remarks === '') {
 				$remarks = $operation === 'subtract' ? 'Manual subtract' : 'Manual add';
 			}
+			$school_id = $school_id > 0 ? $school_id : NULL;
+			$branch_id = $branch_id > 0 ? $branch_id : NULL;
 			if ($item_type === '' || $item_ref_id <= 0 || $qty <= 0 || !in_array($operation, array('add', 'subtract'), TRUE)) {
 				continue;
 			}
@@ -517,8 +528,8 @@ class Products extends Vendor_base
 				->where('item_type', $item_type)
 				->where('item_ref_id', $item_ref_id)
 				->where('variation_key', $variation_key)
-				->where('school_id', NULL)
-				->where('branch_id', NULL)
+				->where('school_id', $school_id)
+				->where('branch_id', $branch_id)
 				->limit(1)
 				->get('inventory_stock_snapshot')
 				->row_array();
@@ -529,7 +540,7 @@ class Products extends Vendor_base
 				continue;
 			}
 
-			$this->setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $after_qty);
+			$this->setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id, $after_qty);
 			$this->db->insert('inventory_stock_movements', array(
 				'movement_type' => $operation === 'add' ? 'manual_add' : 'manual_subtract',
 				'external_ref' => 'manual_adjust_bulk:' . $operation . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . microtime(TRUE),
@@ -537,6 +548,8 @@ class Products extends Vendor_base
 				'item_type' => $item_type,
 				'item_ref_id' => $item_ref_id,
 				'variation_key' => $variation_key,
+				'school_id' => $school_id,
+				'branch_id' => $branch_id,
 				'qty_delta' => $delta,
 				'qty_before' => $before_qty,
 				'qty_after' => $after_qty,
@@ -580,15 +593,15 @@ class Products extends Vendor_base
 		return (int)$this->db->insert_id();
 	}
 
-	private function setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $qty)
+	private function setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id, $qty)
 	{
 		$existing = $this->db
 			->where('location_id', (int)$location_id)
 			->where('item_type', (string)$item_type)
 			->where('item_ref_id', (int)$item_ref_id)
 			->where('variation_key', (string)$variation_key)
-			->where('school_id', NULL)
-			->where('branch_id', NULL)
+			->where('school_id', $school_id)
+			->where('branch_id', $branch_id)
 			->limit(1)
 			->get('inventory_stock_snapshot')
 			->row_array();
@@ -601,8 +614,8 @@ class Products extends Vendor_base
 			'item_type' => (string)$item_type,
 			'item_ref_id' => (int)$item_ref_id,
 			'variation_key' => (string)$variation_key,
-			'school_id' => NULL,
-			'branch_id' => NULL,
+			'school_id' => $school_id,
+			'branch_id' => $branch_id,
 			'qty_available' => (float)$qty
 		));
 	}
