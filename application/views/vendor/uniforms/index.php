@@ -181,6 +181,7 @@
 						<th>MRP</th>
 						<th>Selling Price</th>
 						<th>GST %</th>
+						<th>Current Qty</th>
 						<th>Status</th>
 						<th class="text-end">Actions</th>
 					</tr>
@@ -246,6 +247,15 @@
 									<?php else: ?>
 										<span class="text-muted">-</span>
 									<?php endif; ?>
+								</td>
+								<td>
+									<?php
+										$stock_qty = isset($uniform['current_stock_qty']) ? (float)$uniform['current_stock_qty'] : 0.0;
+										$low_stock = $stock_qty <= 5;
+									?>
+									<span class="badge <?php echo $low_stock ? 'badge-danger' : 'badge-success'; ?>">
+										<?php echo number_format($stock_qty, 2); ?>
+									</span>
 								</td>
 								<td>
 									<div class="form-check form-switch">

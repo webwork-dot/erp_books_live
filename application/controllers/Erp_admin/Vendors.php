@@ -32,6 +32,8 @@ class Vendors extends Erp_base
 		$this->load->model('Vendor_sync_model');
 		$this->load->library('form_validation');
 		$this->load->library('Tenant');
+		// Ensure stock management feature is available for vendor toggles.
+		$this->Erp_feature_model->ensureStockManagementFeature();
 	}
 	
 	/**

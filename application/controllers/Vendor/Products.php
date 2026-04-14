@@ -86,6 +86,695 @@ class Products extends Vendor_base
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
+
+	/**
+	 * Stock Management Dashboard
+	 *
+	 * @return void
+	 */
+	public function stock_management()
+	{
+		if (!$this->checkFeatureAccess('stock_management'))
+		{
+			$this->session->set_flashdata('error', 'Stock Management feature is not enabled for this vendor.');
+			redirect('dashboard');
+			return;
+		}
+
+		$has_snapshot = $this->db->table_exists('inventory_stock_snapshot');
+		$has_movements = $this->db->table_exists('inventory_stock_movements');
+		$has_locations = $this->db->table_exists('inventory_locations');
+		$low_stock_threshold = (int)$this->input->get('low_stock');
+		if ($low_stock_threshold < 0) {
+			$low_stock_threshold = 5;
+		}
+
+		$data['title'] = 'Stock Management - ' . $this->current_vendor['name'];
+		$data['current_vendor'] = $this->current_vendor;
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
+		$data['tables_ready'] = ($has_snapshot && $has_movements && $has_locations);
+		$data['low_stock_threshold'] = $low_stock_threshold;
+		$data['snapshot_rows'] = array();
+		$data['movement_rows'] = array();
+		$data['totals_by_type'] = array();
+		$data['total_qty'] = 0;
+		$data['total_skus'] = 0;
+		$data['stock_rows'] = array();
+		$data['search_q'] = trim((string)$this->input->get('q', TRUE));
+		$data['filter_school_id'] = (int)$this->input->get('school_id', TRUE);
+		$data['filter_board_id'] = (int)$this->input->get('board_id', TRUE);
+		$data['per_page'] = 20;
+		$data['current_page'] = (int)$this->input->get('page');
+		if ($data['current_page'] < 1) {
+			$data['current_page'] = 1;
+		}
+		$data['total_rows'] = 0;
+		$data['total_pages'] = 0;
+		$data['schools'] = $this->db->table_exists('erp_schools') ? $this->db->select('id,school_name')->from('erp_schools')->where('vendor_id', (int)$this->current_vendor['id'])->order_by('school_name','ASC')->get()->result_array() : array();
+		$data['boards'] = $this->db->table_exists('erp_school_boards') ? $this->db->select('id,board_name')->from('erp_school_boards')->where('vendor_id', (int)$this->current_vendor['id'])->order_by('board_name','ASC')->get()->result_array() : array();
+		$data['grades'] = $this->db->table_exists('erp_classes') ? $this->db->select('id,class_name')->from('erp_classes')->where('vendor_id', (int)$this->current_vendor['id'])->order_by('class_name','ASC')->get()->result_array() : array();
+
+		if ($data['tables_ready'])
+		{
+			$location_id = $this->getMainAdminStockLocationId();
+			$all_stock_rows = $this->buildStockCatalogRows($location_id);
+			$filtered_rows = array();
+			foreach ($all_stock_rows as $row)
+			{
+				if ($data['filter_school_id'] > 0 && (int)$row['school_id'] !== (int)$data['filter_school_id']) {
+					continue;
+				}
+				if ($data['filter_board_id'] > 0 && (int)$row['board_id'] !== (int)$data['filter_board_id']) {
+					continue;
+				}
+				if ($data['search_q'] !== '') {
+					$haystack = strtolower(
+						(string)$row['product_name'] . ' ' .
+						(string)$row['variation_key'] . ' ' .
+						(string)$row['item_ref_id'] . ' ' .
+						(string)$row['item_type']
+					);
+					if (strpos($haystack, strtolower($data['search_q'])) === FALSE) {
+						continue;
+					}
+				}
+				$filtered_rows[] = $row;
+			}
+			$data['total_rows'] = count($filtered_rows);
+			$data['total_pages'] = (int)ceil($data['total_rows'] / $data['per_page']);
+			$offset = ($data['current_page'] - 1) * $data['per_page'];
+			$data['stock_rows'] = array_slice($filtered_rows, $offset, $data['per_page']);
+
+			$data['snapshot_rows'] = $this->db
+				->select('s.id, s.location_id, s.item_type, s.item_ref_id, s.variation_key, s.school_id, s.branch_id, s.qty_available, s.updated_at, l.name AS location_name')
+				->from('inventory_stock_snapshot s')
+				->join('inventory_locations l', 'l.id = s.location_id', 'left')
+				->order_by('s.updated_at', 'DESC')
+				->limit(200)
+				->get()
+				->result_array();
+
+			$data['movement_rows'] = $this->db
+				->select('id, movement_type, external_ref, order_id, order_item_id, location_id, item_type, item_ref_id, variation_key, qty_delta, qty_before, qty_after, actor_type, actor_id, remarks, created_at')
+				->from('inventory_stock_movements')
+				->order_by('id', 'DESC')
+				->limit(300)
+				->get()
+				->result_array();
+
+			$data['totals_by_type'] = $this->db
+				->select('item_type, SUM(qty_available) AS total_qty, COUNT(*) AS total_rows')
+				->from('inventory_stock_snapshot')
+				->group_by('item_type')
+				->order_by('item_type', 'ASC')
+				->get()
+				->result_array();
+
+			foreach ($data['snapshot_rows'] as $row)
+			{
+				$data['total_qty'] += (float)$row['qty_available'];
+			}
+			$data['total_skus'] = count($data['snapshot_rows']);
+		}
+
+		$data['breadcrumb'] = array(
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+			array('label' => 'Products', 'url' => '#'),
+			array('label' => 'Stock Management', 'active' => true)
+		);
+
+		$data['content'] = $this->load->view('vendor/products/stock_management', $data, TRUE);
+		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
+
+	public function stock_management_export()
+	{
+		if (!$this->checkFeatureAccess('stock_management')) {
+			show_error('Forbidden', 403);
+			return;
+		}
+		if (!$this->db->table_exists('inventory_stock_snapshot') || !$this->db->table_exists('inventory_stock_movements') || !$this->db->table_exists('inventory_locations')) {
+			show_error('Stock tables are not ready.', 500);
+			return;
+		}
+
+		$location_id = $this->getMainAdminStockLocationId();
+		$rows = $this->buildStockCatalogRows($location_id);
+
+		$filename = 'stock_management_' . date('Ymd_His') . '.csv';
+		header('Content-Type: text/csv; charset=utf-8');
+		header('Content-Disposition: attachment; filename=' . $filename);
+
+		$out = fopen('php://output', 'w');
+		fputcsv($out, array('Product Name', 'Uniform Type', 'Size', 'Gender', 'School', 'Board', 'Grade', 'Total Qty', 'Last Update'));
+		foreach ($rows as $row) {
+			$school_name = isset($row['school_name']) ? (string)$row['school_name'] : '-';
+			$branch_name = isset($row['branch_name']) ? (string)$row['branch_name'] : '';
+			$school_with_branch = $school_name;
+			if ($branch_name !== '') {
+				$school_with_branch .= ' (' . $branch_name . ')';
+			}
+			$last_update = !empty($row['last_stock_update']) ? date('d-m-Y h:i:s A', strtotime($row['last_stock_update'])) : 'Never';
+			fputcsv($out, array(
+				isset($row['product_name']) ? $row['product_name'] : '',
+				isset($row['uniform_type_name']) ? $row['uniform_type_name'] : '-',
+				isset($row['variation_key']) ? $row['variation_key'] : '-',
+				isset($row['gender']) ? $row['gender'] : '-',
+				$school_with_branch,
+				isset($row['board_name']) ? $row['board_name'] : '-',
+				isset($row['grade_name']) ? $row['grade_name'] : '-',
+				(int)round((float)(isset($row['qty_available']) ? $row['qty_available'] : 0)),
+				$last_update
+			));
+		}
+		fclose($out);
+		exit;
+	}
+
+	public function stock_management_item_history()
+	{
+		if (!$this->checkFeatureAccess('stock_management')) {
+			echo json_encode(array('status' => 'error', 'message' => 'Forbidden'));
+			return;
+		}
+		$item_type = trim((string)$this->input->get('item_type', TRUE));
+		$item_ref_id = (int)$this->input->get('item_ref_id', TRUE);
+		$variation_key = trim((string)$this->input->get('variation_key', TRUE));
+		$page = (int)$this->input->get('page', TRUE);
+		if ($page < 1) {
+			$page = 1;
+		}
+		$per_page = 10;
+		if ($variation_key === '') {
+			$variation_key = 'default';
+		}
+		if ($item_type === '' || $item_ref_id <= 0) {
+			echo json_encode(array('status' => 'error', 'message' => 'Invalid item'));
+			return;
+		}
+		$location_id = $this->getMainAdminStockLocationId();
+
+		$total_rows = (int)$this->db
+			->from('inventory_stock_movements')
+			->where('location_id', (int)$location_id)
+			->where('item_type', $item_type)
+			->where('item_ref_id', $item_ref_id)
+			->where('variation_key', $variation_key)
+			->count_all_results();
+		$total_pages = (int)ceil($total_rows / $per_page);
+		$offset = ($page - 1) * $per_page;
+
+		$rows = $this->db
+			->select('id,movement_type,qty_delta,qty_before,qty_after,remarks,created_at')
+			->from('inventory_stock_movements')
+			->where('location_id', (int)$location_id)
+			->where('item_type', $item_type)
+			->where('item_ref_id', $item_ref_id)
+			->where('variation_key', $variation_key)
+			->order_by('created_at', 'DESC')
+			->order_by('id', 'DESC')
+			->limit($per_page, $offset)
+			->get()
+			->result_array();
+
+		$opening_qty = 0.0;
+		$current_qty = 0.0;
+		$first_row = $this->db
+			->select('qty_before')
+			->from('inventory_stock_movements')
+			->where('location_id', (int)$location_id)
+			->where('item_type', $item_type)
+			->where('item_ref_id', $item_ref_id)
+			->where('variation_key', $variation_key)
+			->order_by('created_at', 'ASC')
+			->order_by('id', 'ASC')
+			->limit(1)
+			->get()
+			->row_array();
+		$last_row = $this->db
+			->select('qty_after')
+			->from('inventory_stock_movements')
+			->where('location_id', (int)$location_id)
+			->where('item_type', $item_type)
+			->where('item_ref_id', $item_ref_id)
+			->where('variation_key', $variation_key)
+			->order_by('created_at', 'DESC')
+			->order_by('id', 'DESC')
+			->limit(1)
+			->get()
+			->row_array();
+		if (!empty($first_row)) {
+			$opening_qty = isset($first_row['qty_before']) ? (float)$first_row['qty_before'] : 0.0;
+		}
+		if (!empty($last_row)) {
+			$current_qty = isset($last_row['qty_after']) ? (float)$last_row['qty_after'] : 0.0;
+		} elseif (!empty($rows)) {
+			$last = end($rows);
+			$current_qty = isset($last['qty_after']) ? (float)$last['qty_after'] : 0.0;
+			reset($rows);
+		} else {
+			$snapshot = $this->db
+				->select('qty_available')
+				->from('inventory_stock_snapshot')
+				->where('location_id', (int)$location_id)
+				->where('item_type', $item_type)
+				->where('item_ref_id', $item_ref_id)
+				->where('variation_key', $variation_key)
+				->limit(1)
+				->get()
+				->row_array();
+			$current_qty = !empty($snapshot['qty_available']) ? (float)$snapshot['qty_available'] : 0.0;
+		}
+
+		$history = array();
+		foreach ($rows as $r) {
+			$delta = (float)$r['qty_delta'];
+			$history[] = array(
+				'id' => (int)$r['id'],
+				'created_at' => !empty($r['created_at']) ? date('d-m-Y h:i:s A', strtotime($r['created_at'])) : '',
+				'direction' => $delta >= 0 ? 'IN' : 'OUT',
+				'source' => $this->resolveMovementSource((string)$r['movement_type']),
+				'movement_type' => (string)$r['movement_type'],
+				'qty_delta' => abs($delta),
+				'qty_before' => isset($r['qty_before']) ? (float)$r['qty_before'] : 0.0,
+				'qty_after' => isset($r['qty_after']) ? (float)$r['qty_after'] : 0.0,
+				'remarks' => (string)$r['remarks']
+			);
+		}
+
+		echo json_encode(array(
+			'status' => 'success',
+			'opening_qty' => $opening_qty,
+			'current_qty' => $current_qty,
+			'current_page' => $page,
+			'per_page' => $per_page,
+			'total_rows' => $total_rows,
+			'total_pages' => $total_pages,
+			'history' => $history
+		));
+	}
+
+	public function stock_management_search_items()
+	{
+		if (!$this->checkFeatureAccess('stock_management')) {
+			echo json_encode(array('status' => 'error', 'message' => 'Forbidden'));
+			return;
+		}
+		$q = trim((string)$this->input->get('q', TRUE));
+		$location_id = $this->getMainAdminStockLocationId();
+		$rows = $this->buildStockCatalogRows($location_id);
+		$filtered = array();
+		foreach ($rows as $row) {
+			if ($q !== '') {
+				$haystack = strtolower(
+					(string)$row['product_name'] . ' ' .
+					(string)$row['variation_key'] . ' ' .
+					(string)$row['school_name'] . ' ' .
+					(string)$row['board_name'] . ' ' .
+					(string)$row['grade_name']
+				);
+				if (strpos($haystack, strtolower($q)) === FALSE) {
+					continue;
+				}
+			}
+			$filtered[] = $row;
+			if (count($filtered) >= 5) {
+				break;
+			}
+		}
+		echo json_encode(array('status' => 'success', 'items' => $filtered));
+	}
+
+	public function stock_management_adjust()
+	{
+		if (!$this->checkFeatureAccess('stock_management')) {
+			show_error('Forbidden', 403);
+			return;
+		}
+		$item_type = trim((string)$this->input->post('item_type', TRUE));
+		$item_ref_id = (int)$this->input->post('item_ref_id', TRUE);
+		$variation_key = trim((string)$this->input->post('variation_key', TRUE));
+		$operation = trim((string)$this->input->post('operation', TRUE));
+		$qty = (float)$this->input->post('qty', TRUE);
+		$remarks = trim((string)$this->input->post('remarks', TRUE));
+		if ($variation_key === '') {
+			$variation_key = 'default';
+		}
+		if ($item_type === '' || $item_ref_id <= 0 || $qty <= 0 || !in_array($operation, array('add', 'subtract'), TRUE)) {
+			$this->session->set_flashdata('error', 'Invalid stock adjust input.');
+			redirect('products/stock_management');
+			return;
+		}
+
+		$location_id = $this->getMainAdminStockLocationId();
+		$snapshot = $this->db
+			->where('location_id', $location_id)
+			->where('item_type', $item_type)
+			->where('item_ref_id', $item_ref_id)
+			->where('variation_key', $variation_key)
+			->where('school_id', NULL)
+			->where('branch_id', NULL)
+			->limit(1)
+			->get('inventory_stock_snapshot')
+			->row_array();
+		$before_qty = $snapshot ? (float)$snapshot['qty_available'] : 0.0;
+		$delta = ($operation === 'add') ? $qty : (-1 * $qty);
+		$after_qty = $before_qty + $delta;
+		if ($after_qty < 0) {
+			$this->session->set_flashdata('error', 'Subtract quantity cannot exceed current stock.');
+			redirect('products/stock_management');
+			return;
+		}
+
+		$this->db->trans_begin();
+		$this->setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $after_qty);
+		$this->db->insert('inventory_stock_movements', array(
+			'movement_type' => $operation === 'add' ? 'manual_add' : 'manual_subtract',
+			'external_ref' => 'manual_adjust:' . $operation . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . microtime(TRUE),
+			'location_id' => $location_id,
+			'item_type' => $item_type,
+			'item_ref_id' => $item_ref_id,
+			'variation_key' => $variation_key,
+			'qty_delta' => $delta,
+			'qty_before' => $before_qty,
+			'qty_after' => $after_qty,
+			'actor_type' => 'vendor_admin',
+			'actor_id' => (int)$this->current_vendor['id'],
+			'remarks' => $remarks
+		));
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			$this->session->set_flashdata('error', 'Failed to update stock.');
+		} else {
+			$this->db->trans_commit();
+			$this->session->set_flashdata('success', 'Stock updated successfully.');
+		}
+		redirect('products/stock_management');
+	}
+
+	public function stock_management_adjust_bulk()
+	{
+		if (!$this->checkFeatureAccess('stock_management')) {
+			show_error('Forbidden', 403);
+			return;
+		}
+
+		$adjustments = $this->input->post('adjustments');
+		if (empty($adjustments) || !is_array($adjustments)) {
+			$this->session->set_flashdata('error', 'No selected items for stock update.');
+			redirect('products/stock_management');
+			return;
+		}
+
+		$location_id = $this->getMainAdminStockLocationId();
+		$updated_count = 0;
+
+		$this->db->trans_begin();
+		foreach ($adjustments as $adj)
+		{
+			if (!is_array($adj)) {
+				continue;
+			}
+			$item_type = isset($adj['item_type']) ? trim((string)$adj['item_type']) : '';
+			$item_ref_id = isset($adj['item_ref_id']) ? (int)$adj['item_ref_id'] : 0;
+			$variation_key = isset($adj['variation_key']) ? trim((string)$adj['variation_key']) : 'default';
+			$operation = isset($adj['operation']) ? trim((string)$adj['operation']) : '';
+			$qty = isset($adj['qty']) ? (float)$adj['qty'] : 0;
+			$remarks = isset($adj['remarks']) ? trim((string)$adj['remarks']) : '';
+			if ($variation_key === '') {
+				$variation_key = 'default';
+			}
+			if ($remarks === '') {
+				$remarks = $operation === 'subtract' ? 'Manual subtract' : 'Manual add';
+			}
+			if ($item_type === '' || $item_ref_id <= 0 || $qty <= 0 || !in_array($operation, array('add', 'subtract'), TRUE)) {
+				continue;
+			}
+
+			$snapshot = $this->db
+				->where('location_id', $location_id)
+				->where('item_type', $item_type)
+				->where('item_ref_id', $item_ref_id)
+				->where('variation_key', $variation_key)
+				->where('school_id', NULL)
+				->where('branch_id', NULL)
+				->limit(1)
+				->get('inventory_stock_snapshot')
+				->row_array();
+			$before_qty = $snapshot ? (float)$snapshot['qty_available'] : 0.0;
+			$delta = ($operation === 'add') ? $qty : (-1 * $qty);
+			$after_qty = $before_qty + $delta;
+			if ($after_qty < 0) {
+				continue;
+			}
+
+			$this->setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $after_qty);
+			$this->db->insert('inventory_stock_movements', array(
+				'movement_type' => $operation === 'add' ? 'manual_add' : 'manual_subtract',
+				'external_ref' => 'manual_adjust_bulk:' . $operation . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . microtime(TRUE),
+				'location_id' => $location_id,
+				'item_type' => $item_type,
+				'item_ref_id' => $item_ref_id,
+				'variation_key' => $variation_key,
+				'qty_delta' => $delta,
+				'qty_before' => $before_qty,
+				'qty_after' => $after_qty,
+				'actor_type' => 'vendor_admin',
+				'actor_id' => (int)$this->current_vendor['id'],
+				'remarks' => $remarks
+			));
+			$updated_count++;
+		}
+
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			$this->session->set_flashdata('error', 'Failed to update selected stock rows.');
+		} else {
+			$this->db->trans_commit();
+			$this->session->set_flashdata('success', 'Updated stock for ' . $updated_count . ' item(s).');
+		}
+		redirect('products/stock_management');
+	}
+
+
+	private function getMainAdminStockLocationId()
+	{
+		$row = $this->db
+			->select('id')
+			->from('inventory_locations')
+			->where('location_type', 'admin')
+			->where('location_ref_id', 0)
+			->limit(1)
+			->get()
+			->row_array();
+		if (!empty($row['id'])) {
+			return (int)$row['id'];
+		}
+		$this->db->insert('inventory_locations', array(
+			'location_type' => 'admin',
+			'location_ref_id' => 0,
+			'name' => 'Main Admin Stock',
+			'is_active' => 1
+		));
+		return (int)$this->db->insert_id();
+	}
+
+	private function setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $qty)
+	{
+		$existing = $this->db
+			->where('location_id', (int)$location_id)
+			->where('item_type', (string)$item_type)
+			->where('item_ref_id', (int)$item_ref_id)
+			->where('variation_key', (string)$variation_key)
+			->where('school_id', NULL)
+			->where('branch_id', NULL)
+			->limit(1)
+			->get('inventory_stock_snapshot')
+			->row_array();
+		if (!empty($existing['id'])) {
+			$this->db->where('id', (int)$existing['id'])->update('inventory_stock_snapshot', array('qty_available' => (float)$qty));
+			return;
+		}
+		$this->db->insert('inventory_stock_snapshot', array(
+			'location_id' => (int)$location_id,
+			'item_type' => (string)$item_type,
+			'item_ref_id' => (int)$item_ref_id,
+			'variation_key' => (string)$variation_key,
+			'school_id' => NULL,
+			'branch_id' => NULL,
+			'qty_available' => (float)$qty
+		));
+	}
+
+	private function resolveMovementSource($movement_type)
+	{
+		$t = strtolower((string)$movement_type);
+		if (strpos($t, 'order') !== FALSE) {
+			return 'order';
+		}
+		if (strpos($t, 'cancel') !== FALSE) {
+			return 'cancel';
+		}
+		if (strpos($t, 'pos') !== FALSE) {
+			return 'pos';
+		}
+		if (strpos($t, 'manual') !== FALSE) {
+			return 'manual';
+		}
+		return 'other';
+	}
+
+	private function buildStockCatalogRows($location_id)
+	{
+		$rows = array();
+		$snapshot_map = array();
+		$movement_map = array();
+		$class_name_map = array();
+		$product_image_map = array();
+
+		if ($this->db->table_exists('erp_classes')) {
+			$class_rows = $this->db
+				->select('id,class_name')
+				->from('erp_classes')
+				->where('vendor_id', (int)$this->current_vendor['id'])
+				->get()
+				->result_array();
+			foreach ($class_rows as $crow) {
+				$class_name_map[(int)$crow['id']] = (string)$crow['class_name'];
+			}
+		}
+
+		if ($this->db->table_exists('erp_product_images') && $this->db->field_exists('image_path', 'erp_product_images')) {
+			$product_img_rows = $this->db
+				->select('product_id,image_path')
+				->from('erp_product_images')
+				->where('vendor_id', (int)$this->current_vendor['id'])
+				->where('is_main', 1)
+				->get()
+				->result_array();
+			foreach ($product_img_rows as $img) {
+				$product_image_map[(int)$img['product_id']] = (string)$img['image_path'];
+			}
+		}
+
+		$snapshot_rows = $this->db
+			->select('item_type,item_ref_id,variation_key,qty_available')
+			->from('inventory_stock_snapshot')
+			->where('location_id', (int)$location_id)
+			->where('school_id', NULL)
+			->where('branch_id', NULL)
+			->get()
+			->result_array();
+		foreach ($snapshot_rows as $s) {
+			$key = strtolower((string)$s['item_type']) . '|' . (int)$s['item_ref_id'] . '|' . strtolower((string)($s['variation_key'] ?: 'default'));
+			$snapshot_map[$key] = (float)$s['qty_available'];
+		}
+
+		$movement_rows = $this->db
+			->select('item_type,item_ref_id,variation_key,MAX(created_at) AS last_update')
+			->from('inventory_stock_movements')
+			->where('location_id', (int)$location_id)
+			->group_by(array('item_type', 'item_ref_id', 'variation_key'))
+			->get()
+			->result_array();
+		foreach ($movement_rows as $m) {
+			$key = strtolower((string)$m['item_type']) . '|' . (int)$m['item_ref_id'] . '|' . strtolower((string)($m['variation_key'] ?: 'default'));
+			$movement_map[$key] = $m['last_update'];
+		}
+
+		if ($this->db->table_exists('erp_uniforms') && $this->db->table_exists('erp_uniform_size_prices')) {
+			$uniform_rows = $this->db
+				->select('u.id AS product_id,u.product_name,u.gender,u.class_id,u.school_id,u.board_id,ut.name AS uniform_type_name,sch.school_name,br.branch_name,bo.board_name,ui.image_path AS image_path,s.name AS size_name')
+				->from('erp_uniforms u')
+				->join('erp_uniform_size_prices usp', 'usp.uniform_id = u.id', 'left')
+				->join('erp_sizes s', 's.id = usp.size_id', 'left')
+				->join('erp_uniform_types ut', 'ut.id = u.uniform_type_id', 'left')
+				->join('erp_schools sch', 'sch.id = u.school_id', 'left')
+				->join('erp_school_branches br', 'br.id = u.branch_id', 'left')
+				->join('erp_school_boards bo', 'bo.id = u.board_id', 'left')
+				->join('erp_uniform_images ui', 'ui.uniform_id = u.id AND ui.is_main = 1', 'left')
+				->where('u.vendor_id', (int)$this->current_vendor['id'])
+				->where('u.status', 'active')
+				->order_by('u.product_name', 'ASC')
+				->order_by('s.display_order', 'ASC')
+				->get()
+				->result_array();
+
+			foreach ($uniform_rows as $u) {
+				$variation_key = !empty($u['size_name']) ? (string)$u['size_name'] : 'default';
+				$key = 'uniform|' . (int)$u['product_id'] . '|' . strtolower($variation_key);
+				$grade_name = '-';
+				if (!empty($u['class_id'])) {
+					$class_ids = array_filter(array_map('intval', explode(',', (string)$u['class_id'])));
+					$class_names = array();
+					foreach ($class_ids as $cid) {
+						if (isset($class_name_map[$cid])) {
+							$class_names[] = $class_name_map[$cid];
+						}
+					}
+					if (!empty($class_names)) {
+						$grade_name = implode(', ', $class_names);
+					}
+				}
+				$rows[] = array(
+					'item_type' => 'uniform',
+					'item_ref_id' => (int)$u['product_id'],
+					'product_name' => (string)$u['product_name'],
+					'image_path' => !empty($u['image_path']) ? (string)$u['image_path'] : '',
+					'uniform_type_name' => !empty($u['uniform_type_name']) ? (string)$u['uniform_type_name'] : '-',
+					'gender' => !empty($u['gender']) ? ucfirst((string)$u['gender']) : '-',
+					'school_name' => !empty($u['school_name']) ? (string)$u['school_name'] : '-',
+					'branch_name' => !empty($u['branch_name']) ? (string)$u['branch_name'] : '',
+					'board_name' => !empty($u['board_name']) ? (string)$u['board_name'] : '-',
+					'grade_name' => $grade_name,
+					'school_id' => isset($u['school_id']) ? (int)$u['school_id'] : 0,
+					'board_id' => isset($u['board_id']) ? (int)$u['board_id'] : 0,
+					'grade_ids' => !empty($u['class_id']) ? array_values(array_filter(array_map('intval', explode(',', (string)$u['class_id'])))) : array(),
+					'variation_key' => $variation_key,
+					'qty_available' => isset($snapshot_map[$key]) ? (float)$snapshot_map[$key] : 0.0,
+					'last_stock_update' => isset($movement_map[$key]) ? $movement_map[$key] : NULL
+				);
+			}
+		}
+
+		if ($this->db->table_exists('erp_products')) {
+			$product_rows = $this->db
+				->select('id,product_name,type')
+				->from('erp_products')
+				->where('vendor_id', (int)$this->current_vendor['id'])
+				->where('is_deleted', 0)
+				->where('status', 'active')
+				->where('type !=', 'uniform')
+				->order_by('product_name', 'ASC')
+				->get()
+				->result_array();
+
+			foreach ($product_rows as $p) {
+				$key = 'book|' . (int)$p['id'] . '|default';
+				$rows[] = array(
+					'item_type' => 'book',
+					'item_ref_id' => (int)$p['id'],
+					'product_name' => (string)$p['product_name'],
+					'image_path' => isset($product_image_map[(int)$p['id']]) ? $product_image_map[(int)$p['id']] : '',
+					'uniform_type_name' => '-',
+					'gender' => '-',
+					'school_name' => '-',
+					'branch_name' => '',
+					'board_name' => '-',
+					'grade_name' => '-',
+					'school_id' => 0,
+					'board_id' => 0,
+					'grade_ids' => array(),
+					'variation_key' => 'default',
+					'qty_available' => isset($snapshot_map[$key]) ? (float)$snapshot_map[$key] : 0.0,
+					'last_stock_update' => isset($movement_map[$key]) ? $movement_map[$key] : NULL
+				);
+			}
+		}
+
+		return $rows;
+	}
 	
 	/**
 	 * Stationery Index - List all stationery products

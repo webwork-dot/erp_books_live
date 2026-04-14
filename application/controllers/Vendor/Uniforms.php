@@ -81,8 +81,35 @@ class Uniforms extends Vendor_base
 		// Get uniforms with pagination
 		$uniforms = $this->Uniform_model->getUniformsByVendor($this->current_vendor['id'], $filters, $per_page, $offset);
 
+		$uniform_stock_map = array();
+		if ($this->db->table_exists('inventory_stock_snapshot') && $this->db->table_exists('inventory_locations')) {
+			$location_row = $this->db->select('id')->from('inventory_locations')->where('location_type', 'admin')->where('location_ref_id', 0)->limit(1)->get()->row_array();
+			if (!empty($location_row['id']) && !empty($uniforms)) {
+				$uniform_ids = array();
+				foreach ($uniforms as $urow) {
+					$uniform_ids[] = (int)$urow['id'];
+				}
+				$uniform_ids = array_values(array_unique($uniform_ids));
+				if (!empty($uniform_ids)) {
+					$stock_rows = $this->db
+						->select('item_ref_id, SUM(qty_available) AS total_qty')
+						->from('inventory_stock_snapshot')
+						->where('location_id', (int)$location_row['id'])
+						->where('item_type', 'uniform')
+						->where_in('item_ref_id', $uniform_ids)
+						->group_by('item_ref_id')
+						->get()
+						->result_array();
+					foreach ($stock_rows as $srow) {
+						$uniform_stock_map[(int)$srow['item_ref_id']] = (float)$srow['total_qty'];
+					}
+				}
+			}
+		}
+
 		// Enhance uniforms data with images and size prices
 		foreach ($uniforms as &$uniform) {
+			$uniform['current_stock_qty'] = isset($uniform_stock_map[(int)$uniform['id']]) ? (float)$uniform_stock_map[(int)$uniform['id']] : 0.0;
 			// Get main image (is_main = 1), fallback to first image if no main image is set
 			$this->db->select('image_path');
 			$this->db->from('erp_uniform_images');

@@ -934,5 +934,124 @@ class Tenant_model extends CI_Model
 		
 		return TRUE;
 	}
+
+	/**
+	 * Ensure stock management tables exist in a vendor database.
+	 *
+	 * @param	string	$database_name	Vendor database name
+	 * @return	bool
+	 */
+	public function ensureStockManagementTablesForDatabase($database_name)
+	{
+		$hostname = $this->db->hostname;
+		$username = $this->db->username;
+		$password = $this->db->password;
+
+		$connection = new mysqli($hostname, $username, $password, $database_name);
+		if ($connection->connect_error)
+		{
+			log_message('error', 'Failed to connect vendor DB for stock tables: ' . $connection->connect_error);
+			return FALSE;
+		}
+
+		$result = $this->ensureStockManagementTables($connection);
+		$connection->close();
+		return $result;
+	}
+
+	/**
+	 * Create stock management tables inside an open vendor DB connection.
+	 *
+	 * @param	mysqli	$connection
+	 * @return	bool
+	 */
+	public function ensureStockManagementTables($connection)
+	{
+		$queries = array(
+			"CREATE TABLE IF NOT EXISTS `inventory_locations` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`location_type` VARCHAR(40) NOT NULL,
+				`location_ref_id` INT UNSIGNED DEFAULT NULL,
+				`school_id` INT UNSIGNED DEFAULT NULL,
+				`branch_id` INT UNSIGNED DEFAULT NULL,
+				`name` VARCHAR(160) NOT NULL,
+				`is_active` TINYINT(1) NOT NULL DEFAULT 1,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				UNIQUE KEY `uniq_location` (`location_type`,`location_ref_id`,`school_id`,`branch_id`),
+				KEY `idx_location_type` (`location_type`),
+				KEY `idx_school_branch` (`school_id`,`branch_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `inventory_stock_snapshot` (
+				`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`location_id` INT UNSIGNED NOT NULL,
+				`item_type` VARCHAR(40) NOT NULL,
+				`item_ref_id` INT UNSIGNED NOT NULL,
+				`variation_key` VARCHAR(80) DEFAULT NULL,
+				`school_id` INT UNSIGNED DEFAULT NULL,
+				`branch_id` INT UNSIGNED DEFAULT NULL,
+				`qty_available` DECIMAL(12,2) NOT NULL DEFAULT 0,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				UNIQUE KEY `uniq_snapshot` (`location_id`,`item_type`,`item_ref_id`,`variation_key`,`school_id`,`branch_id`),
+				KEY `idx_item` (`item_type`,`item_ref_id`),
+				KEY `idx_location` (`location_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `inventory_stock_movements` (
+				`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`movement_type` VARCHAR(60) NOT NULL,
+				`external_ref` VARCHAR(120) DEFAULT NULL,
+				`order_id` INT UNSIGNED DEFAULT NULL,
+				`order_item_id` INT UNSIGNED DEFAULT NULL,
+				`location_id` INT UNSIGNED NOT NULL,
+				`item_type` VARCHAR(40) NOT NULL,
+				`item_ref_id` INT UNSIGNED NOT NULL,
+				`variation_key` VARCHAR(80) DEFAULT NULL,
+				`school_id` INT UNSIGNED DEFAULT NULL,
+				`branch_id` INT UNSIGNED DEFAULT NULL,
+				`qty_delta` DECIMAL(12,2) NOT NULL,
+				`qty_before` DECIMAL(12,2) DEFAULT NULL,
+				`qty_after` DECIMAL(12,2) DEFAULT NULL,
+				`actor_type` VARCHAR(40) DEFAULT NULL,
+				`actor_id` INT UNSIGNED DEFAULT NULL,
+				`remarks` VARCHAR(255) DEFAULT NULL,
+				`meta_json` JSON DEFAULT NULL,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				UNIQUE KEY `uniq_external_ref` (`external_ref`),
+				KEY `idx_order` (`order_id`,`order_item_id`),
+				KEY `idx_item` (`item_type`,`item_ref_id`),
+				KEY `idx_location` (`location_id`),
+				KEY `idx_created_at` (`created_at`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+		);
+
+		foreach ($queries as $sql)
+		{
+			if (!$connection->query($sql))
+			{
+				log_message('error', 'Failed stock table SQL: ' . $connection->error);
+				return FALSE;
+			}
+		}
+
+		// Ensure one default admin location exists.
+		$defaultLocationSql = "INSERT INTO inventory_locations
+			(location_type, location_ref_id, school_id, branch_id, name, is_active)
+			VALUES ('admin', 0, NULL, NULL, 'Main Admin Stock', 1)
+			ON DUPLICATE KEY UPDATE name = VALUES(name), is_active = 1";
+		if (!$connection->query($defaultLocationSql))
+		{
+			log_message('error', 'Failed to seed default inventory location: ' . $connection->error);
+			return FALSE;
+		}
+
+		log_message('info', 'Ensured stock management tables in vendor database.');
+		return TRUE;
+	}
 }
 
