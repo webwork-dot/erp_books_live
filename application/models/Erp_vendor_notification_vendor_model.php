@@ -105,10 +105,18 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		$db = $this->getVendorDb($vendor_id);
 		if (!$db) return FALSE;
 
-		// If one core table exists, assume schema applied.
-		if ($db->table_exists('erp_vendor_notification_settings')) {
-			return TRUE;
+		$required = [
+			'erp_vendor_notification_settings',
+			'erp_vendor_email_templates',
+			'erp_vendor_whatsapp_templates',
+			'erp_vendor_sms_templates',
+			'erp_notification_events',
+		];
+		$missing = [];
+		foreach ($required as $t) {
+			if (!$db->table_exists($t)) $missing[] = $t;
 		}
+		if (empty($missing)) return TRUE;
 
 		$sql_path = APPPATH . '../database/tenant/create_vendor_notifications_tables.sql';
 		if (!file_exists($sql_path)) {
@@ -145,11 +153,18 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 			}
 		}
 
-		$exists = $db->table_exists('erp_vendor_notification_settings');
-		if (!$exists) {
-			$this->last_error = 'Schema applied but core table still missing (permission issue?)';
+		// Re-check required tables after apply
+		$missing = [];
+		foreach ($required as $t) {
+			if (!$db->table_exists($t)) $missing[] = $t;
 		}
-		return $exists;
+		if (!empty($missing)) {
+			$this->last_error = 'Schema applied but still missing tables: ' . implode(', ', $missing);
+			return FALSE;
+		}
+
+		$this->last_error = '';
+		return TRUE;
 	}
 
 	// ---------------------------------------------------------------------
@@ -274,6 +289,11 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		}
 
 		// Sync templates (replace per vendor_id for predictability)
+		if (!$db->table_exists('erp_vendor_email_templates')) {
+			$this->last_error = 'Missing table in vendor DB: erp_vendor_email_templates';
+			log_message('error', 'Erp_vendor_notification_vendor_model: vendor table missing vendor_id=' . $vendor_id . ' table=erp_vendor_email_templates');
+			return FALSE;
+		}
 		$ok = $db->where('vendor_id', $vendor_id)->delete('erp_vendor_email_templates');
 		if ($ok === FALSE) {
 			$err = $db->error();
@@ -292,6 +312,11 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 			}
 		}
 
+		if (!$db->table_exists('erp_vendor_whatsapp_templates')) {
+			$this->last_error = 'Missing table in vendor DB: erp_vendor_whatsapp_templates';
+			log_message('error', 'Erp_vendor_notification_vendor_model: vendor table missing vendor_id=' . $vendor_id . ' table=erp_vendor_whatsapp_templates');
+			return FALSE;
+		}
 		$ok = $db->where('vendor_id', $vendor_id)->delete('erp_vendor_whatsapp_templates');
 		if ($ok === FALSE) {
 			$err = $db->error();
@@ -314,6 +339,11 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 			}
 		}
 
+		if (!$db->table_exists('erp_vendor_sms_templates')) {
+			$this->last_error = 'Missing table in vendor DB: erp_vendor_sms_templates';
+			log_message('error', 'Erp_vendor_notification_vendor_model: vendor table missing vendor_id=' . $vendor_id . ' table=erp_vendor_sms_templates');
+			return FALSE;
+		}
 		$ok = $db->where('vendor_id', $vendor_id)->delete('erp_vendor_sms_templates');
 		if ($ok === FALSE) {
 			$err = $db->error();
