@@ -78,7 +78,35 @@ class Orders extends Vendor_base
 		}
 
 		// Items (tbl_order_items) + HTML rows for {order_items}
-		$items = $this->db->select('product_id, product_title, product_qty, product_price, total_price, variation_name, thumbnail_img, order_type, size_id, f_name, grade, school_id, branch_id, grade_id, board_id')
+		$itemCols = [
+			'product_id',
+			'product_title',
+			'product_qty',
+			'product_price',
+			'total_price',
+			'variation_name',
+			'thumbnail_img',
+			'order_type',
+			'size_id',
+			'f_name',
+			'grade',
+			'school_id',
+			'branch_id',
+			'grade_id',
+			'board_id',
+		];
+		$existingItemCols = [];
+		foreach ($itemCols as $c) {
+			if ($this->db->field_exists($c, 'tbl_order_items')) {
+				$existingItemCols[] = $c;
+			}
+		}
+		// Fallback: never generate an empty SELECT list
+		if (empty($existingItemCols)) {
+			$existingItemCols = ['product_id'];
+		}
+
+		$items = $this->db->select(implode(', ', $existingItemCols), false)
 			->from('tbl_order_items')
 			->where('order_id', (int)$order_id)
 			->order_by('id', 'ASC')
@@ -120,12 +148,31 @@ class Orders extends Vendor_base
 				$pid = (int)($it['product_id'] ?? 0);
 				if ($pid > 0) {
 					if ($this->db->table_exists('erp_product_images')) {
-						$img = $this->db->select('image')->from('erp_product_images')->where('product_id', $pid)->where('vendor_id', $vendor_id)->order_by('is_main', 'DESC')->order_by('image_order', 'ASC')->limit(1)->get()->row_array();
-						if (!empty($img['image'])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img['image'], '/');
+						// Some tenants have different column names; pick the first existing.
+						$imgCol = null;
+						foreach (['image', 'file', 'file_name', 'image_path', 'img'] as $c) {
+							if ($this->db->field_exists($c, 'erp_product_images')) {
+								$imgCol = $c;
+								break;
+							}
+						}
+						if ($imgCol) {
+							$img = $this->db->select($imgCol)->from('erp_product_images')->where('product_id', $pid)->where('vendor_id', $vendor_id)->order_by('is_main', 'DESC')->order_by('image_order', 'ASC')->limit(1)->get()->row_array();
+							if (!empty($img[$imgCol])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img[$imgCol], '/');
+						}
 					}
 					if ($img_url === '' && $this->db->table_exists('product_images')) {
-						$img = $this->db->select('image')->from('product_images')->where('product_id', $pid)->order_by('is_main', 'DESC')->order_by('id', 'ASC')->limit(1)->get()->row_array();
-						if (!empty($img['image'])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img['image'], '/');
+						$imgCol = null;
+						foreach (['image', 'file', 'file_name', 'image_path', 'img'] as $c) {
+							if ($this->db->field_exists($c, 'product_images')) {
+								$imgCol = $c;
+								break;
+							}
+						}
+						if ($imgCol) {
+							$img = $this->db->select($imgCol)->from('product_images')->where('product_id', $pid)->order_by('is_main', 'DESC')->order_by('id', 'ASC')->limit(1)->get()->row_array();
+							if (!empty($img[$imgCol])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img[$imgCol], '/');
+						}
 					}
 				}
 			}
@@ -262,12 +309,29 @@ class Orders extends Vendor_base
 		$vendor_id = (int)($this->current_vendor['id'] ?? 0);
 		if ($vendor_id <= 0) return;
 
+		$event_key = trim((string)$event_key);
+		$sentCodeByEvent = [
+			'order_processed' => 2,
+			'order_shipped' => 6,
+			'out_for_delivery' => 3,
+			'order_delivered' => 4,
+		];
+		$mailSentCode = isset($sentCodeByEvent[$event_key]) ? (int)$sentCodeByEvent[$event_key] : 0;
+
 		$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
 		$order_ids = array_filter($order_ids, function ($v) { return $v > 0; });
 		if (empty($order_ids)) return;
 
+		$hasIsMailSent = $this->db->field_exists('is_mail_sent', 'tbl_order_details');
+		$hasIsMailDate = $this->db->field_exists('is_mail_date', 'tbl_order_details');
+
+		$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, delivery_charge, discount_amt, currency_code, currency, children_data';
+		if ($hasIsMailSent) {
+			$select .= ', is_mail_sent';
+		}
+
 		$rows = $this->db
-			->select('id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, delivery_charge, discount_amt, currency_code, currency, children_data')
+			->select($select, false)
 			->from('tbl_order_details')
 			->where_in('id', $order_ids)
 			->get()
@@ -279,8 +343,24 @@ class Orders extends Vendor_base
 		foreach ($rows as $r) {
 			$order_id = (int)($r['id'] ?? 0);
 			if ($order_id <= 0) continue;
+
+			// If we already sent mail for this status, skip.
+			if ($mailSentCode > 0 && $hasIsMailSent && (int)($r['is_mail_sent'] ?? 0) === $mailSentCode) {
+				continue;
+			}
+
 			$vars = $this->buildOrderVarsFromRow($r, $order_id);
-			$this->notification_sender->sendEvent($vendor_id, $event_key, $vars);
+			$res = $this->notification_sender->sendEvent($vendor_id, $event_key, $vars);
+
+			$emailOk = !empty($res['results']['email']['success']);
+			if ($emailOk && $mailSentCode > 0 && $hasIsMailSent) {
+				$update = ['is_mail_sent' => $mailSentCode];
+				if ($hasIsMailDate) {
+					$update['is_mail_date'] = date('Y-m-d H:i:s');
+				}
+				$this->db->where('id', $order_id);
+				$this->db->update('tbl_order_details', $update);
+			}
 		}
 	}
 
@@ -2335,6 +2415,8 @@ class Orders extends Vendor_base
 			]);
 		} else {
 			$this->db->trans_commit();
+			// Trigger same notifications as "move to processing"
+			$this->sendOrderEventNotifications('order_processed', $order_ids);
 			echo json_encode([
 				'status' => '200',
 				'message' => count($order_ids) . ' order(s) updated successfully.',
@@ -5975,18 +6057,21 @@ $school_q = $this->db->get();
 	public function bulk_download_shipping_labels()
 	{
 		if (strtoupper($this->input->method()) !== 'POST') {
-			show_error('Invalid request method.', 405);
+			$this->output
+				->set_status_header(405)
+				->set_content_type('application/json', 'utf-8')
+				->set_output(json_encode(['status' => 'error', 'message' => 'Invalid request method.']));
 			return;
 		}
 
 		$order_ids = $this->input->post('order_ids');
 
 		if (empty($order_ids) || !is_array($order_ids)) {
-			echo json_encode([
-				'status' => 'error',
-				'message' => 'No orders selected for bulk shipping label download.'
-			]);
-			exit;
+			$this->output
+				->set_status_header(400)
+				->set_content_type('application/json', 'utf-8')
+				->set_output(json_encode(['status' => 'error', 'message' => 'No orders selected for bulk shipping label download.']));
+			return;
 		}
 
 		// Normalize and limit order IDs to avoid very heavy queries
@@ -6003,20 +6088,20 @@ $school_q = $this->db->get();
 			->result();
 
 		if (empty($orders)) {
-			echo json_encode([
-				'status' => 'error',
-				'message' => 'Selected orders not found.'
-			]);
-			exit;
+			$this->output
+				->set_status_header(404)
+				->set_content_type('application/json', 'utf-8')
+				->set_output(json_encode(['status' => 'error', 'message' => 'Selected orders not found.']));
+			return;
 		}
 
 
 		if (!class_exists('ZipArchive')) {
-			echo json_encode([
-				'status' => 'error',
-				'message' => 'ZIP extension is not enabled on the server.'
-			]);
-			exit;
+			$this->output
+				->set_status_header(500)
+				->set_content_type('application/json', 'utf-8')
+				->set_output(json_encode(['status' => 'error', 'message' => 'ZIP extension is not enabled on the server.']));
+			return;
 		}
 
 		$this->load->helper('common');
@@ -6031,11 +6116,11 @@ $school_q = $this->db->get();
 
 		if ($zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
 			$this->session->set_flashdata('error', 'Unable to create ZIP file.');
-			echo json_encode([
-				'status' => 'error',
-				'message' => 'Unable to create ZIP file.'
-			]);
-			exit;
+			$this->output
+				->set_status_header(500)
+				->set_content_type('application/json', 'utf-8')
+				->set_output(json_encode(['status' => 'error', 'message' => 'Unable to create ZIP file.']));
+			return;
 		}
 
 		$added_files = 0;
@@ -6106,11 +6191,11 @@ $school_q = $this->db->get();
 			if (file_exists($zip_path)) {
 				@unlink($zip_path);
 			}
-			echo json_encode([
-				'status' => 'error',
-				'message' => 'No shipping labels found for selected orders.'
-			]);
-			exit;
+			$this->output
+				->set_status_header(400)
+				->set_content_type('application/json', 'utf-8')
+				->set_output(json_encode(['status' => 'error', 'message' => 'No shipping labels found for selected orders.']));
+			return;
 
 		}
 

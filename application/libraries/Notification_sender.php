@@ -33,11 +33,13 @@ class Notification_sender
 		$vars = is_array($variables) ? $variables : [];
 
 		if ($vendor_id <= 0 || $event_key === '') {
+			log_message('error', 'Notification_sender: invalid vendor_id/event_key. vendor_id=' . $vendor_id . ' event_key=' . $event_key);
 			return ['success' => false, 'message' => 'Invalid vendor_id or event_key.'];
 		}
 
 		$event = $this->CI->Erp_vendor_notification_model->getNotificationEventByKey($event_key);
 		if (!$event || empty($event['id'])) {
+			log_message('error', 'Notification_sender: event not found or inactive. vendor_id=' . $vendor_id . ' event_key=' . $event_key);
 			return ['success' => false, 'message' => 'Event not found or inactive.'];
 		}
 
@@ -51,29 +53,70 @@ class Notification_sender
 			'results' => []
 		];
 
-		// Email (vendor email templates mapped by event_key)
-		$emailTpl = null;
+		// Email (supports separate user + vendor templates per event_key)
 		$emailTpls = $this->CI->Erp_vendor_notification_model->getEmailTemplates($vendor_id);
+		$userTpl = null;
+		$vendorTpl = null;
 		foreach ($emailTpls as $t) {
-			if (!empty($t['is_active']) && isset($t['event_key']) && (string)$t['event_key'] === (string)$event_key) {
-				$emailTpl = $t;
-				break;
+			if (empty($t['is_active']) || !isset($t['event_key']) || (string)$t['event_key'] !== (string)$event_key) {
+				continue;
 			}
+			$aud = isset($t['audience']) ? strtolower((string)$t['audience']) : 'user';
+			if ($aud === 'vendor' && $vendorTpl === null) {
+				$vendorTpl = $t;
+			} elseif ($aud !== 'vendor' && $userTpl === null) {
+				$userTpl = $t;
+			}
+			if ($userTpl && $vendorTpl) break;
 		}
-		if ($emailTpl) {
+
+		$out['results']['email_user'] = null;
+		$out['results']['email_vendor'] = null;
+
+		// User email
+		if ($userTpl) {
 			$to = trim((string)($vars['email_to'] ?? $vars['to'] ?? ''));
 			if ($to !== '') {
-				$subject = $this->replaceTokensInString((string)($emailTpl['email_subject'] ?? ''), $vars);
-				$html = $this->replaceTokensInString((string)($emailTpl['email_html'] ?? ''), $vars);
-				// If HTML was stored as entities (e.g. &lt;table&gt;), decode before sending.
+				$subject = $this->replaceTokensInString((string)($userTpl['email_subject'] ?? ''), $vars);
+				$html = $this->replaceTokensInString((string)($userTpl['email_html'] ?? ''), $vars);
 				$html = html_entity_decode($html, ENT_QUOTES, 'UTF-8');
-				$res = $this->sendEmail($vendor_id, $to, $subject, $html);
-				$out['results']['email'] = $res;
-				if (empty($res['success'])) $out['success'] = false;
+				$cc = (string)($userTpl['cc_emails'] ?? '');
+				$res = $this->sendEmail($vendor_id, $to, $subject, $html, [], $cc);
+				$out['results']['email_user'] = $res;
+				if (empty($res['success'])) {
+					$out['success'] = false;
+					log_message('error', 'Notification_sender: user email send failed. vendor_id=' . $vendor_id . ' event_key=' . $event_key . ' to=' . $to . ' message=' . ($res['message'] ?? ''));
+				}
 			} else {
-				$out['results']['email'] = ['success' => false, 'message' => 'Missing email_to for email channel.'];
+				$out['results']['email_user'] = ['success' => false, 'message' => 'Missing email_to for email channel.'];
 				$out['success'] = false;
+				log_message('error', 'Notification_sender: missing email_to (user). vendor_id=' . $vendor_id . ' event_key=' . $event_key);
 			}
+		}
+
+		// Vendor email (separate template; recipients come from template_to_emails)
+		if ($vendorTpl) {
+			$to = trim((string)($vendorTpl['to_emails'] ?? ''));
+			if ($to !== '') {
+				$subject = $this->replaceTokensInString((string)($vendorTpl['email_subject'] ?? ''), $vars);
+				$html = $this->replaceTokensInString((string)($vendorTpl['email_html'] ?? ''), $vars);
+				$html = html_entity_decode($html, ENT_QUOTES, 'UTF-8');
+				$cc = (string)($vendorTpl['cc_emails'] ?? '');
+				$res = $this->sendEmail($vendor_id, $to, $subject, $html, [], $cc);
+				$out['results']['email_vendor'] = $res;
+				if (empty($res['success'])) {
+					$out['success'] = false;
+					log_message('error', 'Notification_sender: vendor email send failed. vendor_id=' . $vendor_id . ' event_key=' . $event_key . ' to=' . $to . ' message=' . ($res['message'] ?? ''));
+				}
+			} else {
+				$out['results']['email_vendor'] = ['success' => false, 'message' => 'Missing to_emails for vendor email template.'];
+				$out['success'] = false;
+				log_message('error', 'Notification_sender: missing to_emails (vendor). vendor_id=' . $vendor_id . ' event_key=' . $event_key);
+			}
+		}
+
+		if (!$userTpl && !$vendorTpl) {
+			log_message('error', 'Notification_sender: no active email template. vendor_id=' . $vendor_id . ' event_key=' . $event_key);
 		}
 
 		// WhatsApp (vendor WhatsApp templates mapped by event_key)
@@ -122,7 +165,7 @@ class Notification_sender
 		return $out;
 	}
 
-	public function sendEmail($vendor_id, $to, $subject, $html, $attachments = [])
+	public function sendEmail($vendor_id, $to, $subject, $html, $attachments = [], $cc = '')
 	{
 		$settings = $this->CI->Erp_vendor_notification_model->getSettings($vendor_id);
 		if (empty($settings) || empty($settings['email_enabled'])) {
@@ -166,7 +209,11 @@ class Notification_sender
 		$fromName = trim((string)($settings['email_from_name'] ?? ''));
 
 		$this->CI->email->from($fromEmail, $fromName !== '' ? $fromName : NULL);
-		$this->CI->email->to($to);
+		$this->CI->email->to($this->normalizeEmailList($to));
+		$ccList = $this->normalizeEmailList($cc);
+		if (!empty($ccList)) {
+			$this->CI->email->cc($ccList);
+		}
 		$this->CI->email->subject($subject);
 		$this->CI->email->message($html);
 
@@ -189,6 +236,28 @@ class Notification_sender
 			'message' => strip_tags($debug),
 			'debug' => $debug,
 		];
+	}
+
+	private function normalizeEmailList($value)
+	{
+		if ($value === NULL) return [];
+		if (is_array($value)) {
+			$out = [];
+			foreach ($value as $v) {
+				$v = trim((string)$v);
+				if ($v !== '') $out[] = $v;
+			}
+			return array_values(array_unique($out));
+		}
+		$s = trim((string)$value);
+		if ($s === '') return [];
+		$parts = preg_split('/[,\s]+/', $s);
+		$out = [];
+		foreach ($parts as $p) {
+			$p = trim((string)$p);
+			if ($p !== '') $out[] = $p;
+		}
+		return array_values(array_unique($out));
 	}
 
 	public function sendWhatsapp($vendor_id, $mobile, $template_key, $variables = [], $media_url = NULL)

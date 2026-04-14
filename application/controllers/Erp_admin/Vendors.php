@@ -2121,11 +2121,96 @@ class Vendors extends Erp_base
 		}
 
 		$this->load->library('Notification_sender');
-		$res = $this->notification_sender->sendEmail($vendor_id, $to, 'Test Email', '<p>This is a test email from ERP notifications.</p>');
+		$templates = $this->Erp_vendor_notification_model->getEmailTemplates($vendor_id);
+		$active = [];
+		foreach ((array)$templates as $t) {
+			if (!empty($t['is_active']) && !empty($t['event_key']) && !empty($t['email_subject']) && !empty($t['email_html'])) {
+				$active[] = $t;
+			}
+		}
+		if (empty($active)) {
+			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'No active email templates found for this vendor.']));
+		}
+
+		// Build simple test vars so tokens render.
+		$vars = [
+			'event_key' => 'test',
+			'event_title' => 'Test',
+			'vendor_name' => $vendor['name'] ?? '',
+			'user_name' => 'Test User',
+			'user_email' => $to,
+			'user_phone' => '9999999999',
+			'email_to' => $to,
+			'order_id' => 0,
+			'order_unique_id' => 'TEST_' . date('Ymd_His'),
+			'order_date' => date('Y-m-d H:i:s'),
+			'payment_method' => 'test',
+			'payment_status' => 'test',
+			'invoice_no' => 'INV_TEST_001',
+			'awb_no' => 'AWBTEST123456',
+			'courier' => 'manual',
+			'delivery_date' => date('Y-m-d H:i:s'),
+			'currency_code' => 'INR',
+			'payable_amt' => '0',
+			'subtotal' => '0',
+			'delivery_charge' => '0',
+			'discount_amt' => '0',
+			'total_qty' => '0',
+			'school_name' => 'Test School',
+			'board_name' => 'Test Board',
+			'grade_name' => 'Test Grade',
+			'child_name' => 'Test Child',
+			'child_class' => 'Test Class',
+			'child_section' => 'A',
+			'shipping_name' => 'Test Recipient',
+			'shipping_phone' => '9999999999',
+			'shipping_address' => 'Test Address',
+			'shipping_city' => 'Test City',
+			'shipping_state' => 'Test State',
+			'shipping_pincode' => '000000',
+			'order_items' => '<tr>'
+				. '<td style="padding:8px;border-bottom:1px solid #f1f5f9;">Test Item</td>'
+				. '<td style="padding:8px;border-bottom:1px solid #f1f5f9;">-</td>'
+				. '<td align="center" style="padding:8px;border-bottom:1px solid #f1f5f9;">1</td>'
+				. '<td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;">0</td>'
+				. '</tr>',
+		];
+
+		$sent = 0;
+		$failed = 0;
+		$errors = [];
+		foreach ($active as $tpl) {
+			$subject = preg_replace_callback('/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}|\\{\\s*([a-zA-Z0-9_]+)\\s*\\}/', function ($m) use ($vars) {
+				$key = !empty($m[1]) ? $m[1] : (!empty($m[2]) ? $m[2] : '');
+				return array_key_exists($key, $vars) && $vars[$key] !== NULL ? (string)$vars[$key] : '';
+			}, (string)$tpl['email_subject']);
+			$html = preg_replace_callback('/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}|\\{\\s*([a-zA-Z0-9_]+)\\s*\\}/', function ($m) use ($vars) {
+				$key = !empty($m[1]) ? $m[1] : (!empty($m[2]) ? $m[2] : '');
+				return array_key_exists($key, $vars) && $vars[$key] !== NULL ? (string)$vars[$key] : '';
+			}, (string)$tpl['email_html']);
+			$html = html_entity_decode($html, ENT_QUOTES, 'UTF-8');
+
+			// For test: always send to the provided recipient, regardless of audience/to_emails.
+			$cc = (string)($tpl['cc_emails'] ?? '');
+			$res = $this->notification_sender->sendEmail($vendor_id, $to, $subject, $html, [], $cc);
+			if (!empty($res['success'])) {
+				$sent++;
+			} else {
+				$failed++;
+				$errors[] = [
+					'event_key' => (string)($tpl['event_key'] ?? ''),
+					'audience' => (string)($tpl['audience'] ?? 'user'),
+					'message' => $res['message'] ?? 'Failed',
+				];
+			}
+		}
 
 		return $this->output->set_output(json_encode([
-			'status' => !empty($res['success']) ? 'success' : 'error',
-			'message' => $res['message'] ?? 'Unknown response'
+			'status' => ($failed === 0) ? 'success' : (($sent > 0) ? 'partial' : 'error'),
+			'message' => 'Sent: ' . $sent . ', Failed: ' . $failed,
+			'sent' => $sent,
+			'failed' => $failed,
+			'errors' => $errors,
 		]));
 	}
 

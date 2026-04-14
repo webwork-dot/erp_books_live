@@ -1344,6 +1344,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             <thead>
                               <tr>
                                 <th style="min-width: 220px;">Type (Event)</th>
+                                <th style="min-width: 120px;">Audience</th>
+                                <th style="min-width: 240px;">To (Vendor)</th>
+                                <th style="min-width: 240px;">CC</th>
                                 <th style="min-width: 260px;">Subject</th>
                                 <th style="min-width: 360px;">HTML</th>
                                 <th style="width: 80px;">Active</th>
@@ -1366,6 +1369,29 @@ document.addEventListener('DOMContentLoaded', function () {
                                         </option>
                                       <?php endforeach; ?>
                                     </select>
+                                  </td>
+                                  <td>
+                                    <?php
+                                      $aud = isset($_POST['email_templates'][$idx]['audience'])
+                                        ? strtolower((string)$_POST['email_templates'][$idx]['audience'])
+                                        : strtolower((string)($t['audience'] ?? 'user'));
+                                      if ($aud !== 'vendor') $aud = 'user';
+                                    ?>
+                                    <select class="form-select form-select-sm email-audience" name="email_templates[<?php echo $idx; ?>][audience]">
+                                      <option value="user" <?php echo ($aud === 'user') ? 'selected' : ''; ?>>User</option>
+                                      <option value="vendor" <?php echo ($aud === 'vendor') ? 'selected' : ''; ?>>Vendor</option>
+                                    </select>
+                                  </td>
+                                  <td>
+                                    <input type="text" class="form-control form-control-sm email-to-vendor" name="email_templates[<?php echo $idx; ?>][to_emails]"
+                                      value="<?php echo set_value('email_templates['.$idx.'][to_emails]', $t['to_emails'] ?? ''); ?>"
+                                      placeholder="vendor@example.com, ops@example.com">
+                                    <small class="text-muted">Used only for Audience=Vendor.</small>
+                                  </td>
+                                  <td>
+                                    <input type="text" class="form-control form-control-sm" name="email_templates[<?php echo $idx; ?>][cc_emails]"
+                                      value="<?php echo set_value('email_templates['.$idx.'][cc_emails]', $t['cc_emails'] ?? ''); ?>"
+                                      placeholder="cc1@example.com, cc2@example.com">
                                   </td>
                                   <td>
                                     <input type="text" class="form-control form-control-sm" name="email_templates[<?php echo $idx; ?>][email_subject]"
@@ -2311,11 +2337,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tr && emailDeletedWrap) {
           var sel = tr.querySelector('select[name^="email_templates["][name$="[event_key]"]');
           var eventKey = sel ? (sel.value || '').trim() : '';
+          var audSel = tr.querySelector('select[name^="email_templates["][name$="[audience]"]');
+          var audience = audSel ? (audSel.value || '').trim().toLowerCase() : 'user';
+          if (audience !== 'vendor') audience = 'user';
           if (eventKey !== '') {
+            // IMPORTANT: keep event_key + audience paired in ONE array item.
+            // Otherwise PHP parses them as separate array elements and deletion becomes unsafe.
             var hid = document.createElement('input');
             hid.type = 'hidden';
             hid.name = 'email_templates_deleted[]';
-            hid.value = eventKey;
+            hid.value = eventKey + '|' + audience;
             emailDeletedWrap.appendChild(hid);
           }
         }
@@ -2330,6 +2361,9 @@ document.addEventListener('DOMContentLoaded', function() {
       var tr = document.createElement('tr');
       tr.innerHTML = ''
         + '<td><?php echo str_replace("\n", "", addslashes("<select class=\"form-select form-select-sm\" name=\"email_templates[__IDX__][event_key]\">".implode("", array_map(function($o){ return "<option value=\\\"".htmlspecialchars($o["value"], ENT_QUOTES)."\\\">".htmlspecialchars($o["label"], ENT_QUOTES)."</option>"; }, $event_options))."</select>")); ?>'.replace('__IDX__', idx) + '</td>'
+        + '<td><select class=\"form-select form-select-sm email-audience\" name=\"email_templates[' + idx + '][audience]\"><option value=\"user\" selected>User</option><option value=\"vendor\">Vendor</option></select></td>'
+        + '<td><input type=\"text\" class=\"form-control form-control-sm email-to-vendor\" name=\"email_templates[' + idx + '][to_emails]\" placeholder=\"vendor@example.com, ops@example.com\"><small class=\"text-muted\">Used only for Audience=Vendor.</small></td>'
+        + '<td><input type=\"text\" class=\"form-control form-control-sm\" name=\"email_templates[' + idx + '][cc_emails]\" placeholder=\"cc1@example.com, cc2@example.com\"></td>'
         + '<td><input type=\"text\" class=\"form-control form-control-sm\" name=\"email_templates[' + idx + '][email_subject]\" placeholder=\"Your order {{order_unique_id}} placed\"></td>'
         + '<td><textarea class=\"form-control form-control-sm\" rows=\"2\" name=\"email_templates[' + idx + '][email_html]\" placeholder=\"<p>Hello {{customer_name}}</p>\"></textarea></td>'
         + '<td class=\"text-center\"><input type=\"checkbox\" class=\"form-check-input\" name=\"email_templates[' + idx + '][is_active]\" value=\"1\" checked></td>'
@@ -2338,6 +2372,30 @@ document.addEventListener('DOMContentLoaded', function() {
       emailBindRemove();
     });
   }
+
+  // Toggle vendor To field visibility based on audience
+  document.addEventListener('change', function(e){
+    if (!e.target || !e.target.classList || !e.target.classList.contains('email-audience')) return;
+    var tr = e.target.closest('tr');
+    if (!tr) return;
+    var toBox = tr.querySelector('.email-to-vendor');
+    if (!toBox) return;
+    var isVendor = (String(e.target.value || '').toLowerCase() === 'vendor');
+    toBox.disabled = !isVendor;
+    if (!isVendor) {
+      toBox.value = toBox.value; // keep value but disable
+    }
+  });
+
+  // Initialize state on load
+  document.querySelectorAll('.email-audience').forEach(function(sel){
+    var tr = sel.closest('tr');
+    if (!tr) return;
+    var toBox = tr.querySelector('.email-to-vendor');
+    if (!toBox) return;
+    var isVendor = (String(sel.value || '').toLowerCase() === 'vendor');
+    toBox.disabled = !isVendor;
+  });
 
   // WhatsApp template params per-row
   function initWaParamMaps() {
