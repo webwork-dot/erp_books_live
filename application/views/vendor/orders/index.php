@@ -1260,7 +1260,7 @@ $(document).ready(function(){
             if(!result.isConfirmed) return;
 
             $.ajax({
-                url: '<?php echo base_url("orders/bulk_set_shipper"); ?>',
+                url: '<?php echo site_url("orders/bulk_set_shipper"); ?>',
                 type: 'POST',
                 dataType: 'json',
                 data: {
@@ -1702,7 +1702,7 @@ $(document).on('click', '#btn_bulk_download_labels', function(){
         formData.append('order_ids[]', id);
     });
 
-    fetch('<?php echo base_url('orders/bulk_download_shipping_labels'); ?>', {
+    fetch('<?php echo site_url('orders/bulk_download_shipping_labels'); ?>', {
         method: 'POST',
         body: formData
     }).then(function(response) {

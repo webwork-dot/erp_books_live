@@ -14,6 +14,13 @@
         
         if (!container) return;
 
+        // Check if already initialized to prevent duplicate event listeners
+        const fileInput = document.getElementById('images');
+        if (fileInput && fileInput.dataset.sortableInitialized === 'true') {
+            console.log('Image sortable already initialized for this file input, skipping...');
+            return;
+        }
+
         let imageFiles = [];
         let imagePreviews = [];
         const hasExistingImages = container.querySelectorAll('.existing-image').length > 0;
@@ -36,10 +43,14 @@
         }
 
         // Handle file input change
-        const fileInput = document.getElementById('images');
         
         if (fileInput) {
+            // Remove any existing change listeners to prevent duplicates
+            fileInput.onchange = null;
+            
             fileInput.addEventListener('change', function(e) {
+                if (!e.target.files || e.target.files.length === 0) return;
+                
                 const files = Array.from(e.target.files);
 
                 imageFiles = [];
@@ -50,18 +61,19 @@
                     mainImageInput.value = String(mainImageIndex);
                 }
                 
-                files.forEach((file, index) => {
+                let loadedCount = 0;
+                files.forEach((file) => {
                     if (file.type.startsWith('image/')) {
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const imageData = {
                                 file: file,
-                                preview: e.target.result,
-                                index: imageFiles.length
+                                preview: e.target.result
                             };
                             console.log('Image loaded:', file.name, 'Preview length:', e.target.result.length);
                             imageFiles.push(imageData);
                             addImagePreview(imageData, imageFiles.length - 1);
+                            loadedCount++;
                         };
                         reader.onerror = function() {
                             console.error('Error reading file:', file.name);
@@ -71,7 +83,10 @@
                         console.warn('Skipped non-image file:', file.name, file.type);
                     }
                 });
-            });
+            }, false);
+            
+            // Mark as initialized
+            fileInput.dataset.sortableInitialized = 'true';
         }
 
         // Add image preview with drag and drop support
@@ -315,20 +330,30 @@
     }
 
     // Auto-initialize when DOM is ready
+    let imageSortableInitialized = false;
+    
     function initializeImageSortable() {
-        const container = document.getElementById('image-preview');
-        if (container) {
-            // Don't initialize if there are existing images (edit form handles those)
-            const existingImages = container.querySelectorAll('.existing-image');
-            if (existingImages.length > 0) {
-                console.log('Existing images found, skipping image-sortable initialization');
-                return;
-            }
-            
-            // Check if this is an edit form (has main_image_id) or add form (has main_image_index)
-            const mainImageInputId = document.getElementById('main_image_id') ? 'main_image_id' : 'main_image_index';
-            initImageSortable('image-preview', 'image_order', mainImageInputId);
+        // Prevent multiple initializations
+        if (imageSortableInitialized) {
+            console.log('Image sortable already initialized, skipping...');
+            return;
         }
+        
+        const container = document.getElementById('image-preview');
+        if (!container) {
+            return;
+        }
+        
+        // Don't initialize if there are existing images (edit form handles those separately)
+        const existingImages = container.querySelectorAll('.existing-image');
+        if (existingImages.length > 0) {
+            console.log('Existing images found, checking if full initialization is needed');
+        }
+        
+        // Check if this is an edit form (has main_image_id) or add form (has main_image_index)
+        const mainImageInputId = document.getElementById('main_image_id') ? 'main_image_id' : 'main_image_index';
+        initImageSortable('image-preview', 'image_order', mainImageInputId);
+        imageSortableInitialized = true;
     }
     
     if (document.readyState === 'loading') {

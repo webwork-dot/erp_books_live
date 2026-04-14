@@ -108,6 +108,7 @@
   border-radius: 2px;
 }
 
+
 .notif-sidebar .list-group-item {
   border: 1px solid transparent;
   border-radius: 0.75rem;
@@ -120,6 +121,23 @@
   align-items: center;
   gap: 0.65rem;
   transition: all 0.15s ease;
+}
+.notif-sidebar .list-group {
+  display: flex;
+  flex-direction: row !important;
+  gap: 0.6rem;
+}
+.notif-sidebar .list-group-item {
+  width: 33.33%;
+  flex: 0 0 auto;
+}
+.notif-sidebar .list-group-item span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.notif-sidebar .list-group-item .small {
+  display: none; /* keep tabs compact in horizontal mode */
 }
 .notif-sidebar .list-group-item.active {
   background: #3550dc;
@@ -140,15 +158,19 @@
   border-radius: 1rem;
 }
 .notif-shell .notif-left {
-  border-right: 1px solid #eef2ff;
+  border-right: none;
+  border-bottom: 1px solid #eef2ff;
   background: rgba(255,255,255,0.65);
   border-top-left-radius: 1rem;
-  border-bottom-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  border-bottom-left-radius: 0;
 }
 .notif-shell .notif-right {
   background: #ffffff;
   border-top-right-radius: 1rem;
   border-bottom-right-radius: 1rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 1rem;
 }
 .notif-kicker {
   font-size: 0.8rem;
@@ -1280,7 +1302,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             <div class="notif-shell">
               <div class="row g-0">
-                <div class="col-lg-3 notif-left p-3">
+                <div class="col-12 notif-left p-3">
                   <div class="notif-sidebar">
                     <div class="list-group" id="notifChannelList">
                       <button type="button" class="list-group-item list-group-item-action active" data-channel="email">
@@ -1308,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', function () {
                   </div>
                 </div>
 
-                <div class="col-lg-9 notif-right p-3 p-md-4">
+                <div class="col-12 notif-right p-3 p-md-4">
                 <!-- Email panel -->
                 <div class="notif-panel active" id="notif_email">
                   <div class="notif-panel-card">
@@ -1344,6 +1366,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             <thead>
                               <tr>
                                 <th style="min-width: 220px;">Type (Event)</th>
+                                <th style="min-width: 120px;">Audience</th>
+                                <th style="min-width: 240px;">To (Vendor)</th>
+                                <th style="min-width: 240px;">CC</th>
                                 <th style="min-width: 260px;">Subject</th>
                                 <th style="min-width: 360px;">HTML</th>
                                 <th style="width: 80px;">Active</th>
@@ -1366,6 +1391,29 @@ document.addEventListener('DOMContentLoaded', function () {
                                         </option>
                                       <?php endforeach; ?>
                                     </select>
+                                  </td>
+                                  <td>
+                                    <?php
+                                      $aud = isset($_POST['email_templates'][$idx]['audience'])
+                                        ? strtolower((string)$_POST['email_templates'][$idx]['audience'])
+                                        : strtolower((string)($t['audience'] ?? 'user'));
+                                      if ($aud !== 'vendor') $aud = 'user';
+                                    ?>
+                                    <select class="form-select form-select-sm email-audience" name="email_templates[<?php echo $idx; ?>][audience]">
+                                      <option value="user" <?php echo ($aud === 'user') ? 'selected' : ''; ?>>User</option>
+                                      <option value="vendor" <?php echo ($aud === 'vendor') ? 'selected' : ''; ?>>Vendor</option>
+                                    </select>
+                                  </td>
+                                  <td>
+                                    <input type="text" class="form-control form-control-sm email-to-vendor" name="email_templates[<?php echo $idx; ?>][to_emails]"
+                                      value="<?php echo set_value('email_templates['.$idx.'][to_emails]', $t['to_emails'] ?? ''); ?>"
+                                      placeholder="vendor@example.com, ops@example.com">
+                                    <small class="text-muted">Used only for Audience=Vendor.</small>
+                                  </td>
+                                  <td>
+                                    <input type="text" class="form-control form-control-sm" name="email_templates[<?php echo $idx; ?>][cc_emails]"
+                                      value="<?php echo set_value('email_templates['.$idx.'][cc_emails]', $t['cc_emails'] ?? ''); ?>"
+                                      placeholder="cc1@example.com, cc2@example.com">
                                   </td>
                                   <td>
                                     <input type="text" class="form-control form-control-sm" name="email_templates[<?php echo $idx; ?>][email_subject]"
@@ -2311,11 +2359,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tr && emailDeletedWrap) {
           var sel = tr.querySelector('select[name^="email_templates["][name$="[event_key]"]');
           var eventKey = sel ? (sel.value || '').trim() : '';
+          var audSel = tr.querySelector('select[name^="email_templates["][name$="[audience]"]');
+          var audience = audSel ? (audSel.value || '').trim().toLowerCase() : 'user';
+          if (audience !== 'vendor') audience = 'user';
           if (eventKey !== '') {
+            // IMPORTANT: keep event_key + audience paired in ONE array item.
+            // Otherwise PHP parses them as separate array elements and deletion becomes unsafe.
             var hid = document.createElement('input');
             hid.type = 'hidden';
             hid.name = 'email_templates_deleted[]';
-            hid.value = eventKey;
+            hid.value = eventKey + '|' + audience;
             emailDeletedWrap.appendChild(hid);
           }
         }
@@ -2330,6 +2383,9 @@ document.addEventListener('DOMContentLoaded', function() {
       var tr = document.createElement('tr');
       tr.innerHTML = ''
         + '<td><?php echo str_replace("\n", "", addslashes("<select class=\"form-select form-select-sm\" name=\"email_templates[__IDX__][event_key]\">".implode("", array_map(function($o){ return "<option value=\\\"".htmlspecialchars($o["value"], ENT_QUOTES)."\\\">".htmlspecialchars($o["label"], ENT_QUOTES)."</option>"; }, $event_options))."</select>")); ?>'.replace('__IDX__', idx) + '</td>'
+        + '<td><select class=\"form-select form-select-sm email-audience\" name=\"email_templates[' + idx + '][audience]\"><option value=\"user\" selected>User</option><option value=\"vendor\">Vendor</option></select></td>'
+        + '<td><input type=\"text\" class=\"form-control form-control-sm email-to-vendor\" name=\"email_templates[' + idx + '][to_emails]\" placeholder=\"vendor@example.com, ops@example.com\"><small class=\"text-muted\">Used only for Audience=Vendor.</small></td>'
+        + '<td><input type=\"text\" class=\"form-control form-control-sm\" name=\"email_templates[' + idx + '][cc_emails]\" placeholder=\"cc1@example.com, cc2@example.com\"></td>'
         + '<td><input type=\"text\" class=\"form-control form-control-sm\" name=\"email_templates[' + idx + '][email_subject]\" placeholder=\"Your order {{order_unique_id}} placed\"></td>'
         + '<td><textarea class=\"form-control form-control-sm\" rows=\"2\" name=\"email_templates[' + idx + '][email_html]\" placeholder=\"<p>Hello {{customer_name}}</p>\"></textarea></td>'
         + '<td class=\"text-center\"><input type=\"checkbox\" class=\"form-check-input\" name=\"email_templates[' + idx + '][is_active]\" value=\"1\" checked></td>'
@@ -2338,6 +2394,30 @@ document.addEventListener('DOMContentLoaded', function() {
       emailBindRemove();
     });
   }
+
+  // Toggle vendor To field visibility based on audience
+  document.addEventListener('change', function(e){
+    if (!e.target || !e.target.classList || !e.target.classList.contains('email-audience')) return;
+    var tr = e.target.closest('tr');
+    if (!tr) return;
+    var toBox = tr.querySelector('.email-to-vendor');
+    if (!toBox) return;
+    var isVendor = (String(e.target.value || '').toLowerCase() === 'vendor');
+    toBox.disabled = !isVendor;
+    if (!isVendor) {
+      toBox.value = toBox.value; // keep value but disable
+    }
+  });
+
+  // Initialize state on load
+  document.querySelectorAll('.email-audience').forEach(function(sel){
+    var tr = sel.closest('tr');
+    if (!tr) return;
+    var toBox = tr.querySelector('.email-to-vendor');
+    if (!toBox) return;
+    var isVendor = (String(sel.value || '').toLowerCase() === 'vendor');
+    toBox.disabled = !isVendor;
+  });
 
   // WhatsApp template params per-row
   function initWaParamMaps() {
