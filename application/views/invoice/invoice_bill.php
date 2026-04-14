@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Tax Invoice / Bill of Supply - Shivam Books
+ * Tax Invoice / Bill of Supply - -
  * Design based on kirtibook + shipping label
  * Logo from erp_clients (base64), seller GSTIN/PAN/name from erp_clients
  * Products displayed like shipping label: Bookset (with packages), Individual, Uniform
@@ -31,7 +32,7 @@ $is_igst = (stripos($place_of_supply, 'Maharashtra') === false) ? 1 : 0;
 
 $currency = isset($d['currency_code']) ? $d['currency_code'] : '₹';
 $logo_src = isset($d['logo_src']) ? $d['logo_src'] : '';
-$company_name = isset($d['company_name']) ? $d['company_name'] : 'Shivam Books';
+$company_name = isset($d['company_name']) ? $d['company_name'] : '-';
 $company_address = isset($d['company_address']) ? $d['company_address'] : '';
 $company_gstin = isset($d['company_gstin']) ? $d['company_gstin'] : '-';
 $company_pan = isset($d['company_pan']) ? $d['company_pan'] : '-';
@@ -40,307 +41,375 @@ $company_phone = isset($d['company_phone']) ? $d['company_phone'] : '';
 // Total invoice value for calculations
 $total_invoice_value = isset($d['payable_amt']) ? floatval($d['payable_amt']) : 0;
 if ($total_invoice_value <= 0 && !empty($products)) {
-	foreach ($products as $p) $total_invoice_value += isset($p['total_price']) ? floatval($p['total_price']) : 0;
+  foreach ($products as $p) $total_invoice_value += isset($p['total_price']) ? floatval($p['total_price']) : 0;
 }
 ?>
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="UTF-8">
-<style>
-body.invoice { font-family: DejaVu Sans, sans-serif; font-size: 10px; margin: 15px; }
-#invoice { width: 100%; border-collapse: collapse; }
-#invoice th, #invoice td { padding: 6px 8px; vertical-align: top; }
-.head-img { width: 25%; }
-.head { width: 75%; text-align: right; }
-.logo { max-height: 50px; }
-.m-t-10 { margin-top: 12px; }
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { border: 1px solid #333; padding: 6px 8px; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-.text-center { text-align: center; }
-.bold { font-weight: bold; }
-.font12 { font-size: 11px; }
-.p-l-r { padding: 8px; }
-.border-t { border-top: 1px solid #333; }
-.border-b { border-bottom: 1px solid #333; }
-#page-wrap { max-width: 100%; }
-.book-pack { font-size: 9px; }
-</style>
+  <meta charset="UTF-8">
+  <style>
+    body.invoice {
+      font-family: DejaVu Sans, sans-serif;
+      font-size: 10px;
+      margin: 15px;
+    }
+
+    #invoice {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #invoice th,
+    #invoice td {
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+
+    .head-img {
+      width: 25%;
+    }
+
+    .head {
+      width: 75%;
+      text-align: right;
+    }
+
+    .logo {
+      max-height: 50px;
+    }
+
+    .m-t-10 {
+      margin-top: 12px;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+      border: 1px solid #333;
+      padding: 6px 8px;
+    }
+
+    .text-left {
+      text-align: left;
+    }
+
+    .text-right {
+      text-align: right;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+
+    .font12 {
+      font-size: 11px;
+    }
+
+    .p-l-r {
+      padding: 8px;
+    }
+
+    .border-t {
+      border-top: 1px solid #333;
+    }
+
+    .border-b {
+      border-bottom: 1px solid #333;
+    }
+
+    #page-wrap {
+      max-width: 100%;
+    }
+
+    .book-pack {
+      font-size: 9px;
+    }
+  </style>
 </head>
+
 <body class="invoice">
-<div class="panel-body" id="page-wrap">
-<table id="invoice">
-  <thead>
-  <tr>
-    <th class="head-img text-left">
-      <?php if (!empty($logo_src)): ?>
-      <img src="<?= htmlspecialchars($logo_src) ?>" alt="Logo" class="logo" style="height:60px;">
-      <?php endif; ?>
-      <p style="margin-top:5px;"><b><?= htmlspecialchars($company_name) ?></b></p>
-    </th>
-    <th class="text-right head">
-      <p><b>Tax Invoice / Bill of Supply / Cash Memo</b></p>
-      <p>(Original for Recipient)</p>
-      <p class="m-t-10"><b>Order No:</b> <?= htmlspecialchars($d['order_unique_id']) ?> | <b>Order Date:</b> <?= htmlspecialchars($d['order_date']) ?></p>
-      <p><b>Invoice No:</b> <?= htmlspecialchars($d['invoice_no']) ?> | <b>Invoice Date:</b> <?= htmlspecialchars($d['invoice_date']) ?></p>
-    </th>
-  </tr>
-  </thead>
-</table>
+  <div class="panel-body" id="page-wrap">
+    <table id="invoice">
+      <thead>
+        <tr>
+          <th class="head-img text-left">
+            <?php if (!empty($logo_src)): ?>
+              <img src="<?= htmlspecialchars($logo_src) ?>" alt="Logo" class="logo" style="height:60px;">
+            <?php endif; ?>
+            <p style="margin-top:5px;"><b><?= htmlspecialchars($company_name) ?></b></p>
+          </th>
+          <th class="text-right head">
+            <p><b>Tax Invoice / Bill of Supply / Cash Memo</b></p>
+            <p>(Original for Recipient)</p>
+            <p class="m-t-10"><b>Order No:</b> <?= htmlspecialchars($d['order_unique_id']) ?> | <b>Order Date:</b> <?= htmlspecialchars($d['order_date']) ?></p>
+            <p><b>Invoice No:</b> <?= htmlspecialchars($d['invoice_no']) ?> | <b>Invoice Date:</b> <?= htmlspecialchars($d['invoice_date']) ?></p>
+          </th>
+        </tr>
+      </thead>
+    </table>
 
-<table id="invoice_3" class="m-t-10 table" style="table-layout: fixed; border-top: 2px solid #333;">
-  <thead>
-  <tr>
-    <th class="p-l-r text-left" style="width: 50%; border: 1px solid #333;">
-      <p><b>Sold By:</b> <?= htmlspecialchars($company_name) ?></p>
-      <?php if ($company_address): ?><p><b>Address:</b> <?= htmlspecialchars($company_address) ?></p><?php endif; ?>
-      <?php if ($company_phone): ?><p><b>Contact:</b> <?= htmlspecialchars($company_phone) ?></p><?php endif; ?>
-      <p><b>PAN:</b> <?= htmlspecialchars($company_pan) ?></p>
-      <p><b>GSTIN:</b> <?= htmlspecialchars($company_gstin) ?></p>
-      <p><b>Place of Supply:</b> <?= htmlspecialchars($place_of_supply) ?></p>
-    </th>
-    <th class="p-l-r text-left" style="width: 50%; border: 1px solid #333;">
-      <p><b>Bill To:</b> <?= htmlspecialchars($bill_name) ?></p>
-      <p><b>Address:</b> <?= htmlspecialchars($full_address ?: '-') ?></p>
-      <?php if ($bill_email): ?><p><b>Email:</b> <?= htmlspecialchars($bill_email) ?></p><?php endif; ?>
-      <?php if ($bill_phone): ?><p><b>Contact:</b> <?= htmlspecialchars($bill_phone) ?></p><?php endif; ?>
-      <p><b>GSTIN:</b> URP</p>
-    </th>
-  </tr>
-  </thead>
-</table>
+    <table id="invoice_3" class="m-t-10 table" style="table-layout: fixed; border-top: 2px solid #333;">
+      <thead>
+        <tr>
+          <th class="p-l-r text-left" style="width: 50%; border: 1px solid #333;">
+            <p><b>Sold By:</b> <?= htmlspecialchars($company_name) ?></p>
+            <?php if ($company_address): ?><p><b>Address:</b> <?= htmlspecialchars($company_address) ?></p><?php endif; ?>
+            <?php if ($company_phone): ?><p><b>Contact:</b> <?= htmlspecialchars($company_phone) ?></p><?php endif; ?>
+            <p><b>PAN:</b> <?= htmlspecialchars($company_pan) ?></p>
+            <p><b>GSTIN:</b> <?= htmlspecialchars($company_gstin) ?></p>
+            <p><b>Place of Supply:</b> <?= htmlspecialchars($place_of_supply) ?></p>
+          </th>
+          <th class="p-l-r text-left" style="width: 50%; border: 1px solid #333;">
+            <p><b>Bill To:</b> <?= htmlspecialchars($bill_name) ?></p>
+            <p><b>Address:</b> <?= htmlspecialchars($full_address ?: '-') ?></p>
+            <?php if ($bill_email): ?><p><b>Email:</b> <?= htmlspecialchars($bill_email) ?></p><?php endif; ?>
+            <?php if ($bill_phone): ?><p><b>Contact:</b> <?= htmlspecialchars($bill_phone) ?></p><?php endif; ?>
+            <p><b>GSTIN:</b> URP</p>
+          </th>
+        </tr>
+      </thead>
+    </table>
 
-<table id="invoice_1" class="m-t-10 table" style="margin-top: 12px;">
-  <thead>
-  <tr>
-    <th rowspan="2" style="border: 1px solid #333; padding: 6px;">#</th>
-    <th rowspan="2" class="text-left" style="border: 1px solid #333; padding: 6px;">Description of Goods</th>
-    <th rowspan="2" style="border: 1px solid #333; padding: 6px;">HSN</th>
-    <th rowspan="2" style="border: 1px solid #333; padding: 6px;">Qty</th>
-    <th rowspan="2" style="border: 1px solid #333; padding: 6px;">Taxable Amt</th>
-    <?php if ($is_igst): ?>
-    <th colspan="2" style="border: 1px solid #333; padding: 6px;">IGST</th>
-    <?php else: ?>
-    <th colspan="2" style="border: 1px solid #333; padding: 6px;">CGST</th>
-    <th colspan="2" style="border: 1px solid #333; padding: 6px;">SGST</th>
-    <?php endif; ?>
-    <th rowspan="2" style="border: 1px solid #333; padding: 6px;">Amount (incl. Tax)</th>
-  </tr>
-  <tr>
-    <?php if ($is_igst): ?>
-    <th style="border: 1px solid #333; padding: 4px;">%</th>
-    <th style="border: 1px solid #333; padding: 4px;">Amt</th>
-    <?php else: ?>
-    <th style="border: 1px solid #333; padding: 4px;">%</th>
-    <th style="border: 1px solid #333; padding: 4px;">Amt</th>
-    <th style="border: 1px solid #333; padding: 4px;">%</th>
-    <th style="border: 1px solid #333; padding: 4px;">Amt</th>
-    <?php endif; ?>
-  </tr>
-  </thead>
-  <tbody>
-  <?php
-  $sr = 1;
-  $total_qty = 0;
-  $total_taxable = 0;
-  $total_gst = 0;
-  $total_incl = 0;
+    <table id="invoice_1" class="m-t-10 table" style="margin-top: 12px;">
+      <thead>
+        <tr>
+          <th rowspan="2" style="border: 1px solid #333; padding: 6px;">#</th>
+          <th rowspan="2" class="text-left" style="border: 1px solid #333; padding: 6px;">Description of Goods</th>
+          <th rowspan="2" style="border: 1px solid #333; padding: 6px;">HSN</th>
+          <th rowspan="2" style="border: 1px solid #333; padding: 6px;">Qty</th>
+          <th rowspan="2" style="border: 1px solid #333; padding: 6px;">Taxable Amt</th>
+          <?php if ($is_igst): ?>
+            <th colspan="2" style="border: 1px solid #333; padding: 6px;">IGST</th>
+          <?php else: ?>
+            <th colspan="2" style="border: 1px solid #333; padding: 6px;">CGST</th>
+            <th colspan="2" style="border: 1px solid #333; padding: 6px;">SGST</th>
+          <?php endif; ?>
+          <th rowspan="2" style="border: 1px solid #333; padding: 6px;">Amount (incl. Tax)</th>
+        </tr>
+        <tr>
+          <?php if ($is_igst): ?>
+            <th style="border: 1px solid #333; padding: 4px;">%</th>
+            <th style="border: 1px solid #333; padding: 4px;">Amt</th>
+          <?php else: ?>
+            <th style="border: 1px solid #333; padding: 4px;">%</th>
+            <th style="border: 1px solid #333; padding: 4px;">Amt</th>
+            <th style="border: 1px solid #333; padding: 4px;">%</th>
+            <th style="border: 1px solid #333; padding: 4px;">Amt</th>
+          <?php endif; ?>
+        </tr>
+      </thead>
+      <tbody>
+        <?php
+        $sr = 1;
+        $total_qty = 0;
+        $total_taxable = 0;
+        $total_gst = 0;
+        $total_incl = 0;
 
-  // BOOKSET: display like shipping label - Bookset header, Package headers, products
-  if ($order_type_label == 'Bookset' && !empty($bookset_products)) {
-    $bookset_display_name = 'Bookset';
-    if (!empty($items_arr)) {
-      foreach ($items_arr as $it) {
-        if (isset($it->order_type) && ($it->order_type == 'bookset' || $it->order_type == 'package') && !empty($it->product_title)) {
-          $bookset_display_name = trim($it->product_title);
-          break;
+        // BOOKSET: display like shipping label - Bookset header, Package headers, products
+        if ($order_type_label == 'Bookset' && !empty($bookset_products)) {
+          $bookset_display_name = 'Bookset';
+          if (!empty($items_arr)) {
+            foreach ($items_arr as $it) {
+              if (isset($it->order_type) && ($it->order_type == 'bookset' || $it->order_type == 'package') && !empty($it->product_title)) {
+                $bookset_display_name = trim($it->product_title);
+                break;
+              }
+            }
+          }
+        ?>
+          <tr>
+            <td colspan="<?= $is_igst ? 9 : 11 ?>" class="text-left" style="border: 1px solid #333; padding: 8px; background-color: #e0e0e0; font-weight: bold;">Bookset: <?= htmlspecialchars($bookset_display_name) ?></td>
+          </tr>
+          <?php
+          $packages = array();
+          foreach ($bookset_products as $bp) {
+            $pkg_id = isset($bp->package_id) ? $bp->package_id : 0;
+            $pkg_name = isset($bp->package_name) ? $bp->package_name : 'Package ' . $pkg_id;
+            if (!isset($packages[$pkg_id])) $packages[$pkg_id] = array('name' => $pkg_name, 'products' => array());
+            $packages[$pkg_id]['products'][] = $bp;
+          }
+          $item_count = count($bookset_products);
+          $invoice_val_per = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
+          foreach ($packages as $pkg_id => $pkg_data) {
+          ?>
+            <tr>
+              <td colspan="<?= $is_igst ? 9 : 11 ?>" class="text-left" style="border: 1px solid #333; padding: 6px; background-color: #f0f0f0; font-weight: bold;">Package: <?= htmlspecialchars($pkg_data['name']) ?></td>
+            </tr>
+            <?php
+            foreach ($pkg_data['products'] as $bp) {
+              $pname = isset($bp->product_name) ? $bp->product_name : 'Product';
+              $qty = isset($bp->quantity) ? (int)$bp->quantity : 1;
+              $tp = isset($bp->total_price) ? floatval($bp->total_price) : $invoice_val_per;
+              $gst_amt = $tp * 0.18 / 1.18;
+              $taxable = $tp - $gst_amt;
+              $gst_pct = 18;
+              $hsn = '4901';
+              $total_qty += $qty;
+              $total_taxable += $taxable;
+              $total_gst += $gst_amt;
+              $total_incl += $tp;
+            ?>
+              <tr>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
+                <td class="text-left" style="border: 1px solid #333; padding: 6px;"><small class="book-pack"><?= htmlspecialchars($pname) ?></small></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($taxable) ?></td>
+                <?php if ($is_igst): ?>
+                  <td style="border: 1px solid #333; padding: 6px;"><?= $gst_pct ?>%</td>
+                  <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt) ?></td>
+                <?php else: ?>
+                  <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?>%</td>
+                  <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt / 2) ?></td>
+                  <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?>%</td>
+                  <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt / 2) ?></td>
+                <?php endif; ?>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($tp) ?></td>
+              </tr>
+            <?php
+            }
+          }
+        } elseif ($order_type_label == 'Bookset' && !empty($items_arr)) {
+          // Fallback: no bookset_products, use items_arr
+          $item_count = count($items_arr);
+          $inv_per = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
+          foreach ($items_arr as $item) {
+            $desc = isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : '');
+            $qty = isset($item->product_qty) ? (int)$item->product_qty : 1;
+            $tp = isset($item->total_price) ? floatval($item->total_price) : $inv_per;
+            $gst_amt = isset($item->total_gst_amt) ? floatval($item->total_gst_amt) : ($tp * 0.18 / 1.18);
+            $taxable = isset($item->excl_price_total) && $item->excl_price_total > 0 ? floatval($item->excl_price_total) : ($tp - $gst_amt);
+            $gst_pct = isset($item->product_gst) ? floatval($item->product_gst) : 18;
+            $hsn = isset($item->hsn) ? $item->hsn : '4901';
+            $total_qty += $qty;
+            $total_taxable += $taxable;
+            $total_gst += $gst_amt;
+            $total_incl += $tp;
+            $school = !empty($order->school_name) ? htmlspecialchars($order->school_name) . '<br>' : '';
+            ?>
+            <tr>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
+              <td class="text-left" style="border: 1px solid #333; padding: 6px;"><?= $school ?><small class="book-pack"><?= htmlspecialchars($desc) ?></small></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($taxable) ?></td>
+              <?php if ($is_igst): ?>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $gst_pct ?>%</td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt) ?></td>
+              <?php else: ?>
+                <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?>%</td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt / 2) ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?>%</td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt / 2) ?></td>
+              <?php endif; ?>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($tp) ?></td>
+            </tr>
+          <?php
+          }
+        } else {
+          // INDIVIDUAL / UNIFORM: flat product list from products (tbl_order_items)
+          foreach ($products as $p):
+            $qty = isset($p['product_qty']) ? (int)$p['product_qty'] : 1;
+            $total_price = isset($p['total_price']) ? (float)$p['total_price'] : 0;
+            $gst_amt = isset($p['total_gst_amt']) ? (float)$p['total_gst_amt'] : 0;
+            $taxable = isset($p['excl_price_total']) && $p['excl_price_total'] > 0 ? (float)$p['excl_price_total'] : ($total_price - $gst_amt);
+            $gst_pct = isset($p['product_gst']) ? (float)$p['product_gst'] : 0;
+            $hsn = isset($p['hsn']) ? $p['hsn'] : '4901';
+            $total_qty += $qty;
+            $total_taxable += $taxable;
+            $total_gst += $gst_amt;
+            $total_incl += $total_price;
+          ?>
+            <tr>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
+              <td class="text-left" style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars(isset($p['product_title']) ? $p['product_title'] : '') ?></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($taxable) ?></td>
+              <?php if ($is_igst): ?>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $gst_pct ?>%</td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt) ?></td>
+              <?php else: ?>
+                <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?>%</td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt / 2) ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?>%</td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt / 2) ?></td>
+              <?php endif; ?>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($total_price) ?></td>
+            </tr>
+        <?php endforeach;
         }
-      }
-    }
-  ?>
-  <tr>
-    <td colspan="<?= $is_igst ? 9 : 11 ?>" class="text-left" style="border: 1px solid #333; padding: 8px; background-color: #e0e0e0; font-weight: bold;">Bookset: <?= htmlspecialchars($bookset_display_name) ?></td>
-  </tr>
-  <?php
-    $packages = array();
-    foreach ($bookset_products as $bp) {
-      $pkg_id = isset($bp->package_id) ? $bp->package_id : 0;
-      $pkg_name = isset($bp->package_name) ? $bp->package_name : 'Package ' . $pkg_id;
-      if (!isset($packages[$pkg_id])) $packages[$pkg_id] = array('name' => $pkg_name, 'products' => array());
-      $packages[$pkg_id]['products'][] = $bp;
-    }
-    $item_count = count($bookset_products);
-    $invoice_val_per = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
-    foreach ($packages as $pkg_id => $pkg_data) {
-  ?>
-  <tr>
-    <td colspan="<?= $is_igst ? 9 : 11 ?>" class="text-left" style="border: 1px solid #333; padding: 6px; background-color: #f0f0f0; font-weight: bold;">Package: <?= htmlspecialchars($pkg_data['name']) ?></td>
-  </tr>
-  <?php
-      foreach ($pkg_data['products'] as $bp) {
-        $pname = isset($bp->product_name) ? $bp->product_name : 'Product';
-        $qty = isset($bp->quantity) ? (int)$bp->quantity : 1;
-        $tp = isset($bp->total_price) ? floatval($bp->total_price) : $invoice_val_per;
-        $gst_amt = $tp * 0.18 / 1.18;
-        $taxable = $tp - $gst_amt;
-        $gst_pct = 18;
-        $hsn = '4901';
-        $total_qty += $qty;
-        $total_taxable += $taxable;
-        $total_gst += $gst_amt;
-        $total_incl += $tp;
-  ?>
-  <tr>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
-    <td class="text-left" style="border: 1px solid #333; padding: 6px;"><small class="book-pack"><?= htmlspecialchars($pname) ?></small></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($taxable) ?></td>
-    <?php if ($is_igst): ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $gst_pct ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt) ?></td>
-    <?php else: ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct/2) ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt/2) ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct/2) ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt/2) ?></td>
-    <?php endif; ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($tp) ?></td>
-  </tr>
-  <?php
-      }
-    }
-  } elseif ($order_type_label == 'Bookset' && !empty($items_arr)) {
-    // Fallback: no bookset_products, use items_arr
-    $item_count = count($items_arr);
-    $inv_per = ($item_count > 0 && $total_invoice_value > 0) ? ($total_invoice_value / $item_count) : 0;
-    foreach ($items_arr as $item) {
-      $desc = isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : '');
-      $qty = isset($item->product_qty) ? (int)$item->product_qty : 1;
-      $tp = isset($item->total_price) ? floatval($item->total_price) : $inv_per;
-      $gst_amt = isset($item->total_gst_amt) ? floatval($item->total_gst_amt) : ($tp * 0.18 / 1.18);
-      $taxable = isset($item->excl_price_total) && $item->excl_price_total > 0 ? floatval($item->excl_price_total) : ($tp - $gst_amt);
-      $gst_pct = isset($item->product_gst) ? floatval($item->product_gst) : 18;
-      $hsn = isset($item->hsn) ? $item->hsn : '4901';
-      $total_qty += $qty;
-      $total_taxable += $taxable;
-      $total_gst += $gst_amt;
-      $total_incl += $tp;
-      $school = !empty($order->school_name) ? htmlspecialchars($order->school_name) . '<br>' : '';
-  ?>
-  <tr>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
-    <td class="text-left" style="border: 1px solid #333; padding: 6px;"><?= $school ?><small class="book-pack"><?= htmlspecialchars($desc) ?></small></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($taxable) ?></td>
-    <?php if ($is_igst): ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $gst_pct ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt) ?></td>
-    <?php else: ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct/2) ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt/2) ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct/2) ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt/2) ?></td>
-    <?php endif; ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($tp) ?></td>
-  </tr>
-  <?php
-    }
-  } else {
-    // INDIVIDUAL / UNIFORM: flat product list from products (tbl_order_items)
-    foreach ($products as $p):
-      $qty = isset($p['product_qty']) ? (int)$p['product_qty'] : 1;
-      $total_price = isset($p['total_price']) ? (float)$p['total_price'] : 0;
-      $gst_amt = isset($p['total_gst_amt']) ? (float)$p['total_gst_amt'] : 0;
-      $taxable = isset($p['excl_price_total']) && $p['excl_price_total'] > 0 ? (float)$p['excl_price_total'] : ($total_price - $gst_amt);
-      $gst_pct = isset($p['product_gst']) ? (float)$p['product_gst'] : 0;
-      $hsn = isset($p['hsn']) ? $p['hsn'] : '4901';
-      $total_qty += $qty;
-      $total_taxable += $taxable;
-      $total_gst += $gst_amt;
-      $total_incl += $total_price;
-  ?>
-  <tr>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
-    <td class="text-left" style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars(isset($p['product_title']) ? $p['product_title'] : '') ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($taxable) ?></td>
-    <?php if ($is_igst): ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $gst_pct ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt) ?></td>
-    <?php else: ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct/2) ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt/2) ?></td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct/2) ?>%</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($gst_amt/2) ?></td>
-    <?php endif; ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($total_price) ?></td>
-  </tr>
-  <?php endforeach;
-  }
-  ?>
+        ?>
 
-  <?php
-  $delivery_charge = isset($d['delivery_charge']) ? (float)$d['delivery_charge'] : 0;
-  if ($delivery_charge > 0):
-    $total_incl += $delivery_charge;
-  ?>
-  <tr>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
-    <td class="text-left" style="border: 1px solid #333; padding: 6px;">Delivery / Freight Charges</td>
-    <td style="border: 1px solid #333; padding: 6px;">-</td>
-    <td style="border: 1px solid #333; padding: 6px;">-</td>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($delivery_charge) ?></td>
-    <?php if ($is_igst): ?>
-    <td colspan="2" style="border: 1px solid #333; padding: 6px;">-</td>
-    <?php else: ?>
-    <td colspan="4" style="border: 1px solid #333; padding: 6px;">-</td>
-    <?php endif; ?>
-    <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($delivery_charge) ?></td>
-  </tr>
-  <?php endif; ?>
+        <?php
+        $delivery_charge = isset($d['delivery_charge']) ? (float)$d['delivery_charge'] : 0;
+        if ($delivery_charge > 0):
+          $total_incl += $delivery_charge;
+        ?>
+          <tr>
+            <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
+            <td class="text-left" style="border: 1px solid #333; padding: 6px;">Delivery / Freight Charges</td>
+            <td style="border: 1px solid #333; padding: 6px;">-</td>
+            <td style="border: 1px solid #333; padding: 6px;">-</td>
+            <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($delivery_charge) ?></td>
+            <?php if ($is_igst): ?>
+              <td colspan="2" style="border: 1px solid #333; padding: 6px;">-</td>
+            <?php else: ?>
+              <td colspan="4" style="border: 1px solid #333; padding: 6px;">-</td>
+            <?php endif; ?>
+            <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?><?= price_format_decimal($delivery_charge) ?></td>
+          </tr>
+        <?php endif; ?>
 
-  <?php
-  $display_total = $total_incl;
-  if (isset($d['payable_amt']) && (float)$d['payable_amt'] > 0) {
-    $display_total = (float)$d['payable_amt'];
-  }
-  ?>
-  <tr class="bold" style="background: #f5f5f5;">
-    <td colspan="3" class="text-left" style="border: 1px solid #333; padding: 8px;">Total</td>
-    <td style="border: 1px solid #333; padding: 8px;"><?= $total_qty ?></td>
-    <td style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_taxable) ?></td>
-    <?php if ($is_igst): ?>
-    <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst) ?></td>
-    <?php else: ?>
-    <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst/2) ?></td>
-    <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst/2) ?></td>
-    <?php endif; ?>
-    <td style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($display_total) ?></td>
-  </tr>
-  <tr>
-    <td colspan="<?= $is_igst ? 7 : 9 ?>" class="text-left" style="border: 1px solid #333; padding: 6px;">Total Invoice Value (In Words)</td>
-    <td class="text-right" style="border: 1px solid #333; padding: 6px;"><?= function_exists('rupees_word') ? rupees_word($display_total) : (function_exists('price_format_decimal') ? price_format_decimal($display_total) : number_format($display_total, 2)) . ' Only' ?></td>
-  </tr>
-  </tbody>
-</table>
+        <?php
+        $display_total = $total_incl;
+        if (isset($d['payable_amt']) && (float)$d['payable_amt'] > 0) {
+          $display_total = (float)$d['payable_amt'];
+        }
+        ?>
+        <tr class="bold" style="background: #f5f5f5;">
+          <td colspan="3" class="text-left" style="border: 1px solid #333; padding: 8px;">Total</td>
+          <td style="border: 1px solid #333; padding: 8px;"><?= $total_qty ?></td>
+          <td style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_taxable) ?></td>
+          <?php if ($is_igst): ?>
+            <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst) ?></td>
+          <?php else: ?>
+            <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst / 2) ?></td>
+            <td colspan="2" style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($total_gst / 2) ?></td>
+          <?php endif; ?>
+          <td style="border: 1px solid #333; padding: 8px;"><?= $currency ?><?= price_format_decimal($display_total) ?></td>
+        </tr>
+        <tr>
+          <td colspan="<?= $is_igst ? 7 : 9 ?>" class="text-left" style="border: 1px solid #333; padding: 6px;">Total Invoice Value (In Words)</td>
+          <td class="text-right" style="border: 1px solid #333; padding: 6px;"><?= function_exists('rupees_word') ? rupees_word($display_total) : (function_exists('price_format_decimal') ? price_format_decimal($display_total) : number_format($display_total, 2)) . ' Only' ?></td>
+        </tr>
+      </tbody>
+    </table>
 
-<table id="invoice" class="m-t-10" style="width:100%; margin-top: 15px;">
-  <tr>
-    <td colspan="2" class="text-left" style="padding: 8px;">
-      <p><b>Declaration:</b> <small>The goods sold are intended for end user consumption and not for resale. Please note that this invoice is not a demand for payment.</small></p>
-      <p><small>E.&O.E. | Whether tax is payable on reverse charge basis - No</small></p>
-    </td>
-    <td class="text-right" style="padding: 8px; width: 35%;">
-      <p><b>For <?= htmlspecialchars($company_name) ?></b></p>
-      <p><b>Authorized Signatory</b></p>
-    </td>
-  </tr>
-</table>
-</div>
+    <table id="invoice" class="m-t-10" style="width:100%; margin-top: 15px;">
+      <tr>
+        <td colspan="2" class="text-left" style="padding: 8px;">
+          <p><b>Declaration:</b> <small>The goods sold are intended for end user consumption and not for resale. Please note that this invoice is not a demand for payment.</small></p>
+          <p><small>E.&O.E. | Whether tax is payable on reverse charge basis - No</small></p>
+        </td>
+        <td class="text-right" style="padding: 8px; width: 35%;">
+          <p><b>For <?= htmlspecialchars($company_name) ?></b></p>
+          <p><b>Authorized Signatory</b></p>
+        </td>
+      </tr>
+    </table>
+  </div>
 </body>
+
 </html>

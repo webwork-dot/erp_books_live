@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * Vendor Orders Controller
@@ -319,7 +319,9 @@ class Orders extends Vendor_base
 		$mailSentCode = isset($sentCodeByEvent[$event_key]) ? (int)$sentCodeByEvent[$event_key] : 0;
 
 		$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
-		$order_ids = array_filter($order_ids, function ($v) { return $v > 0; });
+		$order_ids = array_filter($order_ids, function ($v) {
+			return $v > 0;
+		});
 		if (empty($order_ids)) return;
 
 		$hasIsMailSent = $this->db->field_exists('is_mail_sent', 'tbl_order_details');
@@ -1805,7 +1807,8 @@ class Orders extends Vendor_base
 
 		foreach ($order_ids as $order_id) {
 			// Verify order belongs to vendor (check through order items)
-			$order_check = $this->db->query("SELECT od.id, od.invoice_no FROM tbl_order_details od 
+			$order_check = $this->db->query(
+				"SELECT od.id, od.invoice_no FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
 				WHERE od.id = ? AND od.order_status = '1'",
 				array($order_id)
@@ -2004,7 +2007,8 @@ class Orders extends Vendor_base
 
 		foreach ($order_ids as $order_id) {
 			// Verify order belongs to vendor and is in ready for shipment status (6)
-			$order_check = $this->db->query("SELECT od.id FROM tbl_order_details od 
+			$order_check = $this->db->query(
+				"SELECT od.id FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
 				WHERE od.id = ? AND od.order_status = '6'",
 				array($order_id)
@@ -2066,7 +2070,8 @@ class Orders extends Vendor_base
 
 		foreach ($order_ids as $order_id) {
 			// Verify order belongs to vendor (check through order items)
-			$order_check = $this->db->query("SELECT od.id FROM tbl_order_details od 
+			$order_check = $this->db->query(
+				"SELECT od.id FROM tbl_order_details od 
 				INNER JOIN tbl_order_items oi ON oi.order_id = od.id 
 				WHERE od.id = ? AND od.order_status = '3'",
 				array($order_id)
@@ -2554,7 +2559,6 @@ class Orders extends Vendor_base
 							->limit(1)
 							->get()
 							->row();
-
 					} elseif (!empty($order_item->school_id)) {
 
 						$addr_row = $this->db->select('id')
@@ -2565,7 +2569,6 @@ class Orders extends Vendor_base
 							->row();
 					}
 				}
-
 			} else {
 
 				$addr_row = $this->db->select('id')
@@ -2652,7 +2655,6 @@ class Orders extends Vendor_base
 								->limit(1)
 								->get()
 								->row();
-
 						}
 						// ===============================
 						// SCHOOL ADDRESS
@@ -2675,7 +2677,6 @@ class Orders extends Vendor_base
 								->row();
 						}
 					}
-
 				} else {
 
 					// ===============================
@@ -2810,7 +2811,6 @@ class Orders extends Vendor_base
 									);
 								}
 							}
-
 						}
 					}
 
@@ -3032,7 +3032,6 @@ class Orders extends Vendor_base
 
 				$this->db->trans_commit();
 				$success_count++;
-
 			} catch (Exception $e) {
 				$failed_orders[$order_unique_id] = $e->getMessage();
 			}
@@ -3041,7 +3040,7 @@ class Orders extends Vendor_base
 		$response(
 			'200',
 			"$success_count orders booked successfully, "
-			. count($failed_orders) . " failed.",
+				. count($failed_orders) . " failed.",
 			$failed_orders
 		);
 	}
@@ -3054,7 +3053,8 @@ class Orders extends Vendor_base
 		$couriers = $this->Courier_model->get_couriers($vendor_id);
 		// Filter only active couriers
 		$active_couriers = array_filter($couriers, function ($c) {
-			return isset($c['status']) && $c['status'] == 1; });
+			return isset($c['status']) && $c['status'] == 1;
+		});
 		echo json_encode(array('success' => true, 'couriers' => array_values($active_couriers)));
 	}
 
@@ -4559,26 +4559,26 @@ class Orders extends Vendor_base
 		// Check for deliver at school fallback - if true, use school address
 		$is_deliver_at_school = (isset($order->is_deliver_at_school) && (int) $order->is_deliver_at_school === 1);
 		if ($is_deliver_at_school) {
-				$this->db->select("s.school_name,CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN sb.address  ELSE s.address END as address, CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN sb.pincode ELSE s.pincode END as pincode, CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN c2.name ELSE c1.name END as city_name,CASE 
+			$this->db->select("s.school_name,CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN sb.address  ELSE s.address END as address, CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN sb.pincode ELSE s.pincode END as pincode, CASE WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN c2.name ELSE c1.name END as city_name,CASE 
         WHEN u.branch_id IS NOT NULL AND u.branch_id != 0 THEN st2.name ELSE st1.name  END as state_name", FALSE); // 🚨 VERY IMPORTANT
 
-        $this->db->from('tbl_order_items oi');
+			$this->db->from('tbl_order_items oi');
 
-$this->db->join('erp_uniforms u', 'u.id = oi.product_id', 'left');
-$this->db->join('erp_schools s', 's.id = u.school_id', 'left');
-$this->db->join('erp_school_branches sb', 'sb.id = u.branch_id', 'left');
+			$this->db->join('erp_uniforms u', 'u.id = oi.product_id', 'left');
+			$this->db->join('erp_schools s', 's.id = u.school_id', 'left');
+			$this->db->join('erp_school_branches sb', 'sb.id = u.branch_id', 'left');
 
-// safer joins
-$this->db->join('cities c1', 'c1.id = s.city_id', 'left');
-$this->db->join('cities c2', 'c2.id = sb.city_id', 'left');
+			// safer joins
+			$this->db->join('cities c1', 'c1.id = s.city_id', 'left');
+			$this->db->join('cities c2', 'c2.id = sb.city_id', 'left');
 
-$this->db->join('states st1', 'st1.id = s.state_id', 'left');
-$this->db->join('states st2', 'st2.id = sb.state_id', 'left');
+			$this->db->join('states st1', 'st1.id = s.state_id', 'left');
+			$this->db->join('states st2', 'st2.id = sb.state_id', 'left');
 
-$this->db->where('oi.order_id', (int)$order_id);
-$this->db->limit(1);
+			$this->db->where('oi.order_id', (int)$order_id);
+			$this->db->limit(1);
 
-$school_q = $this->db->get();
+			$school_q = $this->db->get();
 
 
 			if ($school_q->num_rows() > 0) {
@@ -4657,7 +4657,7 @@ $school_q = $this->db->get();
 		// Vendor/company info from erp_clients (same as shipping label: logo + company details)
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$company = $this->_get_invoice_company_from_erp_clients();
-		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books');
+		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : '-');
 		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
 		if (!empty($company['pincode'])) {
 			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
@@ -4675,7 +4675,7 @@ $school_q = $this->db->get();
 		// Prepare data for invoice view
 		$page_data['data'] = $order_details;
 
-		// Prefer application invoice (Shivam Books / kirtibook design)
+		// Prefer application invoice (- / kirtibook design)
 		$invoice_view_path = APPPATH . 'views/invoice/invoice_bill.php';
 		if (file_exists($invoice_view_path)) {
 			$html_content = $this->load->view('invoice/invoice_bill', $page_data, TRUE);
@@ -4842,7 +4842,7 @@ $school_q = $this->db->get();
 
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$company = $this->_get_invoice_company_from_erp_clients();
-		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Shivam Books');
+		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : '-');
 		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
 		if (!empty($company['pincode'])) {
 			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
@@ -6196,7 +6196,6 @@ $school_q = $this->db->get();
 				->set_content_type('application/json', 'utf-8')
 				->set_output(json_encode(['status' => 'error', 'message' => 'No shipping labels found for selected orders.']));
 			return;
-
 		}
 
 		// Clear any output buffer before sending binary - prevents ZIP corruption
@@ -7014,7 +7013,6 @@ $school_q = $this->db->get();
 							->limit(1)
 							->get()
 							->row();
-
 					}
 					// ===============================
 					// SCHOOL ADDRESS
@@ -7037,7 +7035,6 @@ $school_q = $this->db->get();
 							->row();
 					}
 				}
-
 			} else {
 
 				// ===============================
@@ -7252,7 +7249,6 @@ $school_q = $this->db->get();
 								);
 							}
 						}
-
 					}
 				}
 
@@ -7406,7 +7402,6 @@ $school_q = $this->db->get();
 			$this->db->trans_commit();
 
 			$response('200', '3rd party shipping saved successfully.');
-
 		} catch (Exception $e) {
 
 			$this->db->trans_rollback();
@@ -7607,9 +7602,4 @@ $school_q = $this->db->get();
 			echo json_encode($res);
 		}
 	}
-
 }
-
-
-
-
