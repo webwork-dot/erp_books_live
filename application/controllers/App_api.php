@@ -289,6 +289,7 @@ class App_api extends CI_Controller
         $params = json_decode(file_get_contents('php://input'), TRUE);
 
         $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+        $branch_id = array_key_exists('branch_id', $params) ? (is_null($params['branch_id']) ? NULL : (int) $params['branch_id']) : NULL;
         $parent_name = isset($params['parent_name']) ? trim($params['parent_name']) : '';
         $parent_mobile = isset($params['parent_mobile']) ? trim($params['parent_mobile']) : '';
         $payment_method = isset($params['payment_method']) ? trim($params['payment_method']) : 'cash';
@@ -303,6 +304,7 @@ class App_api extends CI_Controller
 
         $response = $this->App_model->placeUniformOrder(
             $school_id,
+            $branch_id,
             $parent_name,
             $parent_mobile,
             $payment_method,
@@ -312,6 +314,52 @@ class App_api extends CI_Controller
         );
 
         $this->simple_json_output($response);
+    }
+
+    public function get_assigned_stock()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Bad request.'));
+        }
+
+        $params = json_decode(file_get_contents('php://input'), TRUE);
+        $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
+        $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+        $branch_id = isset($params['branch_id']) ? (int) $params['branch_id'] : NULL;
+
+        if ($agent_id <= 0 || $school_id <= 0) {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Agent ID and School ID required.'));
+        }
+        if (!$this->App_model->agentHasSchoolAccess($agent_id, $school_id)) {
+            return $this->simple_json_output(array('status' => 403, 'message' => 'Access denied to this school'));
+        }
+
+        $rows = $this->App_model->getAgentAssignedStock($agent_id, $school_id, $branch_id);
+        return $this->simple_json_output(array('status' => 200, 'message' => 'Success', 'rows' => $rows));
+    }
+
+    public function pos_sale_deduct()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Bad request.'));
+        }
+
+        $params = json_decode(file_get_contents('php://input'), TRUE);
+        $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
+        $school_id = (int) (isset($params['school_id']) ? $params['school_id'] : 0);
+        $branch_id = array_key_exists('branch_id', $params) ? (is_null($params['branch_id']) ? NULL : (int) $params['branch_id']) : NULL;
+        $sale_ref = isset($params['sale_ref']) ? trim((string) $params['sale_ref']) : '';
+        $items = isset($params['items']) ? $params['items'] : array();
+
+        if ($agent_id <= 0 || $school_id <= 0 || $sale_ref === '' || empty($items) || !is_array($items)) {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Missing required fields: agent_id, school_id, sale_ref, items.'));
+        }
+        if (!$this->App_model->agentHasSchoolAccess($agent_id, $school_id)) {
+            return $this->simple_json_output(array('status' => 403, 'message' => 'Access denied to this school'));
+        }
+
+        $resp = $this->App_model->deductAgentStockForPosSale($agent_id, $school_id, $branch_id, $sale_ref, $items);
+        return $this->simple_json_output($resp);
     }
 
     public function test_whatsapp()

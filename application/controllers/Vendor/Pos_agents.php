@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 require_once(APPPATH . 'controllers/Vendor/Vendor_base.php');
 
@@ -15,9 +15,9 @@ class Pos_agents extends Vendor_base
         $this->load->model('Pos_school_qr_model');
         $this->load->library('form_validation');
 
-            // if (!$this->checkFeatureAccess('pos')) {
-            //     show_error('POS module is not enabled for this vendor.', 403);
-            // }
+        // if (!$this->checkFeatureAccess('pos')) {
+        //     show_error('POS module is not enabled for this vendor.', 403);
+        // }
     }
 
     public function index()
@@ -437,6 +437,7 @@ class Pos_agents extends Vendor_base
                 continue;
             }
             $row['main_qty'] = $this->getSnapshotQty($this->getMainAdminLocationId(), $row['item_type'], (int)$row['item_ref_id'], (string)$row['variation_key']);
+
             $row['agent_qty'] = $agent_id > 0 ? $this->getSnapshotQty($this->getOrCreateAgentLocationId($agent_id), $row['item_type'], (int)$row['item_ref_id'], (string)$row['variation_key']) : 0;
             $items[] = $row;
             if (count($items) >= 5) {
@@ -720,8 +721,7 @@ class Pos_agents extends Vendor_base
                 ->join('erp_school_boards bo', 'bo.id = u.board_id', 'left')
                 ->where('u.vendor_id', (int)$vendor_id)
                 ->where('u.status', 'active')
-                ->order_by('u.product_name', 'ASC')
-                ;
+                ->order_by('u.product_name', 'ASC');
             if ($has_class_table) {
                 $this->db->join('erp_classes g', 'g.id = u.class_id', 'left');
             }
@@ -733,7 +733,7 @@ class Pos_agents extends Vendor_base
             }
         }
         if ($this->db->table_exists('erp_products')) {
-            $products = $this->db->select('id AS item_ref_id,product_name')->from('erp_products')->where('vendor_id', (int)$vendor_id)->where('is_deleted',0)->where('status','active')->where('type !=','uniform')->order_by('product_name','ASC')->get()->result_array();
+            $products = $this->db->select('id AS item_ref_id,product_name')->from('erp_products')->where('vendor_id', (int)$vendor_id)->where('is_deleted', 0)->where('status', 'active')->where('type !=', 'uniform')->order_by('product_name', 'ASC')->get()->result_array();
             foreach ($products as $p) {
                 $rows[] = array(
                     'item_type' => 'book',
@@ -754,7 +754,7 @@ class Pos_agents extends Vendor_base
 
     private function getMainAdminLocationId()
     {
-        $row = $this->db->select('id')->from('inventory_locations')->where('location_type','admin')->where('location_ref_id',0)->limit(1)->get()->row_array();
+        $row = $this->db->select('id')->from('inventory_locations')->where('location_type', 'admin')->where('location_ref_id', 0)->limit(1)->get()->row_array();
         if (!empty($row['id'])) return (int)$row['id'];
         $this->db->insert('inventory_locations', array('location_type' => 'admin', 'location_ref_id' => 0, 'name' => 'Main Admin Stock', 'is_active' => 1));
         return (int)$this->db->insert_id();
@@ -762,7 +762,7 @@ class Pos_agents extends Vendor_base
 
     private function getAgentLocationId($agent_id)
     {
-        $row = $this->db->select('id')->from('inventory_locations')->where('location_type','pos_agent')->where('location_ref_id',(int)$agent_id)->limit(1)->get()->row_array();
+        $row = $this->db->select('id')->from('inventory_locations')->where('location_type', 'pos_agent')->where('location_ref_id', (int)$agent_id)->limit(1)->get()->row_array();
         return !empty($row['id']) ? (int)$row['id'] : 0;
     }
 
@@ -776,15 +776,15 @@ class Pos_agents extends Vendor_base
 
     private function getSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key)
     {
-        $row = $this->db->select('qty_available')->from('inventory_stock_snapshot')->where('location_id',(int)$location_id)->where('item_type',$item_type)->where('item_ref_id',(int)$item_ref_id)->where('variation_key',$variation_key)->where('school_id',NULL)->where('branch_id',NULL)->limit(1)->get()->row_array();
+        $row = $this->db->select('qty_available')->from('inventory_stock_snapshot')->where('location_id', (int)$location_id)->where('item_type', $item_type)->where('item_ref_id', (int)$item_ref_id)->where('variation_key', $variation_key)->limit(1)->get()->row_array();
         return !empty($row['qty_available']) ? (float)$row['qty_available'] : 0.0;
     }
 
     private function setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $qty)
     {
-        $row = $this->db->select('id')->from('inventory_stock_snapshot')->where('location_id',(int)$location_id)->where('item_type',$item_type)->where('item_ref_id',(int)$item_ref_id)->where('variation_key',$variation_key)->where('school_id',NULL)->where('branch_id',NULL)->limit(1)->get()->row_array();
+        $row = $this->db->select('id')->from('inventory_stock_snapshot')->where('location_id', (int)$location_id)->where('item_type', $item_type)->where('item_ref_id', (int)$item_ref_id)->where('variation_key', $variation_key)->where('school_id', NULL)->where('branch_id', NULL)->limit(1)->get()->row_array();
         if (!empty($row['id'])) {
-            $this->db->where('id',(int)$row['id'])->update('inventory_stock_snapshot', array('qty_available' => (float)$qty));
+            $this->db->where('id', (int)$row['id'])->update('inventory_stock_snapshot', array('qty_available' => (float)$qty));
             return;
         }
         $this->db->insert('inventory_stock_snapshot', array('location_id' => (int)$location_id, 'item_type' => $item_type, 'item_ref_id' => (int)$item_ref_id, 'variation_key' => $variation_key, 'school_id' => NULL, 'branch_id' => NULL, 'qty_available' => (float)$qty));
