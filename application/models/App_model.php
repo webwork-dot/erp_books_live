@@ -518,10 +518,18 @@ class App_model extends CI_Model
         return $categories;
     }
 
-    public function placeUniformOrder($school_id, $parent_name, $parent_mobile, $payment_method, $items, $children_data = array(), $agent_id = 0)
+    public function placeUniformOrder($school_id, $branch_id, $parent_name, $parent_mobile, $payment_method, $items, $children_data = array(), $agent_id = 0)
     {
         $school_id = (int) $school_id;
+        $branch_id = ($branch_id === NULL || $branch_id === '' ? NULL : (int) $branch_id);
         $agent_id = (int) $agent_id;
+
+        if ($school_id <= 0 || $agent_id <= 0) {
+            return array('status' => 400, 'message' => 'Invalid agent or school.');
+        }
+        if (!$this->agentHasSchoolAccess($agent_id, $school_id)) {
+            return array('status' => 403, 'message' => 'Access denied to this school');
+        }
 
         // STEP 1: Resolve vendor_id from school_id
         $row = $this->master_db
@@ -557,6 +565,8 @@ class App_model extends CI_Model
         $order_unique_id = 'ORD' . date('ymd') . rand(100, 999);
 
         // STEP 5: Insert tbl_order_details into vendor DB
+        $vendor_db->trans_begin();
+
         $order_row = array(
             'order_unique_id' => $order_unique_id,
             'user_id' => 0,         // NOT NULL in schema
@@ -584,6 +594,7 @@ class App_model extends CI_Model
         $order_id = (int) $vendor_db->insert_id();
 
         if ($order_id <= 0) {
+            $vendor_db->trans_rollback();
             return array('status' => 500, 'message' => 'Failed to create order. Please try again.');
         }
 
@@ -609,6 +620,7 @@ class App_model extends CI_Model
         }
 
         // STEP 7: Insert tbl_order_items
+        $sale_items = array();
         foreach ($items as $item) {
             $price = (float) (isset($item['selling_price']) ? $item['selling_price'] : 0);
             $qty = (int) (isset($item['qty']) ? $item['qty'] : 1);
@@ -625,9 +637,33 @@ class App_model extends CI_Model
                 'variation_name' => isset($item['size_name']) ? $item['size_name'] : '',
                 'order_type' => 'uniform',
                 'school_id' => isset($item['school_id']) ? (int) $item['school_id'] : $school_id,
-                'branch_id' => !empty($item['branch_id']) ? (int) $item['branch_id'] : NULL,
+                'branch_id' => array_key_exists('branch_id', $item) ? ($item['branch_id'] === NULL || $item['branch_id'] === '' ? NULL : (int) $item['branch_id']) : $branch_id,
             ));
+
+            $order_item_id = (int) $vendor_db->insert_id();
+            $sale_items[] = array(
+                'order_item_id' => $order_item_id,
+                'item_type' => 'uniform',
+                'item_ref_id' => (int) (isset($item['uniform_id']) ? $item['uniform_id'] : 0),
+                'variation_key' => isset($item['size_name']) ? $item['size_name'] : '',
+                'qty' => $qty,
+                'school_id' => isset($item['school_id']) ? (int) $item['school_id'] : $school_id,
+                'branch_id' => array_key_exists('branch_id', $item) ? ($item['branch_id'] === NULL || $item['branch_id'] === '' ? NULL : (int) $item['branch_id']) : $branch_id,
+            );
         }
+
+        // STEP 7.5: Deduct agent stock from ledger (transactional + idempotent)
+        $deduct_resp = $this->deductAgentStockForOrder($vendor_db, $agent_id, $order_id, $order_unique_id, $sale_items);
+        if (!empty($deduct_resp) && isset($deduct_resp['status']) && (int) $deduct_resp['status'] !== 200) {
+            $vendor_db->trans_rollback();
+            return $deduct_resp;
+        }
+
+        if ($vendor_db->trans_status() === FALSE) {
+            $vendor_db->trans_rollback();
+            return array('status' => 500, 'message' => 'Failed to place order.');
+        }
+        $vendor_db->trans_commit();
 
         // Generate invoice PDF, store invoice_url, and reuse the saved URL for WhatsApp
         $file_url = $this->generateUniformOrderInvoice($vendor_db, $vendor_id, $order_id, $order_unique_id);
@@ -656,6 +692,540 @@ class App_model extends CI_Model
             'order_unique_id' => $order_unique_id,
             'vendor_id' => $vendor_id
         );
+    }
+
+    public function getAgentAssignedStock($agent_id, $school_id, $branch_id = NULL)
+    {
+        $agent_id = (int) $agent_id;
+        $school_id = (int) $school_id;
+        $branch_id = ($branch_id === NULL || $branch_id === '' ? NULL : (int) $branch_id);
+
+        if ($agent_id <= 0 || $school_id <= 0) {
+            return array();
+        }
+
+        $access_row = $this->getAgentSchoolAccessRow($agent_id, $school_id);
+        $vendor_id = !empty($access_row) ? (int) $access_row['vendor_id'] : 0;
+        if ($vendor_id <= 0) {
+            return array();
+        }
+
+        $vendor_db = $this->getVendorDB($vendor_id);
+        if (!$vendor_db) {
+            return array();
+        }
+
+        if (!$vendor_db->table_exists('inventory_locations') || !$vendor_db->table_exists('inventory_stock_snapshot')) {
+            return array();
+        }
+
+        $location_id = $this->getAgentLocationId($vendor_db, $agent_id);
+        if ($location_id <= 0) {
+            return array();
+        }
+
+        $vendor_db->select('item_type,item_ref_id,variation_key,school_id,branch_id,qty_available,updated_at');
+        $vendor_db->from('inventory_stock_snapshot');
+        $vendor_db->where('location_id', $location_id);
+        $vendor_db->where('school_id', $school_id);
+        if ($branch_id === NULL) {
+            $vendor_db->where('branch_id', NULL);
+        } else {
+            $vendor_db->where('branch_id', $branch_id);
+        }
+        $vendor_db->order_by('updated_at', 'DESC');
+        $snapshots = $vendor_db->get()->result_array();
+
+        if (empty($snapshots)) {
+            return array();
+        }
+
+        $uniform_ids = array();
+        $book_ids = array();
+        $school_ids = array();
+        $branch_ids = array();
+
+        foreach ($snapshots as $s) {
+            $school_ids[] = (int) $s['school_id'];
+            if (!empty($s['branch_id'])) {
+                $branch_ids[] = (int) $s['branch_id'];
+            }
+            $t = strtolower((string) $s['item_type']);
+            if ($t === 'uniform') {
+                $uniform_ids[] = (int) $s['item_ref_id'];
+            } else {
+                $book_ids[] = (int) $s['item_ref_id'];
+            }
+        }
+
+        $uniform_ids = array_values(array_unique(array_filter($uniform_ids)));
+        $book_ids = array_values(array_unique(array_filter($book_ids)));
+        $school_ids = array_values(array_unique(array_filter($school_ids)));
+        $branch_ids = array_values(array_unique(array_filter($branch_ids)));
+
+        $school_map = array();
+        if (!empty($school_ids) && $vendor_db->table_exists('erp_schools')) {
+            $rows = $vendor_db->select('id, school_name')->from('erp_schools')->where_in('id', $school_ids)->get()->result_array();
+            foreach ($rows as $r) {
+                $school_map[(int) $r['id']] = (string) $r['school_name'];
+            }
+        }
+
+        $branch_map = array();
+        if (!empty($branch_ids) && $vendor_db->table_exists('erp_school_branches')) {
+            $rows = $vendor_db->select('id, branch_name')->from('erp_school_branches')->where_in('id', $branch_ids)->get()->result_array();
+            foreach ($rows as $r) {
+                $branch_map[(int) $r['id']] = (string) $r['branch_name'];
+            }
+        }
+
+        $uniform_map = array();
+        if (!empty($uniform_ids) && $vendor_db->table_exists('erp_uniforms')) {
+            $has_class_table = $vendor_db->table_exists('erp_classes');
+            $select = 'u.id,u.product_name,u.gender,u.school_id,u.branch_id,u.board_id,u.class_id,u.gst_percentage,ut.name AS uniform_type,bo.board_name';
+            $select .= $has_class_table ? ',g.name AS grade_name' : ',"-" AS grade_name';
+            $vendor_db->select($select);
+            $vendor_db->from('erp_uniforms u');
+            $vendor_db->join('erp_uniform_types ut', 'ut.id = u.uniform_type_id', 'left');
+            $vendor_db->join('erp_school_boards bo', 'bo.id = u.board_id', 'left');
+            if ($has_class_table) {
+                $vendor_db->join('erp_classes g', 'g.id = u.class_id', 'left');
+            }
+            $vendor_db->where_in('u.id', $uniform_ids);
+            $rows = $vendor_db->get()->result_array();
+            foreach ($rows as $r) {
+                $uniform_map[(int) $r['id']] = $r;
+            }
+        }
+
+        $image_map = array();
+        if (!empty($uniform_ids) && $vendor_db->table_exists('erp_uniform_images')) {
+            $rows = $vendor_db
+                ->select('uniform_id, image_path')
+                ->from('erp_uniform_images')
+                ->where_in('uniform_id', $uniform_ids)
+                ->where('image_path IS NOT NULL', NULL, FALSE)
+                ->where('image_path !=', '')
+                ->order_by('is_main', 'DESC')
+                ->order_by('image_order', 'ASC')
+                ->get()
+                ->result_array();
+            foreach ($rows as $r) {
+                $uid = (int) $r['uniform_id'];
+                if (!isset($image_map[$uid])) {
+                    $image_map[$uid] = (string) $r['image_path'];
+                }
+            }
+        }
+
+        $vendor_domain = $this->master_db
+            ->select('domain')
+            ->from('erp_clients')
+            ->where('id', (int) $vendor_id)
+            ->limit(1)
+            ->get()
+            ->row_array();
+        $base_url = (!empty($vendor_domain['domain']) ? rtrim('https://' . $vendor_domain['domain'], '/') . '/' : '');
+
+        $size_names = array();
+        foreach ($snapshots as $s) {
+            if (strtolower((string) $s['item_type']) !== 'uniform') {
+                continue;
+            }
+            $vk = $this->normalizeVariationKey(isset($s['variation_key']) ? $s['variation_key'] : '');
+            if ($vk !== '' && strtolower($vk) !== 'default') {
+                $size_names[] = $vk;
+            }
+        }
+        $size_names = array_values(array_unique(array_filter($size_names)));
+
+        $uniform_size_price_map = array();
+        if (!empty($uniform_ids) && !empty($size_names) && $vendor_db->table_exists('erp_uniform_size_prices') && $vendor_db->table_exists('erp_sizes')) {
+            $rows = $vendor_db
+                ->select('usp.uniform_id, usp.selling_price, s.id AS size_id, s.name AS size_name')
+                ->from('erp_uniform_size_prices usp')
+                ->join('erp_sizes s', 's.id = usp.size_id', 'inner')
+                ->where_in('usp.uniform_id', $uniform_ids)
+                ->where_in('s.name', $size_names)
+                ->get()
+                ->result_array();
+            foreach ($rows as $r) {
+                $k = (int) $r['uniform_id'] . '|' . trim((string) $r['size_name']);
+                $uniform_size_price_map[$k] = array(
+                    'size_id' => (int) $r['size_id'],
+                    'selling_price' => (float) $r['selling_price'],
+                );
+            }
+        }
+
+        $book_map = array();
+        if (!empty($book_ids) && $vendor_db->table_exists('erp_products')) {
+            $rows = $vendor_db->select('id, product_name')->from('erp_products')->where_in('id', $book_ids)->get()->result_array();
+            foreach ($rows as $r) {
+                $book_map[(int) $r['id']] = (string) $r['product_name'];
+            }
+        }
+
+        $rows = array();
+        foreach ($snapshots as $s) {
+            $item_type = strtolower((string) $s['item_type']);
+            $item_ref_id = (int) $s['item_ref_id'];
+            $variation_key = $this->normalizeVariationKey(isset($s['variation_key']) ? $s['variation_key'] : '');
+            $sid = (int) $s['school_id'];
+            $bid = !empty($s['branch_id']) ? (int) $s['branch_id'] : NULL;
+
+            $product_name = '';
+            $uniform_type = '-';
+            $gender = '-';
+            $board = '-';
+            $grade = '-';
+            $selling_price = 0.0;
+            $size_id = NULL;
+            $gst_percentage = 0.0;
+            $image_url = '';
+
+            if ($item_type === 'uniform' && isset($uniform_map[$item_ref_id])) {
+                $meta = $uniform_map[$item_ref_id];
+                $product_name = (string) $meta['product_name'];
+                $uniform_type = !empty($meta['uniform_type']) ? (string) $meta['uniform_type'] : '-';
+                $gender = !empty($meta['gender']) ? (string) $meta['gender'] : '-';
+                $board = !empty($meta['board_name']) ? (string) $meta['board_name'] : '-';
+                $grade = !empty($meta['grade_name']) ? (string) $meta['grade_name'] : '-';
+                $gst_percentage = isset($meta['gst_percentage']) ? (float) $meta['gst_percentage'] : 0.0;
+                if (isset($image_map[$item_ref_id]) && $base_url !== '') {
+                    $image_url = $base_url . ltrim((string) $image_map[$item_ref_id], '/');
+                }
+
+                $price_key = $item_ref_id . '|' . $variation_key;
+                if (isset($uniform_size_price_map[$price_key])) {
+                    $size_id = $uniform_size_price_map[$price_key]['size_id'];
+                    $selling_price = $uniform_size_price_map[$price_key]['selling_price'];
+                }
+            } elseif ($item_type === 'book') {
+                $product_name = isset($book_map[$item_ref_id]) ? (string) $book_map[$item_ref_id] : ('Item #' . $item_ref_id);
+            } else {
+                $product_name = 'Item #' . $item_ref_id;
+            }
+
+            $rows[] = array(
+                'item_type' => $item_type,
+                'item_ref_id' => $item_ref_id,
+                'product_name' => $product_name,
+                'uniform_type' => $uniform_type,
+                'size' => $variation_key,
+                'size_id' => $size_id,
+                'gender' => $gender,
+                'school_id' => $sid,
+                'school_name' => isset($school_map[$sid]) ? (string) $school_map[$sid] : '-',
+                'branch_id' => $bid,
+                'branch_name' => ($bid !== NULL && isset($branch_map[$bid])) ? (string) $branch_map[$bid] : '',
+                'board' => $board,
+                'grade' => $grade,
+                'qty_available' => (float) $s['qty_available'],
+                'selling_price' => (float) $selling_price,
+                'gst_percentage' => (float) $gst_percentage,
+                'image_url' => $image_url,
+                'last_update' => !empty($s['updated_at']) ? (string) $s['updated_at'] : '',
+            );
+        }
+
+        return $rows;
+    }
+
+    public function deductAgentStockForPosSale($agent_id, $school_id, $branch_id, $sale_ref, $items)
+    {
+        $agent_id = (int) $agent_id;
+        $school_id = (int) $school_id;
+        $branch_id = ($branch_id === NULL || $branch_id === '' ? NULL : (int) $branch_id);
+        $sale_ref = trim((string) $sale_ref);
+
+        if ($agent_id <= 0 || $school_id <= 0 || $sale_ref === '' || empty($items) || !is_array($items)) {
+            return array('status' => 400, 'message' => 'Invalid request.');
+        }
+
+        $access_row = $this->getAgentSchoolAccessRow($agent_id, $school_id);
+        $vendor_id = !empty($access_row) ? (int) $access_row['vendor_id'] : 0;
+        if ($vendor_id <= 0) {
+            return array('status' => 400, 'message' => 'Vendor not found for this school.');
+        }
+
+        $vendor_db = $this->getVendorDB($vendor_id);
+        if (!$vendor_db) {
+            return array('status' => 500, 'message' => 'Could not connect to vendor database.');
+        }
+
+        if (
+            !$vendor_db->table_exists('inventory_locations') ||
+            !$vendor_db->table_exists('inventory_stock_snapshot') ||
+            !$vendor_db->table_exists('inventory_stock_movements')
+        ) {
+            return array('status' => 500, 'message' => 'Stock ledger tables are not available for this vendor.');
+        }
+
+        $location_id = $this->getOrCreateAgentLocationId($vendor_db, $agent_id);
+        if ($location_id <= 0) {
+            return array('status' => 500, 'message' => 'Unable to resolve agent stock location.');
+        }
+
+        $vendor_db->trans_begin();
+
+        $deducted = 0;
+        $skipped = 0;
+
+        foreach ($items as $idx => $raw) {
+            if (!is_array($raw)) {
+                continue;
+            }
+
+            $item_type = strtolower(trim((string) (isset($raw['item_type']) ? $raw['item_type'] : '')));
+            $item_ref_id = (int) (isset($raw['item_ref_id']) ? $raw['item_ref_id'] : 0);
+            $variation_key = $this->normalizeVariationKey(isset($raw['variation_key']) ? $raw['variation_key'] : '');
+            $qty = (float) (isset($raw['qty']) ? $raw['qty'] : 0);
+            $line_ref = isset($raw['line_ref']) ? trim((string) $raw['line_ref']) : (string) $idx;
+
+            if ($item_type === '' || $item_ref_id <= 0 || $qty <= 0) {
+                $vendor_db->trans_rollback();
+                return array('status' => 400, 'message' => 'Invalid sale items.');
+            }
+            if ($variation_key === '') {
+                $variation_key = 'default';
+            }
+
+            $external_ref = 'pos_sale_out:' . $sale_ref . ':' . $line_ref;
+
+            $exists = $vendor_db
+                ->select('id')
+                ->from('inventory_stock_movements')
+                ->where('external_ref', $external_ref)
+                ->limit(1)
+                ->get()
+                ->row_array();
+
+            if (!empty($exists['id'])) {
+                $skipped++;
+                continue;
+            }
+
+            $snapshot = $this->getSnapshotRowForUpdate($vendor_db, $location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id);
+            if (empty($snapshot) || empty($snapshot['id'])) {
+                $vendor_db->trans_rollback();
+                return array('status' => 409, 'message' => 'Stock row not found for one or more items.');
+            }
+
+            $before = (float) $snapshot['qty_available'];
+            if ($before < $qty) {
+                $vendor_db->trans_rollback();
+                return array('status' => 409, 'message' => 'Insufficient stock for one or more items.');
+            }
+
+            $after = $before - $qty;
+
+            $vendor_db->where('id', (int) $snapshot['id'])->update('inventory_stock_snapshot', array('qty_available' => $after));
+
+            $vendor_db->insert('inventory_stock_movements', array(
+                'movement_type' => 'pos_sale_out',
+                'external_ref' => $external_ref,
+                'location_id' => (int) $location_id,
+                'item_type' => $item_type,
+                'item_ref_id' => (int) $item_ref_id,
+                'variation_key' => $variation_key,
+                'school_id' => (int) $school_id,
+                'branch_id' => $branch_id,
+                'qty_delta' => -1 * abs((float) $qty),
+                'qty_before' => $before,
+                'qty_after' => $after,
+                'actor_type' => 'pos_agent',
+                'actor_id' => (int) $agent_id,
+                'meta_json' => json_encode(array(
+                    'sale_ref' => $sale_ref,
+                    'line_ref' => $line_ref,
+                )),
+                'remarks' => 'POS Sale'
+            ));
+
+            $deducted++;
+        }
+
+        if ($vendor_db->trans_status() === FALSE) {
+            $vendor_db->trans_rollback();
+            return array('status' => 500, 'message' => 'Stock deduction failed.');
+        }
+
+        $vendor_db->trans_commit();
+        return array('status' => 200, 'message' => 'Stock deducted', 'deducted' => $deducted, 'skipped' => $skipped);
+    }
+
+    private function deductAgentStockForOrder($vendor_db, $agent_id, $order_id, $order_unique_id, $sale_items)
+    {
+        $agent_id = (int) $agent_id;
+        $order_id = (int) $order_id;
+        $order_unique_id = trim((string) $order_unique_id);
+
+        if (!$vendor_db || $agent_id <= 0 || $order_id <= 0 || $order_unique_id === '' || empty($sale_items) || !is_array($sale_items)) {
+            return array('status' => 500, 'message' => 'Unable to deduct stock.');
+        }
+
+        if (
+            !$vendor_db->table_exists('inventory_locations') ||
+            !$vendor_db->table_exists('inventory_stock_snapshot') ||
+            !$vendor_db->table_exists('inventory_stock_movements')
+        ) {
+            return array('status' => 500, 'message' => 'Stock ledger tables are not available for this vendor.');
+        }
+
+        $location_id = $this->getOrCreateAgentLocationId($vendor_db, $agent_id);
+        if ($location_id <= 0) {
+            return array('status' => 500, 'message' => 'Unable to resolve agent stock location.');
+        }
+
+        foreach ($sale_items as $raw) {
+            if (!is_array($raw)) {
+                continue;
+            }
+
+            $item_type = strtolower(trim((string) (isset($raw['item_type']) ? $raw['item_type'] : '')));
+            $item_ref_id = (int) (isset($raw['item_ref_id']) ? $raw['item_ref_id'] : 0);
+            $variation_key = $this->normalizeVariationKey(isset($raw['variation_key']) ? $raw['variation_key'] : '');
+            $qty = (float) (isset($raw['qty']) ? $raw['qty'] : 0);
+            $school_id = (int) (isset($raw['school_id']) ? $raw['school_id'] : 0);
+            $branch_id = array_key_exists('branch_id', $raw) ? ($raw['branch_id'] === NULL || $raw['branch_id'] === '' ? NULL : (int) $raw['branch_id']) : NULL;
+            $order_item_id = (int) (isset($raw['order_item_id']) ? $raw['order_item_id'] : 0);
+
+            if ($item_type === '' || $item_ref_id <= 0 || $qty <= 0 || $school_id <= 0) {
+                return array('status' => 400, 'message' => 'Invalid order items for stock deduction.');
+            }
+            if ($variation_key === '') {
+                $variation_key = 'default';
+            }
+
+            $external_ref = 'pos_sale_out:' . $order_unique_id . ':' . $order_item_id;
+
+            $exists = $vendor_db
+                ->select('id')
+                ->from('inventory_stock_movements')
+                ->where('external_ref', $external_ref)
+                ->limit(1)
+                ->get()
+                ->row_array();
+            if (!empty($exists['id'])) {
+                continue;
+            }
+
+            $snapshot = $this->getSnapshotRowForUpdate($vendor_db, $location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id);
+            if (empty($snapshot) || empty($snapshot['id'])) {
+                return array('status' => 409, 'message' => 'Stock row not found for one or more items.');
+            }
+
+            $before = (float) $snapshot['qty_available'];
+            if ($before < $qty) {
+                return array('status' => 409, 'message' => 'Insufficient stock for one or more items.');
+            }
+            $after = $before - $qty;
+
+            $vendor_db->where('id', (int) $snapshot['id'])->update('inventory_stock_snapshot', array('qty_available' => $after));
+
+            $vendor_db->insert('inventory_stock_movements', array(
+                'movement_type' => 'pos_sale_out',
+                'external_ref' => $external_ref,
+                'order_id' => $order_id,
+                'order_item_id' => $order_item_id ?: NULL,
+                'location_id' => (int) $location_id,
+                'item_type' => $item_type,
+                'item_ref_id' => (int) $item_ref_id,
+                'variation_key' => $variation_key,
+                'school_id' => (int) $school_id,
+                'branch_id' => $branch_id,
+                'qty_delta' => -1 * abs((float) $qty),
+                'qty_before' => $before,
+                'qty_after' => $after,
+                'actor_type' => 'pos_agent',
+                'actor_id' => (int) $agent_id,
+                'meta_json' => json_encode(array(
+                    'order_unique_id' => $order_unique_id,
+                    'order_id' => $order_id,
+                    'order_item_id' => $order_item_id,
+                )),
+                'remarks' => 'POS Sale'
+            ));
+        }
+
+        if ($vendor_db->trans_status() === FALSE) {
+            return array('status' => 500, 'message' => 'Stock deduction failed.');
+        }
+
+        return array('status' => 200, 'message' => 'Stock deducted');
+    }
+
+    private function normalizeVariationKey($raw)
+    {
+        $v = trim((string) $raw);
+        if ($v === '') {
+            return '';
+        }
+        $v = preg_replace('/^size\s*:\s*/i', '', $v);
+        return trim($v);
+    }
+
+    private function getAgentLocationId($vendor_db, $agent_id)
+    {
+        $agent_id = (int) $agent_id;
+        if (!$vendor_db || $agent_id <= 0 || !$vendor_db->table_exists('inventory_locations')) {
+            return 0;
+        }
+        $row = $vendor_db
+            ->select('id')
+            ->from('inventory_locations')
+            ->where('location_type', 'pos_agent')
+            ->where('location_ref_id', $agent_id)
+            ->limit(1)
+            ->get()
+            ->row_array();
+        return !empty($row['id']) ? (int) $row['id'] : 0;
+    }
+
+    private function getOrCreateAgentLocationId($vendor_db, $agent_id)
+    {
+        $id = $this->getAgentLocationId($vendor_db, $agent_id);
+        if ($id > 0) {
+            return $id;
+        }
+        if (!$vendor_db || !$vendor_db->table_exists('inventory_locations')) {
+            return 0;
+        }
+        $vendor_db->insert('inventory_locations', array(
+            'location_type' => 'pos_agent',
+            'location_ref_id' => (int) $agent_id,
+            'name' => 'POS Agent #' . (int) $agent_id,
+            'is_active' => 1
+        ));
+        return (int) $vendor_db->insert_id();
+    }
+
+    private function getSnapshotRowForUpdate($vendor_db, $location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id)
+    {
+        if (!$vendor_db) {
+            return array();
+        }
+
+        $sql = "SELECT id, qty_available
+            FROM inventory_stock_snapshot
+            WHERE location_id = ?
+              AND item_type = ?
+              AND item_ref_id = ?
+              AND variation_key = ?
+              AND school_id = ?
+              AND " . ($branch_id === NULL ? "branch_id IS NULL" : "branch_id = ?") . "
+            LIMIT 1
+            FOR UPDATE";
+
+        $binds = array((int) $location_id, (string) $item_type, (int) $item_ref_id, (string) $variation_key, (int) $school_id);
+        if ($branch_id !== NULL) {
+            $binds[] = (int) $branch_id;
+        }
+
+        $q = $vendor_db->query($sql, $binds);
+        $row = $q ? $q->row_array() : array();
+        return is_array($row) ? $row : array();
     }
 
     public function send_whatsapp($phone, $parent_name, $order_unique_id, $file_url = '')
