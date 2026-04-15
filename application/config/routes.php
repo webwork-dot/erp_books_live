@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 $route['auth/login'] = 'auth/login';
 $route['auth/logout'] = 'auth/logout';
@@ -77,6 +77,7 @@ $route['app/agent/uniforms'] = 'App_api/get_uniforms';
 $route['app/agent/assigned_stock'] = 'App_api/get_assigned_stock';
 $route['app/agent/get_agent_orders'] = 'App_api/get_agent_orders';
 $route['app/agent/get_order_details'] = 'App_api/get_order_details';
+$route['app/agent/download_invoice'] = 'App_api/download_invoice';
 
 $route['app/agent/upiInfo'] = 'App_api/get_upi_info';
 $route['app/agent/place_uniform_order'] = 'App_api/place_uniform_order';
@@ -392,5 +393,3 @@ $route['translate_uri_dashes'] = FALSE;
 $route['shiprocket_verify_login'] = 'Vendor/Orders/shiprocket_verify_login';
 $route['shiprocket_pickups'] = 'Vendor/Orders/shiprocket_pickups';
 $route['shiprocket_debug_payload'] = 'Vendor/Orders/shiprocket_debug_payload';
-
-
