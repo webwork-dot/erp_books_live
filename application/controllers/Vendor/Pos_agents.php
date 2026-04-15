@@ -463,102 +463,229 @@ class Pos_agents extends Vendor_base
 
     public function stock_summary()
     {
-        $agent_id = (int)$this->input->get('agent_user_id', TRUE);
-        $vendor_id = (int)$this->current_vendor['id'];
-        if ($agent_id <= 0 || !$this->Pos_agent_model->isAgentMappedToVendor($agent_id, $vendor_id)) {
-            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Invalid agent')));
-        }
-        $agent_location_id = $this->getAgentLocationId($agent_id);
-        if (!$agent_location_id) {
-            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'holdings' => array(), 'movements' => array())));
-        }
+    $agent_id = (int)$this->input->get('agent_user_id', TRUE);
+    $vendor_id = (int)$this->current_vendor['id'];
 
-        $holdings = $this->db
-            ->select('item_type,item_ref_id,variation_key,school_id,branch_id,qty_available,updated_at')
-            ->from('inventory_stock_snapshot')
-            ->where('location_id', $agent_location_id)
-            ->order_by('updated_at', 'DESC')
-            ->limit(100)
-            ->get()->result_array();
-
-        $movements = $this->db
-            ->select('movement_type,item_type,item_ref_id,variation_key,qty_delta,qty_before,qty_after,created_at,remarks')
-            ->from('inventory_stock_movements')
-            ->where('location_id', $agent_location_id)
-            ->order_by('id', 'DESC')
-            ->limit(100)
-            ->get()->result_array();
-
-        $catalog = $this->buildStockCatalogRows($vendor_id);
-        $catalog_map = array();
-        foreach ($catalog as $c) {
-            $ckey = strtolower((string)$c['item_type']) . '|' . (int)$c['item_ref_id'] . '|' . strtolower((string)($c['variation_key'] ?: 'default')) . '|' . (int)(isset($c['school_id']) ? $c['school_id'] : 0) . '|' . (int)(isset($c['branch_id']) ? $c['branch_id'] : 0);
-            $catalog_map[$ckey] = $c;
-        }
-
-        $stats_map = array();
-        foreach ($movements as $m) {
-            $mkey = strtolower((string)$m['item_type']) . '|' . (int)$m['item_ref_id'] . '|' . strtolower((string)($m['variation_key'] ?: 'default'));
-            if (!isset($stats_map[$mkey])) {
-                $stats_map[$mkey] = array(
-                    'total_qty' => 0.0,
-                    'sold_qty' => 0.0,
-                    'last_assigned_date' => ''
-                );
-            }
-            if ((string)$m['movement_type'] === 'pos_assign_in' && (float)$m['qty_delta'] > 0) {
-                $stats_map[$mkey]['total_qty'] += (float)$m['qty_delta'];
-                if (empty($stats_map[$mkey]['last_assigned_date']) || strtotime($m['created_at']) > strtotime($stats_map[$mkey]['last_assigned_date'])) {
-                    $stats_map[$mkey]['last_assigned_date'] = (string)$m['created_at'];
-                }
-            }
-            // "Sold Qty" kept simple as all outflow from agent stock.
-            if ((float)$m['qty_delta'] < 0) {
-                $stats_map[$mkey]['sold_qty'] += abs((float)$m['qty_delta']);
-            }
-        }
-
-        $holdings_enriched = array();
-        foreach ($holdings as $h) {
-            $hkey = strtolower((string)$h['item_type']) . '|' . (int)$h['item_ref_id'] . '|' . strtolower((string)($h['variation_key'] ?: 'default')) . '|' . (int)(isset($h['school_id']) ? $h['school_id'] : 0) . '|' . (int)(isset($h['branch_id']) ? $h['branch_id'] : 0);
-            $meta = isset($catalog_map[$hkey]) ? $catalog_map[$hkey] : array();
-            $stats = isset($stats_map[$hkey]) ? $stats_map[$hkey] : array('total_qty' => (float)$h['qty_available'], 'sold_qty' => 0.0, 'last_assigned_date' => '');
-            $holdings_enriched[] = array(
-                'item_type' => (string)$h['item_type'],
-                'item_ref_id' => (int)$h['item_ref_id'],
-                'product_name' => isset($meta['product_name']) ? (string)$meta['product_name'] : ('Item #' . (int)$h['item_ref_id']),
-                'uniform_type_name' => isset($meta['uniform_type_name']) ? (string)$meta['uniform_type_name'] : '-',
-                'variation_key' => (string)$h['variation_key'],
-                'gender' => isset($meta['gender']) ? (string)$meta['gender'] : '-',
-                'school_name' => isset($meta['school_name']) ? (string)$meta['school_name'] : '-',
-                'branch_name' => isset($meta['branch_name']) ? (string)$meta['branch_name'] : '',
-                'board_name' => isset($meta['board_name']) ? (string)$meta['board_name'] : '-',
-                'grade_name' => isset($meta['grade_name']) ? (string)$meta['grade_name'] : '-',
-                'total_qty' => (float)$stats['total_qty'],
-                'sold_qty' => (float)$stats['sold_qty'],
-                'remain_qty' => (float)$h['qty_available'],
-                'last_assigned_date' => !empty($stats['last_assigned_date']) ? date('d-m-Y h:i:s A', strtotime($stats['last_assigned_date'])) : '-',
-                'updated_at' => !empty($h['updated_at']) ? date('d-m-Y h:i:s A', strtotime($h['updated_at'])) : '-'
-            );
-        }
-
-        $movements_enriched = array();
-        foreach ($movements as $m) {
-            $mkey = strtolower((string)$m['item_type']) . '|' . (int)$m['item_ref_id'] . '|' . strtolower((string)($m['variation_key'] ?: 'default'));
-            $meta = isset($catalog_map[$mkey]) ? $catalog_map[$mkey] : array();
-            $movements_enriched[] = array(
-                'movement_type' => (string)$m['movement_type'],
-                'product_name' => isset($meta['product_name']) ? (string)$meta['product_name'] : ('Item #' . (int)$m['item_ref_id']),
-                'variation_key' => (string)$m['variation_key'],
-                'qty' => abs((float)$m['qty_delta']),
-                'direction' => ((float)$m['qty_delta'] >= 0 ? 'IN' : 'OUT'),
-                'created_at' => !empty($m['created_at']) ? date('d-m-Y h:i:s A', strtotime($m['created_at'])) : '-',
-                'remarks' => (string)$m['remarks']
-            );
-        }
-
-        return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'success', 'holdings' => $holdings_enriched, 'movements' => $movements_enriched)));
+    if ($agent_id <= 0 || !$this->Pos_agent_model->isAgentMappedToVendor($agent_id, $vendor_id)) {
+        return $this->output->set_content_type('application/json')->set_output(json_encode(array(
+            'status' => 'error',
+            'message' => 'Invalid agent'
+        )));
     }
+
+    $agent_location_id = $this->getAgentLocationId($agent_id);
+    if (!$agent_location_id) {
+        return $this->output->set_content_type('application/json')->set_output(json_encode(array(
+            'status' => 'success',
+            'holdings' => array(),
+            'movements' => array()
+        )));
+    }
+
+    // ===================== HOLDINGS =====================
+    $holdings = $this->db
+        ->select('item_type,item_ref_id,variation_key,school_id,branch_id,qty_available,updated_at')
+        ->from('inventory_stock_snapshot')
+        ->where('location_id', $agent_location_id)
+        ->order_by('updated_at', 'DESC')
+        ->limit(100)
+        ->get()->result_array();
+
+    // ===================== MOVEMENTS =====================
+    $movements = $this->db
+        ->select('movement_type,item_type,item_ref_id,variation_key,qty_delta,qty_before,qty_after,created_at,remarks')
+        ->from('inventory_stock_movements')
+        ->where('location_id', $agent_location_id)
+        ->order_by('id', 'DESC')
+        ->limit(100)
+        ->get()->result_array();
+
+    // ===================== CATALOG =====================
+    $catalog = $this->buildStockCatalogRows($vendor_id);
+    $catalog_map = array();
+    foreach ($catalog as $c) {
+        $ckey = strtolower((string)$c['item_type']) . '|' .
+                (int)$c['item_ref_id'] . '|' .
+                strtolower((string)($c['variation_key'] ?: 'default')) . '|' .
+                (int)(isset($c['school_id']) ? $c['school_id'] : 0) . '|' .
+                (int)(isset($c['branch_id']) ? $c['branch_id'] : 0);
+
+        $catalog_map[$ckey] = $c;
+    }
+
+    // ===================== STATS (AGENT SIDE) =====================
+    $stats_map = array();
+    foreach ($movements as $m) {
+
+        $mkey = strtolower((string)$m['item_type']) . '|' .
+                (int)$m['item_ref_id'] . '|' .
+                strtolower((string)($m['variation_key'] ?: 'default'));
+
+        if (!isset($stats_map[$mkey])) {
+            $stats_map[$mkey] = array(
+                'total_qty' => 0.0,
+                'sold_qty' => 0.0,
+                'last_assigned_date' => ''
+            );
+        }
+
+        // Assigned to agent (old logic kept for last_assigned_date)
+        if ((string)$m['movement_type'] === 'pos_assign_in' && (float)$m['qty_delta'] > 0) {
+            $stats_map[$mkey]['total_qty'] += (float)$m['qty_delta'];
+
+            if (empty($stats_map[$mkey]['last_assigned_date']) ||
+                strtotime($m['created_at']) > strtotime($stats_map[$mkey]['last_assigned_date'])) {
+
+                $stats_map[$mkey]['last_assigned_date'] = (string)$m['created_at'];
+            }
+        }
+
+        // Sold qty (OUT from agent)
+        if ((float)$m['qty_delta'] < 0) {
+            $stats_map[$mkey]['sold_qty'] += abs((float)$m['qty_delta']);
+        }
+    }
+
+    // ===================== ADMIN LOCATION =====================
+    $admin_location = $this->db
+        ->select('id')
+        ->from('inventory_locations')
+        ->where('location_type', 'admin')
+        ->get()
+        ->row_array();
+
+    $admin_location_id = isset($admin_location['id']) ? (int)$admin_location['id'] : 0;
+
+    // ===================== ADMIN TOTAL QTY =====================
+    $admin_total_map = [];
+
+    if ($admin_location_id > 0) {
+
+        $admin_totals = $this->db
+            ->select('item_ref_id, school_id, branch_id, SUM(ABS(qty_delta)) as total_qty')
+            ->from('inventory_stock_movements')
+            ->where('location_id', $admin_location_id)
+            ->where('movement_type', 'pos_assign_out')
+            ->group_by(['item_ref_id', 'school_id', 'branch_id'])
+            ->get()
+            ->result_array();
+
+        foreach ($admin_totals as $row) {
+            $key = (int)$row['item_ref_id'] . '|' .
+                   (int)$row['school_id'] . '|' .
+                   (int)$row['branch_id'];
+
+            $admin_total_map[$key] = (float)$row['total_qty'];
+        }
+    }
+    // ===================== SOLD QTY (AGENT - POS SALE ONLY) =====================
+    $sold_total_map = [];
+    
+    $sold_totals = $this->db
+        ->select('item_ref_id, school_id, branch_id, SUM(ABS(qty_delta)) as sold_qty')
+        ->from('inventory_stock_movements')
+        ->where('location_id', $agent_location_id)
+        ->where('movement_type', 'pos_sale_out')
+        ->group_by(['item_ref_id', 'school_id', 'branch_id'])
+        ->get()
+        ->result_array();
+    
+    foreach ($sold_totals as $row) {
+        $key = (int)$row['item_ref_id'] . '|' .
+               (int)$row['school_id'] . '|' .
+               (int)$row['branch_id'];
+    
+        $sold_total_map[$key] = (float)$row['sold_qty'];
+    }
+
+    // ===================== HOLDINGS ENRICH =====================
+    $holdings_enriched = array();
+
+    foreach ($holdings as $h) {
+
+        $hkey = strtolower((string)$h['item_type']) . '|' .
+                (int)$h['item_ref_id'] . '|' .
+                strtolower((string)($h['variation_key'] ?: 'default')) . '|' .
+                (int)(isset($h['school_id']) ? $h['school_id'] : 0) . '|' .
+                (int)(isset($h['branch_id']) ? $h['branch_id'] : 0);
+
+        $meta = isset($catalog_map[$hkey]) ? $catalog_map[$hkey] : array();
+
+        $stats = isset($stats_map[$hkey])
+            ? $stats_map[$hkey]
+            : array('total_qty' => (float)$h['qty_available'], 'sold_qty' => 0.0, 'last_assigned_date' => '');
+
+        $key = (int)$h['item_ref_id'] . '|' .
+               (int)$h['school_id'] . '|' .
+               (int)$h['branch_id'];
+
+        $total_qty = isset($admin_total_map[$key])
+            ? (float)$admin_total_map[$key]
+            : 0;
+        $key = (int)$h['item_ref_id'] . '|' .
+                   (int)$h['school_id'] . '|' .
+                   (int)$h['branch_id'];
+            
+        $sold_qty = isset($sold_total_map[$key])
+                ? (float)$sold_total_map[$key]
+                : 0;
+
+        $holdings_enriched[] = array(
+            'item_type' => (string)$h['item_type'],
+            'item_ref_id' => (int)$h['item_ref_id'],
+            'product_name' => isset($meta['product_name']) ? (string)$meta['product_name'] : ('Item #' . (int)$h['item_ref_id']),
+            'uniform_type_name' => isset($meta['uniform_type_name']) ? (string)$meta['uniform_type_name'] : '-',
+            'variation_key' => (string)$h['variation_key'],
+            'gender' => isset($meta['gender']) ? (string)$meta['gender'] : '-',
+            'school_name' => isset($meta['school_name']) ? (string)$meta['school_name'] : '-',
+            'branch_name' => isset($meta['branch_name']) ? (string)$meta['branch_name'] : '',
+            'board_name' => isset($meta['board_name']) ? (string)$meta['board_name'] : '-',
+            'grade_name' => isset($meta['grade_name']) ? (string)$meta['grade_name'] : '-',
+
+            'total_qty' => $total_qty,
+            'sold_qty' => $sold_qty,
+            'remain_qty' => (float)$h['qty_available'],
+
+            'last_assigned_date' => !empty($stats['last_assigned_date'])
+                ? date('d-m-Y h:i:s A', strtotime($stats['last_assigned_date']))
+                : '-',
+
+            'updated_at' => !empty($h['updated_at'])
+                ? date('d-m-Y h:i:s A', strtotime($h['updated_at']))
+                : '-'
+        );
+    }
+
+    // ===================== MOVEMENTS ENRICH =====================
+    $movements_enriched = array();
+
+    foreach ($movements as $m) {
+
+        $mkey = strtolower((string)$m['item_type']) . '|' .
+                (int)$m['item_ref_id'] . '|' .
+                strtolower((string)($m['variation_key'] ?: 'default'));
+
+        $meta = isset($catalog_map[$mkey]) ? $catalog_map[$mkey] : array();
+
+        $movements_enriched[] = array(
+            'movement_type' => (string)$m['movement_type'],
+            'product_name' => isset($meta['product_name']) ? (string)$meta['product_name'] : ('Item #' . (int)$m['item_ref_id']),
+            'variation_key' => (string)$m['variation_key'],
+            'qty' => abs((float)$m['qty_delta']),
+            'direction' => ((float)$m['qty_delta'] >= 0 ? 'IN' : 'OUT'),
+            'created_at' => !empty($m['created_at']) ? date('d-m-Y h:i:s A', strtotime($m['created_at'])) : '-',
+            'remarks' => (string)$m['remarks']
+        );
+    }
+
+    return $this->output
+        ->set_content_type('application/json')
+        ->set_output(json_encode(array(
+            'status' => 'success',
+            'holdings' => $holdings_enriched,
+            'movements' => $movements_enriched
+        )));
+}
 
     public function stock_transfer()
     {
