@@ -436,9 +436,23 @@ class Pos_agents extends Vendor_base
             if (strpos($hay, strtolower($q)) === FALSE) {
                 continue;
             }
-            $row['main_qty'] = $this->getSnapshotQty($this->getMainAdminLocationId(), $row['item_type'], (int)$row['item_ref_id'], (string)$row['variation_key']);
+            $row['main_qty'] = $this->getSnapshotQty(
+                $this->getMainAdminLocationId(),
+                $row['item_type'],
+                (int)$row['item_ref_id'],
+                (string)$row['variation_key'],
+                isset($row['school_id']) ? $row['school_id'] : NULL,
+                isset($row['branch_id']) ? $row['branch_id'] : NULL
+            );
 
-            $row['agent_qty'] = $agent_id > 0 ? $this->getSnapshotQty($this->getOrCreateAgentLocationId($agent_id), $row['item_type'], (int)$row['item_ref_id'], (string)$row['variation_key']) : 0;
+            $row['agent_qty'] = $agent_id > 0 ? $this->getSnapshotQty(
+                $this->getOrCreateAgentLocationId($agent_id),
+                $row['item_type'],
+                (int)$row['item_ref_id'],
+                (string)$row['variation_key'],
+                isset($row['school_id']) ? $row['school_id'] : NULL,
+                isset($row['branch_id']) ? $row['branch_id'] : NULL
+            ) : 0;
             $items[] = $row;
             if (count($items) >= 5) {
                 break;
@@ -460,7 +474,7 @@ class Pos_agents extends Vendor_base
         }
 
         $holdings = $this->db
-            ->select('item_type,item_ref_id,variation_key,qty_available,updated_at')
+            ->select('item_type,item_ref_id,variation_key,school_id,branch_id,qty_available,updated_at')
             ->from('inventory_stock_snapshot')
             ->where('location_id', $agent_location_id)
             ->order_by('updated_at', 'DESC')
@@ -478,7 +492,7 @@ class Pos_agents extends Vendor_base
         $catalog = $this->buildStockCatalogRows($vendor_id);
         $catalog_map = array();
         foreach ($catalog as $c) {
-            $ckey = strtolower((string)$c['item_type']) . '|' . (int)$c['item_ref_id'] . '|' . strtolower((string)($c['variation_key'] ?: 'default'));
+            $ckey = strtolower((string)$c['item_type']) . '|' . (int)$c['item_ref_id'] . '|' . strtolower((string)($c['variation_key'] ?: 'default')) . '|' . (int)(isset($c['school_id']) ? $c['school_id'] : 0) . '|' . (int)(isset($c['branch_id']) ? $c['branch_id'] : 0);
             $catalog_map[$ckey] = $c;
         }
 
@@ -506,7 +520,7 @@ class Pos_agents extends Vendor_base
 
         $holdings_enriched = array();
         foreach ($holdings as $h) {
-            $hkey = strtolower((string)$h['item_type']) . '|' . (int)$h['item_ref_id'] . '|' . strtolower((string)($h['variation_key'] ?: 'default'));
+            $hkey = strtolower((string)$h['item_type']) . '|' . (int)$h['item_ref_id'] . '|' . strtolower((string)($h['variation_key'] ?: 'default')) . '|' . (int)(isset($h['school_id']) ? $h['school_id'] : 0) . '|' . (int)(isset($h['branch_id']) ? $h['branch_id'] : 0);
             $meta = isset($catalog_map[$hkey]) ? $catalog_map[$hkey] : array();
             $stats = isset($stats_map[$hkey]) ? $stats_map[$hkey] : array('total_qty' => (float)$h['qty_available'], 'sold_qty' => 0.0, 'last_assigned_date' => '');
             $holdings_enriched[] = array(
@@ -556,10 +570,18 @@ class Pos_agents extends Vendor_base
         $item_type = trim((string)$this->input->post('item_type', TRUE));
         $item_ref_id = (int)$this->input->post('item_ref_id', TRUE);
         $variation_key = trim((string)$this->input->post('variation_key', TRUE));
+        $school_id = $this->input->post('school_id', TRUE);
+        $branch_id = $this->input->post('branch_id', TRUE);
         $action = trim((string)$this->input->post('action', TRUE)); // assign|return
         $qty = (float)$this->input->post('qty', TRUE);
         $remarks = trim((string)$this->input->post('remarks', TRUE));
         if ($variation_key === '') $variation_key = 'default';
+        $school_id = ($school_id === NULL || $school_id === '' ? NULL : (int)$school_id);
+        $branch_id = ($branch_id === NULL || $branch_id === '' ? NULL : (int)$branch_id);
+
+        if (strtolower($item_type) === 'uniform' && (int)$school_id <= 0) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'School is required for uniform stock.')));
+        }
         if (!in_array($action, array('assign', 'return'), TRUE) || $agent_id <= 0 || $item_type === '' || $item_ref_id <= 0 || $qty <= 0) {
             return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Invalid request')));
         }
@@ -569,8 +591,8 @@ class Pos_agents extends Vendor_base
 
         $admin_location_id = $this->getMainAdminLocationId();
         $agent_location_id = $this->getOrCreateAgentLocationId($agent_id);
-        $admin_qty = $this->getSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key);
-        $agent_qty = $this->getSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key);
+        $admin_qty = $this->getSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id);
+        $agent_qty = $this->getSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key, $school_id, $branch_id);
 
         if ($action === 'assign' && $admin_qty < $qty) {
             return $this->output->set_content_type('application/json')->set_output(json_encode(array('status' => 'error', 'message' => 'Insufficient main stock')));
@@ -581,15 +603,15 @@ class Pos_agents extends Vendor_base
 
         $this->db->trans_begin();
         if ($action === 'assign') {
-            $this->setSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key, $admin_qty - $qty);
-            $this->setSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key, $agent_qty + $qty);
-            $this->insertMovement($admin_location_id, 'pos_assign_out', $item_type, $item_ref_id, $variation_key, -1 * $qty, $admin_qty, $admin_qty - $qty, $remarks);
-            $this->insertMovement($agent_location_id, 'pos_assign_in', $item_type, $item_ref_id, $variation_key, $qty, $agent_qty, $agent_qty + $qty, $remarks);
+            $this->setSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key, $admin_qty - $qty, $school_id, $branch_id);
+            $this->setSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key, $agent_qty + $qty, $school_id, $branch_id);
+            $this->insertMovement($admin_location_id, 'pos_assign_out', $item_type, $item_ref_id, $variation_key, -1 * $qty, $admin_qty, $admin_qty - $qty, $remarks, $school_id, $branch_id);
+            $this->insertMovement($agent_location_id, 'pos_assign_in', $item_type, $item_ref_id, $variation_key, $qty, $agent_qty, $agent_qty + $qty, $remarks, $school_id, $branch_id);
         } else {
-            $this->setSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key, $agent_qty - $qty);
-            $this->setSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key, $admin_qty + $qty);
-            $this->insertMovement($agent_location_id, 'pos_return_out', $item_type, $item_ref_id, $variation_key, -1 * $qty, $agent_qty, $agent_qty - $qty, $remarks);
-            $this->insertMovement($admin_location_id, 'pos_return_in', $item_type, $item_ref_id, $variation_key, $qty, $admin_qty, $admin_qty + $qty, $remarks);
+            $this->setSnapshotQty($agent_location_id, $item_type, $item_ref_id, $variation_key, $agent_qty - $qty, $school_id, $branch_id);
+            $this->setSnapshotQty($admin_location_id, $item_type, $item_ref_id, $variation_key, $admin_qty + $qty, $school_id, $branch_id);
+            $this->insertMovement($agent_location_id, 'pos_return_out', $item_type, $item_ref_id, $variation_key, -1 * $qty, $agent_qty, $agent_qty - $qty, $remarks, $school_id, $branch_id);
+            $this->insertMovement($admin_location_id, 'pos_return_in', $item_type, $item_ref_id, $variation_key, $qty, $admin_qty, $admin_qty + $qty, $remarks, $school_id, $branch_id);
         }
         if ($this->db->trans_status() === FALSE) {
             $this->db->trans_rollback();
@@ -708,7 +730,7 @@ class Pos_agents extends Vendor_base
         $rows = array();
         if ($this->db->table_exists('erp_uniforms') && $this->db->table_exists('erp_uniform_size_prices')) {
             $has_class_table = $this->db->table_exists('erp_classes');
-            $uniform_select = 'u.id AS item_ref_id,u.product_name,ut.name AS uniform_type_name,u.gender,s.name AS variation_key,sch.school_name,br.branch_name,bo.board_name';
+            $uniform_select = 'u.id AS item_ref_id,u.product_name,ut.name AS uniform_type_name,u.gender,s.name AS variation_key,u.school_id,u.branch_id,sch.school_name,br.branch_name,bo.board_name';
             $uniform_select .= $has_class_table ? ',g.name AS grade_name' : ',"-" AS grade_name';
             $uniform_rows = $this->db
                 ->select($uniform_select)
@@ -742,6 +764,8 @@ class Pos_agents extends Vendor_base
                     'uniform_type_name' => '-',
                     'gender' => '-',
                     'variation_key' => 'default',
+                    'school_id' => NULL,
+                    'branch_id' => NULL,
                     'school_name' => '-',
                     'branch_name' => '',
                     'board_name' => '-',
@@ -774,31 +798,77 @@ class Pos_agents extends Vendor_base
         return (int)$this->db->insert_id();
     }
 
-    private function getSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key)
+    private function getSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $school_id = NULL, $branch_id = NULL)
     {
-        $row = $this->db->select('qty_available')->from('inventory_stock_snapshot')->where('location_id', (int)$location_id)->where('item_type', $item_type)->where('item_ref_id', (int)$item_ref_id)->where('variation_key', $variation_key)->limit(1)->get()->row_array();
+        $school_id = ($school_id === NULL || $school_id === '' ? NULL : (int)$school_id);
+        $branch_id = ($branch_id === NULL || $branch_id === '' ? NULL : (int)$branch_id);
+        $qb = $this->db->select('qty_available')->from('inventory_stock_snapshot')
+            ->where('location_id', (int)$location_id)
+            ->where('item_type', $item_type)
+            ->where('item_ref_id', (int)$item_ref_id)
+            ->where('variation_key', $variation_key);
+        if ($school_id === NULL) {
+            $qb->where('school_id', NULL);
+        } else {
+            $qb->where('school_id', (int)$school_id);
+        }
+        if ($branch_id === NULL) {
+            $qb->where('branch_id', NULL);
+        } else {
+            $qb->where('branch_id', (int)$branch_id);
+        }
+        $row = $qb->limit(1)->get()->row_array();
         return !empty($row['qty_available']) ? (float)$row['qty_available'] : 0.0;
     }
 
-    private function setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $qty)
+    private function setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $qty, $school_id = NULL, $branch_id = NULL)
     {
-        $row = $this->db->select('id')->from('inventory_stock_snapshot')->where('location_id', (int)$location_id)->where('item_type', $item_type)->where('item_ref_id', (int)$item_ref_id)->where('variation_key', $variation_key)->where('school_id', NULL)->where('branch_id', NULL)->limit(1)->get()->row_array();
+        $school_id = ($school_id === NULL || $school_id === '' ? NULL : (int)$school_id);
+        $branch_id = ($branch_id === NULL || $branch_id === '' ? NULL : (int)$branch_id);
+        $qb = $this->db->select('id')->from('inventory_stock_snapshot')
+            ->where('location_id', (int)$location_id)
+            ->where('item_type', $item_type)
+            ->where('item_ref_id', (int)$item_ref_id)
+            ->where('variation_key', $variation_key);
+        if ($school_id === NULL) {
+            $qb->where('school_id', NULL);
+        } else {
+            $qb->where('school_id', (int)$school_id);
+        }
+        if ($branch_id === NULL) {
+            $qb->where('branch_id', NULL);
+        } else {
+            $qb->where('branch_id', (int)$branch_id);
+        }
+        $row = $qb->limit(1)->get()->row_array();
         if (!empty($row['id'])) {
             $this->db->where('id', (int)$row['id'])->update('inventory_stock_snapshot', array('qty_available' => (float)$qty));
             return;
         }
-        $this->db->insert('inventory_stock_snapshot', array('location_id' => (int)$location_id, 'item_type' => $item_type, 'item_ref_id' => (int)$item_ref_id, 'variation_key' => $variation_key, 'school_id' => NULL, 'branch_id' => NULL, 'qty_available' => (float)$qty));
-    }
-
-    private function insertMovement($location_id, $movement_type, $item_type, $item_ref_id, $variation_key, $delta, $before, $after, $remarks)
-    {
-        $this->db->insert('inventory_stock_movements', array(
-            'movement_type' => $movement_type,
-            'external_ref' => $movement_type . ':' . $location_id . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . microtime(TRUE),
+        $this->db->insert('inventory_stock_snapshot', array(
             'location_id' => (int)$location_id,
             'item_type' => $item_type,
             'item_ref_id' => (int)$item_ref_id,
             'variation_key' => $variation_key,
+            'school_id' => $school_id,
+            'branch_id' => $branch_id,
+            'qty_available' => (float)$qty
+        ));
+    }
+
+    private function insertMovement($location_id, $movement_type, $item_type, $item_ref_id, $variation_key, $delta, $before, $after, $remarks, $school_id = NULL, $branch_id = NULL)
+    {
+        $school_id = ($school_id === NULL || $school_id === '' ? NULL : (int)$school_id);
+        $branch_id = ($branch_id === NULL || $branch_id === '' ? NULL : (int)$branch_id);
+        $this->db->insert('inventory_stock_movements', array(
+            'movement_type' => $movement_type,
+            'external_ref' => $movement_type . ':' . $location_id . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . (string)$school_id . ':' . (string)$branch_id . ':' . microtime(TRUE),
+            'location_id' => (int)$location_id,
+            'item_type' => $item_type,
+            'item_ref_id' => (int)$item_ref_id,
+            'variation_key' => $variation_key,
+            'school_id' => $school_id,
+            'branch_id' => $branch_id,
             'qty_delta' => (float)$delta,
             'qty_before' => (float)$before,
             'qty_after' => (float)$after,

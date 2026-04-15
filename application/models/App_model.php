@@ -720,6 +720,7 @@ class App_model extends CI_Model
         }
 
         $location_id = $this->getAgentLocationId($vendor_db, $agent_id);
+
         if ($location_id <= 0) {
             return array();
         }
@@ -735,6 +736,8 @@ class App_model extends CI_Model
         }
         $vendor_db->order_by('updated_at', 'DESC');
         $snapshots = $vendor_db->get()->result_array();
+
+
 
         if (empty($snapshots)) {
             return array();
@@ -1177,9 +1180,11 @@ class App_model extends CI_Model
             ->from('inventory_locations')
             ->where('location_type', 'pos_agent')
             ->where('location_ref_id', $agent_id)
+            ->where('is_active', 1)
             ->limit(1)
             ->get()
             ->row_array();
+
         return !empty($row['id']) ? (int) $row['id'] : 0;
     }
 

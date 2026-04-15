@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var agentItemHistoryModal = agentItemHistoryModalEl ? new bootstrap.Modal(agentItemHistoryModalEl) : null;
 
     function stockKey(item) {
-        return (item.item_type || '') + '|' + (item.item_ref_id || '') + '|' + (item.variation_key || 'default');
+        return (item.item_type || '') + '|' + (item.item_ref_id || '') + '|' + (item.variation_key || 'default') + '|' + (item.school_id || '') + '|' + (item.branch_id || '');
     }
 
     function renderSelectedStockRows() {
@@ -119,6 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     item_type: btn.getAttribute('data-item-type') || '',
                     item_ref_id: btn.getAttribute('data-item-ref-id') || '',
                     variation_key: btn.getAttribute('data-variation-key') || 'default',
+                    school_id: btn.getAttribute('data-school-id') || '',
+                    branch_id: btn.getAttribute('data-branch-id') || '',
                     product_name: btn.getAttribute('data-product-name') || '',
                     gender: btn.getAttribute('data-gender') || '-',
                     school_name: btn.getAttribute('data-school-name') || '-',
@@ -211,6 +213,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         'data-item-type="' + (r.item_type || '') + '" ' +
                         'data-item-ref-id="' + (r.item_ref_id || '') + '" ' +
                         'data-variation-key="' + (r.variation_key || 'default') + '" ' +
+                        'data-school-id="' + (r.school_id || '') + '" ' +
+                        'data-branch-id="' + (r.branch_id || '') + '" ' +
                         'data-product-name="' + (r.product_name || '') + '" ' +
                         'data-gender="' + (r.gender || '-') + '" ' +
                         'data-school-name="' + (r.school_name || '-') + '" ' +
@@ -317,6 +321,8 @@ document.addEventListener('DOMContentLoaded', function() {
             form.set('item_type', item.item_type || '');
             form.set('item_ref_id', item.item_ref_id || '');
             form.set('variation_key', item.variation_key || 'default');
+            if (typeof item.school_id !== 'undefined') form.set('school_id', item.school_id || '');
+            if (typeof item.branch_id !== 'undefined') form.set('branch_id', item.branch_id || '');
             form.set('action', item.action || 'assign');
             form.set('qty', item.qty || 0);
             form.set('remarks', item.remark || '');
