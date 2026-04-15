@@ -123,6 +123,10 @@ class Products extends Vendor_base
 		$data['search_q'] = trim((string)$this->input->get('q', TRUE));
 		$data['filter_school_id'] = (int)$this->input->get('school_id', TRUE);
 		$data['filter_board_id'] = (int)$this->input->get('board_id', TRUE);
+		$data['stock_filter'] = strtoupper(trim((string)$this->input->get('stock_filter', TRUE))); // ALL / IN / OUT
+		if (!in_array($data['stock_filter'], array('IN', 'OUT'), TRUE)) {
+			$data['stock_filter'] = 'ALL';
+		}
 		$data['per_page'] = 20;
 		$data['current_page'] = (int)$this->input->get('page');
 		if ($data['current_page'] < 1) {
@@ -141,6 +145,12 @@ class Products extends Vendor_base
 			$filtered_rows = array();
 			foreach ($all_stock_rows as $row)
 			{
+				if ($data['stock_filter'] === 'IN' && (float)$row['qty_available'] <= 0) {
+					continue;
+				}
+				if ($data['stock_filter'] === 'OUT' && (float)$row['qty_available'] > 0) {
+					continue;
+				}
 				if ($data['filter_school_id'] > 0 && (int)$row['school_id'] !== (int)$data['filter_school_id']) {
 					continue;
 				}
@@ -261,6 +271,7 @@ class Products extends Vendor_base
 		$item_type = trim((string)$this->input->get('item_type', TRUE));
 		$item_ref_id = (int)$this->input->get('item_ref_id', TRUE);
 		$variation_key = trim((string)$this->input->get('variation_key', TRUE));
+		$direction = strtoupper(trim((string)$this->input->get('direction', TRUE))); // IN / OUT / ALL
 		$page = (int)$this->input->get('page', TRUE);
 		if ($page < 1) {
 			$page = 1;
@@ -275,23 +286,38 @@ class Products extends Vendor_base
 		}
 		$location_id = $this->getMainAdminStockLocationId();
 
-		$total_rows = (int)$this->db
+		if (!in_array($direction, array('IN', 'OUT'), TRUE)) {
+			$direction = 'ALL';
+		}
+
+		$countQ = $this->db
 			->from('inventory_stock_movements')
 			->where('location_id', (int)$location_id)
 			->where('item_type', $item_type)
 			->where('item_ref_id', $item_ref_id)
-			->where('variation_key', $variation_key)
-			->count_all_results();
+			->where('variation_key', $variation_key);
+		if ($direction === 'IN') {
+			$countQ->where('qty_delta >=', 0);
+		} elseif ($direction === 'OUT') {
+			$countQ->where('qty_delta <', 0);
+		}
+		$total_rows = (int)$countQ->count_all_results();
 		$total_pages = (int)ceil($total_rows / $per_page);
 		$offset = ($page - 1) * $per_page;
 
-		$rows = $this->db
+		$listQ = $this->db
 			->select('id,movement_type,qty_delta,qty_before,qty_after,remarks,created_at')
 			->from('inventory_stock_movements')
 			->where('location_id', (int)$location_id)
 			->where('item_type', $item_type)
 			->where('item_ref_id', $item_ref_id)
-			->where('variation_key', $variation_key)
+			->where('variation_key', $variation_key);
+		if ($direction === 'IN') {
+			$listQ->where('qty_delta >=', 0);
+		} elseif ($direction === 'OUT') {
+			$listQ->where('qty_delta <', 0);
+		}
+		$rows = $listQ
 			->order_by('created_at', 'DESC')
 			->order_by('id', 'DESC')
 			->limit($per_page, $offset)
@@ -367,6 +393,7 @@ class Products extends Vendor_base
 			'status' => 'success',
 			'opening_qty' => $opening_qty,
 			'current_qty' => $current_qty,
+			'direction' => $direction,
 			'current_page' => $page,
 			'per_page' => $per_page,
 			'total_rows' => $total_rows,

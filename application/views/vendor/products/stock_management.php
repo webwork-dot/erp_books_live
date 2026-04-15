@@ -96,6 +96,14 @@
 					<label class="form-label mb-1">Low Stock Alert Threshold</label>
 					<input type="number" min="0" name="low_stock" value="<?php echo (int)$low_stock_threshold; ?>" class="form-control form-control-sm">
 				</div>
+				<div class="col-md-2">
+					<label class="form-label mb-1">Stock Filter</label>
+					<select name="stock_filter" class="form-select form-select-sm">
+						<option value="ALL" <?php echo ((string)$stock_filter === 'ALL') ? 'selected' : ''; ?>>All</option>
+						<option value="IN" <?php echo ((string)$stock_filter === 'IN') ? 'selected' : ''; ?>>In Stock</option>
+						<option value="OUT" <?php echo ((string)$stock_filter === 'OUT') ? 'selected' : ''; ?>>Out of Stock</option>
+					</select>
+				</div>
 				<div class="col-md-3 d-flex gap-2">
 					<button type="submit" class="btn btn-sm btn-primary">Apply</button>
 					<a href="<?php echo base_url('products/stock_management'); ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
@@ -223,7 +231,8 @@
 					'q' => $search_q,
 					'school_id' => $filter_school_id,
 					'board_id' => $filter_board_id,
-					'low_stock' => $low_stock_threshold
+					'low_stock' => $low_stock_threshold,
+					'stock_filter' => $stock_filter
 				);
 				?>
 				<?php if ($current_page > 1): ?>
@@ -310,6 +319,16 @@
 				<div class="mb-2">
 					<strong id="historyProductTitle"></strong>
 					<div class="small text-muted">Opening: <span id="historyOpeningQty">0</span> | Current: <span id="historyCurrentQty">0</span></div>
+				</div>
+				<div class="row g-2 mb-2 align-items-end">
+					<div class="col-md-3">
+						<label class="form-label mb-1">Filter</label>
+						<select class="form-select form-select-sm" id="historyDirection">
+							<option value="ALL">All</option>
+							<option value="IN">Stock In</option>
+							<option value="OUT">Stock Out</option>
+						</select>
+					</div>
 				</div>
 				<div class="table-responsive mb-2">
 					<table class="table table-sm table-bordered mb-0">
@@ -625,6 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			'?item_type=' + encodeURIComponent(itemType) +
 			'&item_ref_id=' + encodeURIComponent(itemRefId) +
 			'&variation_key=' + encodeURIComponent(variationKey) +
+			'&direction=' + encodeURIComponent((document.getElementById('historyDirection') || {}).value || 'ALL') +
 			'&page=' + encodeURIComponent(page || 1);
 
 		fetch(url)
@@ -700,9 +720,18 @@ document.addEventListener('DOMContentLoaded', function() {
 				board: btn.getAttribute('data-board') || '',
 				grade: btn.getAttribute('data-grade') || ''
 			};
+			var dirSel = document.getElementById('historyDirection');
+			if (dirSel) dirSel.value = 'ALL';
 			loadItemHistory(1);
 			historyModal.show();
 		});
 	});
+
+	var historyDirectionEl = document.getElementById('historyDirection');
+	if (historyDirectionEl) {
+		historyDirectionEl.addEventListener('change', function() {
+			loadItemHistory(1);
+		});
+	}
 });
 </script>

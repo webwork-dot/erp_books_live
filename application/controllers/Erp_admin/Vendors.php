@@ -306,7 +306,7 @@ class Vendors extends Erp_base
 		try {
 			$sync_result = $this->Vendor_sync_model->syncVendorData($vendor_id);
 			if (!$sync_result) {
-				log_message('warning', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was created but sync to vendor database failed.');
+				log_message('error', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was created but sync to vendor database failed.');
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Exception during vendor data sync: ' . $e->getMessage());
@@ -1029,7 +1029,7 @@ class Vendors extends Erp_base
 				try {
 					$sync_result = $this->Vendor_sync_model->syncVendorData($vendor_id);
 					if (!$sync_result) {
-						log_message('warning', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
+						log_message('error', 'Vendor data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
 					}
 				} catch (Exception $e) {
 					log_message('error', 'Exception during vendor data sync after update: ' . $e->getMessage());
@@ -1038,7 +1038,7 @@ class Vendors extends Erp_base
 				try {
 					$sync_shipping_result = $this->Vendor_sync_model->syncShippingProviders($vendor_id);
 					if (!$sync_shipping_result) {
-						log_message('warning', 'Vendor Shipping data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
+						log_message('error', 'Vendor Shipping data sync failed for vendor ID: ' . $vendor_id . '. Vendor was updated but sync to vendor database failed.');
 					}
 				} catch (Exception $e) {
 					log_message('error', 'Exception during vendor Shipping data sync after update: ' . $e->getMessage());
@@ -2245,6 +2245,7 @@ class Vendors extends Erp_base
 
 		$mobile = preg_replace('/\s+/', '', (string)$this->input->post('mobile'));
 		$template_key = trim((string)$this->input->post('template_key'));
+		$vars_json = trim((string)$this->input->post('vars_json'));
 
 		if ($mobile === '' || !preg_match('/^[0-9]{10,15}$/', $mobile)) {
 			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Valid mobile is required.']));
@@ -2253,8 +2254,36 @@ class Vendors extends Erp_base
 			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Template key is required.']));
 		}
 
+		$vars = [];
+		if ($vars_json !== '') {
+			$vars = json_decode($vars_json, TRUE);
+			if (json_last_error() !== JSON_ERROR_NONE || !is_array($vars)) {
+				return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Vars must be valid JSON.']));
+			}
+		}
+
+		// Defaults for common WhatsApp template tokens (only if not provided)
+		if (!isset($vars['parent_name']) && !isset($vars['user_name'])) {
+			$vars['parent_name'] = 'Test Parent';
+			$vars['user_name'] = 'Test Parent';
+		}
+		if (!isset($vars['date']) && !isset($vars['order_date'])) {
+			$vars['date'] = date('Y-m-d');
+			$vars['order_date'] = date('Y-m-d');
+		}
+		if (!isset($vars['order_unique_id'])) {
+			$vars['order_unique_id'] = 'ORDTEST' . date('His');
+		}
+
+		// Default invoice/document URL for testing {{file_url}} templates
+		if (!isset($vars['file_url']) && !isset($vars['invoice_url'])) {
+			$vars['file_url'] = 'https://master.varitty.in/uploads/app_invoices/invoice_ORD260415850.pdf';
+			$vars['invoice_url'] = $vars['file_url'];
+		}
+
 		$this->load->library('Notification_sender');
-		$res = $this->notification_sender->sendWhatsapp($vendor_id, $mobile, $template_key, ['test' => '1']);
+		$vars['test'] = '1';
+		$res = $this->notification_sender->sendWhatsapp($vendor_id, $mobile, $template_key, $vars);
 
 		return $this->output->set_output(json_encode([
 			'status' => !empty($res['success']) ? 'success' : 'error',

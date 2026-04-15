@@ -92,10 +92,9 @@ class Notification_sender
 					log_message('error', 'Notification_sender: user email send failed. vendor_id=' . $vendor_id . ' event_key=' . $event_key . ' to=' . $to . ' message=' . ($res['message'] ?? ''));
 				}
 			} else {
-				$out['results']['email_user'] = ['success' => false, 'message' => 'Missing email_to for email channel.'];
+				// Skip user email when recipient is not available (do not fail the whole event).
+				$out['results']['email_user'] = ['success' => false, 'skipped' => true, 'message' => 'Skipped user email (missing email_to).'];
 				$out['results']['email'] = $out['results']['email_user'];
-				$out['success'] = false;
-				log_message('error', 'Notification_sender: missing email_to (user). vendor_id=' . $vendor_id . ' event_key=' . $event_key);
 			}
 		}
 

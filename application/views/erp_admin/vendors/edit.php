@@ -2163,7 +2163,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (type === 'whatsapp') {
         var mobile = document.querySelector('input[name=\"notif_test[wa_mobile]\"]')?.value || '';
         var key = document.querySelector('input[name=\"notif_test[wa_template_key]\"]')?.value || '';
-        postJson(base + '/test_whatsapp/' + vendorId, { mobile: mobile, template_key: key })
+        // Use same KV JSON input as SMS test for convenience (supports overriding file_url, order_unique_id, etc.)
+        var varsJson = document.getElementById('sms_test_vars_json')?.value || '';
+        postJson(base + '/test_whatsapp/' + vendorId, { mobile: mobile, template_key: key, vars_json: varsJson })
           .then(function(res) {
             var msg = res.message || '';
             if (res.http_code) {

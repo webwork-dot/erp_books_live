@@ -246,9 +246,10 @@ class Vendor_sync_model extends CI_Model
 		}
 		
 		// Bind parameters
-		// Type string: 1 integer (id) + 26 strings = 27 parameters total
-		// Parameters: id, name, domain, username, status, logo, favicon, site_title, meta_description, meta_keywords, sidebar_color, payment_gateway, razorpay_key_id, razorpay_key_secret, ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key, zepto_mail_api_key, zepto_mail_from_email, zepto_mail_from_name, firebase_api_key, firebase_auth_domain, firebase_project_id, firebase_storage_bucket, firebase_messaging_sender_id, firebase_app_id, updated_at
-		$stmt->bind_param('iisssssssssssssssssssssssss',
+		// SQL inserts 27 columns: 1 integer (id) + 26 strings
+		// IMPORTANT: name is a string; do not bind as int (prevents "Varitty" -> 0 coercion)
+		// 27 placeholders total: i + 26 s
+		$stmt->bind_param('issssssssssssssssssssssssss',
 			$vendor_data['id'],
 			$vendor_data['name'],
 			$vendor_data['domain'],

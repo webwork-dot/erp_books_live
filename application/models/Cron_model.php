@@ -34,6 +34,11 @@ class Cron_model extends CI_Model {
 			'user_email' => $row['user_email'] ?? '',
 			'user_phone' => $row['user_phone'] ?? '',
 
+			// Backward-compatible aliases (some gateways/templates use these)
+			'parent_name' => $row['user_name'] ?? '',
+			// Date-only helper (Y-m-d) from order_date
+			'date' => !empty($row['order_date']) ? date('Y-m-d', strtotime((string)$row['order_date'])) : date('Y-m-d'),
+
 			'customer_name' => $row['user_name'] ?? '',
 			'email_to' => $row['user_email'] ?? '',
 			'mobile' => $row['user_phone'] ?? '',
@@ -60,6 +65,7 @@ class Cron_model extends CI_Model {
 		if ($vendor && !empty($vendor['domain'])) {
 			$vendor_domain = trim((string)$vendor['domain'], " \t\n\r\0\x0B./");
 		}
+		$vars['vendor_domain'] = $vendor_domain;
 
 		// Shipping
 		$ship = $client_db->select('*')->from('tbl_order_address')->where('order_id', $order_id)->order_by('id', 'ASC')->limit(1)->get()->row_array();
@@ -179,6 +185,25 @@ class Cron_model extends CI_Model {
 		$vars['delivery_charge'] = $row['delivery_charge'] ?? '';
 		$vars['discount_amt'] = $row['discount_amt'] ?? '';
 		$vars['currency_code'] = $row['currency_code'] ?? ($row['currency'] ?? '');
+
+		// Public invoice link (for WhatsApp document templates etc.)
+		$invoice_link = '';
+		if (!empty($vars['order_unique_id'])) {
+			$invoice_path = '/shipping/customer_invoice/' . rawurlencode((string)$vars['order_unique_id']);
+			if ($vendor_domain !== '') {
+				$invoice_link = 'https://' . $vendor_domain . $invoice_path;
+			} else {
+				$invoice_link = rtrim((string)base_url(), '/') . $invoice_path;
+			}
+		}
+		$vars['invoice_url'] = $invoice_link;
+		// Common alias used by legacy WA integrations (document URL)
+		$vars['file_url'] = $invoice_link;
+
+		// Gateway helper: pre-built Params CSV (name,date,order_unique_id)
+		if (!isset($vars['Params']) || $vars['Params'] === '') {
+			$vars['Params'] = trim((string)($vars['parent_name'] ?? '')) . ',' . trim((string)($vars['date'] ?? '')) . ',' . trim((string)($vars['order_unique_id'] ?? ''));
+		}
 
 		// School/Board/Grade/Child
 		$vars['school_name'] = '';
@@ -321,20 +346,16 @@ class Cron_model extends CI_Model {
 			$processed++;
 
 			$vars = $this->buildOrderVarsFromRow($r, $order_id);
-			// If order table doesn't store user_email, resolve from users table.
-			if (empty($vars['email_to']) && !empty($r['user_id'])) {
-				$u = $client_db->select('email')->from('users')->where('id', (int)$r['user_id'])->limit(1)->get()->row_array();
-				if ($u && !empty($u['email'])) {
-					$vars['email_to'] = (string)$u['email'];
-					$vars['user_email'] = (string)$u['email'];
-				}
-			}
 			$vars = $this->enrichOrderVars($client_db, $vendor_id, $order_id, $r, $vars);
 			$res = $this->notification_sender->sendEvent($vendor_id, 'order_placed', $vars);
 
-			$emailOk = !empty($res['results']['email']['success']);
-			// Do not send static email content; email body/subject must come from vendor templates.
-			if ($emailOk) {
+			$emailUserOk = !empty($res['results']['email_user']['success']);
+			$emailVendorOk = !empty($res['results']['email_vendor']['success']);
+			$waOk = !empty($res['results']['whatsapp']['success']);
+			$smsOk = !empty($res['results']['sms']['success']);
+
+			$anyOk = ($emailUserOk || $emailVendorOk || $waOk || $smsOk);
+			if ($anyOk) {
 				$email_sent++;
 
 				$client_db->where('id', $order_id);
@@ -348,8 +369,8 @@ class Cron_model extends CI_Model {
 			} else {
 				$errors[] = [
 					'order_id' => $order_id,
-					'message' => $res['results']['email']['message'] ?? ($res['message'] ?? 'Email not sent'),
-					'debug' => $res['results']['email']['debug'] ?? null,
+					'message' => $res['message'] ?? 'Notification not sent',
+					'debug' => $res['results'] ?? null,
 				];
 			}
 		}
