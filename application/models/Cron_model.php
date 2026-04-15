@@ -121,15 +121,34 @@ class Cron_model extends CI_Model {
 				$pid = (int)($it['product_id'] ?? 0);
 				if ($pid > 0) {
 					if ($client_db->table_exists('erp_product_images')) {
-						$img = $client_db->select('image')->from('erp_product_images')
-							->where('product_id', $pid)->where('vendor_id', $vendor_id)
-							->order_by('is_main', 'DESC')->order_by('image_order', 'ASC')->limit(1)->get()->row_array();
-						if (!empty($img['image'])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img['image'], '/');
+						// Some tenants have different column names; pick the first existing.
+						$imgCol = null;
+						foreach (['image', 'file', 'file_name', 'image_path', 'img'] as $c) {
+							if ($client_db->field_exists($c, 'erp_product_images')) {
+								$imgCol = $c;
+								break;
+							}
+						}
+						if ($imgCol) {
+							$img = $client_db->select($imgCol)->from('erp_product_images')
+								->where('product_id', $pid)->where('vendor_id', $vendor_id)
+								->order_by('is_main', 'DESC')->order_by('image_order', 'ASC')->limit(1)->get()->row_array();
+							if (!empty($img[$imgCol])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img[$imgCol], '/');
+						}
 					}
 					if ($img_url === '' && $client_db->table_exists('product_images')) {
-						$img = $client_db->select('image')->from('product_images')
-							->where('product_id', $pid)->order_by('is_main', 'DESC')->order_by('id', 'ASC')->limit(1)->get()->row_array();
-						if (!empty($img['image'])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img['image'], '/');
+						$imgCol = null;
+						foreach (['image', 'file', 'file_name', 'image_path', 'img'] as $c) {
+							if ($client_db->field_exists($c, 'product_images')) {
+								$imgCol = $c;
+								break;
+							}
+						}
+						if ($imgCol) {
+							$img = $client_db->select($imgCol)->from('product_images')
+								->where('product_id', $pid)->order_by('is_main', 'DESC')->order_by('id', 'ASC')->limit(1)->get()->row_array();
+							if (!empty($img[$imgCol])) $img_url = ($vendor_domain !== '' ? ('https://' . $vendor_domain . '/') : rtrim(base_url(), '/') . '/') . ltrim($img[$imgCol], '/');
+						}
 					}
 				}
 			}
