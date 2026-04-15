@@ -577,10 +577,10 @@ class App_model extends CI_Model
             'order_status' => '1',       // pending
             'payment_status' => 'success',
             'payment_method' => $payment_method,
-            'order_type' => 'app',     // Matches enum('online','app')
+            'order_type' => 'pos',     // Matches enum('online','app')
             'type_order' => 'uniform', // Matches enum/varchar for 'uniform'
             'order_date' => date('Y-m-d H:i:s'),
-            'source' => 'app',
+            'source' => 'pos',
             'checkout_type' => 'guest_checkout',
             'is_deliver_at_school' => 1,
             'children_data' => !empty($children_data) ? json_encode($children_data) : NULL,
