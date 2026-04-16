@@ -935,6 +935,87 @@ class App_model extends CI_Model
         return $rows;
     }
 
+    public function getAgentStockSummary($agent_id, $school_id = NULL)
+    {
+        $agent_id = (int) $agent_id;
+        $school_id = ($school_id === NULL || $school_id === '' ? NULL : (int) $school_id);
+
+        if ($agent_id <= 0) {
+            return array('schools' => array(), 'rows' => array());
+        }
+
+        $schools = $this->getAgentSchools($agent_id);
+        if (empty($schools)) {
+            return array('schools' => array(), 'rows' => array());
+        }
+
+        if ($school_id !== NULL && $school_id > 0) {
+            $schools = array_values(array_filter($schools, function ($school) use ($school_id) {
+                return (int) $school['school_id'] === (int) $school_id;
+            }));
+        }
+
+        if (empty($schools)) {
+            return array('schools' => array(), 'rows' => array());
+        }
+
+        $all_rows = array();
+        foreach ($schools as $school) {
+            $sid = (int) $school['school_id'];
+            if ($sid <= 0) {
+                continue;
+            }
+
+            $all_rows = array_merge($all_rows, $this->getAgentAssignedStock($agent_id, $sid, NULL));
+
+            $branches = $this->get_school_branches($sid, $agent_id);
+            if (!empty($branches)) {
+                foreach ($branches as $branch) {
+                    $bid = !empty($branch['branch_id']) ? (int) $branch['branch_id'] : 0;
+                    if ($bid <= 0) {
+                        continue;
+                    }
+                    $all_rows = array_merge($all_rows, $this->getAgentAssignedStock($agent_id, $sid, $bid));
+                }
+            }
+        }
+
+        $grouped = array();
+        foreach ($all_rows as $row) {
+            if (strtolower((string) $row['item_type']) !== 'uniform') {
+                continue;
+            }
+
+            // Keep per-school rows so the mobile UI can search by `school_name`.
+            // (When a specific `school_id` is requested, the data set already only contains that school.)
+            $key = strtolower((string) $row['item_type']) . '|' .
+                (int) $row['item_ref_id'] . '|' .
+                trim((string) $row['size']) . '|' .
+                (int) $row['school_id'];
+
+            if (!isset($grouped[$key])) {
+                $row['qty_available'] = (float) (isset($row['qty_available']) ? $row['qty_available'] : 0);
+                $grouped[$key] = $row;
+            } else {
+                $grouped[$key]['qty_available'] += (float) (isset($row['qty_available']) ? $row['qty_available'] : 0);
+            }
+        }
+
+        $rows = array_values($grouped);
+        usort($rows, function ($a, $b) {
+            $school_cmp = strcasecmp((string) $a['school_name'], (string) $b['school_name']);
+            if ($school_cmp !== 0) {
+                return $school_cmp;
+            }
+            return strcasecmp((string) $a['product_name'], (string) $b['product_name']);
+        });
+
+        return array(
+            'schools' => array_values($schools),
+            'rows' => $rows,
+        );
+    }
+
     public function deductAgentStockForPosSale($agent_id, $school_id, $branch_id, $sale_ref, $items)
     {
         $agent_id = (int) $agent_id;
@@ -1569,6 +1650,18 @@ class App_model extends CI_Model
             if (!$vendor_db)
                 continue;
 
+            $vendor = $this->master_db
+                ->select('domain')
+                ->from('erp_clients')
+                ->where('id', (int) $v_id)
+                ->limit(1)
+                ->get()
+                ->row_array();
+            $base_url = '';
+            if (!empty($vendor['domain'])) {
+                $base_url = rtrim('https://' . $vendor['domain'], '/') . '/';
+            }
+
             $orders = $vendor_db
                 ->select('*')
                 ->from('tbl_order_details')
@@ -1579,12 +1672,27 @@ class App_model extends CI_Model
                 ->result_array();
 
             foreach ($orders as &$ord) {
-                $ord['vendor_id'] = $v_id; // useful for lookup
+                $ord['vendor_id'] = $v_id;
                 $ord['status_text'] = $this->getOrderStatusText($ord['order_status']);
 
-                // Fetch school name from VENDOR DB
                 $school = $vendor_db->select('school_name')->from('erp_schools')->where('id', $ord['school_id'])->get()->row_array();
                 $ord['school_name'] = $school ? $school['school_name'] : 'Unknown School';
+                $ord['school_logo'] = '';
+                if (!empty($ord['school_id']) && $vendor_db->table_exists('erp_school_images')) {
+                    $school_img = $vendor_db->select('image_path')
+                        ->from('erp_school_images')
+                        ->where('school_id', (int) $ord['school_id'])
+                        ->order_by('is_primary', 'DESC')
+                        ->order_by('display_order', 'ASC')
+                        ->order_by('id', 'ASC')
+                        ->limit(1)
+                        ->get()
+                        ->row_array();
+
+                    if (!empty($school_img['image_path']) && $base_url !== '') {
+                        $ord['school_logo'] = $base_url . ltrim((string) $school_img['image_path'], '/');
+                    }
+                }
             }
             $all_orders = array_merge($all_orders, $orders);
         }
@@ -1655,13 +1763,25 @@ class App_model extends CI_Model
 
         // Fetch school name and logo from VENDOR DB
         if (!empty($order['school_id'])) {
-            $has_logo = $vendor_db->field_exists('logo', 'erp_schools');
-            $select_fields = $has_logo ? 'school_name, logo' : 'school_name';
-
-            $school = $vendor_db->select($select_fields)->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
+            $school = $vendor_db->select('school_name')->from('erp_schools')->where('id', $order['school_id'])->get()->row_array();
 
             $order['school_name'] = $school ? $school['school_name'] : 'Unknown School';
-            $order['school_logo'] = ($school && $has_logo && !empty($school['logo'])) ? $base_url . ltrim($school['logo'], '/') : '';
+            $order['school_logo'] = '';
+            if ($vendor_db->table_exists('erp_school_images')) {
+                $school_img = $vendor_db->select('image_path')
+                    ->from('erp_school_images')
+                    ->where('school_id', (int) $order['school_id'])
+                    ->order_by('is_primary', 'DESC')
+                    ->order_by('display_order', 'ASC')
+                    ->order_by('id', 'ASC')
+                    ->limit(1)
+                    ->get()
+                    ->row_array();
+
+                if (!empty($school_img['image_path']) && $base_url !== '') {
+                    $order['school_logo'] = $base_url . ltrim((string) $school_img['image_path'], '/');
+                }
+            }
         } else {
             $order['school_name'] = 'N/A';
             $order['school_logo'] = '';
