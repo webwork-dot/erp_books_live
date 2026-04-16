@@ -364,6 +364,32 @@ class App_api extends CI_Controller
         ));
     }
 
+    public function get_sold_stock_summary()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Bad request.'));
+        }
+
+        $params = json_decode(file_get_contents('php://input'), TRUE);
+        $agent_id = (int) (isset($params['agent_id']) ? $params['agent_id'] : 0);
+        $school_id = !empty($params['school_id']) ? (int) $params['school_id'] : 0;
+
+        if ($agent_id <= 0) {
+            return $this->simple_json_output(array('status' => 400, 'message' => 'Agent ID required.'));
+        }
+        if ($school_id > 0 && !$this->App_model->agentHasSchoolAccess($agent_id, $school_id)) {
+            return $this->simple_json_output(array('status' => 403, 'message' => 'Access denied to this school'));
+        }
+
+        $data = $this->App_model->getAgentSoldStockSummary($agent_id, $school_id > 0 ? $school_id : NULL);
+        return $this->simple_json_output(array(
+            'status' => 200,
+            'message' => 'Success',
+            'schools' => isset($data['schools']) ? $data['schools'] : array(),
+            'rows' => isset($data['rows']) ? $data['rows'] : array(),
+        ));
+    }
+
     public function pos_sale_deduct()
     {
         if ($_SERVER['REQUEST_METHOD'] != 'POST') {

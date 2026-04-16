@@ -1016,6 +1016,268 @@ class App_model extends CI_Model
         );
     }
 
+    public function getAgentSoldStockSummary($agent_id, $school_id = NULL)
+    {
+        $agent_id = (int) $agent_id;
+        $school_id = ($school_id === NULL || $school_id === '' ? NULL : (int) $school_id);
+
+        if ($agent_id <= 0) {
+            return array('schools' => array(), 'rows' => array());
+        }
+
+        $schools = $this->getAgentSchools($agent_id);
+        if (empty($schools)) {
+            return array('schools' => array(), 'rows' => array());
+        }
+
+        if ($school_id !== NULL && $school_id > 0) {
+            $schools = array_values(array_filter($schools, function ($school) use ($school_id) {
+                return (int) $school['school_id'] === (int) $school_id;
+            }));
+        }
+
+        if (empty($schools)) {
+            return array('schools' => array(), 'rows' => array());
+        }
+
+        $schools_by_vendor = array();
+        foreach ($schools as $school) {
+            $vendor_id = (int) $school['vendor_id'];
+            $sid = (int) $school['school_id'];
+            if ($vendor_id <= 0 || $sid <= 0) {
+                continue;
+            }
+            if (!isset($schools_by_vendor[$vendor_id])) {
+                $schools_by_vendor[$vendor_id] = array();
+            }
+            $schools_by_vendor[$vendor_id][] = $sid;
+        }
+
+        $all_rows = array();
+
+        foreach ($schools_by_vendor as $vendor_id => $vendor_school_ids) {
+            $vendor_school_ids = array_values(array_unique(array_filter($vendor_school_ids)));
+            if (empty($vendor_school_ids)) {
+                continue;
+            }
+
+            $vendor_db = $this->getVendorDB((int) $vendor_id);
+            if (!$vendor_db || !$vendor_db->table_exists('inventory_stock_movements')) {
+                continue;
+            }
+
+            $vendor_db->select('item_type, item_ref_id, variation_key, school_id, branch_id, ABS(SUM(qty_delta)) AS qty_sold, MAX(created_at) AS last_sale_at');
+            $vendor_db->from('inventory_stock_movements');
+            $vendor_db->where('movement_type', 'pos_sale_out');
+            $vendor_db->where('actor_type', 'pos_agent');
+            $vendor_db->where('actor_id', $agent_id);
+            $vendor_db->where_in('school_id', $vendor_school_ids);
+            $vendor_db->group_by('item_type, item_ref_id, variation_key, school_id, branch_id');
+            $vendor_db->having('ABS(SUM(qty_delta)) >', 0, FALSE);
+            $movements = $vendor_db->get()->result_array();
+
+            if (empty($movements)) {
+                continue;
+            }
+
+            $uniform_ids = array();
+            $book_ids = array();
+            $school_ids = array();
+            $branch_ids = array();
+            $size_names = array();
+
+            foreach ($movements as $m) {
+                $school_ids[] = (int) $m['school_id'];
+                if (!empty($m['branch_id'])) {
+                    $branch_ids[] = (int) $m['branch_id'];
+                }
+
+                $t = strtolower((string) $m['item_type']);
+                if ($t === 'uniform') {
+                    $uniform_ids[] = (int) $m['item_ref_id'];
+                    $vk = $this->normalizeVariationKey(isset($m['variation_key']) ? $m['variation_key'] : '');
+                    if ($vk !== '' && strtolower($vk) !== 'default') {
+                        $size_names[] = $vk;
+                    }
+                } else {
+                    $book_ids[] = (int) $m['item_ref_id'];
+                }
+            }
+
+            $uniform_ids = array_values(array_unique(array_filter($uniform_ids)));
+            $book_ids = array_values(array_unique(array_filter($book_ids)));
+            $school_ids = array_values(array_unique(array_filter($school_ids)));
+            $branch_ids = array_values(array_unique(array_filter($branch_ids)));
+            $size_names = array_values(array_unique(array_filter($size_names)));
+
+            $school_map = array();
+            if (!empty($school_ids) && $vendor_db->table_exists('erp_schools')) {
+                $rows = $vendor_db->select('id, school_name')->from('erp_schools')->where_in('id', $school_ids)->get()->result_array();
+                foreach ($rows as $r) {
+                    $school_map[(int) $r['id']] = (string) $r['school_name'];
+                }
+            }
+
+            $branch_map = array();
+            if (!empty($branch_ids) && $vendor_db->table_exists('erp_school_branches')) {
+                $rows = $vendor_db->select('id, branch_name')->from('erp_school_branches')->where_in('id', $branch_ids)->get()->result_array();
+                foreach ($rows as $r) {
+                    $branch_map[(int) $r['id']] = (string) $r['branch_name'];
+                }
+            }
+
+            $uniform_map = array();
+            if (!empty($uniform_ids) && $vendor_db->table_exists('erp_uniforms')) {
+                $has_class_table = $vendor_db->table_exists('erp_classes');
+                $select = 'u.id,u.product_name,u.gender,u.school_id,u.branch_id,u.board_id,u.class_id,u.gst_percentage,ut.name AS uniform_type,bo.board_name';
+                $select .= $has_class_table ? ',g.name AS grade_name' : ',"-" AS grade_name';
+                $vendor_db->select($select);
+                $vendor_db->from('erp_uniforms u');
+                $vendor_db->join('erp_uniform_types ut', 'ut.id = u.uniform_type_id', 'left');
+                $vendor_db->join('erp_school_boards bo', 'bo.id = u.board_id', 'left');
+                if ($has_class_table) {
+                    $vendor_db->join('erp_classes g', 'g.id = u.class_id', 'left');
+                }
+                $vendor_db->where_in('u.id', $uniform_ids);
+                $rows = $vendor_db->get()->result_array();
+                foreach ($rows as $r) {
+                    $uniform_map[(int) $r['id']] = $r;
+                }
+            }
+
+            $image_map = array();
+            if (!empty($uniform_ids) && $vendor_db->table_exists('erp_uniform_images')) {
+                $rows = $vendor_db
+                    ->select('uniform_id, image_path')
+                    ->from('erp_uniform_images')
+                    ->where_in('uniform_id', $uniform_ids)
+                    ->where('image_path IS NOT NULL', NULL, FALSE)
+                    ->where('image_path !=', '')
+                    ->order_by('is_main', 'DESC')
+                    ->order_by('image_order', 'ASC')
+                    ->get()
+                    ->result_array();
+                foreach ($rows as $r) {
+                    $uid = (int) $r['uniform_id'];
+                    if (!isset($image_map[$uid])) {
+                        $image_map[$uid] = (string) $r['image_path'];
+                    }
+                }
+            }
+
+            $vendor_domain = $this->master_db
+                ->select('domain')
+                ->from('erp_clients')
+                ->where('id', (int) $vendor_id)
+                ->limit(1)
+                ->get()
+                ->row_array();
+            $base_url = (!empty($vendor_domain['domain']) ? rtrim('https://' . $vendor_domain['domain'], '/') . '/' : '');
+
+            $uniform_size_price_map = array();
+            if (!empty($uniform_ids) && !empty($size_names) && $vendor_db->table_exists('erp_uniform_size_prices') && $vendor_db->table_exists('erp_sizes')) {
+                $rows = $vendor_db
+                    ->select('usp.uniform_id, usp.selling_price, s.id AS size_id, s.name AS size_name')
+                    ->from('erp_uniform_size_prices usp')
+                    ->join('erp_sizes s', 's.id = usp.size_id', 'inner')
+                    ->where_in('usp.uniform_id', $uniform_ids)
+                    ->where_in('s.name', $size_names)
+                    ->get()
+                    ->result_array();
+                foreach ($rows as $r) {
+                    $k = (int) $r['uniform_id'] . '|' . trim((string) $r['size_name']);
+                    $uniform_size_price_map[$k] = array(
+                        'size_id' => (int) $r['size_id'],
+                        'selling_price' => (float) $r['selling_price'],
+                    );
+                }
+            }
+
+            $book_map = array();
+            if (!empty($book_ids) && $vendor_db->table_exists('erp_products')) {
+                $rows = $vendor_db->select('id, product_name')->from('erp_products')->where_in('id', $book_ids)->get()->result_array();
+                foreach ($rows as $r) {
+                    $book_map[(int) $r['id']] = (string) $r['product_name'];
+                }
+            }
+
+            foreach ($movements as $m) {
+                $item_type = strtolower((string) $m['item_type']);
+                $item_ref_id = (int) $m['item_ref_id'];
+                $variation_key = $this->normalizeVariationKey(isset($m['variation_key']) ? $m['variation_key'] : '');
+                $sid = (int) $m['school_id'];
+                $bid = !empty($m['branch_id']) ? (int) $m['branch_id'] : NULL;
+
+                $product_name = '';
+                $uniform_type = '-';
+                $gender = '-';
+                $board = '-';
+                $grade = '-';
+                $selling_price = 0.0;
+                $size_id = NULL;
+                $gst_percentage = 0.0;
+                $image_url = '';
+
+                if ($item_type === 'uniform' && isset($uniform_map[$item_ref_id])) {
+                    $meta = $uniform_map[$item_ref_id];
+                    $product_name = (string) $meta['product_name'];
+                    $uniform_type = !empty($meta['uniform_type']) ? (string) $meta['uniform_type'] : '-';
+                    $gender = !empty($meta['gender']) ? (string) $meta['gender'] : '-';
+                    $board = !empty($meta['board_name']) ? (string) $meta['board_name'] : '-';
+                    $grade = !empty($meta['grade_name']) ? (string) $meta['grade_name'] : '-';
+                    $gst_percentage = isset($meta['gst_percentage']) ? (float) $meta['gst_percentage'] : 0.0;
+                    if (isset($image_map[$item_ref_id]) && $base_url !== '') {
+                        $image_url = $base_url . ltrim((string) $image_map[$item_ref_id], '/');
+                    }
+
+                    $price_key = $item_ref_id . '|' . $variation_key;
+                    if (isset($uniform_size_price_map[$price_key])) {
+                        $size_id = $uniform_size_price_map[$price_key]['size_id'];
+                        $selling_price = $uniform_size_price_map[$price_key]['selling_price'];
+                    }
+                } elseif ($item_type === 'book') {
+                    $product_name = isset($book_map[$item_ref_id]) ? (string) $book_map[$item_ref_id] : ('Item #' . $item_ref_id);
+                } else {
+                    $product_name = 'Item #' . $item_ref_id;
+                }
+
+                $all_rows[] = array(
+                    'item_type' => $item_type,
+                    'item_ref_id' => $item_ref_id,
+                    'product_name' => $product_name,
+                    'uniform_type' => $uniform_type,
+                    'size' => $variation_key,
+                    'size_id' => $size_id,
+                    'gender' => $gender,
+                    'school_id' => $sid,
+                    'school_name' => isset($school_map[$sid]) ? (string) $school_map[$sid] : '-',
+                    'branch_id' => $bid,
+                    'branch_name' => ($bid !== NULL && isset($branch_map[$bid])) ? (string) $branch_map[$bid] : '',
+                    'board' => $board,
+                    'grade' => $grade,
+                    'qty_sold' => (float) $m['qty_sold'],
+                    'selling_price' => (float) $selling_price,
+                    'gst_percentage' => (float) $gst_percentage,
+                    'image_url' => $image_url,
+                    'last_sale_at' => !empty($m['last_sale_at']) ? (string) $m['last_sale_at'] : '',
+                );
+            }
+        }
+
+        usort($all_rows, function ($a, $b) {
+            $school_cmp = strcasecmp((string) $a['school_name'], (string) $b['school_name']);
+            if ($school_cmp !== 0) {
+                return $school_cmp;
+            }
+            return strcasecmp((string) $a['product_name'], (string) $b['product_name']);
+        });
+
+        return array(
+            'schools' => array_values($schools),
+            'rows' => $all_rows,
+        );
+    }
+
     public function deductAgentStockForPosSale($agent_id, $school_id, $branch_id, $sale_ref, $items)
     {
         $agent_id = (int) $agent_id;
