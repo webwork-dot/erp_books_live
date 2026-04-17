@@ -188,7 +188,23 @@ class Cron_model extends CI_Model {
 
 		// Public invoice link (for WhatsApp document templates etc.)
 		$invoice_link = '';
-		if (!empty($vars['order_unique_id'])) {
+		
+		// 1. Prioritize pre-generated physical PDF from database
+		$db_invoice_url = trim((string)($row['invoice_url'] ?? ''));
+		if ($db_invoice_url !== '') {
+			if (stripos($db_invoice_url, 'http') === 0) {
+				$invoice_link = $db_invoice_url;
+			} else {
+				if ($vendor_domain !== '') {
+					$invoice_link = 'https://' . $vendor_domain . '/' . ltrim($db_invoice_url, '/');
+				} else {
+					$invoice_link = rtrim((string)base_url(), '/') . '/' . ltrim($db_invoice_url, '/');
+				}
+			}
+		} 
+		
+		// 2. Fallback to dynamic link if no physical file is found
+		if ($invoice_link === '' && !empty($vars['order_unique_id'])) {
 			$invoice_path = '/shipping/customer_invoice/' . rawurlencode((string)$vars['order_unique_id']);
 			if ($vendor_domain !== '') {
 				$invoice_link = 'https://' . $vendor_domain . $invoice_path;
@@ -196,6 +212,7 @@ class Cron_model extends CI_Model {
 				$invoice_link = rtrim((string)base_url(), '/') . $invoice_path;
 			}
 		}
+
 		$vars['invoice_url'] = $invoice_link;
 		// Common alias used by legacy WA integrations (document URL)
 		$vars['file_url'] = $invoice_link;
@@ -320,7 +337,7 @@ class Cron_model extends CI_Model {
 		$rows = $client_db->query(
 			"SELECT id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status,
 			        payable_amt, total_amt, invoice_no, awb_no, courier, is_mail_sent, user_id,
-			        delivery_charge, discount_amt, currency_code, currency, children_data
+			        delivery_charge, discount_amt, currency_code, currency, children_data, invoice_url
 			 FROM tbl_order_details
 			 WHERE is_mail_sent = 0
 			   AND (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='payment_at_school')
@@ -346,6 +363,16 @@ class Cron_model extends CI_Model {
 			$processed++;
 
 			$vars = $this->buildOrderVarsFromRow($r, $order_id);
+			
+			// Ensure PDF invoice exists for WhatsApp document support if missing
+			if (empty($r['invoice_url'])) {
+				$this->load->model('App_model');
+				$physical_url = $this->App_model->generateUniformOrderInvoice($client_db, $vendor_id, $order_id, $r['order_unique_id'] ?? '');
+				if (!empty($physical_url)) {
+					$r['invoice_url'] = $physical_url;
+				}
+			}
+
 			$vars = $this->enrichOrderVars($client_db, $vendor_id, $order_id, $r, $vars);
 			$res = $this->notification_sender->sendEvent($vendor_id, 'order_placed', $vars);
 

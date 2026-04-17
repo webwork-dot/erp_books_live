@@ -325,6 +325,10 @@ class Notification_sender
 			}
 		}
 
+		if (isset($vars['test']) || ENVIRONMENT !== 'production') {
+			log_message('info', 'Notification_sender: sending WhatsApp. vendor_id=' . $vendor_id . ' mobile=' . $mobile . ' template_key=' . $template_key . ' params=' . json_encode($params));
+		}
+
 		return $this->sendHttp($endpoint, $method, $params, $headers);
 	}
 
@@ -469,6 +473,12 @@ class Notification_sender
 
 		if ($response === false) {
 			return ['success' => false, 'message' => 'HTTP request failed: ' . $err, 'http_code' => $http, 'effective_url' => $effective_url];
+		}
+
+		if ($http < 200 || $http >= 300) {
+			log_message('error', 'Notification_sender HTTP Error: ' . $http . ' URL: ' . $effective_url . ' Response: ' . substr((string)$response, 0, 500));
+		} elseif (ENVIRONMENT !== 'production') {
+			log_message('info', 'Notification_sender HTTP OK: ' . $http . ' URL: ' . $effective_url);
 		}
 
 		if ($http >= 200 && $http < 300) {

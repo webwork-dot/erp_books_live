@@ -1352,7 +1352,7 @@ class App_model extends CI_Model
      * @param string $order_unique_id
      * @return string
      */
-    private function generateUniformOrderInvoice($vendor_db, $vendor_id, $order_id, $order_unique_id = '')
+    public function generateUniformOrderInvoice($vendor_db, $vendor_id, $order_id, $order_unique_id = '')
     {
         $vendor_id = (int) $vendor_id;
         $order_id = (int) $order_id;
@@ -1487,7 +1487,7 @@ class App_model extends CI_Model
      * @param string $order_unique_id
      * @return string
      */
-    private function getOrderInvoiceUrl($vendor_db, $order_id, $order_unique_id = '')
+    public function getOrderInvoiceUrl($vendor_db, $order_id, $order_unique_id = '')
     {
         $order_id = (int) $order_id;
         if ($order_id <= 0 || !$vendor_db) {
