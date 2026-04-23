@@ -107,9 +107,15 @@ class Tenant
 			log_message('error', 'Tenant database name not found for tenant: ' . $tenant['id']);
 			return FALSE;
 		}
+
+		$tenant_db_username = isset($tenant['db_username']) ? trim((string)$tenant['db_username']) : '';
+		$tenant_db_password = isset($tenant['db_password']) ? (string)$tenant['db_password'] : '';
+		$has_dedicated_credentials = ($tenant_db_username !== '');
 		
 		// Check if database connection already exists and try to switch directly
-		if (isset($this->CI->db) && is_object($this->CI->db))
+		// NOTE: direct select_db works only when current MySQL user has access.
+		// If vendor has dedicated DB credentials, we must reconnect with those credentials.
+		if (!$has_dedicated_credentials && isset($this->CI->db) && is_object($this->CI->db))
 		{
 			// For mysqli driver, try to directly select the database
 			if (property_exists($this->CI->db, 'conn_id') && $this->CI->db->conn_id)
@@ -118,36 +124,41 @@ class Tenant
 				if (is_object($this->CI->db->conn_id) && get_class($this->CI->db->conn_id) === 'mysqli')
 				{
 					// Directly select the database using mysqli
-					if ($this->CI->db->conn_id->select_db($tenant['database_name']))
+					try
 					{
-						// Update the database property
-						$this->CI->db->database = $tenant['database_name'];
-						
-						// Store current tenant
-						$this->current_tenant = $tenant;
-						
-						// Load feature configuration from vendor database if Feature_access library is available
-						if (class_exists('Feature_access'))
+						if ($this->CI->db->conn_id->select_db($tenant['database_name']))
 						{
-							$this->CI->load->library('Feature_access');
-							if (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+							// Update the database property
+							$this->CI->db->database = $tenant['database_name'];
+							
+							// Store current tenant
+							$this->current_tenant = $tenant;
+							
+							// Load feature configuration from vendor database if Feature_access library is available
+							if (class_exists('Feature_access'))
 							{
-								$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+								$this->CI->load->library('Feature_access');
+								if (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+								{
+									$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+								}
 							}
+							
+							log_message('debug', 'Switched to tenant database: ' . $tenant['database_name']);
+							return TRUE;
 						}
-						
-						log_message('debug', 'Switched to tenant database: ' . $tenant['database_name']);
-						return TRUE;
+					}
+					catch (Exception $e)
+					{
+						log_message('error', 'Direct tenant DB switch failed for "' . $tenant['database_name'] . '": ' . $e->getMessage());
 					}
 				}
 			}
 		}
 		
 		// Fallback: Reload database connection with new database name
-		// Get default database configuration
-		$this->CI->config->load('database', TRUE);
-		$all_db_configs = $this->CI->config->item('database');
-		$db_config = isset($all_db_configs['default']) ? $all_db_configs['default'] : array();
+		// Build config from existing DB object first, then fallback to database.php
+		$db_config = $this->getDefaultDbConfig();
 		
 		// Ensure we have all required fields
 		if (empty($db_config) || !is_array($db_config))
@@ -158,6 +169,13 @@ class Tenant
 		
 		// Update database name to tenant database
 		$db_config['database'] = $tenant['database_name'];
+
+		// Prefer dedicated vendor DB credentials when configured
+		if ($has_dedicated_credentials)
+		{
+			$db_config['username'] = $tenant_db_username;
+			$db_config['password'] = $tenant_db_password;
+		}
 		
 		// Ensure dbdriver is set
 		if (empty($db_config['dbdriver']))
@@ -179,7 +197,15 @@ class Tenant
 		
 		// Load tenant database as the default connection
 		// Parameters: config array, return DB object (FALSE), replace default (FALSE = replace default)
-		$this->CI->load->database($db_config, FALSE, FALSE);
+		try
+		{
+			$this->CI->load->database($db_config, FALSE, FALSE);
+		}
+		catch (Exception $e)
+		{
+			log_message('error', 'Tenant DB connection failed for "' . $tenant['database_name'] . '": ' . $e->getMessage());
+			return FALSE;
+		}
 		
 		// Store current tenant
 		$this->current_tenant = $tenant;
@@ -197,6 +223,58 @@ class Tenant
 		log_message('debug', 'Switched to tenant database: ' . $tenant['database_name']);
 		
 		return TRUE;
+	}
+
+	/**
+	 * Get default DB config safely for runtime switching
+	 *
+	 * @return array
+	 */
+	private function getDefaultDbConfig()
+	{
+		$db_config = array();
+
+		// Preferred source: current active db object (already validated by CI)
+		if (isset($this->CI->db) && is_object($this->CI->db))
+		{
+			$keys = array(
+				'hostname', 'username', 'password', 'database', 'dbdriver',
+				'dbprefix', 'pconnect', 'db_debug', 'cache_on', 'cachedir',
+				'char_set', 'dbcollat', 'swap_pre', 'encrypt', 'compress',
+				'stricton', 'failover', 'save_queries', 'port'
+			);
+
+			foreach ($keys as $key)
+			{
+				if (property_exists($this->CI->db, $key))
+				{
+					$db_config[$key] = $this->CI->db->{$key};
+				}
+			}
+		}
+
+		if (!empty($db_config))
+		{
+			return $db_config;
+		}
+
+		// Fallback source: include CI database config file directly
+		$db = array();
+		$active_group = 'default';
+		$query_builder = TRUE;
+
+		$db_file = APPPATH . 'config/database.php';
+		if (file_exists($db_file))
+		{
+			include $db_file;
+		}
+
+		if (isset($db[$active_group]) && is_array($db[$active_group]))
+		{
+			return $db[$active_group];
+		}
+
+		return array();
 	}
 	
 	/**
