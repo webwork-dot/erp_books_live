@@ -1,17 +1,6 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-/*
-|--------------------------------------------------------------------------
-| Database Configuration - Master ERP Database
-|--------------------------------------------------------------------------
-|
-| This file contains the database configuration for the master ERP database.
-| Each client will have their own database that is switched dynamically
-| via the Tenant library.
-|
-*/
-
 $active_group = 'default';
 $query_builder = TRUE;
 
@@ -19,8 +8,8 @@ $query_builder = TRUE;
 $db['default'] = array(
 	'dsn'	=> '',
 	'hostname' => 'localhost',
-	'username' => 'root',
-	'password' => '',
+	'username' => 'erp_master_dbz',
+	'password' => 'Ywmh3kxzhcjxsjik',
 	'database' => 'erp_master',
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
@@ -42,8 +31,8 @@ $db['default'] = array(
 $db['master'] = array(
 	'dsn'	=> '',
 	'hostname' => 'localhost',
-	'username' => 'root',
-	'password' => '',
+	'username' => 'erp_master_dbz',
+	'password' => 'Ywmh3kxzhcjxsjik',
 	'database' => 'erp_master',
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
