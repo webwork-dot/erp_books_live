@@ -216,7 +216,7 @@
             </li>
             <li class="nav-item">
                <a class="nav-link tab-navigation <?php echo ($order_status == 'cancelled') ? 'active' : ''; ?>" href="<?php echo base_url('orders/cancelled-orders'); ?>">
-                  Cancelled
+                  Cancelled <?php if(isset($order_counts['cancelled']) && $order_counts['cancelled'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['cancelled']; ?></span><?php endif; ?>
                </a>
             </li>
          </ul>

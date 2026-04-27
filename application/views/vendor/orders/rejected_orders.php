@@ -112,7 +112,7 @@
             </li>
             <li class="nav-item">
                <a class="nav-link tab-navigation <?php echo ($order_status == 'cancelled') ? 'active' : ''; ?>" href="<?php echo base_url('orders/cancelled-orders'); ?>">
-                  Cancelled
+                  Cancelled <?php if(isset($order_counts['cancelled']) && $order_counts['cancelled'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['cancelled']; ?></span><?php endif; ?>
                </a>
             </li>
          </ul>
@@ -199,10 +199,7 @@
                         <th>Payable Amount</th>
                         <th>Refund Amount</th>
                         <th>Payment Status</th>
-                        <th>Payment ID</th>
-                        <th>Razorpay Order ID</th>
-                        <th>Invoice Number</th>
-                        <th>Remark</th>
+                        <th>Cancellation Reason</th>
                         <th class="cat_action_list">Action</th>
                      </tr>
                   </thead>
@@ -227,10 +224,23 @@
                                     <?php echo strtoupper($item['payment_status']); ?>
                                  </span>
                               </td>
-                              <td><?php echo isset($item['payment_id']) ? $item['payment_id'] : '-'; ?></td>
-                              <td><?php echo isset($item['razorpay_order_id']) ? $item['razorpay_order_id'] : '-'; ?></td>
-                              <td><?php echo isset($item['invoice_no']) ? $item['invoice_no'] : '-'; ?></td>
-                              <td><?php echo isset($item['remark']) && !empty($item['remark']) ? htmlspecialchars($item['remark']) : '-'; ?></td>
+                              <td>
+                                 <?php
+                                 $cancel_reason = '-';
+                                 if (!empty($item['id'])) {
+                                    $cancel_status = $this->db->select('status_desc')->from('tbl_order_status')->where('order_id', (int)$item['id'])->where('status_title', '5')->order_by('id', 'DESC')->limit(1)->get()->row();
+                                    if (!empty($cancel_status) && !empty($cancel_status->status_desc)) {
+                                       $status_desc = trim($cancel_status->status_desc);
+                                       if (preg_match('/Reason\s*:\s*(.*)$/i', $status_desc, $matches) && !empty($matches[1])) {
+                                          $cancel_reason = htmlspecialchars(trim($matches[1]));
+                                       } else {
+                                          $cancel_reason = htmlspecialchars($status_desc);
+                                       }
+                                    }
+                                 }
+                                 echo $cancel_reason;
+                                 ?>
+                              </td>
                               <td nowrap="">
                                  <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-sm btn-primary btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
                               </td>
@@ -238,7 +248,7 @@
                         <?php endforeach; 
                      else: ?>
                         <tr>
-                           <td colspan="17">
+                           <td colspan="14">
                               <p class="notf">
                                  <?php 
                                  $has_filters = !empty($filter_data['keywords']) || !empty($filter_data['pincode']) || !empty($filter_data['school']) || !empty($filter_data['grade']);

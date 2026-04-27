@@ -295,6 +295,22 @@ if ($order_data[0]->payment_method == 'cod') {
 } else {
   $payment_method_display = ucfirst(str_replace('_', ' ', $order_data[0]->payment_method));
 }
+
+$cancellation_reason = '';
+if (!empty($additional_status)) {
+  for ($i = count($additional_status) - 1; $i >= 0; $i--) {
+    $status_row = $additional_status[$i];
+    if (isset($status_row->status_title) && (string) $status_row->status_title === '5' && !empty($status_row->status_desc)) {
+      $status_desc = trim($status_row->status_desc);
+      if (preg_match('/Reason\s*:\s*(.*)$/i', $status_desc, $matches) && !empty($matches[1])) {
+        $cancellation_reason = trim($matches[1]);
+      } else {
+        $cancellation_reason = $status_desc;
+      }
+      break;
+    }
+  }
+}
 ?>
 
 <div class="container-fluid order-page" style="padding: 20px;">
@@ -353,6 +369,9 @@ if ($order_data[0]->payment_method == 'cod') {
           <div>
             <h5 class="mb-1">Order #<?= $order_data[0]->order_unique_id ?></h5>
             <small class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></small>
+            <?php if ((string) $order_data[0]->order_status === '5' && !empty($cancellation_reason)): ?>
+              <div class="mt-1"><small><strong>Cancellation Reason:</strong> <?= htmlspecialchars($cancellation_reason) ?></small></div>
+            <?php endif; ?>
 
           </div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -1634,7 +1653,7 @@ if ($order_data[0]->payment_method == 'cod') {
         <div class="card-header">
           <b>Payment</b>
         </div>
-        <div class="card-body">
+        <div class="card-body small">
           <?php if (isset($is_payment_at_school) && $is_payment_at_school): ?>
             <div><span class="badge badge-payment-school"><?= htmlspecialchars($payment_method_display) ?></span></div>
             <?php
@@ -1643,13 +1662,40 @@ if ($order_data[0]->payment_method == 'cod') {
             <?php
           endif; ?>
           <div class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></div>
-          <?php if (!empty($order_data[0]->txn_id)): ?>
+          
+          <?php if (!empty($order_data[0]->payment_id)): ?>
             <div class="mt-2">
-              <small class="text-muted">Tran. Id: <?= htmlspecialchars($order_data[0]->txn_id) ?></small>
+              <small class="text-muted"><strong>Payment ID:</strong></small>
+              <div class="text-break"><?= htmlspecialchars($order_data[0]->payment_id) ?></div>
             </div>
             <?php
           endif; ?>
-          <div class="mt-2">
+          
+          <?php if (!empty($order_data[0]->razorpay_order_id)): ?>
+            <div class="mt-2">
+              <small class="text-muted"><strong>Razorpay Order ID:</strong></small>
+              <div class="text-break"><?= htmlspecialchars($order_data[0]->razorpay_order_id) ?></div>
+            </div>
+            <?php
+          endif; ?>
+          
+          <?php if (!empty($order_data[0]->invoice_no)): ?>
+            <div class="mt-2">
+              <small class="text-muted"><strong>Invoice #:</strong></small>
+              <div><?= htmlspecialchars($order_data[0]->invoice_no) ?></div>
+            </div>
+            <?php
+          endif; ?>
+          
+          <?php if (!empty($order_data[0]->txn_id)): ?>
+            <div class="mt-2">
+              <small class="text-muted"><strong>Tran. ID:</strong></small>
+              <div class="text-break"><?= htmlspecialchars($order_data[0]->txn_id) ?></div>
+            </div>
+            <?php
+          endif; ?>
+          
+          <div class="mt-3">
             <h5 class="mb-0"><b>
                 <?php
                 // Calculate total: Subtotal + Tax + Delivery - Discount - Wallet

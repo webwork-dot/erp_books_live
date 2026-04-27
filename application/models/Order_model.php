@@ -934,7 +934,8 @@ class Order_model extends CI_Model
 			'pending' => 0,
 			'processing' => 0,
 			'ready_for_shipment' => 0,
-			'out_for_delivery' => 0
+			'out_for_delivery' => 0,
+			'cancelled' => 0
 		);
 
 		// Get pending orders count (status = 1)
@@ -956,6 +957,11 @@ class Order_model extends CI_Model
 		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='3' AND order_status!='5'");
 		$result = $query->row();
 		$counts['out_for_delivery'] = isset($result->count) ? (int)$result->count : 0;
+
+		// Get cancelled orders count (status = 5)
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE order_status='5'");
+		$result = $query->row();
+		$counts['cancelled'] = isset($result->count) ? (int)$result->count : 0;
 
 		return $counts;
 	}
