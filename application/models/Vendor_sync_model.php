@@ -46,18 +46,17 @@ class Vendor_sync_model extends CI_Model
 		log_message('info', 'Starting vendor data sync for vendor ID: ' . $vendor_id . ' to database: ' . $vendor['database_name']);
 		
 		// Connect to vendor database
-		$vendor_db = $this->connectToVendorDatabase($vendor['database_name']);
+		$vendor_db = $this->connectToVendorDatabase($vendor, FALSE);
 		if (!$vendor_db)
 		{
 			log_message('error', 'Failed to connect to vendor database: ' . $vendor['database_name']);
 			return FALSE;
 		}
 		
-		// Ensure erp_clients table exists in vendor database
-		$table_check = $vendor_db->query("SHOW TABLES LIKE 'erp_clients'");
-		if (!$table_check || $table_check->num_rows == 0)
+		// Ensure core vendor tables exist in vendor database
+		if (!$this->ensureVendorCoreTables($vendor_db))
 		{
-			log_message('error', 'erp_clients table does not exist in vendor database: ' . $vendor['database_name']);
+			log_message('error', 'Required vendor tables are missing and could not be created for: ' . $vendor['database_name']);
 			$vendor_db->close();
 			return FALSE;
 		}
@@ -68,6 +67,10 @@ class Vendor_sync_model extends CI_Model
 			'name' => isset($vendor['name']) ? $vendor['name'] : '',
 			'domain' => isset($vendor['domain']) ? $vendor['domain'] : '',
 			'username' => isset($vendor['username']) ? $vendor['username'] : '',
+			'password' => isset($vendor['password']) ? $vendor['password'] : '',
+			'database_name' => isset($vendor['database_name']) ? $vendor['database_name'] : '',
+			'db_username' => isset($vendor['db_username']) ? $vendor['db_username'] : NULL,
+			'db_password' => isset($vendor['db_password']) ? $vendor['db_password'] : NULL,
 			'status' => isset($vendor['status']) ? $vendor['status'] : 'active',
 			'logo' => isset($vendor['logo']) ? $vendor['logo'] : NULL,
 			'favicon' => isset($vendor['favicon']) ? $vendor['favicon'] : NULL,
@@ -112,18 +115,98 @@ class Vendor_sync_model extends CI_Model
 		
 		return $success;
 	}
+
+	/**
+	 * Get quick sync health for a vendor database.
+	 *
+	 * @param array $vendor
+	 * @return array
+	 */
+	public function getVendorSyncHealth($vendor)
+	{
+		$status = array(
+			'state' => 'error',
+			'label' => 'DB Error',
+			'details' => 'Unable to connect'
+		);
+
+		if (empty($vendor['database_name']))
+		{
+			$status['label'] = 'No DB';
+			$status['details'] = 'database_name missing';
+			return $status;
+		}
+
+		$vendor_db = $this->connectToVendorDatabase($vendor, TRUE);
+		if (!$vendor_db)
+		{
+			return $status;
+		}
+
+		$required_tables = array(
+			'erp_clients',
+			'erp_users',
+			'erp_user_roles',
+			'vendor_features'
+		);
+
+		$missing_tables = array();
+		foreach ($required_tables as $table)
+		{
+			$table_check = $vendor_db->query("SHOW TABLES LIKE '" . $vendor_db->real_escape_string($table) . "'");
+			if (!$table_check || $table_check->num_rows == 0)
+			{
+				$missing_tables[] = $table;
+			}
+		}
+
+		if (!empty($missing_tables))
+		{
+			$status['state'] = 'warning';
+			$status['label'] = 'Needs Repair';
+			$status['details'] = 'Missing: ' . implode(', ', $missing_tables);
+			$vendor_db->close();
+			return $status;
+		}
+
+		$client_row = $vendor_db->query("SELECT id FROM erp_clients WHERE id = " . (int)$vendor['id'] . " LIMIT 1");
+		if (!$client_row || $client_row->num_rows == 0)
+		{
+			$status['state'] = 'warning';
+			$status['label'] = 'Needs Sync';
+			$status['details'] = 'erp_clients row missing';
+			$vendor_db->close();
+			return $status;
+		}
+
+		$status['state'] = 'ok';
+		$status['label'] = 'Healthy';
+		$status['details'] = 'Vendor DB ready';
+		$vendor_db->close();
+		return $status;
+	}
 	
 	/**
 	 * Connect to vendor database
 	 *
-	 * @param	string	$database_name	Database name
+	 * @param	array	$vendor	Vendor details from erp_clients
+	 * @param	bool	$use_vendor_credentials	TRUE to validate runtime vendor credentials
 	 * @return	mysqli|FALSE	Database connection or FALSE on failure
 	 */
-	private function connectToVendorDatabase($database_name)
+	private function connectToVendorDatabase($vendor, $use_vendor_credentials = FALSE)
 	{
 		$hostname = $this->db->hostname;
 		$username = $this->db->username;
 		$password = $this->db->password;
+		$database_name = isset($vendor['database_name']) ? $vendor['database_name'] : '';
+
+		if ($use_vendor_credentials && !empty($vendor['db_username']))
+		{
+			$username = $vendor['db_username'];
+			$password = (array_key_exists('db_password', $vendor) && $vendor['db_password'] !== NULL)
+				? $vendor['db_password']
+				: '';
+		}
 		
 		$connection = new mysqli($hostname, $username, $password, $database_name);
 		
@@ -133,6 +216,73 @@ class Vendor_sync_model extends CI_Model
 			return FALSE;
 		}
 		
+		return $connection;
+	}
+
+	/**
+	 * Ensure core vendor tables exist. Creates them from master schema if missing.
+	 *
+	 * @param mysqli $vendor_db
+	 * @return bool
+	 */
+	private function ensureVendorCoreTables($vendor_db)
+	{
+		$required_tables = array(
+			'erp_clients',
+			'erp_client_settings',
+			'erp_client_features',
+			'erp_client_feature_subcategories'
+		);
+
+		$master_connection = $this->getMasterConnection();
+		if (!$master_connection)
+		{
+			return FALSE;
+		}
+
+		$ok = TRUE;
+		foreach ($required_tables as $table)
+		{
+			$table_check = $vendor_db->query("SHOW TABLES LIKE '" . $vendor_db->real_escape_string($table) . "'");
+			if ($table_check && $table_check->num_rows > 0)
+			{
+				continue;
+			}
+
+			$create_result = $master_connection->query("SHOW CREATE TABLE `" . $master_connection->real_escape_string($table) . "`");
+			if (!$create_result || $create_result->num_rows == 0)
+			{
+				log_message('error', 'Failed to read schema for required table: ' . $table);
+				$ok = FALSE;
+				continue;
+			}
+
+			$row = $create_result->fetch_assoc();
+			$create_sql = isset($row['Create Table']) ? $row['Create Table'] : '';
+			if ($create_sql === '' || !$vendor_db->query($create_sql))
+			{
+				log_message('error', 'Failed to create required table ' . $table . ' in vendor DB: ' . $vendor_db->error);
+				$ok = FALSE;
+			}
+		}
+
+		$master_connection->close();
+		return $ok;
+	}
+
+	/**
+	 * Open mysqli connection to master database.
+	 *
+	 * @return mysqli|FALSE
+	 */
+	private function getMasterConnection()
+	{
+		$connection = @new mysqli($this->db->hostname, $this->db->username, $this->db->password, $this->db->database);
+		if ($connection->connect_error)
+		{
+			log_message('error', 'Failed to connect to master database for vendor sync: ' . $connection->connect_error);
+			return FALSE;
+		}
 		return $connection;
 	}
 	
@@ -170,8 +320,14 @@ class Vendor_sync_model extends CI_Model
 			$check = $vendor_db->query("SHOW COLUMNS FROM erp_clients LIKE '$column_name'");
 			if ($check->num_rows == 0)
 			{
-				$vendor_db->query($sql);
-				log_message('info', "Added column '$column_name' to erp_clients table in vendor database");
+				if ($vendor_db->query($sql))
+				{
+					log_message('info', "Added column '$column_name' to erp_clients table in vendor database");
+				}
+				else
+				{
+					log_message('error', "Failed to add column '$column_name' to erp_clients in vendor database: " . $vendor_db->error);
+				}
 			}
 		}
 	}
@@ -195,7 +351,7 @@ class Vendor_sync_model extends CI_Model
 		
 		// Build SQL for INSERT ... ON DUPLICATE KEY UPDATE
 		$sql = "INSERT INTO erp_clients (
-			id, name, domain, username, status, logo, favicon, site_title, meta_description, meta_keywords, sidebar_color, 
+			id, name, domain, username, password, database_name, db_username, db_password, status, logo, favicon, site_title, meta_description, meta_keywords, sidebar_color, 
 			payment_gateway, razorpay_key_id, razorpay_key_secret,
 			ccavenue_merchant_id, ccavenue_access_code, ccavenue_working_key,
 			zepto_mail_api_key, zepto_mail_from_email, zepto_mail_from_name,
@@ -203,7 +359,7 @@ class Vendor_sync_model extends CI_Model
 			firebase_storage_bucket, firebase_messaging_sender_id, firebase_app_id,
 			updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?,
 			?, ?, ?,
 			?, ?, ?,
@@ -214,6 +370,10 @@ class Vendor_sync_model extends CI_Model
 			name = VALUES(name),
 			domain = VALUES(domain),
 			username = VALUES(username),
+			password = VALUES(password),
+			database_name = VALUES(database_name),
+			db_username = VALUES(db_username),
+			db_password = VALUES(db_password),
 			status = VALUES(status),
 			logo = VALUES(logo),
 			favicon = VALUES(favicon),
@@ -246,14 +406,19 @@ class Vendor_sync_model extends CI_Model
 		}
 		
 		// Bind parameters
-		// SQL inserts 27 columns: 1 integer (id) + 26 strings
+		// SQL inserts 31 columns: 1 integer (id) + 30 strings
 		// IMPORTANT: name is a string; do not bind as int (prevents "Varitty" -> 0 coercion)
-		// 27 placeholders total: i + 26 s
-		$stmt->bind_param('issssssssssssssssssssssssss',
+		// 31 placeholders total: 1 integer + 30 strings
+		$bind_types = 'i' . str_repeat('s', 30);
+		$stmt->bind_param($bind_types,
 			$vendor_data['id'],
 			$vendor_data['name'],
 			$vendor_data['domain'],
 			$vendor_data['username'],
+			$vendor_data['password'],
+			$vendor_data['database_name'],
+			$vendor_data['db_username'],
+			$vendor_data['db_password'],
 			$vendor_data['status'],
 			$vendor_data['logo'],
 			$vendor_data['favicon'],

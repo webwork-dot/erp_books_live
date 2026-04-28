@@ -12,6 +12,7 @@
                     <th>Name</th>
                     <th>Domain</th>
                     <th>Database</th>
+                    <th>Sync</th>
                     <th>Status</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -24,6 +25,20 @@
                             <td><?php echo htmlspecialchars($vendor['name']); ?></td>
                             <td><?php echo htmlspecialchars($vendor['domain']); ?></td>
                             <td><?php echo htmlspecialchars($vendor['database_name']); ?></td>
+                            <td>
+                                <?php $sync = isset($vendor['sync_health']) ? $vendor['sync_health'] : array('state' => 'warning', 'label' => 'Unknown', 'details' => ''); ?>
+                                <?php
+                                    $sync_class = 'badge-warning';
+                                    if ($sync['state'] === 'ok') {
+                                        $sync_class = 'badge-success';
+                                    } elseif ($sync['state'] === 'error') {
+                                        $sync_class = 'badge-danger';
+                                    }
+                                ?>
+                                <span class="badge <?php echo $sync_class; ?>" title="<?php echo htmlspecialchars($sync['details']); ?>">
+                                    <?php echo htmlspecialchars($sync['label']); ?>
+                                </span>
+                            </td>
                             <td>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input status-toggle" type="checkbox" 
@@ -41,6 +56,13 @@
                                 <a href="<?php echo base_url('erp-admin/vendors/edit/' . $vendor['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
                                     <i class="isax isax-edit"></i>
                                 </a>
+                                <a href="<?php echo base_url('erp-admin/vendors/repair_sync/' . $vendor['id']); ?>"
+                                   onclick="return confirm('This will re-sync required master data to this vendor database. Continue?');"
+                                   class="btn btn-sm btn-outline-success"
+                                   data-bs-toggle="tooltip"
+                                   title="Repair Sync">
+                                    <i class="isax isax-refresh"></i>
+                                </a>
                                 <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#featuresModal" data-vendor-id="<?php echo $vendor['id']; ?>" data-vendor-name="<?php echo htmlspecialchars($vendor['name']); ?>" title="Features">
                                     <i class="isax isax-shapes5"></i>
                                 </button>
@@ -52,7 +74,7 @@
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="6" class="text-center text-muted">No vendors found</td>
+                        <td colspan="7" class="text-center text-muted">No vendors found</td>
                     </tr>
                 <?php endif; ?>
             </tbody>

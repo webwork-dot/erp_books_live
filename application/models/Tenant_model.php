@@ -349,6 +349,12 @@ class Tenant_model extends CI_Model
 			log_message('warning', 'Failed to create feature enforcement in database: ' . $database_name);
 			// Don't fail initialization if enforcement fails
 		}
+
+		// Ensure vendor DB contains all required application tables from master schema.
+		if (!$this->ensureRequiredSchemaFromMaster($connection, $database_name))
+		{
+			log_message('warning', 'Failed to fully sync required schema from master database for: ' . $database_name);
+		}
 		
 		// Copy location data from master database (countries, states, cities)
 		// This ensures all vendors have the same location reference data
@@ -362,6 +368,61 @@ class Tenant_model extends CI_Model
 		
 		$connection->close();
 		log_message('info', 'Initialized database: ' . $database_name);
+		return TRUE;
+	}
+
+	/**
+	 * Ensure vendor DB has all required base tables from master schema.
+	 *
+	 * @param mysqli $connection
+	 * @param string $database_name
+	 * @return bool
+	 */
+	private function ensureRequiredSchemaFromMaster($connection, $database_name)
+	{
+		$master_connection = $this->getMasterMysqliConnection();
+		if (!$master_connection)
+		{
+			return FALSE;
+		}
+
+		$excluded_tables = array(
+			'erp_clients',
+			'erp_client_settings',
+			'erp_client_features',
+			'erp_client_feature_subcategories'
+		);
+
+		$table_result = $master_connection->query('SHOW TABLES');
+		if (!$table_result)
+		{
+			log_message('error', 'Failed to read master table list: ' . $master_connection->error);
+			$master_connection->close();
+			return FALSE;
+		}
+
+		$created_count = 0;
+		while ($row = $table_result->fetch_array(MYSQLI_NUM))
+		{
+			if (!isset($row[0]))
+			{
+				continue;
+			}
+
+			$table = (string) $row[0];
+			if (in_array($table, $excluded_tables, TRUE))
+			{
+				continue;
+			}
+
+			if ($this->ensureTableExistsFromMaster($master_connection, $connection, $table, $database_name, $excluded_tables))
+			{
+				$created_count++;
+			}
+		}
+
+		$master_connection->close();
+		log_message('info', 'Completed required schema sync for vendor database ' . $database_name . '.');
 		return TRUE;
 	}
 	
@@ -729,6 +790,13 @@ class Tenant_model extends CI_Model
 			}
 			
 			log_message('info', 'Found table ' . $table . ' in master database, copying data...');
+
+			// Ensure required tables exist in vendor DB using master schema.
+			if (!$this->ensureTableExistsFromMaster($master_connection, $connection, $table, $database_name))
+			{
+				log_message('warning', 'Unable to ensure table ' . $table . ' exists in vendor database (' . $database_name . '), skipping location data copy for this table.');
+				continue;
+			}
 			
 			// Get all data from master database
 			$result = $master_connection->query("SELECT * FROM `" . $master_connection->real_escape_string($table) . "`");
@@ -744,7 +812,15 @@ class Tenant_model extends CI_Model
 				// Clear existing data in vendor database (in case it was partially inserted)
 				// Use DELETE instead of TRUNCATE because TRUNCATE doesn't work with foreign key constraints
 				// Foreign key checks are already disabled at the start of the loop
-				$connection->query("DELETE FROM `" . $connection->real_escape_string($table) . "`");
+				try
+				{
+					$connection->query("DELETE FROM `" . $connection->real_escape_string($table) . "`");
+				}
+				catch (Exception $e)
+				{
+					log_message('warning', 'Failed to clear table ' . $table . ' in vendor database (' . $database_name . '): ' . $e->getMessage());
+					continue;
+				}
 				
 				// Get column names
 				$columns = array();
@@ -840,6 +916,121 @@ class Tenant_model extends CI_Model
 			log_message('warning', 'No location data was copied from master database');
 			return FALSE;
 		}
+	}
+
+	/**
+	 * Ensure a vendor table exists by cloning schema from master DB if needed.
+	 *
+	 * @param mysqli $master_connection
+	 * @param mysqli $vendor_connection
+	 * @param string $table
+	 * @param string $database_name
+	 * @return bool
+	 */
+	private function ensureTableExistsFromMaster($master_connection, $vendor_connection, $table, $database_name, $excluded_reference_tables = array())
+	{
+		$vendor_table_check = $vendor_connection->query("SHOW TABLES LIKE '" . $vendor_connection->real_escape_string($table) . "'");
+		if ($vendor_table_check && $vendor_table_check->num_rows > 0)
+		{
+			return TRUE;
+		}
+
+		$create_result = $master_connection->query("SHOW CREATE TABLE `" . $master_connection->real_escape_string($table) . "`");
+		if (!$create_result || $create_result->num_rows == 0)
+		{
+			log_message('error', 'Failed to read schema for table ' . $table . ' from master database.');
+			return FALSE;
+		}
+
+		$row = $create_result->fetch_assoc();
+		$create_sql = isset($row['Create Table']) ? $row['Create Table'] : '';
+		if ($create_sql === '')
+		{
+			log_message('error', 'Empty CREATE TABLE SQL for master table ' . $table . '.');
+			return FALSE;
+		}
+
+		$create_sql = $this->stripExcludedForeignKeysFromCreateSql($create_sql, $excluded_reference_tables);
+
+		if (!$vendor_connection->query($create_sql))
+		{
+			log_message('error', 'Failed to create missing table ' . $table . ' in vendor database (' . $database_name . '): ' . $vendor_connection->error);
+			return FALSE;
+		}
+
+		log_message('info', 'Created missing table ' . $table . ' in vendor database (' . $database_name . ') from master schema.');
+		return TRUE;
+	}
+
+	/**
+	 * Remove FK constraints that reference excluded/master-only tables.
+	 *
+	 * @param string $create_sql
+	 * @param array $excluded_reference_tables
+	 * @return string
+	 */
+	private function stripExcludedForeignKeysFromCreateSql($create_sql, $excluded_reference_tables)
+	{
+		if (empty($excluded_reference_tables))
+		{
+			return $create_sql;
+		}
+
+		$lines = explode("\n", $create_sql);
+		$filtered = array();
+
+		foreach ($lines as $line)
+		{
+			$should_skip = FALSE;
+			foreach ($excluded_reference_tables as $excluded_table)
+			{
+				$pattern = '/REFERENCES\s+`?' . preg_quote($excluded_table, '/') . '`?\s*\(/i';
+				if (preg_match($pattern, $line))
+				{
+					$should_skip = TRUE;
+					break;
+				}
+			}
+
+			if (!$should_skip)
+			{
+				$filtered[] = $line;
+			}
+		}
+
+		$sanitized_sql = implode("\n", $filtered);
+		$sanitized_sql = preg_replace("/,\s*\n\)/", "\n)", $sanitized_sql);
+		$sanitized_sql = preg_replace("/,\s*\)/", ")", $sanitized_sql);
+
+		return $sanitized_sql;
+	}
+
+	/**
+	 * Open a mysqli connection to the master database.
+	 *
+	 * @return mysqli|false
+	 */
+	private function getMasterMysqliConnection()
+	{
+		$this->load->database('default', TRUE);
+		$master_db = $this->db->database;
+		$hostname = $this->db->hostname;
+		$username = $this->db->username;
+		$password = $this->db->password;
+
+		if (empty($master_db))
+		{
+			$master_db = 'erp_master';
+		}
+
+		$master_connection = @new mysqli($hostname, $username, $password, $master_db);
+		if ($master_connection->connect_error)
+		{
+			log_message('error', 'Failed to connect to master database for schema sync. Master DB: ' . $master_db . ', Error: ' . $master_connection->connect_error);
+			return FALSE;
+		}
+
+		return $master_connection;
 	}
 	
 	/**

@@ -22,6 +22,7 @@ $route['erp-admin/vendors/debug_database/(:num)'] = 'Erp_admin/vendors/debug_dat
 $route['erp-admin/vendors/create_database/(:num)'] = 'Erp_admin/vendors/create_database/$1';
 $route['erp-admin/vendors/fix_foreign_keys/(:num)'] = 'Erp_admin/vendors/fix_foreign_keys/$1';
 $route['erp-admin/vendors/sync_features/(:num)'] = 'Erp_admin/vendors/sync_features/$1';
+$route['erp-admin/vendors/repair_sync/(:num)'] = 'Erp_admin/vendors/repair_sync/$1';
 $route['erp-admin/vendors/sync_vendor_data/(:num)'] = 'Erp_admin/vendors/sync_vendor_data/$1';
 $route['erp-admin/vendors/test_email/(:num)'] = 'Erp_admin/vendors/test_email/$1';
 $route['erp-admin/vendors/test_whatsapp/(:num)'] = 'Erp_admin/vendors/test_whatsapp/$1';

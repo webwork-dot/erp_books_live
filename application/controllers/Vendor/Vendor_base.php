@@ -317,17 +317,9 @@ class Vendor_base extends CI_Controller
 			}
 		}
 		
-		// Fallback to master database check
-		$vendor_features = $this->Erp_client_model->getClientFeatures($this->current_vendor['id']);
-		$enabled_features = array();
-		
-		foreach ($vendor_features as $feature) {
-			if ($feature['is_enabled'] == 1 && $feature['is_active'] == 1) {
-				$enabled_features[] = $feature;
-			}
-		}
-		
-		return $enabled_features;
+		// Do not fallback to master DB for vendor runtime.
+		// Vendor panel must run on vendor database data only.
+		return array();
 	}
 	
 	/**
@@ -360,15 +352,7 @@ class Vendor_base extends CI_Controller
 			}
 		}
 		
-		// Fallback to master database check
-		$vendor_features = $this->Erp_client_model->getClientFeatures($this->current_vendor['id']);
-		
-		foreach ($vendor_features as $feature) {
-			if (isset($feature['slug']) && strtolower((string)$feature['slug']) === strtolower((string)$feature_slug) && $feature['is_enabled'] == 1 && $feature['is_active'] == 1) {
-				return TRUE;
-			}
-		}
-		
+		// Do not fallback to master DB for vendor runtime.
 		return FALSE;
 	}
 }

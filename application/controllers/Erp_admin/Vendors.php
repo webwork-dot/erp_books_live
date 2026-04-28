@@ -71,6 +71,11 @@ class Vendors extends Erp_base
 		
 		// Get vendors with pagination
 		$data['vendors'] = $this->Erp_client_model->getAllClients($filters, $per_page, $offset);
+		foreach ($data['vendors'] as &$vendor)
+		{
+			$vendor['sync_health'] = $this->Vendor_sync_model->getVendorSyncHealth($vendor);
+		}
+		unset($vendor);
 		$data['total_vendors'] = $total_vendors;
 		$data['per_page'] = $per_page;
 		$data['current_page'] = $page;
@@ -124,10 +129,11 @@ class Vendors extends Erp_base
 		}
 
 		// --------------------------------------------------
-		// 2. RAW PASSWORD (IMPORTANT)
+		// 2. PASSWORDS
 		// --------------------------------------------------
-		$raw_password = $this->input->post('password'); // for MySQL user
-		$hashed_password = sha1($raw_password);         // for app login
+		$login_password = $this->input->post('password');
+		$db_password = $this->generateStrongDbPassword();
+		$hashed_password = sha1($login_password);
 
 		// --------------------------------------------------
 		// 3. CREATE VENDOR (MASTER DB)
@@ -279,24 +285,32 @@ class Vendors extends Erp_base
 
 		$admin_db = $this->load->database('default', TRUE);
 
-		$admin_db->query("
-			CREATE USER IF NOT EXISTS '$db_user'@'$db_host'
-			IDENTIFIED BY '$raw_password'
-		");
+		try {
+			$admin_db->query("
+				CREATE USER IF NOT EXISTS '$db_user'@'$db_host'
+				IDENTIFIED BY '$db_password'
+			");
 
-		$admin_db->query("
-			GRANT SELECT, INSERT, UPDATE, DELETE
-			ON `$db_name`.*
-			TO '$db_user'@'$db_host'
-		");
+			$admin_db->query("
+				GRANT SELECT, INSERT, UPDATE, DELETE
+				ON `$db_name`.*
+				TO '$db_user'@'$db_host'
+			");
 
-		$admin_db->query("FLUSH PRIVILEGES");
+			$admin_db->query("FLUSH PRIVILEGES");
+		} catch (Exception $e) {
+			log_message('error', 'Failed to create/grant MySQL vendor user for vendor ID ' . $vendor_id . ': ' . $e->getMessage());
+			$this->Erp_client_model->deleteClient($vendor_id);
+			$this->session->set_flashdata('error', 'Failed to create vendor database user. Please repair MySQL/MariaDB privilege tables and try again.');
+			redirect('erp-admin/vendors/add');
+		}
 
 		// --------------------------------------------------
-		// 9. STORE DB USERNAME (OPTIONAL, SAFE)
+		// 9. STORE DB CREDENTIALS IN MASTER (erp_clients)
 		// --------------------------------------------------
 		$this->Erp_client_model->updateClient($vendor_id, [
-			'db_username' => $db_user
+			'db_username' => $db_user,
+			'db_password' => $db_password
 		]);
 
 		// --------------------------------------------------
@@ -1101,6 +1115,26 @@ class Vendors extends Erp_base
 		$this->form_validation->set_message('validate_json', 'The {field} field must be a valid JSON.');
 		return FALSE;
 	}
+
+	/**
+	 * Generate a strong random password for vendor DB users.
+	 *
+	 * @return string
+	 */
+	private function generateStrongDbPassword()
+	{
+		if (function_exists('random_bytes'))
+		{
+			return rtrim(strtr(base64_encode(random_bytes(18)), '+/', '-_'), '=');
+		}
+
+		if (function_exists('openssl_random_pseudo_bytes'))
+		{
+			return rtrim(strtr(base64_encode(openssl_random_pseudo_bytes(18)), '+/', '-_'), '=');
+		}
+
+		return sha1(uniqid(mt_rand(), TRUE)) . substr(md5(mt_rand()), 0, 8);
+	}
 	
 	/**
 	 * Delete vendor
@@ -1896,6 +1930,100 @@ class Vendors extends Erp_base
 			$this->session->set_flashdata('error', 'Failed to sync features: ' . $e->getMessage());
 		}
 		
+		redirect('erp-admin/vendors');
+	}
+
+	/**
+	 * Repair and re-sync required master data to vendor database.
+	 *
+	 * @param int $vendor_id
+	 * @return void
+	 */
+	public function repair_sync($vendor_id)
+	{
+		if (!$this->hasPermission('vendors', 'update'))
+		{
+			show_error('You do not have permission to access this page.', 403);
+		}
+
+		$vendor = $this->Erp_client_model->getClientById($vendor_id);
+		if (!$vendor)
+		{
+			$this->session->set_flashdata('error', 'Vendor not found.');
+			redirect('erp-admin/vendors');
+		}
+
+		if (empty($vendor['database_name']))
+		{
+			$this->session->set_flashdata('error', 'Vendor does not have a database_name set.');
+			redirect('erp-admin/vendors');
+		}
+
+		$errors = array();
+
+		try
+		{
+			if (!$this->Vendor_sync_model->syncVendorData($vendor_id))
+			{
+				$errors[] = 'vendor profile';
+			}
+		}
+		catch (Exception $e)
+		{
+			log_message('error', 'repair_sync: vendor profile sync failed for vendor ID ' . $vendor_id . ': ' . $e->getMessage());
+			$errors[] = 'vendor profile';
+		}
+
+		try
+		{
+			$this->load->model('Feature_sync_model');
+			if (!$this->Feature_sync_model->syncVendorFeatures($vendor_id))
+			{
+				$errors[] = 'features';
+			}
+		}
+		catch (Exception $e)
+		{
+			log_message('error', 'repair_sync: feature sync failed for vendor ID ' . $vendor_id . ': ' . $e->getMessage());
+			$errors[] = 'features';
+		}
+
+		try
+		{
+			if (!$this->Vendor_sync_model->syncShippingProviders($vendor_id))
+			{
+				$errors[] = 'shipping';
+			}
+		}
+		catch (Exception $e)
+		{
+			log_message('error', 'repair_sync: shipping sync failed for vendor ID ' . $vendor_id . ': ' . $e->getMessage());
+			$errors[] = 'shipping';
+		}
+
+		try
+		{
+			$this->load->model('Erp_vendor_notification_vendor_model');
+			if (!$this->Erp_vendor_notification_vendor_model->syncFromMaster($vendor_id, TRUE))
+			{
+				$errors[] = 'notifications';
+			}
+		}
+		catch (Exception $e)
+		{
+			log_message('error', 'repair_sync: notification sync failed for vendor ID ' . $vendor_id . ': ' . $e->getMessage());
+			$errors[] = 'notifications';
+		}
+
+		if (empty($errors))
+		{
+			$this->session->set_flashdata('success', 'Repair sync completed for vendor: ' . $vendor['name']);
+		}
+		else
+		{
+			$this->session->set_flashdata('warning', 'Repair sync completed with issues for: ' . $vendor['name'] . '. Failed parts: ' . implode(', ', array_unique($errors)));
+		}
+
 		redirect('erp-admin/vendors');
 	}
 	
