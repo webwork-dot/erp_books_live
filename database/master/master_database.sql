@@ -127,7 +127,6 @@ INSERT INTO `erp_features` (`name`, `slug`, `description`, `is_active`) VALUES
 ('Books', 'books', 'Books module for managing individual books', 1),
 ('Bookset', 'bookset', 'Bookset module for managing book packages', 1),
 ('Uniforms', 'uniforms', 'Uniforms module for managing uniform products', 1),
-('Stock Management', 'stock_management', 'Inventory stock and ledger management', 1),
 ('Stationery', 'stationery', 'Stationery module for managing stationery items', 1),
 ('Bags', 'bags', 'Bags module for managing bag products', 1),
 ('Sports', 'sports', 'Sports items module', 1)
