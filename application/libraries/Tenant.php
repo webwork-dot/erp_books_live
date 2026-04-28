@@ -138,9 +138,19 @@ class Tenant
 							if (class_exists('Feature_access'))
 							{
 								$this->CI->load->library('Feature_access');
-								if (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+								$feature_access_lib = NULL;
+								if (isset($this->CI->feature_access) && is_object($this->CI->feature_access))
 								{
-									$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+									$feature_access_lib = $this->CI->feature_access;
+								}
+								elseif (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+								{
+									$feature_access_lib = $this->CI->Feature_access;
+								}
+
+								if ($feature_access_lib)
+								{
+									$feature_access_lib->setVendorDatabase($tenant['database_name']);
 								}
 							}
 							
@@ -214,9 +224,19 @@ class Tenant
 		if (class_exists('Feature_access'))
 		{
 			$this->CI->load->library('Feature_access');
-			if (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+			$feature_access_lib = NULL;
+			if (isset($this->CI->feature_access) && is_object($this->CI->feature_access))
 			{
-				$this->CI->Feature_access->setVendorDatabase($tenant['database_name']);
+				$feature_access_lib = $this->CI->feature_access;
+			}
+			elseif (isset($this->CI->Feature_access) && is_object($this->CI->Feature_access))
+			{
+				$feature_access_lib = $this->CI->Feature_access;
+			}
+
+			if ($feature_access_lib)
+			{
+				$feature_access_lib->setVendorDatabase($tenant['database_name']);
 			}
 		}
 		

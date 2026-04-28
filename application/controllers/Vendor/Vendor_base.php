@@ -294,17 +294,27 @@ class Vendor_base extends CI_Controller
 		{
 			try {
 				$this->load->library('Feature_access');
-				
+
+				$feature_access_lib = NULL;
+				if (isset($this->feature_access) && is_object($this->feature_access))
+				{
+					$feature_access_lib = $this->feature_access;
+				}
+				elseif (isset($this->Feature_access) && is_object($this->Feature_access))
+				{
+					$feature_access_lib = $this->Feature_access;
+				}
+
 				// Check if library loaded successfully
-				if (!isset($this->Feature_access) || !is_object($this->Feature_access))
+				if (!$feature_access_lib)
 				{
 					log_message('error', 'Feature_access library failed to load');
 					// Fall through to master database check
 				}
 				else
 				{
-					$this->Feature_access->setVendorDatabase($this->current_vendor['database_name']);
-					$vendor_db_features = $this->Feature_access->getEnabledFeatures();
+					$feature_access_lib->setVendorDatabase($this->current_vendor['database_name']);
+					$vendor_db_features = $feature_access_lib->getEnabledFeatures();
 					
 					if (!empty($vendor_db_features))
 					{
@@ -341,9 +351,19 @@ class Vendor_base extends CI_Controller
 			try {
 				$this->load->library('Feature_access');
 
-				if (isset($this->Feature_access) && is_object($this->Feature_access)) {
-					$this->Feature_access->setVendorDatabase($this->current_vendor['database_name']);
-					return $this->Feature_access->isEnabled($feature_slug);
+				$feature_access_lib = NULL;
+				if (isset($this->feature_access) && is_object($this->feature_access))
+				{
+					$feature_access_lib = $this->feature_access;
+				}
+				elseif (isset($this->Feature_access) && is_object($this->Feature_access))
+				{
+					$feature_access_lib = $this->Feature_access;
+				}
+
+				if ($feature_access_lib) {
+					$feature_access_lib->setVendorDatabase($this->current_vendor['database_name']);
+					return $feature_access_lib->isEnabled($feature_slug);
 				}
 
 				log_message('error', 'Feature_access library failed to load in checkFeatureAccess()');
