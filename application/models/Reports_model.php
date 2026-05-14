@@ -216,16 +216,42 @@ class Reports_model extends CI_Model
             d.order_date,
             d.user_name as customer_name,
             oa.state as shipping_state,
-            oi.hsn,
-            oi.product_gst as tax_rate,
-            COALESCE(SUM(oi.excl_price_total), 0) as taxable_value,
-            COALESCE(SUM(oi.total_gst_amt), 0) as total_tax,
-            COALESCE(SUM(oi.total_price), 0) as total_amount
+            t.hsn,
+            t.tax_rate,
+            COALESCE(SUM(t.taxable_value), 0) as taxable_value,
+            COALESCE(SUM(t.total_tax), 0) as total_tax,
+            COALESCE(SUM(t.total_amount), 0) as total_amount
             FROM tbl_order_details d
-            INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+            INNER JOIN (
+                -- Individual products and other non-bookset items
+                SELECT 
+                    order_id,
+                    hsn,
+                    product_gst as tax_rate,
+                    excl_price_total as taxable_value,
+                    total_gst_amt as total_tax,
+                    total_price as total_amount
+                FROM tbl_order_items
+                WHERE order_type != 'bookset'
+
+                UNION ALL
+
+                -- Bookset Packages from detailed summary table
+                SELECT 
+                    pgs.order_id,
+                    bp.hsn as hsn,
+                    pgs.gst as tax_rate,
+                    (bp.package_offer_price * oi.product_qty) as taxable_value,
+                    (pgs.gst_amt * oi.product_qty) as total_tax,
+                    (bp.package_price * oi.product_qty) as total_amount
+                FROM tbl_package_gst_summary pgs
+                INNER JOIN tbl_order_items oi ON oi.order_id = pgs.order_id AND FIND_IN_SET(pgs.package_id, oi.package_id)
+                LEFT JOIN erp_bookset_packages bp ON bp.id = pgs.package_id
+                WHERE oi.order_type = 'bookset'
+            ) t ON t.order_id = d.id
             LEFT JOIN tbl_order_address oa ON oa.order_id = d.id AND oa.address_type = 'billing'
             WHERE {$where}
-            GROUP BY d.invoice_no, d.order_date, d.user_name, oa.state, oi.hsn, oi.product_gst
+            GROUP BY d.invoice_no, d.order_date, d.user_name, oa.state, t.hsn, t.tax_rate
             ORDER BY d.order_date DESC, d.invoice_no DESC";
         
         $q = $this->db->query($sql);
