@@ -190,6 +190,66 @@ class Reports_model extends CI_Model
     }
 
     /**
+     * GST Report - detailed breakdown of tax by invoice
+     */
+    public function get_gst_report($from = null, $to = null, $filters = array())
+    {
+        $date_filter = $this->_date_filter($from, $to);
+        $extra = $this->_build_filters($filters);
+        $where = $this->_base_where($date_filter) . $extra;
+
+        // Get vendor state to determine if intra-state or inter-state
+        $vendor_state = '';
+        if ($this->db->table_exists('vendor_billing_details')) {
+            $this->db->select('s.name as state');
+            $this->db->from('vendor_billing_details vbd');
+            $this->db->join('states s', 's.id = vbd.state_id', 'left');
+            $this->db->limit(1);
+            $client = $this->db->get()->row();
+            if ($client) {
+                $vendor_state = trim($client->state);
+            }
+        }
+
+        $sql = "SELECT
+            d.invoice_no,
+            d.order_date,
+            d.user_name as customer_name,
+            oa.state as shipping_state,
+            oi.hsn,
+            oi.product_gst as tax_rate,
+            COALESCE(SUM(oi.excl_price_total), 0) as taxable_value,
+            COALESCE(SUM(oi.total_gst_amt), 0) as total_tax,
+            COALESCE(SUM(oi.total_price), 0) as total_amount
+            FROM tbl_order_details d
+            INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+            LEFT JOIN tbl_order_address oa ON oa.order_id = d.id AND oa.address_type = 'billing'
+            WHERE {$where}
+            GROUP BY d.invoice_no, d.order_date, d.user_name, oa.state, oi.hsn, oi.product_gst
+            ORDER BY d.order_date DESC, d.invoice_no DESC";
+        
+        $q = $this->db->query($sql);
+        $results = $q->result_array();
+
+        // Categorize into CGST, SGST, IGST
+        foreach ($results as &$row) {
+            $is_intra = (strcasecmp(trim($row['shipping_state']), $vendor_state) === 0);
+            
+            if ($is_intra) {
+                $row['cgst_amt'] = $row['total_tax'] / 2;
+                $row['sgst_amt'] = $row['total_tax'] / 2;
+                $row['igst_amt'] = 0;
+            } else {
+                $row['cgst_amt'] = 0;
+                $row['sgst_amt'] = 0;
+                $row['igst_amt'] = $row['total_tax'];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * Daily/Weekly/Monthly sales trend
      * Returns ALL dates/months in range (0 for periods with no orders)
      * Uses daily when range <= 30 days, monthly when > 30 days

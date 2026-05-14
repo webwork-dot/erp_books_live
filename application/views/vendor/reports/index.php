@@ -490,3 +490,52 @@ $avg_order_value = isset($sales_summary['avg_order_value']) ? (float)$sales_summ
 		</div>
 	</div>
 </div>
+<!-- GST Report Section -->
+<div class="card mb-4">
+	<div class="card-header d-flex align-items-center justify-content-between py-2">
+		<h6 class="mb-0"><i class="isax isax-receipt-21 me-2"></i>GST Report</h6>
+		<a href="<?php echo base_url('reports/export/gst'); ?>?<?php echo $export_params; ?>" class="btn btn-sm btn-outline-primary">Export CSV</a>
+	</div>
+	<div class="card-body p-0">
+		<div class="table-responsive">
+			<table class="table table-hover report-table mb-0">
+				<thead class="table-light">
+					<tr>
+						<th>Date</th>
+						<th>Invoice No</th>
+						<th>Customer</th>
+						<th>HSN</th>
+						<th class="text-center">Rate</th>
+						<th class="text-end">Taxable Value</th>
+						<th class="text-end">CGST</th>
+						<th class="text-end">SGST</th>
+						<th class="text-end">IGST</th>
+						<th class="text-end">Total Tax</th>
+						<th class="text-end">Total Amount</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php if (!empty($gst_report)): ?>
+						<?php foreach ($gst_report as $row): ?>
+						<tr>
+							<td><?php echo date('d-m-Y', strtotime($row['order_date'])); ?></td>
+							<td><?php echo htmlspecialchars($row['invoice_no']); ?></td>
+							<td><?php echo htmlspecialchars($row['customer_name']); ?></td>
+							<td><?php echo htmlspecialchars($row['hsn'] ?: '-'); ?></td>
+							<td class="text-center"><?php echo (float)$row['tax_rate']; ?>%</td>
+							<td class="text-end currency">₹<?php echo number_format($row['taxable_value'], 2); ?></td>
+							<td class="text-end currency">₹<?php echo number_format($row['cgst_amt'], 2); ?></td>
+							<td class="text-end currency">₹<?php echo number_format($row['sgst_amt'], 2); ?></td>
+							<td class="text-end currency">₹<?php echo number_format($row['igst_amt'], 2); ?></td>
+							<td class="text-end currency">₹<?php echo number_format($row['total_tax'], 2); ?></td>
+							<td class="text-end currency fw-bold">₹<?php echo number_format($row['total_amount'], 2); ?></td>
+						</tr>
+						<?php endforeach; ?>
+					<?php else: ?>
+						<tr><td colspan="11" class="text-center text-muted py-4">No data available for this period</td></tr>
+					<?php endif; ?>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>

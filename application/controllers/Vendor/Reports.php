@@ -77,6 +77,9 @@ class Reports extends Vendor_base
         $trend_to = $to ?: date('Y-m-d');
         $data['sales_trend'] = $this->Reports_model->get_sales_trend($trend_from, $trend_to, $filters);
 
+        // GST Report
+        $data['gst_report'] = $this->Reports_model->get_gst_report($from, $to, $filters);
+
         $data['content'] = $this->load->view('vendor/reports/index', $data, TRUE);
         $this->load->view('vendor/layouts/index_template', $data);
     }
@@ -162,6 +165,25 @@ class Reports extends Vendor_base
                         $r['total_revenue'],
                         $r['delivered_count'],
                         $r['return_count']
+                    ));
+                }
+                break;
+            case 'gst':
+                $rows = $this->Reports_model->get_gst_report($from, $to, $filters);
+                fputcsv($out, array('Date', 'Invoice No', 'Customer', 'HSN', 'Tax Rate', 'Taxable Value', 'CGST', 'SGST', 'IGST', 'Total Tax', 'Total Amount'));
+                foreach ($rows as $r) {
+                    fputcsv($out, array(
+                        $r['order_date'],
+                        $r['invoice_no'],
+                        $r['customer_name'],
+                        $r['hsn'],
+                        $r['tax_rate'] . '%',
+                        $r['taxable_value'],
+                        $r['cgst_amt'],
+                        $r['sgst_amt'],
+                        $r['igst_amt'],
+                        $r['total_tax'],
+                        $r['total_amount']
                     ));
                 }
                 break;
