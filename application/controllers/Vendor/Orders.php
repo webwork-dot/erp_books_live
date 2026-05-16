@@ -4480,13 +4480,68 @@ class Orders extends Vendor_base
 	{
 		if ($order_type_label != 'Bookset')
 			return array();
-		if ($this->db->table_exists('tbl_order_bookset_products')) {
-			return $this->db->select('*')->from('tbl_order_bookset_products')->where('order_id', $order_id)->order_by('package_id', 'ASC')->order_by('id', 'ASC')->get()->result();
+
+		$final_products = array();
+		$items = $this->_get_invoice_items_arr($order_id);
+
+		foreach ($items as $item) {
+			$is_bookset = (isset($item->order_type) && ($item->order_type == 'bookset' || $item->order_type == 'package'));
+			$package_ids_str = isset($item->package_id) ? $item->package_id : '';
+			
+			if ($is_bookset && !empty($package_ids_str)) {
+				$package_ids = array_filter(array_map('trim', explode(',', $package_ids_str)));
+				foreach ($package_ids as $pkg_id) {
+					// Get package details
+					$package = $this->db->get_where('erp_bookset_packages', array('id' => $pkg_id))->row();
+					if ($package) {
+						$pkg_name = $package->package_name;
+						$pkg_price = ($package->package_offer_price > 0) ? $package->package_offer_price : $package->package_price;
+						$pkg_gst = $package->gst;
+						$pkg_hsn = $package->hsn;
+
+						// Get products for this package
+						$products = $this->db->get_where('erp_bookset_package_products', array('package_id' => $pkg_id, 'status' => 'active'))->result();
+						if (!empty($products)) {
+							foreach ($products as $p) {
+								$final_products[] = (object) [
+									'package_id' => $pkg_id,
+									'package_name' => $pkg_name,
+									'product_name' => $p->display_name,
+									'quantity' => $p->quantity,
+									'total_price' => $p->discounted_mrp,
+									'hsn' => $pkg_hsn,
+									'gst' => $pkg_gst
+								];
+							}
+						} else {
+							// Add the package itself if no products are listed
+							$final_products[] = (object) [
+								'package_id' => $pkg_id,
+								'package_name' => $pkg_name,
+								'product_name' => $pkg_name,
+								'quantity' => 1,
+								'total_price' => $pkg_price,
+								'hsn' => $pkg_hsn,
+								'gst' => $pkg_gst
+							];
+						}
+					}
+				}
+			} else {
+				// Regular item
+				$final_products[] = (object) [
+					'package_id' => 0,
+					'package_name' => '',
+					'product_name' => $item->product_title,
+					'quantity' => $item->product_qty,
+					'total_price' => $item->total_price,
+					'hsn' => $item->hsn,
+					'gst' => isset($item->product_gst) ? $item->product_gst : 0
+				];
+			}
 		}
-		if ($this->db->table_exists('erp_bookset_order_products')) {
-			return $this->db->select('*')->from('erp_bookset_order_products')->where('order_id', $order_id)->order_by('id', 'ASC')->get()->result();
-		}
-		return array();
+
+		return $final_products;
 	}
 
 	/**
