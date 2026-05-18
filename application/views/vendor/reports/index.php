@@ -502,7 +502,7 @@ $avg_order_value = isset($sales_summary['avg_order_value']) ? (float)$sales_summ
 				<thead class="table-light">
 					<tr>
 						<th>Date</th>
-						<th>Invoice No</th>
+						<th>Order No</th>
 						<th>Customer</th>
 						<th>HSN</th>
 						<th class="text-center">Rate</th>
@@ -519,7 +519,7 @@ $avg_order_value = isset($sales_summary['avg_order_value']) ? (float)$sales_summ
 						<?php foreach ($gst_report as $row): ?>
 						<tr>
 							<td><?php echo date('d-m-Y', strtotime($row['order_date'])); ?></td>
-							<td><?php echo htmlspecialchars($row['invoice_no']); ?></td>
+							<td><?php echo htmlspecialchars($row['order_unique_id']); ?></td>
 							<td><?php echo htmlspecialchars($row['customer_name']); ?></td>
 							<td><?php echo htmlspecialchars($row['hsn'] ?: '-'); ?></td>
 							<td class="text-center"><?php echo (float)$row['tax_rate']; ?>%</td>

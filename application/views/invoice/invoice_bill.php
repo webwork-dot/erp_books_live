@@ -210,6 +210,50 @@ if ($total_invoice_value <= 0 && !empty($products)) {
       </thead>
       <tbody>
         <?php
+        // Parse booksets dynamically from items_arr if available
+        $has_bookset_json = false;
+        $parsed_bookset_rows = array();
+        
+        if (!empty($items_arr)) {
+          foreach ($items_arr as $item) {
+            if (isset($item->order_type) && $item->order_type == 'bookset') {
+              $packages_list = array();
+              if (!empty($item->bookset_packages_json)) {
+                $json = json_decode($item->bookset_packages_json, true);
+                if (isset($json['packages'])) {
+                  $packages_list = $json['packages'];
+                }
+              }
+              
+              $selected_ids = array_filter(explode(',', $item->package_id ?? ''));
+              
+              if (!empty($packages_list) && !empty($selected_ids)) {
+                $has_bookset_json = true;
+                foreach ($packages_list as $pkg) {
+                  $pkg_id = $pkg['package_id'];
+                  if (in_array($pkg_id, $selected_ids)) {
+                    $qty = (int)$item->product_qty;
+                    $tp = (float)$pkg['package_offer_price'] * $qty;
+                    $gst_pct = (float)$pkg['gst'];
+                    $gst_amt = ($gst_pct > 0) ? ($tp * ($gst_pct / 100) / (1 + ($gst_pct / 100))) : 0;
+                    $taxable = $tp - $gst_amt;
+                    
+                    $parsed_bookset_rows[] = array(
+                      'desc' => $pkg['package_name'],
+                      'hsn' => $pkg['hsn'] ?? '4901',
+                      'qty' => $qty,
+                      'taxable' => $taxable,
+                      'gst_pct' => $gst_pct,
+                      'gst_amt' => $gst_amt,
+                      'total_price' => $tp
+                    );
+                  }
+                }
+              }
+            }
+          }
+        }
+
         $sr = 1;
         $total_qty = 0;
         $total_taxable = 0;
@@ -217,7 +261,55 @@ if ($total_invoice_value <= 0 && !empty($products)) {
         $total_incl = 0;
 
         // BOOKSET: display expanded products from packages or individual items
-        if ($order_type_label == 'Bookset' && !empty($bookset_products)) {
+        if ($order_type_label == 'Bookset' && $has_bookset_json) {
+          $bookset_display_name = 'Bookset';
+          if (!empty($items_arr)) {
+            foreach ($items_arr as $it) {
+              if (isset($it->order_type) && ($it->order_type == 'bookset' || $it->order_type == 'package') && !empty($it->product_title)) {
+                $bookset_display_name = trim($it->product_title);
+                break;
+              }
+            }
+          }
+        ?>
+          <tr>
+            <td colspan="<?= $is_igst ? 9 : 11 ?>" class="text-left" style="border: 1px solid #333; padding: 8px; background-color: #e0e0e0; font-weight: bold;">Bookset: <?= htmlspecialchars($bookset_display_name) ?></td>
+          </tr>
+          <?php
+          foreach ($parsed_bookset_rows as $row_data) {
+            $pname = $row_data['desc'];
+            $qty = $row_data['qty'];
+            $taxable = $row_data['taxable'];
+            $gst_pct = $row_data['gst_pct'];
+            $gst_amt = $row_data['gst_amt'];
+            $tp = $row_data['total_price'];
+            $hsn = $row_data['hsn'];
+            
+            $total_qty += $qty;
+            $total_taxable += $taxable;
+            $total_gst += $gst_amt;
+            $total_incl += $tp;
+          ?>
+            <tr>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
+              <td class="text-left" style="border: 1px solid #333; padding: 6px;"><small class="book-pack"><?= htmlspecialchars($pname) ?></small></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
+              <td style="border: 1px solid #333; padding: 6px;"><?= price_format_decimal($taxable) ?></td>
+              <?php if ($is_igst): ?>
+                <td style="border: 1px solid #333; padding: 6px;"><?= $gst_pct ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= price_format_decimal($gst_amt) ?></td>
+              <?php else: ?>
+                <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= price_format_decimal($gst_amt / 2) ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= ($gst_pct / 2) ?></td>
+                <td style="border: 1px solid #333; padding: 6px;"><?= price_format_decimal($gst_amt / 2) ?></td>
+              <?php endif; ?>
+              <td style="border: 1px solid #333; padding: 6px;"><?= $currency ?> <?= price_format_decimal($tp) ?></td>
+            </tr>
+          <?php
+          }
+        } elseif ($order_type_label == 'Bookset' && !empty($bookset_products)) {
           $bookset_display_name = 'Bookset';
           if (!empty($items_arr)) {
             foreach ($items_arr as $it) {

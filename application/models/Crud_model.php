@@ -3941,29 +3941,44 @@ class Crud_model extends CI_Model{
         date_default_timezone_set('Asia/Kolkata');
         $curr_date = date("Y-m-d H:i:s");
         $order_details = $this->get_order_details_by_id($order_id);
-        if($order_details->invoice_no==NULL){
+        if(empty($order_details->invoice_no)){
             $this->db->trans_start();
+            
+            // Format: INV/YY-MM/NNN
+            $yy = date('y');
+            $mm = date('m');
+            $prefix = 'INV/' . $yy . '-' . $mm . '/';
+
+            // Find max serial for current prefix in tbl_order_details
+            $query = $this->db->query("
+                SELECT invoice_no 
+                FROM tbl_order_details 
+                WHERE invoice_no LIKE " . $this->db->escape($prefix . '%') . "
+            ");
+            $rows = $query->result();
+
+            $max_seq = 0;
+            $prefix_len = strlen($prefix);
+            foreach ($rows as $row) {
+                if (empty($row->invoice_no))
+                    continue;
+                $suffix = substr($row->invoice_no, $prefix_len);
+                $num = (int) preg_replace('/[^0-9]/', '', $suffix);
+                if ($num > $max_seq)
+                    $max_seq = $num;
+            }
+            $next_seq = $max_seq + 1;
+            $digits = $next_seq >= 1000 ? strlen((string) $next_seq) : 3;
+            $invoiceNumber = $prefix . str_pad((string) $next_seq, $digits, '0', STR_PAD_LEFT);
+
+            // Also insert to order_user_invoice for compatibility
             $currentYear = date('Y');
-            $calendarYearStart = "$currentYear-01-01";
-            $calendarYearEnd = "$currentYear-12-31";
-
-            $query = $this->db->query("SELECT MAX(CAST(SUBSTRING(user_invoice, 8) AS SIGNED)) AS max_serial, invoice_date FROM order_user_invoice WHERE YEAR(invoice_date) = '$currentYear'");
-
-            $row = $query->row_array();
-            $maxSerial = $row['max_serial'];
-
-            $newSerial = ($maxSerial !== null) ? $maxSerial + 1 : 1;
-
-            $calendarMonth = date('m');
-            $invoiceNumber = "$calendarMonth$currentYear/" . str_pad($newSerial, 2, '0', STR_PAD_LEFT);
-
-            $data_inv = array();
             $data_inv = array(
                 'order_id' => $order_id,
                 'vendor_id' => NULL,
                 'year' => $currentYear,
                 'user_invoice' => $invoiceNumber,
-                'invoice_id' => $newSerial,
+                'invoice_id' => $next_seq,
                 'invoice_date' => $curr_date
             );
 
@@ -3991,7 +4006,6 @@ class Crud_model extends CI_Model{
                 $this->db->trans_rollback();
                 return $this->update_invoice_number($order_id);
             }
-
         }
         else{
           $new_invoice_id=$order_details->invoice_no;

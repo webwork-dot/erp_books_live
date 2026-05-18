@@ -132,6 +132,8 @@ class Reports extends Vendor_base
         header('Content-Disposition: attachment; filename="' . $filename . '"');
 
         $out = fopen('php://output', 'w');
+        // BOM for Excel UTF-8
+        fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
         fputcsv($out, array('Report: ' . ucfirst(str_replace('_', ' ', $report_type))));
         fputcsv($out, array('Date Range: ' . $from . ' to ' . $to));
         fputcsv($out, array());
@@ -170,20 +172,114 @@ class Reports extends Vendor_base
                 break;
             case 'gst':
                 $rows = $this->Reports_model->get_gst_report($from, $to, $filters);
-                fputcsv($out, array('Date', 'Invoice No', 'Customer', 'HSN', 'Tax Rate', 'Taxable Value', 'CGST', 'SGST', 'IGST', 'Total Tax', 'Total Amount'));
+                
+                // Group by unique order to aggregate horizontally by invoice
+                $grouped = array();
                 foreach ($rows as $r) {
+                    $key = !empty($r['invoice_no']) ? $r['invoice_no'] : ('ORD_' . $r['order_id']);
+                    if (!isset($grouped[$key])) {
+                        $grouped[$key] = array(
+                            'customer_name' => $r['customer_name'],
+                            'order_no' => $r['order_unique_id'],
+                            'invoice_no' => $r['invoice_no'],
+                            'order_date' => date('d-m-Y', strtotime($r['order_date'])),
+                            'total_invoice_amount' => 0,
+                            'slabs' => array(
+                                0 => array('taxable' => 0, 'tax' => 0, 'cgst' => 0, 'sgst' => 0),
+                                5 => array('taxable' => 0, 'tax' => 0, 'cgst' => 0, 'sgst' => 0),
+                                12 => array('taxable' => 0, 'tax' => 0, 'cgst' => 0, 'sgst' => 0),
+                                18 => array('taxable' => 0, 'tax' => 0, 'cgst' => 0, 'sgst' => 0),
+                                28 => array('taxable' => 0, 'tax' => 0, 'cgst' => 0, 'sgst' => 0)
+                            )
+                        );
+                    }
+                    
+                    $tax_rate = (int)round((float)$r['tax_rate']);
+                    $slab = 0;
+                    if ($tax_rate > 0) {
+                        if ($tax_rate <= 5) $slab = 5;
+                        elseif ($tax_rate <= 12) $slab = 12;
+                        elseif ($tax_rate <= 18) $slab = 18;
+                        else $slab = 28;
+                    }
+                    
+                    $grouped[$key]['slabs'][$slab]['taxable'] += (float)$r['taxable_value'];
+                    $grouped[$key]['slabs'][$slab]['tax'] += (float)$r['total_tax'];
+                    $grouped[$key]['slabs'][$slab]['cgst'] += (float)$r['cgst_amt'];
+                    $grouped[$key]['slabs'][$slab]['sgst'] += (float)$r['sgst_amt'];
+                    $grouped[$key]['total_invoice_amount'] += (float)$r['total_amount'];
+                }
+
+                // Output header columns requested by user
+                fputcsv($out, array(
+                    'Sr no',
+                    'Customer Name',
+                    'Order No',
+                    'Invoice No',
+                    'Date',
+                    'Total Invoice Amount',
+                    'Invoice Amount of 0% GST Products',
+                    'GST  0%',
+                    'CGST',
+                    'SGST',
+                    'Invoice Amount of 5% GST Products',
+                    'GST  5%',
+                    'CGST',
+                    'SGST',
+                    'Invoice Amount of 12% GST Products',
+                    'GST  12%',
+                    'CGST',
+                    'SGST',
+                    'Invoice Amount of 18% GST Products',
+                    'GST  18%',
+                    'CGST',
+                    'SGST',
+                    'Invoice Amount of 28% GST Products',
+                    'GST 28%',
+                    'CGST',
+                    'SGST'
+                ));
+
+                // Output rows
+                $sr = 1;
+                foreach ($grouped as $g) {
                     fputcsv($out, array(
-                        $r['order_date'],
-                        $r['invoice_no'],
-                        $r['customer_name'],
-                        $r['hsn'],
-                        $r['tax_rate'] . '%',
-                        $r['taxable_value'],
-                        $r['cgst_amt'],
-                        $r['sgst_amt'],
-                        $r['igst_amt'],
-                        $r['total_tax'],
-                        $r['total_amount']
+                        $sr++,
+                        $g['customer_name'],
+                        $g['order_no'],
+                        $g['invoice_no'],
+                        $g['order_date'],
+                        number_format($g['total_invoice_amount'], 2, '.', ''),
+                        
+                        // 0%
+                        number_format($g['slabs'][0]['taxable'], 2, '.', ''),
+                        number_format($g['slabs'][0]['tax'], 2, '.', ''),
+                        number_format($g['slabs'][0]['cgst'], 2, '.', ''),
+                        number_format($g['slabs'][0]['sgst'], 2, '.', ''),
+                        
+                        // 5%
+                        number_format($g['slabs'][5]['taxable'], 2, '.', ''),
+                        number_format($g['slabs'][5]['tax'], 2, '.', ''),
+                        number_format($g['slabs'][5]['cgst'], 2, '.', ''),
+                        number_format($g['slabs'][5]['sgst'], 2, '.', ''),
+                        
+                        // 12%
+                        number_format($g['slabs'][12]['taxable'], 2, '.', ''),
+                        number_format($g['slabs'][12]['tax'], 2, '.', ''),
+                        number_format($g['slabs'][12]['cgst'], 2, '.', ''),
+                        number_format($g['slabs'][12]['sgst'], 2, '.', ''),
+                        
+                        // 18%
+                        number_format($g['slabs'][18]['taxable'], 2, '.', ''),
+                        number_format($g['slabs'][18]['tax'], 2, '.', ''),
+                        number_format($g['slabs'][18]['cgst'], 2, '.', ''),
+                        number_format($g['slabs'][18]['sgst'], 2, '.', ''),
+                        
+                        // 28%
+                        number_format($g['slabs'][28]['taxable'], 2, '.', ''),
+                        number_format($g['slabs'][28]['tax'], 2, '.', ''),
+                        number_format($g['slabs'][28]['cgst'], 2, '.', ''),
+                        number_format($g['slabs'][28]['sgst'], 2, '.', '')
                     ));
                 }
                 break;

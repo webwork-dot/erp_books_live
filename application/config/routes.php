@@ -223,6 +223,8 @@ $route['cron/shiprocket_tracking/(:any)'] = 'cron/shiprocket_tracking/$1';
 $route['cron/send_order_placed_notifications/db/(:any)'] = 'cron/send_order_placed_notifications_db/$1';
 $route['cron/send_order_placed_notifications'] = 'cron/send_order_placed_notifications';
 $route['cron/send_order_placed_notifications/(:any)'] = 'cron/send_order_placed_notifications_secured/$1';
+$route['cron/auto_assign_invoices'] = 'cron/auto_assign_invoices';
+$route['cron/fix_live_invoices'] = 'cron/fix_live_invoices';
 
 // Orders routes
 $route['orders'] = 'Vendor/orders/index';

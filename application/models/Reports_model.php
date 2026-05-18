@@ -198,81 +198,218 @@ class Reports_model extends CI_Model
         $extra = $this->_build_filters($filters);
         $where = $this->_base_where($date_filter) . $extra;
 
-        // Get vendor state to determine if intra-state or inter-state
-        $vendor_state = '';
-        if ($this->db->table_exists('vendor_billing_details')) {
-            $this->db->select('s.name as state');
-            $this->db->from('vendor_billing_details vbd');
-            $this->db->join('states s', 's.id = vbd.state_id', 'left');
+        // 1. Get vendor details (including GSTIN and address)
+        $vendor_state = 'Maharashtra'; // Default fallback
+        if ($this->db->table_exists('erp_clients')) {
+            $this->db->select('gstin, address');
+            $this->db->from('erp_clients');
             $this->db->limit(1);
             $client = $this->db->get()->row();
             if ($client) {
-                $vendor_state = trim($client->state);
+                $gstin = trim($client->gstin);
+                $state_code = substr($gstin, 0, 2);
+                
+                $state_map = array(
+                    "01" => "Jammu & Kashmir", "02" => "Himachal Pradesh", "03" => "Punjab", "04" => "Chandigarh",
+                    "05" => "Uttarakhand", "06" => "Haryana", "07" => "Delhi", "08" => "Rajasthan",
+                    "09" => "Uttar Pradesh", "10" => "Bihar", "11" => "Sikkim", "12" => "Arunachal Pradesh",
+                    "13" => "Nagaland", "14" => "Manipur", "15" => "Mizoram", "16" => "Tripura",
+                    "17" => "Meghalaya", "18" => "Assam", "19" => "West Bengal", "20" => "Jharkhand",
+                    "21" => "Odisha", "22" => "Chhattisgarh", "23" => "Madhya Pradesh", "24" => "Gujarat",
+                    "26" => "Dadra & Nagar Haveli & Daman & Diu", "27" => "Maharashtra", "28" => "Andhra Pradesh",
+                    "29" => "Karnataka", "30" => "Goa", "31" => "Lakshadweep", "32" => "Kerala",
+                    "33" => "Tamil Nadu", "34" => "Puducherry", "35" => "Andaman & Nicobar Islands",
+                    "36" => "Telangana", "37" => "Andhra Pradesh", "38" => "Ladakh"
+                );
+                
+                if (isset($state_map[$state_code])) {
+                    $vendor_state = $state_map[$state_code];
+                } else {
+                    if (stripos($client->address, 'Maharashtra') !== false) {
+                        $vendor_state = 'Maharashtra';
+                    }
+                }
             }
         }
 
-        $sql = "SELECT
-            d.invoice_no,
-            d.order_date,
-            d.user_name as customer_name,
-            oa.state as shipping_state,
-            t.hsn,
-            t.tax_rate,
-            COALESCE(SUM(t.taxable_value), 0) as taxable_value,
-            COALESCE(SUM(t.total_tax), 0) as total_tax,
-            COALESCE(SUM(t.total_amount), 0) as total_amount
-            FROM tbl_order_details d
-            INNER JOIN (
-                -- Individual products and other non-bookset items
-                SELECT 
-                    order_id,
-                    hsn,
-                    product_gst as tax_rate,
-                    excl_price_total as taxable_value,
-                    total_gst_amt as total_tax,
-                    total_price as total_amount
-                FROM tbl_order_items
-                WHERE order_type != 'bookset'
+        // 2. Fetch all orders and items
+        $sql = "SELECT 
+                    d.id as order_id,
+                    d.order_unique_id,
+                    d.invoice_no,
+                    d.order_date,
+                    d.user_name as customer_name,
+                    COALESCE(oa.billing_state, oa.state, d.del_state) as shipping_state,
+                    oi.order_type,
+                    oi.hsn as item_hsn,
+                    oi.product_gst as item_tax_rate,
+                    oi.excl_price_total as item_taxable_value,
+                    oi.total_gst_amt as item_total_tax,
+                    oi.total_price as item_total_amount,
+                    oi.product_qty,
+                    oi.package_id,
+                    oi.bookset_packages_json
+                FROM tbl_order_details d
+                INNER JOIN tbl_order_items oi ON oi.order_id = d.id
+                LEFT JOIN tbl_order_address oa ON oa.order_id = d.id
+                WHERE {$where}
+                ORDER BY d.order_date DESC, d.invoice_no DESC";
 
-                UNION ALL
-
-                -- Bookset Packages from detailed summary table
-                SELECT 
-                    pgs.order_id,
-                    bp.hsn as hsn,
-                    pgs.gst as tax_rate,
-                    (bp.package_offer_price * oi.product_qty) as taxable_value,
-                    (pgs.gst_amt * oi.product_qty) as total_tax,
-                    (bp.package_price * oi.product_qty) as total_amount
-                FROM tbl_package_gst_summary pgs
-                INNER JOIN tbl_order_items oi ON oi.order_id = pgs.order_id AND FIND_IN_SET(pgs.package_id, oi.package_id)
-                LEFT JOIN erp_bookset_packages bp ON bp.id = pgs.package_id
-                WHERE oi.order_type = 'bookset'
-            ) t ON t.order_id = d.id
-            LEFT JOIN tbl_order_address oa ON oa.order_id = d.id AND oa.address_type = 'billing'
-            WHERE {$where}
-            GROUP BY d.invoice_no, d.order_date, d.user_name, oa.state, t.hsn, t.tax_rate
-            ORDER BY d.order_date DESC, d.invoice_no DESC";
-        
         $q = $this->db->query($sql);
-        $results = $q->result_array();
+        $orders_items = $q->result_array();
 
-        // Categorize into CGST, SGST, IGST
-        foreach ($results as &$row) {
-            $is_intra = (strcasecmp(trim($row['shipping_state']), $vendor_state) === 0);
-            
-            if ($is_intra) {
-                $row['cgst_amt'] = $row['total_tax'] / 2;
-                $row['sgst_amt'] = $row['total_tax'] / 2;
-                $row['igst_amt'] = 0;
-            } else {
-                $row['cgst_amt'] = 0;
-                $row['sgst_amt'] = 0;
-                $row['igst_amt'] = $row['total_tax'];
+        $order_ids = array();
+        foreach ($orders_items as $item) {
+            $order_ids[] = $item['order_id'];
+        }
+
+        // 3. Fetch all tbl_package_gst_summary for exact tax mapping
+        $pgs_data = array();
+        if (!empty($order_ids) && $this->db->table_exists('tbl_package_gst_summary')) {
+            $this->db->select('order_id, package_id, gst_amt');
+            $this->db->from('tbl_package_gst_summary');
+            $this->db->where_in('order_id', array_unique($order_ids));
+            $res_pgs = $this->db->get()->result_array();
+            foreach ($res_pgs as $row_pgs) {
+                $pgs_data[$row_pgs['order_id']][$row_pgs['package_id']] = (float)$row_pgs['gst_amt'];
             }
         }
 
-        return $results;
+        // 4. Generate report rows
+        $gst_report = array();
+        foreach ($orders_items as $item) {
+            $order_id = $item['order_id'];
+            $shipping_state = trim($item['shipping_state']);
+            
+            // Determine intra-state or inter-state
+            $is_intra = true;
+            if (!empty($shipping_state)) {
+                $is_intra = (strcasecmp($shipping_state, $vendor_state) === 0);
+            }
+            
+            if ($item['order_type'] !== 'bookset') {
+                // Non-bookset items (individual, uniform, etc.)
+                $taxable_value = (float)$item['item_taxable_value'];
+                $total_tax = (float)$item['item_total_tax'];
+                $total_amount = (float)$item['item_total_amount'];
+                $tax_rate = (float)$item['item_tax_rate'];
+                
+                $cgst = 0; $sgst = 0; $igst = 0;
+                if ($is_intra) {
+                    $cgst = $total_tax / 2;
+                    $sgst = $total_tax / 2;
+                } else {
+                    $igst = $total_tax;
+                }
+                
+                $gst_report[] = array(
+                    'order_id' => $item['order_id'],
+                    'order_unique_id' => $item['order_unique_id'],
+                    'order_date' => $item['order_date'],
+                    'invoice_no' => $item['invoice_no'],
+                    'customer_name' => $item['customer_name'],
+                    'shipping_state' => $shipping_state,
+                    'hsn' => $item['item_hsn'],
+                    'tax_rate' => $tax_rate,
+                    'taxable_value' => $taxable_value,
+                    'cgst_amt' => $cgst,
+                    'sgst_amt' => $sgst,
+                    'igst_amt' => $igst,
+                    'total_tax' => $total_tax,
+                    'total_amount' => $total_amount
+                );
+            } else {
+                // Bookset items - decode json packages
+                $packages = array();
+                if (!empty($item['bookset_packages_json'])) {
+                    $json = json_decode($item['bookset_packages_json'], true);
+                    if (isset($json['packages'])) {
+                        $packages = $json['packages'];
+                    }
+                }
+                
+                $selected_pkg_ids = array_filter(explode(',', $item['package_id']));
+                
+                if (!empty($packages) && !empty($selected_pkg_ids)) {
+                    foreach ($packages as $pkg) {
+                        $pkg_id = $pkg['package_id'];
+                        // Only process selected packages
+                        if (in_array($pkg_id, $selected_pkg_ids)) {
+                            $qty = (int)$item['product_qty'];
+                            $taxable_value = (float)$pkg['package_offer_price'] * $qty;
+                            $tax_rate = (float)$pkg['gst'];
+                            
+                            // Look up precise tax in pgs_data
+                            if (isset($pgs_data[$order_id][$pkg_id])) {
+                                $total_tax = $pgs_data[$order_id][$pkg_id] * $qty;
+                            } else {
+                                $total_tax = ($taxable_value * $tax_rate) / 100;
+                            }
+                            
+                            $total_amount = $taxable_value + $total_tax;
+                            
+                            $cgst = 0; $sgst = 0; $igst = 0;
+                            if ($is_intra) {
+                                $cgst = $total_tax / 2;
+                                $sgst = $total_tax / 2;
+                            } else {
+                                $igst = $total_tax;
+                            }
+                            
+                            $gst_report[] = array(
+                                'order_id' => $item['order_id'],
+                                'order_unique_id' => $item['order_unique_id'],
+                                'order_date' => $item['order_date'],
+                                'invoice_no' => $item['invoice_no'],
+                                'customer_name' => $item['customer_name'],
+                                'shipping_state' => $shipping_state,
+                                'hsn' => isset($pkg['hsn']) ? $pkg['hsn'] : '',
+                                'tax_rate' => $tax_rate,
+                                'taxable_value' => $taxable_value,
+                                'cgst_amt' => $cgst,
+                                'sgst_amt' => $sgst,
+                                'igst_amt' => $igst,
+                                'total_tax' => $total_tax,
+                                'total_amount' => $total_amount
+                            );
+                        }
+                    }
+                } else {
+                    // Fallback if no packages JSON
+                    $taxable_value = (float)$item['item_taxable_value'];
+                    $total_tax = (float)$item['item_total_tax'];
+                    $total_amount = (float)$item['item_total_amount'];
+                    $tax_rate = (float)$item['item_tax_rate'];
+                    
+                    $cgst = 0; $sgst = 0; $igst = 0;
+                    if ($is_intra) {
+                        $cgst = $total_tax / 2;
+                        $sgst = $total_tax / 2;
+                    } else {
+                        $igst = $total_tax;
+                    }
+                    
+                    $gst_report[] = array(
+                        'order_id' => $item['order_id'],
+                        'order_unique_id' => $item['order_unique_id'],
+                        'order_date' => $item['order_date'],
+                        'invoice_no' => $item['invoice_no'],
+                        'customer_name' => $item['customer_name'],
+                        'shipping_state' => $shipping_state,
+                        'hsn' => $item['item_hsn'],
+                        'tax_rate' => $tax_rate,
+                        'taxable_value' => $taxable_value,
+                        'cgst_amt' => $cgst,
+                        'sgst_amt' => $sgst,
+                        'igst_amt' => $igst,
+                        'total_tax' => $total_tax,
+                        'total_amount' => $total_amount
+                    );
+                }
+            }
+        }
+
+        return $gst_report;
     }
 
     /**
