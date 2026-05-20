@@ -389,7 +389,7 @@
 		// Remove package
 		window.removePackage = function(packageId) {
 			if (packages.length <= 1) {
-				alert('At least one package is required');
+				toastr.warning('At least one package is required.', 'Validation');
 				return;
 			}
 			
@@ -589,7 +589,7 @@
 		$('#bookset-without-products-form').on('submit', function(e) {
 			if (!$('#school_id').val() || !$('#board_id').val() || !$('#grade_id').val()) {
 				e.preventDefault();
-				alert('Please fill all required fields in Bookset Information section (School, Board, Grade)');
+				toastr.error('Please fill all required fields in Bookset Information section (School, Board, Grade).', 'Validation Error');
 				$('html, body').animate({
 					scrollTop: $('#school_id').closest('.card').offset().top - 100
 				}, 500);
@@ -618,7 +618,7 @@
 			
 			if (packages.length === 0) {
 				e.preventDefault();
-				alert('Please add at least one package');
+				toastr.error('Please add at least one package.', 'Validation Error');
 				return false;
 			}
 			
@@ -735,8 +735,8 @@
 					firstErrorElement.focus();
 				}
 				
-				var errorSummary = 'Please fill the following required fields:\n\n' + errorMessages.join('\n');
-				alert(errorSummary);
+				var errorCount = errorMessages.length;
+				toastr.error('Please fix ' + errorCount + ' required field(s). Check highlighted fields above.', 'Validation Error');
 			}
 			
 			if (!isValid) {

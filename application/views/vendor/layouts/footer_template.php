@@ -26,6 +26,9 @@
 <!-- SweetAlert2 JS (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+<!-- Toastr JS -->
+<script src="<?php echo base_url('assets/template/plugins/toastr/toastr.min.js'); ?>"></script>
+
 <!-- Simplebar JS -->
 <script src="<?php echo base_url('assets/template/plugins/simplebar/simplebar.min.js'); ?>"></script>
 

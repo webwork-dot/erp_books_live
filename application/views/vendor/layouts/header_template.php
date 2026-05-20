@@ -45,6 +45,9 @@
 	<!-- Vendor Sidebar Color Customization -->
 	<link rel="stylesheet" href="<?php echo base_url('assets/css/vendor-sidebar-colors.css'); ?>">
 	
+	<!-- Toastr CSS -->
+	<link rel="stylesheet" href="<?php echo base_url('assets/template/plugins/toastr/toatr.css'); ?>">
+	
 	<!-- Vendor Logo Fix - Responsive Logo Sizing -->
 	<link rel="stylesheet" href="<?php echo base_url('assets/css/vendor-logo-fix.css'); ?>">
 	
@@ -217,6 +220,7 @@
 						<div class="me-auto d-flex align-items-center" id="header-search">
 
 							<!-- Breadcrumb -->
+							<?php /*
 							<nav aria-label="breadcrumb">
 								<ol class="breadcrumb breadcrumb-divide mb-0">
 									<?php 
@@ -260,6 +264,7 @@
 									<?php endif; ?>
 								</ol>
 							</nav>
+							*/ ?>
 
 						</div>
 

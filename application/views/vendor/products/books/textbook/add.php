@@ -850,12 +850,12 @@ function validatePrice() {
 	
 	// Validate only if both values are entered
 	if (mrp > 0 && sellingPrice > 0) {
-		if (mrp <= sellingPrice) {
+		if (sellingPrice > mrp) {
 			if (mrpError) mrpError.style.display = 'block';
 			if (sellingPriceError) sellingPriceError.style.display = 'block';
 			if (mrpInput) mrpInput.classList.add('is-invalid');
 			if (sellingPriceInput) sellingPriceInput.classList.add('is-invalid');
-			alert('MRP must be higher than Selling Price');
+			toastr.error('Selling Price cannot be greater than MRP.', 'Price Validation');
 			return false;
 		}
 	}

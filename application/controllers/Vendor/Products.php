@@ -4290,10 +4290,100 @@ class Products extends Vendor_base
 			show_404();
 		}
 		
-		// Delete logic will go here
-		// For now, just redirect
-		$this->session->set_flashdata('success', 'Textbook product deleted successfully (placeholder)');
-		redirect($this->config->item('base_url') . '/products/books/textbook');
+		// Get textbook from legacy table
+		$this->db->where('id', $id);
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$textbook = $this->db->get('erp_textbooks')->row_array();
+		
+		if (!$textbook)
+		{
+			show_404();
+		}
+		
+		// Load config for image upload paths
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('textbook_upload');
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
+		
+		// Start transaction
+		$this->db->trans_start();
+		
+		// Get and delete images physically
+		$this->db->where('textbook_id', $id);
+		$images = $this->db->get('erp_textbook_images')->result_array();
+		foreach ($images as $image)
+		{
+			// Try multiple paths to ensure physical file is deleted
+			$base_root = isset($uploadCfg['base_root']) ? rtrim($uploadCfg['base_root'], '/') : '/www/webwork';
+			$path1 = $base_root . '/' . $vendor_folder . '/' . $image['image_path'];
+			$path2 = rtrim(FCPATH, '/') . '/' . $vendor_folder . '/' . $image['image_path'];
+			$path3 = rtrim(FCPATH, '/') . '/' . $image['image_path'];
+			
+			if (file_exists($path1))
+			{
+				@unlink($path1);
+			}
+			elseif (file_exists($path2))
+			{
+				@unlink($path2);
+			}
+			elseif (file_exists($path3))
+			{
+				@unlink($path3);
+			}
+		}
+		
+		// Delete images from erp_product_images (unified table)
+		foreach ($images as $image)
+		{
+			$this->db->where('legacy_table', 'erp_textbook_images');
+			$this->db->where('legacy_id', $image['id']);
+			$this->db->delete('erp_product_images');
+		}
+		
+		// Delete textbook images from database
+		$this->db->where('textbook_id', $id);
+		$this->db->delete('erp_textbook_images');
+		
+		// Delete mappings
+		$this->db->where('textbook_id', $id);
+		$this->db->delete('erp_textbook_type_mapping');
+		
+		$this->db->where('textbook_id', $id);
+		$this->db->delete('erp_textbook_grade_mapping');
+		
+		$this->db->where('textbook_id', $id);
+		$this->db->delete('erp_textbook_age_mapping');
+		
+		$this->db->where('textbook_id', $id);
+		$this->db->delete('erp_textbook_subject_mapping');
+		
+		// Soft delete corresponding unified product (if any)
+		$product = $this->Product_model->get_product_by_legacy('erp_textbooks', $id, $this->current_vendor['id']);
+		if ($product)
+		{
+			$this->Product_model->delete_product($product['id']);
+		}
+		
+		// Delete textbook from database
+		$this->db->where('id', $id);
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$this->db->delete('erp_textbooks');
+		
+		$this->db->trans_complete();
+		
+		if ($this->db->trans_status() === FALSE)
+		{
+			$this->session->set_flashdata('error', 'Failed to delete textbook. Please try again.');
+		}
+		else
+		{
+			$this->session->set_flashdata('success', 'Textbook product deleted successfully.');
+		}
+		
+		$vendor_domain = $this->getVendorDomainForUrl();
+		redirect(vendor_base_url('products/textbook', $vendor_domain));
 	}
 	
 	
@@ -4677,10 +4767,27 @@ class Products extends Vendor_base
 		}
 		
 		// Delete physical file
-		$image_path = FCPATH . $image['image_path'];
-		if (file_exists($image_path))
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('textbook_upload');
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
+		
+		$base_root = isset($uploadCfg['base_root']) ? rtrim($uploadCfg['base_root'], '/') : '/www/webwork';
+		$path1 = $base_root . '/' . $vendor_folder . '/' . $image['image_path'];
+		$path2 = rtrim(FCPATH, '/') . '/' . $vendor_folder . '/' . $image['image_path'];
+		$path3 = rtrim(FCPATH, '/') . '/' . $image['image_path'];
+		
+		if (file_exists($path1))
 		{
-			@unlink($image_path);
+			@unlink($path1);
+		}
+		elseif (file_exists($path2))
+		{
+			@unlink($path2);
+		}
+		elseif (file_exists($path3))
+		{
+			@unlink($path3);
 		}
 		
 		// Delete from erp_product_images table (unified table)
@@ -5447,28 +5554,19 @@ class Products extends Vendor_base
 			}
 			elseif ($category == 'notebook')
 			{
-				// Notebooks don't have board/grade relationships, so only show them if no filtering is applied
-				if (empty($board_id) && empty($grade_id))
-				{
-					// Get all notebooks with is_set = 1 (no type filtering, but include type names for display)
-					$this->db->select('n.id, n.product_name, n.sku, n.isbn, n.packaging_weight, n.selling_price, p.name as publisher_name, ni.image_path as main_image, GROUP_CONCAT(DISTINCT tt.name ORDER BY tt.name SEPARATOR ", ") as type_names');
-					$this->db->from('erp_notebooks n');
-					$this->db->join('erp_textbook_publishers p', 'p.id = n.brand_id', 'left');
-					$this->db->join('erp_notebook_images ni', 'ni.notebook_id = n.id AND ni.is_main = 1', 'left');
-					$this->db->join('erp_notebook_type_mapping ntm', 'ntm.notebook_id = n.id', 'left');
-					$this->db->join('erp_textbook_types tt', 'tt.id = ntm.type_id', 'left');
-					$this->db->where('n.vendor_id', $this->current_vendor['id']);
-					$this->db->where('n.is_set', 1);
-					$this->db->where('n.status', 'active');
-					$this->db->group_by('n.id');
-					$this->db->order_by('n.product_name', 'ASC');
-					$notebooks = $this->db->get()->result_array();
-				}
-				else
-				{
-					// No notebooks match board/grade criteria
-					$notebooks = array();
-				}
+				// Notebooks don't have board/grade relationships, so show all notebooks
+				$this->db->select('n.id, n.product_name, n.sku, n.isbn, n.packaging_weight, n.selling_price, p.name as publisher_name, ni.image_path as main_image, GROUP_CONCAT(DISTINCT tt.name ORDER BY tt.name SEPARATOR ", ") as type_names');
+				$this->db->from('erp_notebooks n');
+				$this->db->join('erp_textbook_publishers p', 'p.id = n.brand_id', 'left');
+				$this->db->join('erp_notebook_images ni', 'ni.notebook_id = n.id AND ni.is_main = 1', 'left');
+				$this->db->join('erp_notebook_type_mapping ntm', 'ntm.notebook_id = n.id', 'left');
+				$this->db->join('erp_textbook_types tt', 'tt.id = ntm.type_id', 'left');
+				$this->db->where('n.vendor_id', $this->current_vendor['id']);
+				$this->db->where('n.is_set', 1);
+				$this->db->where('n.status', 'active');
+				$this->db->group_by('n.id');
+				$this->db->order_by('n.product_name', 'ASC');
+				$notebooks = $this->db->get()->result_array();
 				
 				foreach ($notebooks as $notebook)
 				{
@@ -5502,26 +5600,17 @@ class Products extends Vendor_base
 			}
 			elseif ($category == 'stationery')
 			{
-				// Stationery doesn't have board/grade relationships, so only show them if no filtering is applied
-				if (empty($board_id) && empty($grade_id))
-				{
-					// Get all stationery products with is_set = 1
-					$this->db->select('s.id, s.product_name, s.sku, s.isbn, s.packaging_weight, s.selling_price, si.image_path as main_image, c.name as category_name');
-					$this->db->from('erp_stationery s');
-					$this->db->join('erp_stationery_images si', 'si.stationery_id = s.id AND si.is_main = 1', 'left');
-					$this->db->join('erp_stationery_categories c', 'c.id = s.category_id', 'left');
-					$this->db->where('s.vendor_id', $this->current_vendor['id']);
-					$this->db->where('s.is_set', 1);
-					$this->db->where('s.status', 'active');
-					$this->db->group_by('s.id');
-					$this->db->order_by('s.product_name', 'ASC');
-					$stationery_products = $this->db->get()->result_array();
-				}
-				else
-				{
-					// No stationery matches board/grade criteria
-					$stationery_products = array();
-				}
+				// Stationery doesn't have board/grade relationships, so show all stationery products
+				$this->db->select('s.id, s.product_name, s.sku, s.isbn, s.packaging_weight, s.selling_price, si.image_path as main_image, c.name as category_name');
+				$this->db->from('erp_stationery s');
+				$this->db->join('erp_stationery_images si', 'si.stationery_id = s.id AND si.is_main = 1', 'left');
+				$this->db->join('erp_stationery_categories c', 'c.id = s.category_id', 'left');
+				$this->db->where('s.vendor_id', $this->current_vendor['id']);
+				$this->db->where('s.is_set', 1);
+				$this->db->where('s.status', 'active');
+				$this->db->group_by('s.id');
+				$this->db->order_by('s.product_name', 'ASC');
+				$stationery_products = $this->db->get()->result_array();
 				
 				foreach ($stationery_products as $stationery)
 				{
@@ -6145,10 +6234,13 @@ class Products extends Vendor_base
 	 */
 	public function bookset_package_delete($package_id = NULL)
 	{
+		$this->load->helper('common');
+		$vendor_domain = $this->getVendorDomainForUrl();
+
 		if (!$package_id)
 		{
 			$this->session->set_flashdata('error', 'Invalid package ID.');
-			redirect(base_url('products/bookset?tab=with_product'));
+			redirect(vendor_base_url('products/bookset?tab=without_product', $vendor_domain));
 			return;
 		}
 		
@@ -6160,7 +6252,7 @@ class Products extends Vendor_base
 		if (!$package)
 		{
 			$this->session->set_flashdata('error', 'Package not found.');
-			redirect(base_url('products/bookset?tab=with_product'));
+			redirect(vendor_base_url('products/bookset?tab=without_product', $vendor_domain));
 			return;
 		}
 		
@@ -6187,7 +6279,8 @@ class Products extends Vendor_base
 			$this->session->set_flashdata('success', 'Bookset package deleted successfully.');
 		}
 		
-		redirect(base_url('products/bookset?tab=with_product'));
+		$tab = (isset($package['with_product']) && $package['with_product'] == 1) ? 'with_product' : 'without_product';
+		redirect(vendor_base_url('products/bookset?tab=' . $tab, $vendor_domain));
 	}
 	
 	/**
@@ -6632,10 +6725,13 @@ class Products extends Vendor_base
 	 */
 	public function bookset_delete($bookset_id = NULL)
 	{
+		$this->load->helper('common');
+		$vendor_domain = $this->getVendorDomainForUrl();
+
 		if (!$bookset_id)
 		{
 			$this->session->set_flashdata('error', 'Invalid bookset ID.');
-			redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=with_product'));
+			redirect(vendor_base_url('products/bookset?tab=with_product', $vendor_domain));
 			return;
 		}
 		
@@ -6647,7 +6743,7 @@ class Products extends Vendor_base
 		if (!$bookset)
 		{
 			$this->session->set_flashdata('error', 'Bookset not found.');
-			redirect(base_url($this->config->item('base_url') . '/products/bookset?tab=with_product'));
+			redirect(vendor_base_url('products/bookset?tab=with_product', $vendor_domain));
 			return;
 		}
 		
@@ -6687,7 +6783,8 @@ class Products extends Vendor_base
 			$this->session->set_flashdata('success', 'Bookset deleted successfully.');
 		}
 		
-		redirect(base_url('products/bookset?tab=with_product'));
+		$tab = (isset($bookset['has_products']) && $bookset['has_products'] == 1) ? 'with_product' : 'without_product';
+		redirect(vendor_base_url('products/bookset?tab=' . $tab, $vendor_domain));
 	}
 	
 	/**
@@ -7028,16 +7125,46 @@ class Products extends Vendor_base
 			show_404();
 		}
 		
-		// Delete images
+		// Load config for image upload paths
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('notebook_upload');
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
+		
+		// Start transaction
+		$this->db->trans_start();
+		
+		// Get and delete images physically
 		$this->db->where('notebook_id', $id);
 		$images = $this->db->get('erp_notebook_images')->result_array();
 		foreach ($images as $image)
 		{
-			$image_path = FCPATH . 'assets/uploads/' . $image['image_path'];
-			if (file_exists($image_path))
+			// Try multiple paths to ensure physical file is deleted
+			$base_root = isset($uploadCfg['base_root']) ? rtrim($uploadCfg['base_root'], '/') : '/www/webwork';
+			$path1 = $base_root . '/' . $vendor_folder . '/' . $image['image_path'];
+			$path2 = rtrim(FCPATH, '/') . '/' . $vendor_folder . '/' . $image['image_path'];
+			$path3 = rtrim(FCPATH, '/') . '/' . $image['image_path'];
+			
+			if (file_exists($path1))
 			{
-				@unlink($image_path);
+				@unlink($path1);
 			}
+			elseif (file_exists($path2))
+			{
+				@unlink($path2);
+			}
+			elseif (file_exists($path3))
+			{
+				@unlink($path3);
+			}
+		}
+		
+		// Delete images from erp_product_images (unified table)
+		foreach ($images as $image)
+		{
+			$this->db->where('legacy_table', 'erp_notebook_images');
+			$this->db->where('legacy_id', $image['id']);
+			$this->db->delete('erp_product_images');
 		}
 		
 		// Delete type mappings
@@ -7051,17 +7178,26 @@ class Products extends Vendor_base
 			$this->Product_model->delete_product($product['id']);
 		}
 		
-		// Delete images
+		// Delete images from database
 		$this->db->where('notebook_id', $id);
 		$this->db->delete('erp_notebook_images');
 		
-		// Delete notebook
+		// Delete notebook from database
 		$this->db->where('id', $id);
 		$this->db->where('vendor_id', $this->current_vendor['id']);
 		$this->db->delete('erp_notebooks');
 		
-		$this->session->set_flashdata('success', 'Notebook deleted successfully.');
-		$this->load->helper('common');
+		$this->db->trans_complete();
+		
+		if ($this->db->trans_status() === FALSE)
+		{
+			$this->session->set_flashdata('error', 'Failed to delete notebook. Please try again.');
+		}
+		else
+		{
+			$this->session->set_flashdata('success', 'Notebook deleted successfully.');
+		}
+		
 		$vendor_domain = $this->getVendorDomainForUrl();
 		redirect(vendor_base_url('products/notebooks', $vendor_domain));
 	}
@@ -7416,10 +7552,27 @@ class Products extends Vendor_base
 		}
 		
 		// Delete physical file
-		$image_path = FCPATH . 'assets/uploads/' . $image['image_path'];
-		if (file_exists($image_path))
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('notebook_upload');
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
+		
+		$base_root = isset($uploadCfg['base_root']) ? rtrim($uploadCfg['base_root'], '/') : '/www/webwork';
+		$path1 = $base_root . '/' . $vendor_folder . '/' . $image['image_path'];
+		$path2 = rtrim(FCPATH, '/') . '/' . $vendor_folder . '/' . $image['image_path'];
+		$path3 = rtrim(FCPATH, '/') . '/' . $image['image_path'];
+		
+		if (file_exists($path1))
 		{
-			@unlink($image_path);
+			@unlink($path1);
+		}
+		elseif (file_exists($path2))
+		{
+			@unlink($path2);
+		}
+		elseif (file_exists($path3))
+		{
+			@unlink($path3);
 		}
 		
 		// Delete from erp_product_images table (unified table)

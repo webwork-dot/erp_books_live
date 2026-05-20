@@ -261,6 +261,7 @@
 						<div class="mb-3">
 							<label class="form-label">MRP <span class="text-danger">*</span></label>
 							<input type="number" name="mrp" id="mrp" class="form-control" form="notebook-form" value="<?php echo set_value('mrp', isset($notebook) ? $notebook['mrp'] : ''); ?>" step="0.01" min="0" required>
+							<small class="text-danger" id="mrp_error" style="display:none;">MRP cannot be less than Selling Price</small>
 							<?php echo form_error('mrp', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
@@ -268,6 +269,7 @@
 						<div class="mb-3">
 							<label class="form-label">Selling Price <span class="text-danger">*</span></label>
 							<input type="number" name="selling_price" id="selling_price" class="form-control" form="notebook-form" value="<?php echo set_value('selling_price', isset($notebook) ? $notebook['selling_price'] : ''); ?>" step="0.01" min="0" required>
+							<small class="text-danger" id="selling_price_error" style="display:none;">Selling Price cannot be greater than MRP</small>
 							<?php echo form_error('selling_price', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
@@ -346,7 +348,7 @@
 <div class="border-top my-3 pt-3">
 	<div class="d-flex align-items-center justify-content-end gap-2">
 		<a href="<?php echo base_url('products/notebooks'); ?>" class="btn btn-outline">Cancel</a>
-		<button type="submit" form="notebook-form" class="btn btn-primary">Update Notebook</button>
+		<button type="submit" form="notebook-form" class="btn btn-primary" onclick="return validatePrice();">Update Notebook</button>
 	</div>
 </div>
 <?php echo form_close(); ?>
@@ -793,12 +795,55 @@ function deleteImage(imageId) {
 				preview.innerHTML = '<p class="text-muted">No images</p>';
 			}
 		} else {
-			alert(data.message || 'Failed to delete image');
+			toastr.error(data.message || 'Failed to delete image', 'Error');
 		}
 	})
 	.catch(error => {
 		console.error('Error:', error);
-		alert('An error occurred');
+		toastr.error('An error occurred while deleting the image.', 'Error');
 	});
 }
+
+// Price validation function
+function validatePrice() {
+	var mrp = parseFloat(document.getElementById('mrp').value) || 0;
+	var sellingPrice = parseFloat(document.getElementById('selling_price').value) || 0;
+	var mrpError = document.getElementById('mrp_error');
+	var sellingPriceError = document.getElementById('selling_price_error');
+	var mrpInput = document.getElementById('mrp');
+	var sellingPriceInput = document.getElementById('selling_price');
+	
+	// Hide errors initially
+	if (mrpError) mrpError.style.display = 'none';
+	if (sellingPriceError) sellingPriceError.style.display = 'none';
+	if (mrpInput) mrpInput.classList.remove('is-invalid');
+	if (sellingPriceInput) sellingPriceInput.classList.remove('is-invalid');
+	
+	// Validate only if both values are entered
+	if (mrp > 0 && sellingPrice > 0) {
+		if (sellingPrice > mrp) {
+			if (mrpError) mrpError.style.display = 'block';
+			if (sellingPriceError) sellingPriceError.style.display = 'block';
+			if (mrpInput) mrpInput.classList.add('is-invalid');
+			if (sellingPriceInput) sellingPriceInput.classList.add('is-invalid');
+			toastr.error('Selling Price cannot be greater than MRP.', 'Price Validation');
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+// Real-time price validation on input
+document.addEventListener('DOMContentLoaded', function() {
+	var mrpInput = document.getElementById('mrp');
+	var sellingPriceInput = document.getElementById('selling_price');
+	
+	if (mrpInput && sellingPriceInput) {
+		mrpInput.addEventListener('input', validatePrice);
+		mrpInput.addEventListener('blur', validatePrice);
+		sellingPriceInput.addEventListener('input', validatePrice);
+		sellingPriceInput.addEventListener('blur', validatePrice);
+	}
+});
 </script>
