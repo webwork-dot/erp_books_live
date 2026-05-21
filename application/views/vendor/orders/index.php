@@ -597,14 +597,26 @@
                                        ?>
                                     </td>
                                     <td>
-                                       <?php
-                                       if (!empty($item['awb_no'])) {
-                                          echo '<code>' . htmlspecialchars($item['awb_no']) . '</code>';
-                                       } else {
-                                          echo '<span class="text-muted">-</span>';
-                                       }
-                                       ?>
-                                    </td>
+                                        <?php
+                                        if (!empty($item['awb_no'])) {
+                                           echo '<code>' . htmlspecialchars($item['awb_no']) . '</code>';
+                                        } else {
+                                           echo '<span class="text-muted">-</span>';
+                                        }
+
+                                        // If self-delivery ('manual') AND courier is assigned (erp_courier_id is not empty)
+                                        if ($courier_type === 'manual' && !empty($item['erp_courier_id']) && $order_status !== 'delivered' && $item['status'] != '4'): 
+                                        ?>
+                                           <button type="button" class="btn btn-xs btn-outline-secondary ms-1 py-0 px-1 btn-edit-awb" 
+                                                   data-order-unique-id="<?php echo htmlspecialchars($item['order_unique_id']); ?>" 
+                                                   data-courier-id="<?php echo htmlspecialchars($item['erp_courier_id']); ?>"
+                                                   data-awb="<?php echo htmlspecialchars($item['awb_no'] ?? ''); ?>"
+                                                   title="<?php echo !empty($item['awb_no']) ? 'Edit AWB' : 'Add AWB'; ?>"
+                                                   style="padding: 1px 4px; font-size: 10px;">
+                                              <i class="fa fa-pencil"></i>
+                                           </button>
+                                        <?php endif; ?>
+                                     </td>
                                     <td><?php echo $item['invoice_no']; ?></td>
 
                                     <td nowrap="">
@@ -1238,6 +1250,87 @@ $(document).ready(function(){
         $("#btn_bulk_download_labels").prop('disabled', !enable);
         $("#btn_bulk_print_labels").prop('disabled', !enable);
     }
+
+    /* =========================================
+       DIRECT AWB EDITING (SELF DELIVERY)
+    ========================================= */
+    $(document).on('click', '.btn-edit-awb', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var orderUniqueId = $btn.data('order-unique-id');
+        var courierId = $btn.data('courier-id');
+        var existingAwb = $btn.data('awb') || '';
+
+        Swal.fire({
+            title: 'Update AWB Number',
+            input: 'text',
+            inputLabel: 'AWB / Tracking Number:',
+            inputValue: existingAwb,
+            placeholder: 'e.g. 123456789012',
+            showCancelButton: true,
+            confirmButtonText: 'Save',
+            cancelButtonText: 'Cancel',
+            customClass: {
+                confirmButton: 'btn btn-primary me-2',
+                cancelButton: 'btn btn-outline-secondary'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                var awbNo = result.value.trim();
+                
+                Swal.fire({
+                    title: 'Saving...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                $.ajax({
+                    url: '<?php echo base_url("orders/save_order_courier_awb"); ?>',
+                    type: 'POST',
+                    data: {
+                        order_unique_id: orderUniqueId,
+                        erp_courier_id: courierId,
+                        awb_no: awbNo,
+                        '<?php echo $this->security->get_csrf_token_name(); ?>': '<?php echo $this->security->get_csrf_hash(); ?>'
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status == '200') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Saved!',
+                                text: 'AWB number updated successfully.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Failed',
+                                text: response.message || 'Failed to save AWB.',
+                                customClass: { confirmButton: 'btn btn-primary' },
+                                buttonsStyling: false
+                            });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Request failed. Please try again.',
+                            customClass: { confirmButton: 'btn btn-primary' },
+                            buttonsStyling: false
+                        });
+                    }
+                });
+            }
+        });
+    });
 
 
     /* =========================================

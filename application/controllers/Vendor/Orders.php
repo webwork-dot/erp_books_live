@@ -1897,7 +1897,7 @@ class Orders extends Vendor_base
 				return;
 			}
 
-			if (empty($order->awb_no)) {
+			if ($order->courier !== 'manual' && empty($order->awb_no)) {
 				echo json_encode([
 					'status' => '400',
 					'message' => "Order No {$order->order_unique_id} must have an AWB number before marking ready to ship.",
@@ -3467,7 +3467,7 @@ class Orders extends Vendor_base
 			return;
 		}
 
-		if (empty($order_data->awb_no)) {
+		if ($order_data->courier !== 'manual' && empty($order_data->awb_no)) {
 			echo json_encode([
 				'status' => '400',
 				'message' => 'AWB number must be generated before marking order ready to ship.',

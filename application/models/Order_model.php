@@ -915,6 +915,7 @@ class Order_model extends CI_Model
 					"awb_no"          => $awb_no,
 					"courier_name"    => $courier_name,
 					"third_party_provider" => $third_party_provider,
+					"erp_courier_id"  => isset($item['erp_courier_id']) ? $item['erp_courier_id'] : null,
 				);
 			}
 		}
@@ -1027,7 +1028,7 @@ class Order_model extends CI_Model
 		$order_ids = array_map('intval', $order_ids);
 		$ids_str = implode(',', $order_ids);
 
-		$cols = 'd.id, d.checkout_type, d.payment_method, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.order_type, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.is_deliver_at_school';
+		$cols = 'd.id, d.checkout_type, d.payment_method, d.processing_date, d.shipment_date, d.delivery_date, d.return_date, d.order_type, d.order_unique_id, d.user_name, d.user_phone, d.order_status, d.payment_status, d.order_date, d.invoice_no, d.invoice_url, d.is_deliver_at_school, d.courier';
 		if ($this->db->field_exists('ship_order_id', 'tbl_order_details')) {
 			$cols .= ', d.ship_order_id';
 		}
@@ -1149,6 +1150,8 @@ class Order_model extends CI_Model
 				'ship_order_id' => isset($item['ship_order_id']) ? $item['ship_order_id'] : '',
 				'awb_no' => isset($item['awb_no']) ? $item['awb_no'] : '',
 				'courier_name' => $courier_name,
+				'courier' => isset($item['courier']) ? $item['courier'] : '',
+				'erp_courier_id' => isset($item['erp_courier_id']) ? $item['erp_courier_id'] : null,
 			);
 		}
 		return $resultdata;
