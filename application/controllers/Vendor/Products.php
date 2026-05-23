@@ -763,7 +763,7 @@ class Products extends Vendor_base
 					'product_name' => (string)$u['product_name'],
 					'image_path' => !empty($u['image_path']) ? (string)$u['image_path'] : '',
 					'uniform_type_name' => !empty($u['uniform_type_name']) ? (string)$u['uniform_type_name'] : '-',
-					'gender' => !empty($u['gender']) ? ucfirst((string)$u['gender']) : '-',
+					'gender' => !empty($u['gender']) ? implode(', ', array_map('ucfirst', explode(',', (string)$u['gender']))) : '-',
 					'school_name' => !empty($u['school_name']) ? (string)$u['school_name'] : '-',
 					'branch_name' => !empty($u['branch_name']) ? (string)$u['branch_name'] : '',
 					'board_name' => !empty($u['board_name']) ? (string)$u['board_name'] : '-',

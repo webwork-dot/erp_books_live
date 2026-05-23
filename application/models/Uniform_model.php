@@ -85,9 +85,11 @@ class Uniform_model extends CI_Model
 			$this->db->where('erp_uniforms.material_id', $filters['material_id']);
 		}
 		
-		if (isset($filters['gender']))
+		if (isset($filters['gender']) && !empty($filters['gender']))
 		{
-			$this->db->where('erp_uniforms.gender', $filters['gender']);
+			$this->db->group_start();
+			$this->db->where("FIND_IN_SET('".$this->db->escape_str($filters['gender'])."', erp_uniforms.gender) >", 0);
+			$this->db->group_end();
 		}
 		
 		if (isset($filters['branch_id']))
@@ -152,9 +154,11 @@ class Uniform_model extends CI_Model
 			$this->db->where('material_id', $filters['material_id']);
 		}
 		
-		if (isset($filters['gender']))
+		if (isset($filters['gender']) && !empty($filters['gender']))
 		{
-			$this->db->where('gender', $filters['gender']);
+			$this->db->group_start();
+			$this->db->where("FIND_IN_SET('".$this->db->escape_str($filters['gender'])."', gender) >", 0);
+			$this->db->group_end();
 		}
 		
 		if (isset($filters['branch_id']))

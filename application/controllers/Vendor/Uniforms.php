@@ -196,7 +196,6 @@ class Uniforms extends Vendor_base
 		$this->form_validation->set_rules('uniform_type_id', 'Uniform Type', 'required|integer');
 		$this->form_validation->set_rules('school_id', 'School', 'required|integer');
 		$this->form_validation->set_rules('board_id', 'Board', 'required|integer');
-		$this->form_validation->set_rules('gender', 'Gender', 'in_list[male,female,unisex]');
 		$this->form_validation->set_rules('product_name', 'Product Name', 'required|trim');
 		$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
 		$this->form_validation->set_rules('material_id', 'Material', 'integer');
@@ -242,7 +241,7 @@ class Uniforms extends Vendor_base
 				'school_id' => $this->input->post('school_id'),
 				'branch_id' => $this->input->post('branch_id') ? (int) $this->input->post('branch_id') : NULL,
 				'board_id' => $this->input->post('board_id'),
-				'gender' => $this->input->post('gender'),
+				'gender' => $this->input->post('gender') ? implode(',', array_intersect($this->input->post('gender'), ['male', 'female', 'unisex'])) : NULL,
 				'color' => $this->input->post('color'),
 				'product_name' => $this->input->post('product_name'),
 				'isbn' => $this->input->post('isbn'),
@@ -325,7 +324,6 @@ class Uniforms extends Vendor_base
 		$this->form_validation->set_rules('uniform_type_id', 'Uniform Type', 'required|integer');
 		$this->form_validation->set_rules('school_id', 'School', 'required|integer');
 		$this->form_validation->set_rules('board_id', 'Board', 'required|integer');
-		$this->form_validation->set_rules('gender', 'Gender', 'in_list[male,female,unisex]');
 		$this->form_validation->set_rules('product_name', 'Product Name', 'required|trim');
 		$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
 		$this->form_validation->set_rules('material_id', 'Material', 'integer');
@@ -406,7 +404,7 @@ class Uniforms extends Vendor_base
 				'school_id' => $this->input->post('school_id'),
 				'branch_id' => $this->input->post('branch_id') ? (int) $this->input->post('branch_id') : NULL,
 				'board_id' => $this->input->post('board_id'),
-				'gender' => $this->input->post('gender'),
+				'gender' => $this->input->post('gender') ? implode(',', array_intersect($this->input->post('gender'), ['male', 'female', 'unisex'])) : NULL,
 				'color' => $this->input->post('color'),
 				'product_name' => $this->input->post('product_name'),
 				'slug' => slugify($this->input->post('product_name')) . '-' . $uniform_id,

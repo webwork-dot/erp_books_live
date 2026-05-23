@@ -215,7 +215,13 @@
 								<td><?php echo htmlspecialchars($uniform['board_name'] ? $uniform['board_name'] : '-'); ?></td>
 								<td><?php echo !empty($uniform['master_size_chart_name']) ? htmlspecialchars($uniform['master_size_chart_name']) : '<span class="text-muted">—</span>'; ?></td>
 								<td>
-									<span class="badge badge-info"><?php echo ucfirst($uniform['gender']); ?></span>
+									<span class="badge badge-info">
+										<?php 
+										$genders = !empty($uniform['gender']) ? explode(',', $uniform['gender']) : array();
+										$genders = array_map('ucfirst', $genders);
+										echo !empty($genders) ? implode(', ', $genders) : '-'; 
+										?>
+									</span>
 								</td>
 								<td>
 									<?php if (!empty($uniform['size_prices'])): ?>

@@ -123,13 +123,13 @@
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<div class="mb-2">
 								<label class="form-label fs-13 mb-1">Gender</label>
-								<select name="gender" id="gender" class="form-select form-select-sm">
-									<option value="">Select Gender</option>
-									<option value="male" <?php echo (isset($uniform) && $uniform['gender'] == 'male') ? 'selected' : ''; ?>>Male</option>
-									<option value="female" <?php echo (isset($uniform) && $uniform['gender'] == 'female') ? 'selected' : ''; ?>>Female</option>
-									<option value="unisex" <?php echo (isset($uniform) && $uniform['gender'] == 'unisex') ? 'selected' : ''; ?>>Unisex</option>
+								<select name="gender[]" id="gender" class="form-select form-select-sm select2" multiple data-placeholder="Select Gender" style="width: 100%;">
+									<?php $selected_genders = (isset($uniform) && !empty($uniform['gender'])) ? explode(',', $uniform['gender']) : array(); ?>
+									<option value="male" <?php echo in_array('male', $selected_genders) ? 'selected' : ''; ?>>Male</option>
+									<option value="female" <?php echo in_array('female', $selected_genders) ? 'selected' : ''; ?>>Female</option>
+									<option value="unisex" <?php echo in_array('unisex', $selected_genders) ? 'selected' : ''; ?>>Unisex</option>
 								</select>
-								<?php echo form_error('gender', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
+								<?php echo form_error('gender[]', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 							</div>
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
@@ -1448,6 +1448,13 @@ document.addEventListener('DOMContentLoaded', function() {
 		$('.select2-color').select2({
 			theme: 'bootstrap-5',
 			placeholder: 'Select a color',
+			allowClear: true,
+			width: '100%'
+		});
+		// Initialize Select2 on gender dropdown
+		$('#gender').select2({
+			theme: 'bootstrap-5',
+			placeholder: 'Select Gender',
 			allowClear: true,
 			width: '100%'
 		});
