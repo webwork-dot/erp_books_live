@@ -271,10 +271,23 @@
 				</div>
 				
 				<!-- Size Prices Container -->
-				<div id="sizePricesContainer" class="mt-4">
+				<div id="sizePricesContainer" class="mt-4" style="display: none;">
 					<h6 class="mb-3">Size-wise Pricing</h6>
-					<div id="sizePricesList">
-						<!-- Dynamic rows will be added here -->
+					<div class="table-responsive">
+						<table class="table table-bordered table-striped align-middle fs-13">
+							<thead class="table-light">
+								<tr>
+									<th style="width: 15%;">Size</th>
+									<th style="width: 25%;">Class</th>
+									<th style="width: 25%;">MRP</th>
+									<th style="width: 25%;">Selling Price</th>
+									<th style="width: 10%;" class="text-center">Action</th>
+								</tr>
+							</thead>
+							<tbody id="sizePricesList">
+								<!-- Dynamic rows will be added here -->
+							</tbody>
+						</table>
 					</div>
 				</div>
 			</div>
@@ -734,6 +747,10 @@ document.addEventListener('DOMContentLoaded', function () {
 <script src="<?php echo base_url('assets/ckeditor/ckeditor.js'); ?>"></script>
 <script src="<?php echo base_url('assets/js/image-sortable.js'); ?>"></script>
 <script>
+// Global state for size-wise pricing
+var added_sizes = [];
+var priceValues = {};
+
 // Initialize CKEditor after page loads
 window.addEventListener('load', function() {
 	function initCKEditor() {
@@ -828,20 +845,31 @@ document.addEventListener('DOMContentLoaded', function() {
 		}
 	}
 	
+	// Global state for size-wise pricing is declared globally above
+
 	// Size Chart change handler (using jQuery for Select2)
 	$(document).ready(function() {
+		// Listen to classes change to re-render pricing groups
+		$('#class_ids').on('change select2:select select2:unselect', function() {
+			renderPricingGroups();
+		});
+
 		// Wait for Select2 to initialize
 		setTimeout(function() {
 			$('#size_chart_id').on('change', function() {
 				var sizeChartId = $(this).val();
 				console.log('Size chart changed to:', sizeChartId);
 				if (sizeChartId) {
-					// Clear stale rows when switching chart
+					// Clear stale rows and state when switching chart
+					added_sizes = [];
+					priceValues = {};
 					$('#sizePricesList').empty();
 					$('#size_id').html('<option value="">Select Size</option>').val('').trigger('change');
 					loadSizes(sizeChartId);
 				} else {
-					// Clear sizes if no chart selected
+					// Clear state if no chart selected
+					added_sizes = [];
+					priceValues = {};
 					$('#size_id').html('<option value="">Select Size</option>').trigger('change');
 					$('#sizePricesList').empty();
 				}
@@ -862,25 +890,22 @@ document.addEventListener('DOMContentLoaded', function() {
 				console.log('Size select2:select event:', sizeId, sizeName);
 				
 				if (sizeId && sizeName !== 'Select Size') {
+					// Add to state
+					if (!added_sizes.some(s => s.id == sizeId)) {
+						added_sizes.push({ id: sizeId, name: sizeName });
+					}
+
 					// Disable the selected option
 					var $option = $(this).find('option[value="' + sizeId + '"]');
 					$option.prop('disabled', true);
 					
-					addSizePriceRow(sizeId, sizeName);
+					renderPricingGroups();
 					
 					// Reset the select value
 					$(this).val('').trigger('change');
 					
 					// Force Select2 results to re-render while open
 					$(this).select2('close').select2('open');
-				}
-			});
-			
-			// Regular change handler as fallback or for other cases
-			$('#size_id').on('change', function() {
-				var sizeId = $(this).val();
-				if (sizeId && sizeId !== '') {
-					// This handles non-select2 or manual changes if needed
 				}
 			});
 		}, 500);
@@ -1241,7 +1266,7 @@ function loadSizes(sizeChartId) {
 			data.sizes.forEach(function(size) {
 				var $option = $('<option></option>').attr('value', size.id).text(size.name);
 				// Check if this size is already in the pricing list
-				if (document.querySelector('[data-size-id="' + size.id + '"]')) {
+				if (added_sizes.some(s => s.id == size.id)) {
 					$option.prop('disabled', true);
 				}
 				$sizeSelect.append($option);
@@ -1261,7 +1286,7 @@ function loadSizes(sizeChartId) {
 				if (!data.id) { return data.text; }
 				var $result = $('<span>' + data.text + '</span>');
 				// Check if this size is already in the pricing list
-				if (document.querySelector('[data-size-id="' + data.id + '"]')) {
+				if (added_sizes.some(s => s.id == data.id)) {
 					$result.css('color', '#adb5bd').css('font-style', 'italic');
 				}
 				return $result;
@@ -1277,78 +1302,196 @@ function loadSizes(sizeChartId) {
 	});
 }
 
-function addSizePriceRow(sizeId, sizeName) {
-	// Check if this size is already added
-	var existingRow = document.querySelector('[data-size-id="' + sizeId + '"]');
-	if (existingRow) {
-		alert('This size has already been added. Please remove it first if you want to change the pricing.');
+function saveCurrentValues() {
+	var mrpInputs = document.querySelectorAll('.mrp-input');
+	mrpInputs.forEach(function(input) {
+		var sizeId = input.getAttribute('data-size-id');
+		var classId = input.getAttribute('data-class-id') || '0';
+		var key = classId + '_' + sizeId;
+		if (!priceValues[key]) priceValues[key] = {};
+		priceValues[key].mrp = input.value;
+	});
+
+	var spInputs = document.querySelectorAll('.selling-price-input');
+	spInputs.forEach(function(input) {
+		var sizeId = input.getAttribute('data-size-id');
+		var classId = input.getAttribute('data-class-id') || '0';
+		var key = classId + '_' + sizeId;
+		if (!priceValues[key]) priceValues[key] = {};
+		priceValues[key].selling_price = input.value;
+	});
+}
+
+function renderPricingGroups() {
+	// 1. Save typed values first to avoid data loss
+	saveCurrentValues();
+
+	var container = document.getElementById('sizePricesContainer');
+	var tbody = document.getElementById('sizePricesList');
+	if (!container || !tbody) return;
+
+	if (added_sizes.length === 0) {
+		container.style.display = 'none';
+		tbody.innerHTML = '';
 		return;
 	}
+
+	container.style.display = 'block';
+	tbody.innerHTML = '';
+
+	// 2. Get selected classes
+	var selectedClasses = [];
+	$('#class_ids option:selected').each(function() {
+		selectedClasses.push({
+			id: $(this).val(),
+			name: $(this).text().trim()
+		});
+	});
+
+	// 3. Render rows for each added size
+	added_sizes.forEach(function(size) {
+		var sizeId = size.id;
+		var sizeName = size.name;
+
+		if (selectedClasses.length === 0) {
+			// Render a single general pricing row (class_id = 0)
+			var key = '0_' + sizeId;
+			var mrpVal = priceValues[key]?.mrp || '';
+			var spVal = priceValues[key]?.selling_price || '';
+
+			var tr = document.createElement('tr');
+			tr.innerHTML = `
+				<td class="align-middle fw-semibold">${sizeName}</td>
+				<td class="align-middle text-muted fs-12">General (All Classes)</td>
+				<td>
+					<div class="input-group input-group-sm">
+						<span class="input-group-text">₹</span>
+						<input type="hidden" name="size_prices[0][${sizeId}][class_id]" value="0" form="uniform-form">
+						<input type="hidden" name="size_prices[0][${sizeId}][size_id]" value="${sizeId}" form="uniform-form">
+						<input type="number" name="size_prices[0][${sizeId}][mrp]" id="mrp_0_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="0">
+					</div>
+					<small class="text-danger mrp-error fs-11" id="mrp_error_0_${sizeId}" style="display:none;">MRP must be >= Selling Price</small>
+				</td>
+				<td>
+					<div class="input-group input-group-sm">
+						<span class="input-group-text">₹</span>
+						<input type="number" name="size_prices[0][${sizeId}][selling_price]" id="selling_price_0_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="0">
+					</div>
+					<small class="text-danger selling-price-error fs-11" id="selling_price_error_0_${sizeId}" style="display:none;">Selling Price must be <= MRP</small>
+				</td>
+				<td class="text-center align-middle">
+					<button type="button" class="btn btn-outline-danger btn-sm p-1" onclick="removeSizePricing(${sizeId})" title="Remove Size">
+						<i class="isax isax-trash" style="font-size: 16px; display: inline-block; vertical-align: middle;"></i>
+					</button>
+				</td>
+			`;
+			tbody.appendChild(tr);
+		} else {
+			selectedClasses.forEach(function(cls, index) {
+				var classId = cls.id;
+				var className = cls.name;
+				var key = classId + '_' + sizeId;
+				var mrpVal = priceValues[key]?.mrp || '';
+				var spVal = priceValues[key]?.selling_price || '';
+
+				var tr = document.createElement('tr');
+				
+				var sizeTd = '';
+				var actionTd = '';
+				if (index === 0) {
+					sizeTd = `<td class="align-middle fw-semibold text-center" rowspan="${selectedClasses.length}" style="background-color: #fdfdfd;">${sizeName}</td>`;
+					actionTd = `
+						<td class="text-center align-middle" rowspan="${selectedClasses.length}" style="background-color: #fdfdfd;">
+							<button type="button" class="btn btn-outline-danger btn-sm p-1" onclick="removeSizePricing(${sizeId})" title="Remove Size">
+								<i class="isax isax-trash" style="font-size: 16px; display: inline-block; vertical-align: middle;"></i>
+							</button>
+						</td>
+					`;
+				}
+
+				tr.innerHTML = `
+					${sizeTd}
+					<td class="align-middle text-dark fw-semibold fs-12">${className}</td>
+					<td>
+						<input type="hidden" name="size_prices[${classId}][${sizeId}][class_id]" value="${classId}" form="uniform-form">
+						<input type="hidden" name="size_prices[${classId}][${sizeId}][size_id]" value="${sizeId}" form="uniform-form">
+						<div class="input-group input-group-sm">
+							<span class="input-group-text">₹</span>
+							<input type="number" name="size_prices[${classId}][${sizeId}][mrp]" id="mrp_${classId}_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="${classId}">
+						</div>
+						<small class="text-danger mrp-error fs-11" id="mrp_error_${classId}_${sizeId}" style="display:none;">MRP must be >= Selling Price</small>
+					</td>
+					<td>
+						<div class="input-group input-group-sm">
+							<span class="input-group-text">₹</span>
+							<input type="number" name="size_prices[${classId}][${sizeId}][selling_price]" id="selling_price_${classId}_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="${classId}">
+						</div>
+						<small class="text-danger selling-price-error fs-11" id="selling_price_error_${classId}_${sizeId}" style="display:none;">Selling Price must be <= MRP</small>
+					</td>
+					${actionTd}
+				`;
+				tbody.appendChild(tr);
+			});
+		}
+	});
+
+	// 4. Attach validation event listeners
+	var mrpInputs = tbody.querySelectorAll('.mrp-input');
+	var spInputs = tbody.querySelectorAll('.selling-price-input');
 	
-	var container = document.getElementById('sizePricesList');
-	var row = document.createElement('div');
-	row.className = 'row gx-3 mb-3 align-items-end';
-	row.setAttribute('data-size-id', sizeId);
-	row.innerHTML = `
-		<div class="col-lg-1 col-md-4">
-			<label class="form-label">Size</label>
-			<input type="text" class="form-control" value="${sizeName}" readonly>
-			<input type="hidden" name="size_prices[${sizeId}][size_id]" value="${sizeId}" form="uniform-form">
-		</div>
-		<div class="col-lg-5 col-md-4">
-			<label class="form-label">MRP <span class="text-danger">*</span></label>
-			<input type="number" name="size_prices[${sizeId}][mrp]" id="mrp_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" data-size-id="${sizeId}">
-			<small class="text-danger mrp-error" id="mrp_error_${sizeId}" style="display:none;">MRP must be higher than or equal to Selling Price</small>
-		</div>
-		<div class="col-lg-6 col-md-4">
-			<label class="form-label">Selling Price <span class="text-danger">*</span></label>
-			<div class="input-group">
-				<input type="number" name="size_prices[${sizeId}][selling_price]" id="selling_price_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" data-size-id="${sizeId}">
-				<button type="button" class="btn btn-outline-danger" onclick="removeSizePriceRow(this)" title="Remove" style="padding: 0.4rem 1rem;">
-					<i class="isax isax-close-circle"></i>
-				</button>
-			</div>
-			<small class="text-danger selling-price-error" id="selling_price_error_${sizeId}" style="display:none;">Selling Price must be lower than or equal to MRP</small>
-		</div>
-	`;
-	container.appendChild(row);
-	
-	// Disable the selected size in the dropdown
-	$('#size_id option[value="' + sizeId + '"]').prop('disabled', true);
+	mrpInputs.forEach(function(input) {
+		input.addEventListener('input', validatePriceRow);
+		input.addEventListener('blur', validatePriceRow);
+	});
+	spInputs.forEach(function(input) {
+		input.addEventListener('input', validatePriceRow);
+		input.addEventListener('blur', validatePriceRow);
+	});
+}
+
+function removeSizePricing(sizeId) {
+	// 1. Remove from added_sizes array
+	added_sizes = added_sizes.filter(function(size) {
+		return size.id != sizeId;
+	});
+
+	// 2. Re-enable in dropdown
+	$('#size_id option[value="' + sizeId + '"]').prop('disabled', false);
 	$('#size_id').trigger('change');
-	
-	// Add validation event listeners
-	var mrpInput = document.getElementById('mrp_' + sizeId);
-	var sellingPriceInput = document.getElementById('selling_price_' + sizeId);
-	
-	if (mrpInput && sellingPriceInput) {
-		mrpInput.addEventListener('input', validatePriceRow);
-		mrpInput.addEventListener('blur', validatePriceRow);
-		sellingPriceInput.addEventListener('input', validatePriceRow);
-		sellingPriceInput.addEventListener('blur', validatePriceRow);
-	}
+
+	// 3. Remove keys from priceValues cache
+	var keys = Object.keys(priceValues);
+	keys.forEach(function(key) {
+		if (key.endsWith('_' + sizeId)) {
+			delete priceValues[key];
+		}
+	});
+
+	// 4. Re-render
+	renderPricingGroups();
 }
 
 function validatePriceRow(e) {
 	var sizeId = e.target.getAttribute('data-size-id');
+	var classId = e.target.getAttribute('data-class-id') || '0';
 	if (!sizeId) return;
-	
-	var mrpInput = document.getElementById('mrp_' + sizeId);
-	var sellingPriceInput = document.getElementById('selling_price_' + sizeId);
-	var mrpError = document.getElementById('mrp_error_' + sizeId);
-	var sellingPriceError = document.getElementById('selling_price_error_' + sizeId);
-	
+
+	var mrpInput = document.getElementById('mrp_' + classId + '_' + sizeId);
+	var sellingPriceInput = document.getElementById('selling_price_' + classId + '_' + sizeId);
+	var mrpError = document.getElementById('mrp_error_' + classId + '_' + sizeId);
+	var sellingPriceError = document.getElementById('selling_price_error_' + classId + '_' + sizeId);
+
 	if (!mrpInput || !sellingPriceInput) return;
-	
+
 	var mrp = parseFloat(mrpInput.value) || 0;
 	var sellingPrice = parseFloat(sellingPriceInput.value) || 0;
-	
+
 	// Hide errors initially
 	if (mrpError) mrpError.style.display = 'none';
 	if (sellingPriceError) sellingPriceError.style.display = 'none';
 	mrpInput.classList.remove('is-invalid');
 	sellingPriceInput.classList.remove('is-invalid');
-	
+
 	// Validate only if both values are entered
 	if (mrp > 0 && sellingPrice > 0) {
 		if (mrp < sellingPrice) {
@@ -1359,16 +1502,17 @@ function validatePriceRow(e) {
 			return false;
 		}
 	}
-	
+
 	return true;
 }
 
 function validateAllPrices() {
 	var isValid = true;
 	var mrpInputs = document.querySelectorAll('.mrp-input');
-	
+
 	mrpInputs.forEach(function(mrpInput) {
 		var sizeId = mrpInput.getAttribute('data-size-id');
+		var classId = mrpInput.getAttribute('data-class-id') || '0';
 		if (sizeId) {
 			var event = { target: mrpInput };
 			if (!validatePriceRow(event)) {
@@ -1376,19 +1520,8 @@ function validateAllPrices() {
 			}
 		}
 	});
-	
-	return isValid;
-}
 
-function removeSizePriceRow(button) {
-	var row = button.closest('.row');
-	if (row) {
-		var sizeId = row.getAttribute('data-size-id');
-		// Re-enable the size in the dropdown
-		$('#size_id option[value="' + sizeId + '"]').prop('disabled', false);
-		$('#size_id').trigger('change');
-		row.remove();
-	}
+	return isValid;
 }
 
 function refreshSizeChartsView() {

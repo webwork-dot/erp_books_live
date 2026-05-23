@@ -507,10 +507,12 @@ class Uniform_model extends CI_Model
 	 */
 	public function getUniformSizePrices($uniform_id)
 	{
-		$this->db->select('erp_uniform_size_prices.*, erp_sizes.name as size_name');
+		$this->db->select('erp_uniform_size_prices.*, erp_sizes.name as size_name, classes.class_name as class_name');
 		$this->db->from('erp_uniform_size_prices');
 		$this->db->join('erp_sizes', 'erp_sizes.id = erp_uniform_size_prices.size_id', 'left');
+		$this->db->join('classes', 'classes.id = erp_uniform_size_prices.class_id', 'left');
 		$this->db->where('erp_uniform_size_prices.uniform_id', $uniform_id);
+		$this->db->order_by('classes.id', 'ASC');
 		$this->db->order_by('erp_sizes.display_order', 'ASC');
 		$this->db->order_by('erp_sizes.name', 'ASC');
 		$query = $this->db->get();
@@ -534,64 +536,78 @@ class Uniform_model extends CI_Model
 
 		$uniform_id = (int) $uniform_id;
 
-		// Build normalized rows keyed by size_id (ignore invalid)
+		// Build normalized rows
 		$normalized = array();
-		foreach ($size_prices as $key => $price_data) {
-			if (!is_array($price_data)) {
+		foreach ($size_prices as $class_id => $sizes_arr) {
+			if (!is_array($sizes_arr)) {
 				continue;
 			}
+			foreach ($sizes_arr as $size_id => $price_data) {
+				if (!is_array($price_data)) {
+					continue;
+				}
+				$class_id = (int)$class_id;
+				$size_id = (int)$size_id;
+				if ($size_id <= 0) {
+					continue;
+				}
 
-			$size_id = isset($price_data['size_id']) ? (int) $price_data['size_id'] : (int) $key;
-			if ($size_id <= 0) {
-				continue;
+				// Allow empty strings but coerce to numeric
+				$mrp = isset($price_data['mrp']) && $price_data['mrp'] !== '' ? (float) $price_data['mrp'] : NULL;
+				$selling_price = isset($price_data['selling_price']) && $price_data['selling_price'] !== '' ? (float) $price_data['selling_price'] : NULL;
+
+				// Skip rows without both prices
+				if ($mrp === NULL || $selling_price === NULL) {
+					continue;
+				}
+
+				$key = $class_id . '_' . $size_id;
+				$normalized[$key] = array(
+					'uniform_id' => $uniform_id,
+					'class_id' => $class_id,
+					'size_id' => $size_id,
+					'mrp' => (float) $mrp,
+					'selling_price' => (float) $selling_price
+				);
 			}
-
-			// Allow empty strings but coerce to numeric
-			$mrp = isset($price_data['mrp']) ? (float) $price_data['mrp'] : NULL;
-			$selling_price = isset($price_data['selling_price']) ? (float) $price_data['selling_price'] : NULL;
-
-			// Skip rows without both prices
-			if ($mrp === NULL || $selling_price === NULL) {
-				continue;
-			}
-
-			$normalized[$size_id] = array(
-				'uniform_id' => $uniform_id,
-				'size_id' => $size_id,
-				'mrp' => (float) $mrp,
-				'selling_price' => (float) $selling_price
-			);
 		}
-
-		$keep_size_ids = array_keys($normalized);
 
 		$this->db->trans_begin();
 
-		// Remove stale rows for this uniform (sizes removed or chart changed)
-		$this->db->where('uniform_id', $uniform_id);
-		if (!empty($keep_size_ids)) {
-			$this->db->where_not_in('size_id', $keep_size_ids);
+		// Remove stale rows for this uniform (sizes removed, classes removed, or chart changed)
+		if (empty($normalized)) {
+			$this->db->where('uniform_id', $uniform_id);
+			$this->db->delete('erp_uniform_size_prices');
+		} else {
+			$this->db->where('uniform_id', $uniform_id);
+			$where_parts = array();
+			foreach ($normalized as $row) {
+				$where_parts[] = '(' . $this->db->escape($row['class_id']) . ',' . $this->db->escape($row['size_id']) . ')';
+			}
+			if (!empty($where_parts)) {
+				$this->db->where('(class_id, size_id) NOT IN (' . implode(',', $where_parts) . ')', NULL, FALSE);
+			}
+			$this->db->delete('erp_uniform_size_prices');
 		}
-		$this->db->delete('erp_uniform_size_prices');
 
-		if (!empty($keep_size_ids)) {
+		if (!empty($normalized)) {
 			// Load existing rows for upsert
 			$existing_rows = $this->db
-				->select('id, size_id')
+				->select('id, class_id, size_id')
 				->from('erp_uniform_size_prices')
 				->where('uniform_id', $uniform_id)
-				->where_in('size_id', $keep_size_ids)
 				->get()
 				->result_array();
 
 			$existing_map = array();
 			foreach ($existing_rows as $row) {
-				$existing_map[(int) $row['size_id']] = (int) $row['id'];
+				$key = (int)$row['class_id'] . '_' . (int)$row['size_id'];
+				$existing_map[$key] = (int) $row['id'];
 			}
 
-			foreach ($normalized as $size_id => $row) {
-				if (isset($existing_map[$size_id])) {
-					$this->db->where('id', $existing_map[$size_id]);
+			foreach ($normalized as $key => $row) {
+				if (isset($existing_map[$key])) {
+					$this->db->where('id', $existing_map[$key]);
 					$this->db->update('erp_uniform_size_prices', array(
 						'mrp' => $row['mrp'],
 						'selling_price' => $row['selling_price']
@@ -605,10 +621,10 @@ class Uniform_model extends CI_Model
 		if ($this->db->trans_status() === FALSE) {
 			$this->db->trans_rollback();
 			return FALSE;
+		} else {
+			$this->db->trans_commit();
+			return TRUE;
 		}
-
-		$this->db->trans_commit();
-		return TRUE;
 	}
 	
 	/**

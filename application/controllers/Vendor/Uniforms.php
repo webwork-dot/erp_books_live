@@ -290,9 +290,44 @@ class Uniforms extends Vendor_base
 
 				// Save size prices if provided
 				$size_prices = $this->input->post('size_prices');
-				if (!empty($size_prices) && is_array($size_prices)) {
-					$this->Uniform_model->saveUniformSizePrices($uniform_id, $size_prices);
+				if (!is_array($size_prices)) {
+					$size_prices = array();
 				}
+
+				// Filter posted size_prices to only sizes belonging to selected size chart
+				$selected_chart_id = $uniform_data['size_chart_id'];
+				if (!empty($selected_chart_id)) {
+					$allowed_sizes = $this->Uniform_model->getSizesBySizeChart($selected_chart_id);
+					$allowed_size_ids = array();
+					foreach ($allowed_sizes as $s) {
+						if (isset($s['id'])) {
+							$allowed_size_ids[(int) $s['id']] = true;
+						}
+					}
+
+					$filtered = array();
+					foreach ($size_prices as $class_id => $sizes_arr) {
+						if (!is_array($sizes_arr)) {
+							continue;
+						}
+						foreach ($sizes_arr as $size_id => $row) {
+							if (!is_array($row)) {
+								continue;
+							}
+							$size_id = isset($row['size_id']) ? (int) $row['size_id'] : (int) $size_id;
+							$class_id_val = isset($row['class_id']) ? (int) $row['class_id'] : (int) $class_id;
+							if ($size_id > 0 && isset($allowed_size_ids[$size_id])) {
+								$filtered[$class_id_val][$size_id] = $row;
+							}
+						}
+					}
+					$size_prices = $filtered;
+				} else {
+					// No chart selected: do not persist size-wise prices
+					$size_prices = array();
+				}
+
+				$this->Uniform_model->saveUniformSizePrices($uniform_id, $size_prices);
 
 				$this->session->set_flashdata('success', 'Uniform created successfully.');
 				$this->load->helper('common');
@@ -474,13 +509,19 @@ class Uniforms extends Vendor_base
 				}
 
 				$filtered = array();
-				foreach ($size_prices as $k => $row) {
-					if (!is_array($row)) {
+				foreach ($size_prices as $class_id => $sizes_arr) {
+					if (!is_array($sizes_arr)) {
 						continue;
 					}
-					$size_id = isset($row['size_id']) ? (int) $row['size_id'] : (int) $k;
-					if ($size_id > 0 && isset($allowed_size_ids[$size_id])) {
-						$filtered[$size_id] = $row;
+					foreach ($sizes_arr as $size_id => $row) {
+						if (!is_array($row)) {
+							continue;
+						}
+						$size_id = isset($row['size_id']) ? (int) $row['size_id'] : (int) $size_id;
+						$class_id_val = isset($row['class_id']) ? (int) $row['class_id'] : (int) $class_id;
+						if ($size_id > 0 && isset($allowed_size_ids[$size_id])) {
+							$filtered[$class_id_val][$size_id] = $row;
+						}
 					}
 				}
 				$size_prices = $filtered;
