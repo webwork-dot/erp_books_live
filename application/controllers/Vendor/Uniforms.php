@@ -850,6 +850,30 @@ class Uniforms extends Vendor_base
 		}
 	}
 
+	public function edit_class()
+	{
+		$this->load->model('Class_model');
+		header('Content-Type: application/json');
+
+		$id = $this->input->post('id');
+		$name = $this->input->post('name');
+
+		if (empty($id) || empty($name)) {
+			echo json_encode(array('status' => 'error', 'message' => 'Class ID and Name are required'));
+			return;
+		}
+
+		$data = array(
+			'class_name' => $name
+		);
+
+		if ($this->Class_model->updateClass($id, $data)) {
+			echo json_encode(array('status' => 'success', 'id' => $id, 'name' => $name));
+		} else {
+			echo json_encode(array('status' => 'error', 'message' => 'Failed to update class'));
+		}
+	}
+
 	/**
 	 * Add uniform type (AJAX)
 	 *

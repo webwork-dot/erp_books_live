@@ -272,7 +272,12 @@
 				
 				<!-- Size Prices Container -->
 				<div id="sizePricesContainer" class="mt-4" style="display: none;">
-					<h6 class="mb-3">Size-wise Pricing</h6>
+					<div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+						<h6 class="mb-0">Size-wise Pricing</h6>
+						<button type="button" class="btn btn-outline-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#bulkPriceModal" style="font-size: 12px; padding: 4px 8px;">
+							<i class="isax isax-edit me-1"></i> Bulk Edit Prices
+						</button>
+					</div>
 					<div class="table-responsive">
 						<table class="table table-bordered table-striped align-middle fs-13">
 							<thead class="table-light">
@@ -553,23 +558,35 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 
 <!-- Add Class Modal -->
 <div class="modal fade" id="addClassModal" tabindex="-1" aria-labelledby="addClassModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-dialog-scrollable">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title" id="addClassModalLabel">Add Class</h5>
+				<h5 class="modal-title" id="addClassModalLabel">Add / Edit Classes</h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
-				<form id="addClassForm">
-					<div class="mb-3">
-						<label class="form-label">Class Name <span class="text-danger">*</span></label>
-						<input type="text" name="name" id="new_class_name" class="form-control" placeholder="e.g. Class 1, 2nd Grade" required>
+				<!-- Section 1: Add New Class -->
+				<form id="addClassForm" class="mb-4">
+					<label class="form-label fw-semibold fs-13 mb-1">Add New Class</label>
+					<div class="d-flex gap-2">
+						<input type="text" name="name" id="new_class_name" class="form-control form-control-sm"
+							placeholder="e.g. Class 1, 2nd Grade" required style="height: 38px;">
+						<button type="button" class="btn btn-primary btn-sm" onclick="addClass()">Add Class</button>
 					</div>
 				</form>
+
+				<hr class="my-3">
+
+				<!-- Section 2: Edit Existing Classes -->
+				<div class="existing-classes-section">
+					<label class="form-label fw-semibold fs-13 mb-2">Edit Existing Classes</label>
+					<div id="edit-classes-list" class="p-1" style="max-height: 250px; overflow-y: auto;">
+						<!-- Dynamically populated via JS -->
+					</div>
+				</div>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-				<button type="button" class="btn btn-primary" onclick="addClass()">Add Class</button>
+				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
 			</div>
 		</div>
 	</div>
@@ -682,6 +699,80 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 			<div class="modal-footer">
 				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
 				<button type="button" class="btn btn-primary" onclick="addSizeChart()">Add Size Chart</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Bulk Price Edit Modal -->
+<div class="modal fade" id="bulkPriceModal" tabindex="-1" aria-labelledby="bulkPriceModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-md">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="bulkPriceModalLabel">Bulk Edit & Add Prices</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<form id="bulkPriceForm">
+					<!-- Step 1: Select Sizes -->
+					<div class="mb-3">
+						<label class="form-label fw-semibold">1. Select Sizes to Apply To</label>
+						<div class="d-flex gap-2 mb-2">
+							<button type="button" class="btn btn-xs btn-outline-primary" id="btn-select-all-sizes" onclick="toggleAllBulkSizes(true)" style="padding: 2px 6px; font-size: 11px;">Select All</button>
+							<button type="button" class="btn btn-xs btn-outline-secondary" id="btn-deselect-all-sizes" onclick="toggleAllBulkSizes(false)" style="padding: 2px 6px; font-size: 11px;">Deselect All</button>
+						</div>
+						<div id="bulk_size_checkboxes" class="border rounded p-2 d-flex flex-wrap gap-3 align-items-center" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa;">
+							<!-- Dynamic checkboxes -->
+						</div>
+					</div>
+
+					<!-- Step 2: Select Classes -->
+					<div class="mb-3" id="bulk_class_section">
+						<label class="form-label fw-semibold">2. Select Classes to Apply To</label>
+						<div class="d-flex gap-2 mb-2">
+							<button type="button" class="btn btn-xs btn-outline-primary" id="btn-select-all-classes" onclick="toggleAllBulkClasses(true)" style="padding: 2px 6px; font-size: 11px;">Select All</button>
+							<button type="button" class="btn btn-xs btn-outline-secondary" id="btn-deselect-all-classes" onclick="toggleAllBulkClasses(false)" style="padding: 2px 6px; font-size: 11px;">Deselect All</button>
+						</div>
+						<div id="bulk_class_checkboxes" class="border rounded p-2 d-flex flex-wrap gap-3 align-items-center" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa;">
+							<!-- Dynamic checkboxes -->
+						</div>
+					</div>
+
+					<!-- Step 3: Enter Prices -->
+					<div class="mb-3 border-top pt-3">
+						<label class="form-label fw-semibold">3. Enter Prices to Apply</label>
+						
+						<div class="mb-3">
+							<div class="form-check mb-1">
+								<input class="form-check-input" type="checkbox" id="bulk_set_mrp" onchange="toggleBulkInput('bulk_mrp_value', this.checked)">
+								<label class="form-check-label fw-semibold" for="bulk_set_mrp">
+									Update MRP
+								</label>
+							</div>
+							<div class="input-group">
+								<span class="input-group-text">₹</span>
+								<input type="number" id="bulk_mrp_value" class="form-control" placeholder="Enter MRP amount" min="0" step="0.01" disabled>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<div class="form-check mb-1">
+								<input class="form-check-input" type="checkbox" id="bulk_set_sp" onchange="toggleBulkInput('bulk_sp_value', this.checked)">
+								<label class="form-check-label fw-semibold" for="bulk_set_sp">
+									Update Selling Price
+								</label>
+							</div>
+							<div class="input-group">
+								<span class="input-group-text">₹</span>
+								<input type="number" id="bulk_sp_value" class="form-control" placeholder="Enter Selling Price amount" min="0" step="0.01" disabled>
+							</div>
+						</div>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" onclick="applyBulkPrices()">Apply to Table</button>
 			</div>
 		</div>
 	</div>
@@ -1409,6 +1500,8 @@ function renderPricingGroups() {
 					`;
 				}
 
+				var isFirst = index === 0 ? 'true' : 'false';
+
 				tr.innerHTML = `
 					${sizeTd}
 					<td class="align-middle text-dark fw-semibold fs-12">${className}</td>
@@ -1417,14 +1510,14 @@ function renderPricingGroups() {
 						<input type="hidden" name="size_prices[${classId}][${sizeId}][size_id]" value="${sizeId}" form="uniform-form">
 						<div class="input-group input-group-sm">
 							<span class="input-group-text">₹</span>
-							<input type="number" name="size_prices[${classId}][${sizeId}][mrp]" id="mrp_${classId}_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="${classId}">
+							<input type="number" name="size_prices[${classId}][${sizeId}][mrp]" id="mrp_${classId}_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="${classId}" data-first-row="${isFirst}">
 						</div>
 						<small class="text-danger mrp-error fs-11" id="mrp_error_${classId}_${sizeId}" style="display:none;">MRP must be >= Selling Price</small>
 					</td>
 					<td>
 						<div class="input-group input-group-sm">
 							<span class="input-group-text">₹</span>
-							<input type="number" name="size_prices[${classId}][${sizeId}][selling_price]" id="selling_price_${classId}_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="${classId}">
+							<input type="number" name="size_prices[${classId}][${sizeId}][selling_price]" id="selling_price_${classId}_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="${classId}" data-first-row="${isFirst}">
 						</div>
 						<small class="text-danger selling-price-error fs-11" id="selling_price_error_${classId}_${sizeId}" style="display:none;">Selling Price must be <= MRP</small>
 					</td>
@@ -1442,10 +1535,36 @@ function renderPricingGroups() {
 	mrpInputs.forEach(function(input) {
 		input.addEventListener('input', validatePriceRow);
 		input.addEventListener('blur', validatePriceRow);
+
+		// Auto-fill/propagate first row price to sibling classes for the same size
+		if (input.getAttribute('data-first-row') === 'true') {
+			input.addEventListener('input', function(e) {
+				var val = e.target.value;
+				var sizeId = e.target.getAttribute('data-size-id');
+				var siblingInputs = tbody.querySelectorAll(`.mrp-input[data-size-id="${sizeId}"]:not([data-first-row="true"])`);
+				siblingInputs.forEach(function(sib) {
+					sib.value = val;
+					sib.dispatchEvent(new Event('input'));
+				});
+			});
+		}
 	});
 	spInputs.forEach(function(input) {
 		input.addEventListener('input', validatePriceRow);
 		input.addEventListener('blur', validatePriceRow);
+
+		// Auto-fill/propagate first row price to sibling classes for the same size
+		if (input.getAttribute('data-first-row') === 'true') {
+			input.addEventListener('input', function(e) {
+				var val = e.target.value;
+				var sizeId = e.target.getAttribute('data-size-id');
+				var siblingInputs = tbody.querySelectorAll(`.selling-price-input[data-size-id="${sizeId}"]:not([data-first-row="true"])`);
+				siblingInputs.forEach(function(sib) {
+					sib.value = val;
+					sib.dispatchEvent(new Event('input'));
+				});
+			});
+		}
 	});
 }
 
@@ -1591,6 +1710,100 @@ document.addEventListener('DOMContentLoaded', function() {
 			allowClear: true,
 			width: '100%'
 		});
+
+		// Initialize Select2 on class_ids dropdown with edit button template
+		function formatClassOption(state) {
+			if (!state.id) {
+				return state.text;
+			}
+			
+			var $container = $('<div class="d-flex align-items-center justify-content-between w-100 py-1"></div>');
+			var $label = $('<span></span>').text(state.text);
+			var $editBtn = $('<span class="btn-edit-class-dropdown text-primary ms-2" style="cursor: pointer; opacity: 0.7; padding: 2px 4px;" title="Edit Class Name"><i class="isax isax-edit-2 fs-14"></i></span>');
+			
+			$editBtn.on('mousedown mouseup click', function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				
+				if (e.type !== 'click') {
+					return;
+				}
+				
+				var currentName = state.text;
+				Swal.fire({
+					title: 'Rename Class',
+					input: 'text',
+					inputValue: currentName,
+					showCancelButton: true,
+					confirmButtonText: 'Save',
+					confirmButtonColor: 'var(--primary, #7539ff)',
+					cancelButtonColor: '#6c757d',
+					inputValidator: (value) => {
+						if (!value || !value.trim()) {
+							return 'Class name cannot be empty!';
+						}
+					}
+				}).then((result) => {
+					if (result.isConfirmed) {
+						var newName = result.value.trim();
+						$.ajax({
+							url: '<?php echo base_url('products/uniforms/edit_class'); ?>',
+							type: 'POST',
+							data: { id: state.id, name: newName },
+							dataType: 'json',
+							success: function(response) {
+								if (response.status === 'success') {
+									// Update Select2's internal cached state text for this option
+									state.text = response.name;
+
+									// Update the option in the underlying select tag
+									var option = $('#class_ids option[value="' + state.id + '"]');
+									option.text(response.name);
+									
+									// Trigger change to update active selected choice pills/tags & pricing table
+									var selectEl = $('#class_ids');
+									selectEl.trigger('change');
+									
+									// Close and open dropdown to force redrawing list option items
+									selectEl.select2('close').select2('open');
+									
+									// Reload the editing modal list if it is open/drawn
+									if (typeof loadClassesForEditing === 'function') {
+										loadClassesForEditing();
+									}
+								} else {
+									Swal.fire('Error', response.message || 'Failed to update class', 'error');
+								}
+							},
+							error: function() {
+								Swal.fire('Error', 'Failed to update class. Please try again.', 'error');
+							}
+						});
+					}
+				});
+			});
+			
+			$editBtn.on('mouseenter', function() {
+				$(this).css('opacity', '1');
+			}).on('mouseleave', function() {
+				$(this).css('opacity', '0.7');
+			});
+			
+			$container.append($label).append($editBtn);
+			return $container;
+		}
+
+		// Store formatClassOption globally so it can be reused elsewhere if needed
+		window.formatClassOption = formatClassOption;
+
+		// Initialize Select2 on class_ids dropdown with edit button template
+		$('#class_ids').select2('destroy').select2({
+			theme: 'bootstrap-5',
+			placeholder: 'Select Classes',
+			allowClear: true,
+			width: '100%',
+			templateResult: formatClassOption
+		});
 	}
 });
 function addClass() {
@@ -1620,6 +1833,259 @@ function addClass() {
 		},
 		error: function() {
 			alert('Failed to add class. Please try again.');
+		}
+	});
+}
+
+function toggleBulkInput(inputId, isChecked) {
+	document.getElementById(inputId).disabled = !isChecked;
+	if (!isChecked) {
+		document.getElementById(inputId).value = '';
+	}
+}
+
+function toggleAllBulkSizes(checked) {
+	document.querySelectorAll('.bulk-size-cb').forEach(function(cb) {
+		cb.checked = checked;
+	});
+}
+
+function toggleAllBulkClasses(checked) {
+	document.querySelectorAll('.bulk-class-cb').forEach(function(cb) {
+		cb.checked = checked;
+	});
+}
+
+// Bootstrap modal setup for bulk pricing
+document.addEventListener('DOMContentLoaded', function() {
+	var bulkPriceModal = document.getElementById('bulkPriceModal');
+	if (bulkPriceModal) {
+		bulkPriceModal.addEventListener('show.bs.modal', function () {
+			// Save typed values first to avoid data loss
+			saveCurrentValues();
+
+			// Populate sizes checkboxes
+			var sizeContainer = document.getElementById('bulk_size_checkboxes');
+			sizeContainer.innerHTML = '';
+			if (added_sizes.length === 0) {
+				sizeContainer.innerHTML = '<span class="text-muted fs-12 p-2">No sizes added yet. Please select sizes first.</span>';
+			} else {
+				added_sizes.forEach(function(size) {
+					sizeContainer.innerHTML += `
+						<div class="form-check me-2">
+							<input class="form-check-input bulk-size-cb" type="checkbox" value="${size.id}" id="bulk_size_${size.id}" checked>
+							<label class="form-check-label fs-13 mb-0" for="bulk_size_${size.id}">
+								${size.name}
+							</label>
+						</div>
+					`;
+				});
+			}
+
+			// Populate classes checkboxes
+			var classSection = document.getElementById('bulk_class_section');
+			var classContainer = document.getElementById('bulk_class_checkboxes');
+			classContainer.innerHTML = '';
+			
+			var selectedClasses = [];
+			$('#class_ids option:selected').each(function() {
+				selectedClasses.push({
+					id: $(this).val(),
+					name: $(this).text().trim()
+				});
+			});
+
+			if (selectedClasses.length === 0) {
+				// No classes selected -> general pricing (class_id = 0)
+				classSection.style.display = 'none';
+				classContainer.innerHTML = `
+					<div class="form-check">
+						<input class="form-check-input bulk-class-cb" type="checkbox" value="0" id="bulk_class_0" checked disabled>
+						<label class="form-check-label fs-13 mb-0" for="bulk_class_0">
+							General (All Classes)
+						</label>
+					</div>
+				`;
+			} else {
+				classSection.style.display = 'block';
+				selectedClasses.forEach(function(cls) {
+					classContainer.innerHTML += `
+						<div class="form-check me-2">
+							<input class="form-check-input bulk-class-cb" type="checkbox" value="${cls.id}" id="bulk_class_${cls.id}" checked>
+							<label class="form-check-label fs-13 mb-0" for="bulk_class_${cls.id}">
+								${cls.name}
+							</label>
+						</div>
+					`;
+				});
+			}
+
+			// Reset inputs
+			document.getElementById('bulk_set_mrp').checked = false;
+			document.getElementById('bulk_mrp_value').value = '';
+			document.getElementById('bulk_mrp_value').disabled = true;
+			
+			document.getElementById('bulk_set_sp').checked = false;
+			document.getElementById('bulk_sp_value').value = '';
+			document.getElementById('bulk_sp_value').disabled = true;
+		});
+	}
+});
+
+function applyBulkPrices() {
+	var setMrp = document.getElementById('bulk_set_mrp').checked;
+	var mrpVal = document.getElementById('bulk_mrp_value').value;
+	var setSp = document.getElementById('bulk_set_sp').checked;
+	var spVal = document.getElementById('bulk_sp_value').value;
+
+	if (!setMrp && !setSp) {
+		alert('Please check and enter at least one pricing option (MRP or Selling Price) to update.');
+		return;
+	}
+
+	if (setMrp && (mrpVal === '' || parseFloat(mrpVal) < 0)) {
+		alert('Please enter a valid MRP amount.');
+		return;
+	}
+
+	if (setSp && (spVal === '' || parseFloat(spVal) < 0)) {
+		alert('Please enter a valid Selling Price amount.');
+		return;
+	}
+
+	if (setMrp && setSp && parseFloat(mrpVal) < parseFloat(spVal)) {
+		alert('MRP must be greater than or equal to Selling Price.');
+		return;
+	}
+
+	// Get selected size IDs
+	var targetSizes = [];
+	document.querySelectorAll('.bulk-size-cb:checked').forEach(function(cb) {
+		targetSizes.push(cb.value);
+	});
+
+	if (targetSizes.length === 0) {
+		alert('Please select at least one size.');
+		return;
+	}
+
+	// Get selected class IDs
+	var targetClasses = [];
+	var selectedClassesCount = $('#class_ids option:selected').length;
+	if (selectedClassesCount === 0) {
+		targetClasses = ['0'];
+	} else {
+		document.querySelectorAll('.bulk-class-cb:checked').forEach(function(cb) {
+			targetClasses.push(cb.value);
+		});
+		if (targetClasses.length === 0) {
+			alert('Please select at least one class.');
+			return;
+		}
+	}
+
+	// Apply values to priceValues cache
+	targetSizes.forEach(function(sizeId) {
+		targetClasses.forEach(function(classId) {
+			var key = classId + '_' + sizeId;
+			if (!priceValues[key]) priceValues[key] = {};
+			
+			if (setMrp) {
+				priceValues[key].mrp = parseFloat(mrpVal).toFixed(2);
+			}
+			if (setSp) {
+				priceValues[key].selling_price = parseFloat(spVal).toFixed(2);
+			}
+		});
+	});
+
+	// Re-render the pricing groups table
+	renderPricingGroups();
+
+	// Close Modal
+	var modalEl = document.getElementById('bulkPriceModal');
+	var modalInstance = bootstrap.Modal.getInstance(modalEl);
+	if (modalInstance) {
+		modalInstance.hide();
+	} else {
+		$('#bulkPriceModal').modal('hide');
+	}
+}
+
+$('#addClassModal').on('show.bs.modal', function() {
+	loadClassesForEditing();
+});
+
+function loadClassesForEditing() {
+	var listContainer = $('#edit-classes-list');
+	listContainer.empty();
+	
+	$('#class_ids option').each(function() {
+		var id = $(this).val();
+		var name = $(this).text().trim();
+		if (id) {
+			var row = $('<div class="d-flex align-items-center justify-content-between mb-2 p-2 border rounded"></div>');
+			var nameSpan = $('<span class="class-name-text fw-medium fs-13"></span>').text(name);
+			var editInput = $('<input type="text" class="form-control form-control-sm class-edit-input d-none" style="height: 30px;" />').val(name);
+			
+			var btnGroup = $('<div class="d-flex gap-1"></div>');
+			var editBtn = $('<button type="button" class="btn btn-outline-primary btn-sm p-1 px-2 btn-edit-class" title="Rename" style="padding: 2px 6px !important;"><i class="isax isax-edit-2 fs-14"></i></button>');
+			var saveBtn = $('<button type="button" class="btn btn-success btn-sm p-1 px-2 btn-save-class d-none" title="Save" style="padding: 2px 6px !important;"><i class="isax isax-tick-circle fs-14"></i></button>');
+			var cancelBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm p-1 px-2 btn-cancel-class d-none" title="Cancel" style="padding: 2px 6px !important;"><i class="isax isax-close-circle fs-14"></i></button>');
+			
+			editBtn.on('click', function() {
+				nameSpan.addClass('d-none');
+				editInput.removeClass('d-none').focus();
+				editBtn.addClass('d-none');
+				saveBtn.removeClass('d-none');
+				cancelBtn.removeClass('d-none');
+			});
+			
+			cancelBtn.on('click', function() {
+				nameSpan.removeClass('d-none');
+				editInput.addClass('d-none').val(name);
+				editBtn.removeClass('d-none');
+				saveBtn.addClass('d-none');
+				cancelBtn.addClass('d-none');
+			});
+			
+			saveBtn.on('click', function() {
+				var newName = editInput.val().trim();
+				if (!newName) {
+					alert('Class name cannot be empty');
+					return;
+				}
+				
+				$.ajax({
+					url: '<?php echo base_url('products/uniforms/edit_class'); ?>',
+					type: 'POST',
+					data: { id: id, name: newName },
+					dataType: 'json',
+					success: function(response) {
+						if (response.status === 'success') {
+							name = response.name;
+							nameSpan.text(name).removeClass('d-none');
+							editInput.addClass('d-none').val(name);
+							editBtn.removeClass('d-none');
+							saveBtn.addClass('d-none');
+							cancelBtn.addClass('d-none');
+							
+							// Trigger change to update select2 display and pricing table
+							$('#class_ids').trigger('change');
+						} else {
+							alert(response.message || 'Failed to update class');
+						}
+					},
+					error: function() {
+						alert('Failed to update class. Please try again.');
+					}
+				});
+			});
+			
+			var leftSide = $('<div class="d-flex align-items-center flex-grow-1 me-2"></div>').append(nameSpan).append(editInput);
+			btnGroup.append(editBtn).append(saveBtn).append(cancelBtn);
+			row.append(leftSide).append(btnGroup);
+			listContainer.append(row);
 		}
 	});
 }
