@@ -912,21 +912,15 @@ if (!function_exists('get_selling_price')) {
       $CI =& get_instance();
       $CI->load->database(); 
   
-    //   $price_id = get_cookie('del_city_id');
-    //   $del_city_id = get_cookie('del_city_id');
-    //   $del_state_id = get_cookie('del_state_id');
-  
-      $sql_filter = " AND (state_id = 0 AND city_id = 0)";
-    //   if (get_cookie('del_city_id')) {
-    //       $sql_filter = " AND (price_id ='$price_id')";
-    //   }
-  
       $sql = "SELECT selling_price FROM product_variations WHERE id = ? AND product_id = ?";
       $query = $CI->db->query($sql, array($variation_id, $product_id));
-      $selling_price = ($query->num_rows() > 0) ? $query->row()->selling_price : 0;
-  
-      $price = $selling_price;
-      return $price;
+      if ($query->num_rows() > 0) {
+          return $query->row()->selling_price;
+      }
+      
+      $sql = "SELECT selling_price FROM erp_uniform_size_prices WHERE id = ? AND uniform_id = ?";
+      $query = $CI->db->query($sql, array($variation_id, $product_id));
+      return ($query->num_rows() > 0) ? $query->row()->selling_price : 0;
     }
   }
 
@@ -937,10 +931,13 @@ if (!function_exists('get_mrp_price')) {
 
         $sql = "SELECT product_mrp FROM product_variations WHERE id = ? AND product_id = ?";
         $query = $CI->db->query($sql, array($variation_id, $product_id));
-        $product_mrp = ($query->num_rows() > 0) ? round($query->row()->product_mrp) : 0;
+        if ($query->num_rows() > 0) {
+            return round($query->row()->product_mrp);
+        }
 
-        $price = $product_mrp;
-        return $price;
+        $sql = "SELECT mrp FROM erp_uniform_size_prices WHERE id = ? AND uniform_id = ?";
+        $query = $CI->db->query($sql, array($variation_id, $product_id));
+        return ($query->num_rows() > 0) ? round($query->row()->mrp) : 0;
     }
 }
 

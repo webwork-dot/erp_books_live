@@ -201,6 +201,7 @@ class Uniforms extends Vendor_base
 		$this->form_validation->set_rules('material_id', 'Material', 'integer');
 		$this->form_validation->set_rules('product_description', 'Product Description', 'trim');
 		$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
+		$this->form_validation->set_rules('uniform_tag', 'Uniform Tag', 'trim|in_list[regular,PT]');
 
 		if ($this->form_validation->run() == FALSE) {
 			// Get dropdown data
@@ -249,6 +250,7 @@ class Uniforms extends Vendor_base
 				'days_to_exchange' => $this->input->post('days_to_exchange') ? (int) $this->input->post('days_to_exchange') : NULL,
 				'material_id' => $this->input->post('material_id') ? (int) $this->input->post('material_id') : NULL,
 				'product_origin' => $this->input->post('product_origin'),
+				'uniform_tag' => $this->input->post('uniform_tag') ? $this->input->post('uniform_tag') : 'regular',
 				'product_description' => $this->input->post('product_description'),
 				'manufacturer_details' => $this->input->post('manufacturer_details'),
 				'packer_details' => $this->input->post('packer_details'),
@@ -364,6 +366,7 @@ class Uniforms extends Vendor_base
 		$this->form_validation->set_rules('material_id', 'Material', 'integer');
 		$this->form_validation->set_rules('product_description', 'Product Description', 'trim');
 		$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
+		$this->form_validation->set_rules('uniform_tag', 'Uniform Tag', 'trim|in_list[regular,PT]');
 
 		if ($this->form_validation->run() == FALSE) {
 			// Get dropdown data
@@ -448,6 +451,7 @@ class Uniforms extends Vendor_base
 				'days_to_exchange' => $this->input->post('days_to_exchange') ? (int) $this->input->post('days_to_exchange') : NULL,
 				'material_id' => $this->input->post('material_id') ? (int) $this->input->post('material_id') : NULL,
 				'product_origin' => $this->input->post('product_origin'),
+				'uniform_tag' => $this->input->post('uniform_tag') ? $this->input->post('uniform_tag') : 'regular',
 				'product_description' => $this->input->post('product_description'),
 				'manufacturer_details' => $this->input->post('manufacturer_details'),
 				'packer_details' => $this->input->post('packer_details'),

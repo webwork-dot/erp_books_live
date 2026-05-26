@@ -406,21 +406,46 @@ if ($total_invoice_value <= 0 && !empty($products)) {
           }
         } else {
           // INDIVIDUAL / UNIFORM: flat product list from products (tbl_order_items)
-          foreach ($products as $p):
-            $qty = isset($p['product_qty']) ? (int)$p['product_qty'] : 1;
-            $total_price = isset($p['total_price']) ? (float)$p['total_price'] : 0;
-            $gst_amt = isset($p['total_gst_amt']) ? (float)$p['total_gst_amt'] : 0;
-            $taxable = isset($p['excl_price_total']) && $p['excl_price_total'] > 0 ? (float)$p['excl_price_total'] : ($total_price - $gst_amt);
-            $gst_pct = isset($p['product_gst']) ? (float)$p['product_gst'] : 0;
-            $hsn = isset($p['hsn']) ? $p['hsn'] : '4901';
+          foreach ($items_arr as $p_obj):
+            $qty = isset($p_obj->product_qty) ? (int)$p_obj->product_qty : 1;
+            $total_price = isset($p_obj->total_price) ? (float)$p_obj->total_price : 0;
+            $gst_amt = isset($p_obj->total_gst_amt) ? (float)$p_obj->total_gst_amt : 0;
+            $taxable = isset($p_obj->excl_price_total) && $p_obj->excl_price_total > 0 ? (float)$p_obj->excl_price_total : ($total_price - $gst_amt);
+            $gst_pct = isset($p_obj->product_gst) ? (float)$p_obj->product_gst : 0;
+            $hsn = isset($p_obj->hsn) ? $p_obj->hsn : '4901';
+            
             $total_qty += $qty;
             $total_taxable += $taxable;
             $total_gst += $gst_amt;
             $total_incl += $total_price;
+            
+            $item_school = !empty($p_obj->school_name) ? $p_obj->school_name : (!empty($order->school_name) ? $order->school_name : '');
+            $school_str = !empty($item_school) ? '<b>' . htmlspecialchars($item_school) . '</b><br>' : '';
+            
+            $desc = htmlspecialchars(isset($p_obj->product_title) ? $p_obj->product_title : '');
+            if (isset($p_obj->order_type) && $p_obj->order_type == 'uniform' || (isset($p_obj->is_variation) && $p_obj->is_variation == 1)) {
+              if (empty($p_obj->class_name) && empty($p_obj->size_name) && !empty($p_obj->variation_name)) {
+                $desc .= '<br><small>' . htmlspecialchars($p_obj->variation_name) . '</small>';
+              }
+              if (!empty($p_obj->class_name)) {
+                $desc .= '<br><small>Class: ' . htmlspecialchars($p_obj->class_name) . '</small>';
+              }
+              if (!empty($p_obj->size_name)) {
+                $desc .= '<br><small>Size: ' . htmlspecialchars($p_obj->size_name) . '</small>';
+              }
+              if (!empty($p_obj->hsn)) {
+                $desc .= '<br><small>HSN: ' . htmlspecialchars($p_obj->hsn) . '</small>';
+              }
+            }
+            
+            $desc = $school_str . $desc;
+            
+            // If requested to show HSN "only for uniforms", we can conditionally clear it for non-uniforms
+            // But since the column is HSN, we'll display what's in the DB.
           ?>
             <tr>
               <td style="border: 1px solid #333; padding: 6px;"><?= $sr++ ?></td>
-              <td class="text-left" style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars(isset($p['product_title']) ? $p['product_title'] : '') ?></td>
+              <td class="text-left" style="border: 1px solid #333; padding: 6px;"><?= $desc ?></td>
               <td style="border: 1px solid #333; padding: 6px;"><?= htmlspecialchars($hsn) ?></td>
               <td style="border: 1px solid #333; padding: 6px;"><?= $qty ?></td>
               <td style="border: 1px solid #333; padding: 6px;"><?= price_format_decimal($taxable) ?></td>

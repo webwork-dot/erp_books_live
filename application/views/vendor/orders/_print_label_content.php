@@ -66,6 +66,9 @@ $date = isset($order['date']) ? $order['date'] : '';
         <thead>
             <tr>
                 <th>Product</th>
+                <?php if ($order_type_label == 'Uniform' || $order_type_label == 'Individual'): ?>
+                <th style="width:15%; text-align:center;">Qty</th>
+                <?php endif; ?>
                 <th class="col-price" style="width:25%;">Price</th>
             </tr>
         </thead>
@@ -91,9 +94,21 @@ $date = isset($order['date']) ? $order['date'] : '';
                 <?php $items = isset($order['items']) && is_array($order['items']) ? $order['items'] : array(); foreach ($items as $item): ?>
                 <tr>
                     <td><?php echo htmlspecialchars(is_array($item) ? (isset($item['name']) ? $item['name'] : '') : $item); ?></td>
-                    <td class="col-price"><?php echo round($order['total_amt']);?></td>
+                    <?php if ($order_type_label == 'Uniform' || $order_type_label == 'Individual'): ?>
+                    <td style="text-align:center;"><?php echo htmlspecialchars(is_array($item) && isset($item['qty']) ? $item['qty'] : '1'); ?></td>
+                    <td class="col-price"><?php echo htmlspecialchars(is_array($item) && isset($item['price']) && $item['price'] > 0 ? number_format($item['price'], 2) : ''); ?></td>
+                    <?php else: ?>
+                    <td class="col-price"></td>
+                    <?php endif; ?>
                 </tr>
                 <?php endforeach; ?>
+                
+                <?php if ($order_type_label == 'Uniform' || $order_type_label == 'Individual'): ?>
+                <tr>
+                    <td colspan="2" style="text-align:right;"><b>Total Amount:</b></td>
+                    <td class="col-price"><b><?php echo isset($order['total_amt']) ? number_format((float)$order['total_amt'], 2) : ''; ?></b></td>
+                </tr>
+                <?php endif; ?>
             <?php endif; ?>
         </tbody>
         <?php if (isset($order['payment_method']) && $order['payment_method'] == 'cod'): ?>

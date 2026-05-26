@@ -7,19 +7,25 @@
 
 // Database credentials
 $host = 'localhost';
-$user = 'root';
-$pass = '';
+$user = 'vd_admin';
+$pass = 'mGxKp8yWGpb8KHfs';
 
 $conn = mysqli_connect($host, $user, $pass);
 if (!$conn) {
     die("Connection failed: " . mysqli_connect_error() . "\n");
 }
 
-// Find all tenant databases
+// Target database list - explicitly include erp_client_varitty
+$databases = array('erp_client_varitty');
+
+// Also try to discover other databases if the user has privileges
 $db_res = mysqli_query($conn, "SHOW DATABASES LIKE 'erp_client_%'");
-$databases = array();
-while ($row = mysqli_fetch_row($db_res)) {
-    $databases[] = $row[0];
+if ($db_res) {
+    while ($row = mysqli_fetch_row($db_res)) {
+        if (!in_array($row[0], $databases)) {
+            $databases[] = $row[0];
+        }
+    }
 }
 
 echo "Found " . count($databases) . " client databases to process.\n\n";

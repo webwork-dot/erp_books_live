@@ -1070,10 +1070,20 @@ class Orders extends Vendor_base
 						}
 
 						// Get size name if size_id exists
-						if (!empty($uniform->size_id)) {
-							$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . (int) $uniform->size_id . "' LIMIT 1");
+						$size_id = !empty($item->size_id) ? (int)$item->size_id : (!empty($uniform->size_id) ? (int)$uniform->size_id : 0);
+						if ($size_id > 0) {
+							$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . $size_id . "' LIMIT 1");
 							if ($size_query->num_rows() > 0) {
 								$item->size_name = $size_query->row()->name;
+							}
+						}
+
+						// Get class name if class_id exists in order item
+						$class_id = !empty($item->class_id) ? (int)$item->class_id : 0;
+						if ($class_id > 0) {
+							$class_query = $this->db->query("SELECT class_name FROM classes WHERE id = '" . $class_id . "' LIMIT 1");
+							if ($class_query->num_rows() > 0) {
+								$item->class_name = $class_query->row()->class_name;
 							}
 						}
 					} else {
@@ -4470,7 +4480,36 @@ class Orders extends Vendor_base
 	 */
 	private function _get_invoice_items_arr($order_id)
 	{
-		return $this->db->select('*')->from('tbl_order_items')->where('order_id', $order_id)->order_by('id', 'ASC')->get()->result();
+		$items = $this->db->select('*')->from('tbl_order_items')->where('order_id', $order_id)->order_by('id', 'ASC')->get()->result();
+		foreach ($items as $item) {
+			if (isset($item->order_type) && $item->order_type == 'uniform' || (isset($item->is_variation) && $item->is_variation == 1)) {
+				// Get size name
+				$size_id = !empty($item->size_id) ? (int)$item->size_id : 0;
+				if ($size_id > 0) {
+					$size_query = $this->db->query("SELECT name FROM erp_sizes WHERE id = '" . $size_id . "' LIMIT 1");
+					if ($size_query->num_rows() > 0) {
+						$item->size_name = $size_query->row()->name;
+					}
+				}
+				// Get class name
+				$class_id = !empty($item->class_id) ? (int)$item->class_id : 0;
+				if ($class_id > 0) {
+					$class_query = $this->db->query("SELECT class_name FROM classes WHERE id = '" . $class_id . "' LIMIT 1");
+					if ($class_query->num_rows() > 0) {
+						$item->class_name = $class_query->row()->class_name;
+					}
+				}
+			}
+			// Get school name for any item with school_id
+			$school_id = !empty($item->school_id) ? (int)$item->school_id : 0;
+			if ($school_id > 0) {
+				$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . $school_id . "' LIMIT 1");
+				if ($school_query->num_rows() > 0) {
+					$item->school_name = $school_query->row()->school_name;
+				}
+			}
+		}
+		return $items;
 	}
 
 	/**
@@ -5030,12 +5069,7 @@ class Orders extends Vendor_base
 		$total_amt = $order->total_amt;
 
 		// Get order items - same as fetch_shipping_label
-		$items_arr = $this->db->select('*')
-			->from('tbl_order_items')
-			->where('order_id', $order_id)
-			->order_by('id', 'ASC')
-			->get()
-			->result();
+		$items_arr = $this->_get_invoice_items_arr($order_id);
 
 		// Get order address - same as test_shipping_label (tbl_order_address + school/branch fallback)
 		$address_arr = $this->db->select('*')
@@ -5272,8 +5306,27 @@ class Orders extends Vendor_base
 		if (empty($product_names)) {
 			foreach ($items_arr as $item) {
 				$name = isset($item->product_title) ? $item->product_title : (isset($item->product_name) ? $item->product_name : '');
+				if (isset($item->order_type) && $item->order_type == 'uniform' || (isset($item->is_variation) && $item->is_variation == 1)) {
+					$extra = array();
+					if (!empty($item->class_name)) {
+						$extra[] = 'Class: ' . $item->class_name;
+					}
+					if (!empty($item->size_name)) {
+						$extra[] = 'Size: ' . $item->size_name;
+					}
+					if (empty($extra) && !empty($item->variation_name)) {
+						$extra[] = $item->variation_name;
+					}
+					if (!empty($extra)) {
+						$name .= ' (' . implode(' / ', $extra) . ')';
+					}
+				}
 				if (!empty($name)) {
-					$product_names[] = $name;
+					$product_names[] = array(
+						'name' => $name,
+						'qty' => isset($item->product_qty) ? $item->product_qty : 1,
+						'price' => isset($item->total_price) ? floatval($item->total_price) : 0
+					);
 				}
 			}
 		}

@@ -1594,43 +1594,51 @@ class Crud_model extends CI_Model{
         }
 
         if($product->is_variation==1){
-            $code = '';
             $variationArray = (array) $variationArray;
-            
-			if (!empty($variationArray)) {
+            $size_id = isset($variationArray[2]) ? $variationArray[2] : 0;
+            $class_id = isset($variationArray[4]) ? $variationArray[4] : 0;
+
+            if (empty($size_id) && !empty($variationArray)) {
+                // Fallback for simple key-value structure if array was passed differently
                 $lstKey = array_key_last($variationArray);
-                $code = $variationArray[$lstKey];
-				// foreach ($variationArray as $option_id => $choice_id) {
-				// 	$option_name = $this->common_model->getNameById('oc_attributes', 'name', $option_id);
-				// 	$choice_name = $this->common_model->getNameById('oc_attribute_values', 'name', $choice_id);
+                $size_id = $variationArray[$lstKey];
+            }
 
-				// 	$name .= $option_name . ': ' . $choice_name;
-				// 	$code .= $option_id . ':' . $choice_id . '/';
+            if (empty($class_id)) {
+                // Get first class from product as default fallback
+                $p_row = $this->db->query("SELECT class_id FROM erp_uniforms WHERE id='$product_id' LIMIT 1")->row();
+                if ($p_row && !empty($p_row->class_id)) {
+                    $class_list = explode(',', $p_row->class_id);
+                    $class_id = !empty($class_list[0]) ? (int)$class_list[0] : 0;
+                }
+            }
 
-				// 	if ($lstKey != $option_id) {
-				// 		$name .= ' / ';
-				// 	}
-				// }
-			}
-            
+            $var_query = $this->db->query("SELECT id, mrp as product_mrp, selling_price, '0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$size_id' AND class_id='$class_id' LIMIT 1");
+            if ($var_query->num_rows() == 0) {
+                $var_query = $this->db->query("SELECT id, mrp as product_mrp, selling_price, '0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$size_id' LIMIT 1");
+            }
 
-            $var_query = $this->db->query("SELECT id,mrp as product_mrp,selling_price,'0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$code'  LIMIT 1");
-            if (!empty($var_query)) {
+            if ($var_query->num_rows() > 0) {
                $var=$var_query->row();
                $variation_id=$var->id;
-			//    $stock = get_stock_qty_2($product_id, $variation_id);
 			   $stock = 99;
                $selling_price = get_selling_price($product_id, $variation_id);
 
-                $var_name = $this->common_model->getNameById('erp_sizes', 'name', $code);
+               // Add GST to prices!
+               $gst_percent = isset($product->gst) ? (float)$product->gst : 0;
+               $selling_price = $selling_price + ($selling_price * $gst_percent / 100);
+               $mrp = $var->product_mrp + ($var->product_mrp * $gst_percent / 100);
+
+               $var_name = $this->common_model->getNameById('erp_sizes', 'name', $size_id);
+               $class_name = $this->common_model->getNameById('classes', 'class_name', $class_id);
 
                $data['variation_id']   = $var->id;
-               $data['product_mrp']     = $var->product_mrp;
+               $data['product_mrp']     = $mrp;
                $data['disc_per']        = $var->disc_per;
                $data['selling_price']  = $selling_price;
                $data['product_price']  = $selling_price;
                $data['stock']          = $stock;
-               $data['variation_name'] = "Size: " . $var_name;
+               $data['variation_name'] = "Class: " . $class_name . " / Size: " . $var_name;
             }
         }
         else{
@@ -1711,44 +1719,52 @@ class Crud_model extends CI_Model{
         }
 
         if($product->is_variation==1){
-            $code = '';
+            $variationArray = (array) $variationArray;
+            $size_id = isset($variationArray[2]) ? $variationArray[2] : 0;
+            $class_id = isset($variationArray[4]) ? $variationArray[4] : 0;
 
-            if(!empty($variationArray)) {
-				$lstKey = array_key_last($variationArray);
-                $code = $variationArray[$lstKey];
-				// foreach ($variationArray as $option_id => $choice_id) {
-				// 	$option_name=$this->common_model->getNameById('oc_attributes','name',$option_id);
-				// 	$choice_name=$this->common_model->getNameById('oc_attribute_values','name',$choice_id);
-				// 	$name .= $option_name . ': ' . $choice_name;
-				// 	$code .= $option_id . ':' . $choice_id . '/';
-
-				// 	if ($lstKey != $option_id) {
-				// 		$name .= ' / ';
-				// 	}
-				// }
+            if (empty($size_id) && !empty($variationArray)) {
+                $lstKey = array_key_last($variationArray);
+                $size_id = $variationArray[$lstKey];
             }
 
-            $var_query = $this->db->query("SELECT id,mrp as product_mrp,selling_price,'0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$code'  LIMIT 1");
-            if (!empty($var_query)) {
+            if (empty($class_id)) {
+                // Get first class from product as default fallback
+                $p_row = $this->db->query("SELECT class_id FROM erp_uniforms WHERE id='$product_id' LIMIT 1")->row();
+                if ($p_row && !empty($p_row->class_id)) {
+                    $class_list = explode(',', $p_row->class_id);
+                    $class_id = !empty($class_list[0]) ? (int)$class_list[0] : 0;
+                }
+            }
+
+            $var_query = $this->db->query("SELECT id, mrp as product_mrp, selling_price, '0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$size_id' AND class_id='$class_id' LIMIT 1");
+            if ($var_query->num_rows() == 0) {
+                $var_query = $this->db->query("SELECT id, mrp as product_mrp, selling_price, '0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$size_id' LIMIT 1");
+            }
+
+            if ($var_query->num_rows() > 0) {
                $var=$var_query->row();
                $variation_id=$var->id;
 			   $stock = 99;
-			//    $stock = get_stock_qty($product_id, $variation_id);
-               $selling_price=get_selling_price($product_id,$variation_id);
-			//    $product_mrp=get_mrp_price($product_id,$variation_id);
+               $selling_price = get_selling_price($product_id, $variation_id);
 
-               // echo $stock;
+               // Add GST to prices!
+               $gst_percent = isset($product->gst) ? (float)$product->gst : 0;
+               $selling_price = $selling_price + ($selling_price * $gst_percent / 100);
+               $mrp = $var->product_mrp + ($var->product_mrp * $gst_percent / 100);
+
+               $var_name = $this->common_model->getNameById('erp_sizes', 'name', $size_id);
+               $class_name = $this->common_model->getNameById('classes', 'class_name', $class_id);
 
                $data['variation_id']   = $var->id;
-               $data['product_mrp']     = $var->product_mrp;
+               $data['product_mrp']     = $mrp;
                $data['disc_per']        = $var->disc_per;
                $data['selling_price']  = $selling_price;
                $data['product_price']  = $selling_price;
-               $data['price_mrp']     	= $var->product_mrp;
+               $data['price_mrp']     	= $mrp;
                $data['code']           = '';
                $data['stock']          = $stock;
-               $data['variation_name'] = $product->name;
-
+               $data['variation_name'] = "Class: " . $class_name . " / Size: " . $var_name;
             }
         } else {
 			$var_query = $this->db->query("SELECT id,sku,product_mrp,disc_per,selling_price,stock,code,weight,length,width as breadth,height FROM product_variations WHERE product_id='$product_id' LIMIT 1");
@@ -1869,6 +1885,11 @@ class Crud_model extends CI_Model{
 					// Regular price calculation
 					$selling_price = get_selling_price($product_id, $variation_id);
 					$product_mrp = get_mrp_price($product_id, $variation_id);
+					if ($order_type === 'uniform') {
+						$gst_percent = isset($product['gst']) ? (float)$product['gst'] : 0;
+						$selling_price = $selling_price + ($selling_price * $gst_percent / 100);
+						$product_mrp = $product_mrp + ($product_mrp * $gst_percent / 100);
+					}
 					$gdis = cal_dis_array($product_mrp, $selling_price);
 					$disc_amt = $gdis['discount_amt'];
 					$disc_per = $gdis['discount_per'];
@@ -3334,7 +3355,7 @@ class Crud_model extends CI_Model{
 			$count_size  = $this->db->query("SELECT id FROM erp_uniform_size_prices WHERE uniform_id='$product_id' limit 1")->num_rows();
 			
 			if ($count_size > 0) {
-				$vsql  = $this->db->query("SELECT size_id as size,selling_price,'0' as out_of_stock FROM erp_uniform_size_prices WHERE uniform_id='$product_id' order by id ASC;");
+				$vsql  = $this->db->query("SELECT size_id as size, MIN(selling_price) as selling_price, '0' as out_of_stock FROM erp_uniform_size_prices WHERE uniform_id='$product_id' GROUP BY size_id ORDER BY id ASC;");
 				$v_array = array();
 				if ($vsql->num_rows() > 0) {
 					foreach ($vsql->result_array() as $vrow) {
@@ -4123,32 +4144,46 @@ class Crud_model extends CI_Model{
 
 		$product_id = $this->input->post('product_id');
 		$size_id    = $this->input->post('variation'.$product_id.'_2');
+		$class_id   = $this->input->post('variation'.$product_id.'_4');
 		$taper_id   = 0;
 		$length_id  = 0;
 
-        $var_query = $this->db->query("SELECT id, mrp as product_mrp, selling_price,'' as code, '0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' and size_id='$size_id' LIMIT 1");
-		// echo $var_query->num_rows();exit();
-        // echo 1;exit();
-        if (!empty($var_query)) {
-				$product = $this->common_model->getRowById('erp_uniforms','product_name',$product_id);
-                // echo $this->db->last_query();exit();
-				// $min_qty = $product['min_quantity'];
+        if (empty($class_id)) {
+            // Get first class from product as default fallback
+            $p_row = $this->db->query("SELECT class_id FROM erp_uniforms WHERE id='$product_id' LIMIT 1")->row();
+            if ($p_row && !empty($p_row->class_id)) {
+                $class_list = explode(',', $p_row->class_id);
+                $class_id = !empty($class_list[0]) ? (int)$class_list[0] : 0;
+            }
+        }
+
+        $var_query = $this->db->query("SELECT id, mrp as product_mrp, selling_price,'' as code, '0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$size_id' AND class_id='$class_id' LIMIT 1");
+        if ($var_query->num_rows() == 0) {
+            $var_query = $this->db->query("SELECT id, mrp as product_mrp, selling_price,'' as code, '0' as disc_per FROM erp_uniform_size_prices WHERE uniform_id='$product_id' AND size_id='$size_id' LIMIT 1");
+        }
+
+        if ($var_query->num_rows() > 0) {
+				$product = $this->db->query("SELECT * FROM erp_uniforms WHERE id='$product_id' LIMIT 1")->row_array();
 			    $min_qty = 1;
-                
 
 			   $var=$var_query->row();
 			   $variation_id=$var->id;
 			   $sku=$var->sku;
 
-				// $stock = get_stock_qty_2($product_id, $variation_id);
 				$stock = 1;
 			    $selling_price = get_selling_price($product_id,$variation_id);
+
+                // Add GST to displayed prices!
+                $gst_percent = isset($product['gst_percentage']) ? (float)$product['gst_percentage'] : 0;
+                $selling_price = $selling_price + ($selling_price * $gst_percent / 100);
+                $var->selling_price = $selling_price;
+                $var->product_mrp = $var->product_mrp + ($var->product_mrp * $gst_percent / 100);
 
                 // checking cart
                 $rowid=0;
                 $flag = FALSE;
                 $dataTmp = $this->cart->contents();
-                $var_product_id = $size_id . $product_id;
+                $var_product_id = $size_id . '_' . $class_id . $product_id;
 
                 foreach ($dataTmp as $cart) {
                     if ($cart['product_id'] == $product_id && $cart['id'] == $var_product_id) {

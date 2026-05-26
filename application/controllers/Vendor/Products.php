@@ -409,10 +409,27 @@ class Products extends Vendor_base
 			return;
 		}
 		$q = trim((string)$this->input->get('q', TRUE));
+		$school_id = (int)$this->input->get('school_id', TRUE);
+		$gender = trim((string)$this->input->get('gender', TRUE));
+		
 		$location_id = $this->getMainAdminStockLocationId();
 		$rows = $this->buildStockCatalogRows($location_id);
 		$filtered = array();
 		foreach ($rows as $row) {
+			if ($school_id > 0 && (int)$row['school_id'] !== $school_id) {
+				continue;
+			}
+			if ($gender !== '') {
+				$row_gender = strtolower((string)$row['gender']);
+				$search_gender = strtolower($gender);
+				if ($search_gender === 'unisex') {
+					if (stripos($row_gender, 'unisex') === FALSE) continue;
+				} else {
+					if (stripos($row_gender, $search_gender) === FALSE && stripos($row_gender, 'unisex') === FALSE) {
+						continue;
+					}
+				}
+			}
 			if ($q !== '') {
 				$haystack = strtolower(
 					(string)$row['product_name'] . ' ' .
@@ -426,7 +443,7 @@ class Products extends Vendor_base
 				}
 			}
 			$filtered[] = $row;
-			if (count($filtered) >= 5) {
+			if (count($filtered) >= 250) {
 				break;
 			}
 		}

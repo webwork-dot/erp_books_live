@@ -262,9 +262,25 @@
 			</div>
 			<div class="modal-body">
 				<div class="row g-2 mb-2">
-					<div class="col-md-5 position-relative">
+					<div class="col-md-4 position-relative">
 						<input type="text" class="form-control form-control-sm" id="adjustSearchQ" placeholder="Search product/size/school" autocomplete="off">
 						<div id="adjustSuggestions" class="list-group position-absolute w-100 shadow-sm" style="z-index:1056; display:none; max-height:220px; overflow:auto;"></div>
+					</div>
+					<div class="col-md-3">
+						<select id="adjustSearchSchool" class="form-select form-select-sm">
+							<option value="">All Schools</option>
+							<?php foreach ($schools as $s): ?>
+								<option value="<?php echo (int)$s['id']; ?>"><?php echo htmlspecialchars((string)$s['school_name']); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="col-md-3">
+						<select id="adjustSearchGender" class="form-select form-select-sm">
+							<option value="">All Genders</option>
+							<option value="Male">Male</option>
+							<option value="Female">Female</option>
+							<option value="Unisex">Unisex</option>
+						</select>
 					</div>
 					<div class="col-md-2 d-grid"><button type="button" class="btn btn-sm btn-outline-primary" id="adjustSearchBtn">Search</button></div>
 				</div>
@@ -505,8 +521,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 	function searchAdjustItems() {
 		var q = document.getElementById('adjustSearchQ').value || '';
+		var s = document.getElementById('adjustSearchSchool').value || '';
+		var g = document.getElementById('adjustSearchGender').value || '';
+		
+		if (q.length < 2 && s === '' && g === '') {
+			renderSuggestions([]);
+			return;
+		}
+		
 		var url = '<?php echo base_url('products/stock_management/search_items'); ?>' +
-			'?q=' + encodeURIComponent(q);
+			'?q=' + encodeURIComponent(q) + '&school_id=' + encodeURIComponent(s) + '&gender=' + encodeURIComponent(g);
 		fetch(url)
 			.then(function(r) { return r.json(); })
 			.then(function(data) {
@@ -602,11 +626,12 @@ document.addEventListener('DOMContentLoaded', function() {
 	});
 
 	document.getElementById('adjustSearchQ').addEventListener('input', function() {
-		var q = this.value || '';
-		if (q.length < 2) {
-			renderSuggestions([]);
-			return;
-		}
+		searchAdjustItems();
+	});
+	document.getElementById('adjustSearchSchool').addEventListener('change', function() {
+		searchAdjustItems();
+	});
+	document.getElementById('adjustSearchGender').addEventListener('change', function() {
 		searchAdjustItems();
 	});
 

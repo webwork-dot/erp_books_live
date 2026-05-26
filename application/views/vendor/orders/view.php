@@ -370,7 +370,8 @@ if (!empty($additional_status)) {
             <h5 class="mb-1">Order #<?= $order_data[0]->order_unique_id ?></h5>
             <small class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></small>
             <?php if ((string) $order_data[0]->order_status === '5' && !empty($cancellation_reason)): ?>
-              <div class="mt-1"><small><strong>Cancellation Reason:</strong> <?= htmlspecialchars($cancellation_reason) ?></small></div>
+              <div class="mt-1"><small><strong>Cancellation Reason:</strong>
+                  <?= htmlspecialchars($cancellation_reason) ?></small></div>
             <?php endif; ?>
 
           </div>
@@ -919,20 +920,40 @@ if (!empty($additional_status)) {
                         endif; ?>
                       </td>
                       <td>
-                        <div>
-                          <b><?= isset($val->product_title) ? htmlspecialchars($val->product_title) : (isset($val->product_name) ? htmlspecialchars($val->product_name) : 'N/A') ?></b>
-                          <?php if (isset($val->is_variation) && $val->is_variation == 1 && isset($val->variation_name) && $val->variation_name != ''): ?>
-                            <br><small class="text-muted"><?= htmlspecialchars($val->variation_name) ?></small>
-                            <?php
-                          endif; ?>
-                          <?php if (!empty($val->size_name)): ?>
-                            <br><small class="text-muted">Size: <?= htmlspecialchars($val->size_name) ?></small>
-                            <?php
-                          endif; ?>
+                        <div class="product-details-ui">
+                          <h6 class="mb-1" style="font-size: 15px; font-weight: 600; color: #333;">
+                            <?= isset($val->product_title) ? htmlspecialchars($val->product_title) : (isset($val->product_name) ? htmlspecialchars($val->product_name) : 'N/A') ?>
+                          </h6>
+                          
+                          <?php if (isset($val->is_variation) && $val->is_variation == 1 && isset($val->variation_name) && $val->variation_name != '' && empty($val->class_name) && empty($val->size_name)): ?>
+                            <div class="mb-1"><span class="badge" style="background: #f8f9fa; border: 1px solid #e9ecef; color: #495057; font-weight: normal;"><?= htmlspecialchars($val->variation_name) ?></span></div>
+                          <?php endif; ?>
+                          
+                          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; margin-top: 6px;">
+                            <?php if (!empty($val->class_name)): ?>
+                              <span style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 2px 8px; font-size: 12px; color: #495057;">
+                                <i class="fa fa-graduation-cap text-muted" style="margin-right: 4px;"></i> Class: <strong style="color: #212529;"><?= htmlspecialchars($val->class_name) ?></strong>
+                              </span>
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($val->size_name)): ?>
+                              <span style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 2px 8px; font-size: 12px; color: #495057;">
+                                <i class="fa fa-arrows-alt text-muted" style="margin-right: 4px;"></i> Size: <strong style="color: #212529;"><?= htmlspecialchars($val->size_name) ?></strong>
+                              </span>
+                            <?php endif; ?>
+                            
+                            <?php if (((isset($product_type) && $product_type == 'uniform') || (isset($val->is_variation) && $val->is_variation == 1)) && !empty($val->hsn)): ?>
+                              <span style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 2px 8px; font-size: 12px; color: #495057;">
+                                <i class="fa fa-tag text-muted" style="margin-right: 4px;"></i> HSN: <strong style="color: #212529;"><?= htmlspecialchars($val->hsn) ?></strong>
+                              </span>
+                            <?php endif; ?>
+                          </div>
+                          
                           <?php if (!empty($val->school_name)): ?>
-                            <br><small class="text-muted">School: <?= htmlspecialchars($val->school_name) ?></small>
-                            <?php
-                          endif; ?>
+                            <div class="text-muted" style="font-size: 12px; display: flex; align-items: center;">
+                              <i class="fa fa-university text-secondary" style="margin-right: 6px;"></i> <?= htmlspecialchars($val->school_name) ?>
+                            </div>
+                          <?php endif; ?>
                         </div>
                       </td>
                       <td class="text-center"><?= isset($val->product_sku) ? htmlspecialchars($val->product_sku) : '-' ?>
@@ -1662,7 +1683,7 @@ if (!empty($additional_status)) {
             <?php
           endif; ?>
           <div class="text-muted"><?= date('D, M d, Y, h:i A', strtotime($order_data[0]->order_date)); ?></div>
-          
+
           <?php if (!empty($order_data[0]->payment_id)): ?>
             <div class="mt-2">
               <small class="text-muted"><strong>Payment ID:</strong></small>
@@ -1670,7 +1691,7 @@ if (!empty($additional_status)) {
             </div>
             <?php
           endif; ?>
-          
+
           <?php if (!empty($order_data[0]->razorpay_order_id)): ?>
             <div class="mt-2">
               <small class="text-muted"><strong>Razorpay Order ID:</strong></small>
@@ -1678,7 +1699,7 @@ if (!empty($additional_status)) {
             </div>
             <?php
           endif; ?>
-          
+
           <?php if (!empty($order_data[0]->invoice_no)): ?>
             <div class="mt-2">
               <small class="text-muted"><strong>Invoice #:</strong></small>
@@ -1686,7 +1707,7 @@ if (!empty($additional_status)) {
             </div>
             <?php
           endif; ?>
-          
+
           <?php if (!empty($order_data[0]->txn_id)): ?>
             <div class="mt-2">
               <small class="text-muted"><strong>Tran. ID:</strong></small>
@@ -1694,7 +1715,7 @@ if (!empty($additional_status)) {
             </div>
             <?php
           endif; ?>
-          
+
           <div class="mt-3">
             <h5 class="mb-0"><b>
                 <?php

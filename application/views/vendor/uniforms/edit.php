@@ -287,6 +287,15 @@
 								value="<?php echo set_value('product_origin', $uniform['product_origin'] ? $uniform['product_origin'] : 'India'); ?>">
 						</div>
 					</div>
+					<div class="col-xl-3 col-lg-4 col-md-6">
+						<div class="mb-2">
+							<label class="form-label fs-13 mb-1">Uniform Tag</label>
+							<select name="uniform_tag" id="uniform_tag" class="form-select form-select-sm">
+								<option value="regular" <?php echo (isset($uniform) && $uniform['uniform_tag'] == 'regular') ? 'selected' : ''; ?>>Regular</option>
+								<option value="PT" <?php echo (isset($uniform) && $uniform['uniform_tag'] == 'PT') ? 'selected' : ''; ?>>PT Uniform</option>
+							</select>
+						</div>
+					</div>
 				</div>
 
 				<!-- Description Fields -->
@@ -382,14 +391,15 @@
 						</button>
 					</div>
 					<div class="table-responsive">
-						<table class="table table-bordered table-striped align-middle fs-13">
+						<table class="table table-bordered align-middle fs-13">
 							<thead class="table-light">
 								<tr>
+									<th style="width: 8%;" class="text-center">Sr. No.</th>
 									<th style="width: 15%;">Size</th>
-									<th style="width: 25%;">Class</th>
-									<th style="width: 25%;">MRP</th>
-									<th style="width: 25%;">Selling Price</th>
-									<th style="width: 10%;" class="text-center">Action</th>
+									<th style="width: 22%;">Class</th>
+									<th style="width: 22%;">MRP</th>
+									<th style="width: 22%;">Selling Price</th>
+									<th style="width: 11%;" class="text-center">Action</th>
 								</tr>
 							</thead>
 							<tbody id="sizePricesList">
@@ -951,6 +961,18 @@ $commissionValue = set_value(
 		height: 72px;
 	}
 
+	.bg-size-even td {
+		background-color: #ffffff !important;
+	}
+
+	.bg-size-odd td {
+		background-color: #e5deff !important;
+	}
+
+	tr.size-group-start td {
+		border-top: 2px solid #7539ff !important;
+	}
+
 	@media (max-width: 991px) {
 		.uniform-edit-actionbar {
 			left: 0;
@@ -1142,9 +1164,14 @@ if (isset($size_prices) && !empty($size_prices)) {
 		$(document).ready(function () {
 			// Wait for Select2 to initialize
 			setTimeout(function () {
+				var previousSizeChartId = <?php echo isset($uniform) && isset($uniform['size_chart_id']) && $uniform['size_chart_id'] ? (int)$uniform['size_chart_id'] : '""'; ?>;
 				$('#size_chart_id').on('change', function () {
 					var sizeChartId = $(this).val();
 					console.log('Size chart changed to:', sizeChartId);
+					if (sizeChartId == previousSizeChartId) {
+						return;
+					}
+					previousSizeChartId = sizeChartId;
 					if (sizeChartId) {
 						// Clear pricing rows and state when chart changes
 						added_sizes = [];
@@ -1598,9 +1625,11 @@ if (isset($size_prices) && !empty($size_prices)) {
 		});
 	}
 
-	function renderPricingGroups() {
+	function renderPricingGroups(skipSaveCurrent = false) {
 		// 1. Save typed values first to avoid data loss
-		saveCurrentValues();
+		if (!skipSaveCurrent) {
+			saveCurrentValues();
+		}
 
 		var container = document.getElementById('sizePricesContainer');
 		var tbody = document.getElementById('sizePricesList');
@@ -1625,9 +1654,13 @@ if (isset($size_prices) && !empty($size_prices)) {
 		});
 
 		// 3. Render rows for each added size
-		added_sizes.forEach(function (size) {
+		var rowNum = 1;
+		added_sizes.forEach(function (size, sizeIdx) {
 			var sizeId = size.id;
 			var sizeName = size.name;
+			var bgClass = sizeIdx % 2 === 0 ? 'bg-size-even' : 'bg-size-odd';
+			var startClass = sizeIdx > 0 ? 'size-group-start' : '';
+			var currentSizeNo = rowNum++;
 
 			if (selectedClasses.length === 0) {
 				// Render a single general pricing row (class_id = 0)
@@ -1636,7 +1669,9 @@ if (isset($size_prices) && !empty($size_prices)) {
 				var spVal = priceValues[key]?.selling_price || '';
 
 				var tr = document.createElement('tr');
+				tr.className = `${bgClass} ${startClass}`;
 				tr.innerHTML = `
+					<td class="align-middle text-center fw-medium">${currentSizeNo}</td>
 					<td class="align-middle fw-semibold">${sizeName}</td>
 					<td class="align-middle text-muted fs-12">General (All Classes)</td>
 					<td>
@@ -1671,13 +1706,16 @@ if (isset($size_prices) && !empty($size_prices)) {
 					var spVal = priceValues[key]?.selling_price || '';
 
 					var tr = document.createElement('tr');
+					tr.className = `${bgClass} ${index === 0 ? startClass : ''}`;
 
+					var srNoTd = '';
 					var sizeTd = '';
 					var actionTd = '';
 					if (index === 0) {
-						sizeTd = `<td class="align-middle fw-semibold text-center" rowspan="${selectedClasses.length}" style="background-color: #fdfdfd;">${sizeName}</td>`;
+						srNoTd = `<td class="align-middle text-center fw-medium" rowspan="${selectedClasses.length}">${currentSizeNo}</td>`;
+						sizeTd = `<td class="align-middle fw-semibold text-center" rowspan="${selectedClasses.length}">${sizeName}</td>`;
 						actionTd = `
-							<td class="text-center align-middle" rowspan="${selectedClasses.length}" style="background-color: #fdfdfd;">
+							<td class="text-center align-middle" rowspan="${selectedClasses.length}">
 								<button type="button" class="btn btn-outline-danger btn-sm p-1" onclick="removeSizePricing(${sizeId})" title="Remove Size">
 									<i class="isax isax-trash" style="font-size: 16px; display: inline-block; vertical-align: middle;"></i>
 								</button>
@@ -1688,6 +1726,7 @@ if (isset($size_prices) && !empty($size_prices)) {
 					var isFirst = index === 0 ? 'true' : 'false';
 
 					tr.innerHTML = `
+						${srNoTd}
 						${sizeTd}
 						<td class="align-middle text-dark fw-semibold fs-12">${className}</td>
 						<td>
@@ -2366,7 +2405,7 @@ if (isset($size_prices) && !empty($size_prices)) {
 		});
 
 		// Re-render the pricing groups table
-		renderPricingGroups();
+		renderPricingGroups(true);
 
 		// Close Modal
 		var modalEl = document.getElementById('bulkPriceModal');
