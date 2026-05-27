@@ -17,3 +17,4 @@ erp_client_varitty (1).sql
 erp_master.sql
 *.sql
 /backups
+/scratch

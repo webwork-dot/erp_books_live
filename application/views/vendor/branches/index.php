@@ -117,6 +117,9 @@
 								</td>
 								<td><?php echo date('d M Y', strtotime($branch['created_at'])); ?></td>
 								<td class="text-end">
+									<button class="btn btn-sm btn-outline-warning qr-branch-btn" data-branch-id="<?php echo $branch['id']; ?>" data-bs-toggle="tooltip" title="Download QR Code">
+										<i class="isax isax-scan-barcode"></i>
+									</button>
 									<a href="<?php echo base_url('branches/edit/' . $branch['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
@@ -243,6 +246,160 @@ document.addEventListener('DOMContentLoaded', function() {
 			});
 		});
 	});
+});
+</script>
+
+<!-- Branch QR Code Modal -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-md modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header py-2">
+				<h6 class="modal-title mb-0" id="qrCodeModalLabel">Download QR Codes</h6>
+				<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body py-3" id="qrCodeContent" style="max-height: 70vh; overflow-y: auto;">
+				<!-- Dynamic content loaded via JS -->
+			</div>
+			<div class="modal-footer py-2">
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+.qr-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 1.5rem;
+	justify-items: center;
+	margin-top: 1rem;
+}
+.qr-card {
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 1rem;
+	text-align: center;
+	box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.02);
+	transition: all 0.2s ease-in-out;
+	width: 100%;
+	max-width: 240px;
+}
+.qr-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+	border-color: #cbd5e1;
+}
+.qr-placeholder {
+	width: 100%;
+	height: 140px;
+	margin-bottom: 0.75rem;
+	border-radius: 8px;
+	border: 1px solid #e2e8f0;
+	background: #f8fafc;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.qr-placeholder i {
+	font-size: 2.8rem;
+	color: #64748b;
+}
+.qr-card-title {
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #1e293b;
+	margin-bottom: 0.25rem;
+	line-height: 1.25;
+}
+.qr-card-subtitle {
+	font-size: 0.75rem;
+	color: #64748b;
+	margin-bottom: 0.75rem;
+}
+.qr-card .btn-download {
+	width: 100%;
+	font-weight: 500;
+	font-size: 0.8rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+	// QR Code Modal loading
+	const qrCodeModal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+	
+	document.querySelectorAll('.qr-branch-btn').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			const branchId = this.getAttribute('data-branch-id');
+			loadBranchQrCodes(branchId);
+		});
+	});
+
+	function loadBranchQrCodes(branchId) {
+		fetch('<?php echo base_url('branches/get_branch_details/'); ?>' + branchId)
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					const branch = data.branch;
+					const boards = branch.boards || [];
+					
+					if (boards.length <= 1) {
+						// Single board: download directly!
+						const boardId = boards.length === 1 ? boards[0].id : '';
+						const downloadUrl = '<?php echo base_url('schools/download_branch_qr/'); ?>' + branch.id + (boardId ? '/' + boardId : '');
+						window.location.href = downloadUrl;
+					} else {
+						// Multi-board: show modal
+						const modalContent = document.getElementById('qrCodeContent');
+						modalContent.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading options...</p></div>';
+						qrCodeModal.show();
+						displayBranchQrCodes(branch);
+					}
+				} else {
+					alert(data.message || 'Failed to load branch details');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				alert('An error occurred while loading. Please try again.');
+			});
+	}
+
+	function displayBranchQrCodes(branch) {
+		const modalContent = document.getElementById('qrCodeContent');
+		const modalTitle = document.getElementById('qrCodeModalLabel');
+		
+		modalTitle.textContent = 'Download QR Codes - ' + (branch.branch_name || 'Branch');
+		
+		let html = '';
+		html += '<h6 class="text-primary border-bottom pb-2 mb-3"><i class="isax isax-building-3 me-2"></i>Branch QR Codes</h6>';
+		html += '<div class="qr-grid">';
+		
+		if (branch.boards && branch.boards.length > 0) {
+			branch.boards.forEach(function(board) {
+				const downloadUrl = '<?php echo base_url('schools/download_branch_qr/'); ?>' + branch.id + '/' + board.id;
+				html += '<div class="qr-card">';
+				html += '  <div class="qr-placeholder"><i class="isax isax-scan-barcode"></i></div>';
+				html += '  <div class="qr-card-title text-truncate">' + branch.branch_name + '</div>';
+				html += '  <div class="qr-card-subtitle">' + board.board_name + '</div>';
+				html += '  <a href="' + downloadUrl + '" class="btn btn-sm btn-primary btn-download"><i class="isax isax-import me-1"></i>Download QR</a>';
+				html += '</div>';
+			});
+		} else {
+			const downloadUrl = '<?php echo base_url('schools/download_branch_qr/'); ?>' + branch.id;
+			html += '<div class="qr-card">';
+			html += '  <div class="qr-placeholder"><i class="isax isax-scan-barcode"></i></div>';
+			html += '  <div class="qr-card-title text-truncate">' + branch.branch_name + '</div>';
+			html += '  <div class="qr-card-subtitle">Storefront</div>';
+			html += '  <a href="' + downloadUrl + '" class="btn btn-sm btn-primary btn-download"><i class="isax isax-import me-1"></i>Download QR</a>';
+			html += '</div>';
+		}
+		
+		html += '</div>';
+		modalContent.innerHTML = html;
+	}
 });
 </script>
 

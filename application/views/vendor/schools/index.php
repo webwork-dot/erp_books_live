@@ -140,6 +140,9 @@
 								</td>
 								<td><?php echo date('d M Y', strtotime($school['created_at'])); ?></td>
 								<td class="text-end">
+									<button type="button" class="btn btn-sm btn-outline-warning qr-school-btn" data-school-id="<?php echo $school['id']; ?>" data-bs-toggle="tooltip" title="Download QR Codes">
+										<i class="isax isax-scan-barcode"></i>
+									</button>
 									<button type="button" class="btn btn-sm btn-outline-info view-school-btn" data-school-id="<?php echo $school['id']; ?>" data-bs-toggle="tooltip" title="View Details">
 										<i class="isax isax-eye"></i>
 									</button>
@@ -231,10 +234,83 @@
 	</div>
 </div>
 
+<!-- School QR Code Modal -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header py-2">
+				<h6 class="modal-title mb-0" id="qrCodeModalLabel">Download QR Codes</h6>
+				<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body py-3" id="qrCodeContent" style="max-height: 70vh; overflow-y: auto;">
+				<!-- Dynamic content loaded via JS -->
+			</div>
+			<div class="modal-footer py-2">
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <style>
 .badge-sm {
 	font-size: 0.7rem;
 	padding: 0.25em 0.5em;
+}
+.qr-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 1.5rem;
+	justify-items: center;
+	margin-top: 1rem;
+}
+.qr-card {
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 1rem;
+	text-align: center;
+	box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.02);
+	transition: all 0.2s ease-in-out;
+	width: 100%;
+	max-width: 240px;
+}
+.qr-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+	border-color: #cbd5e1;
+}
+.qr-placeholder {
+	width: 100%;
+	height: 140px;
+	margin-bottom: 0.75rem;
+	border-radius: 8px;
+	border: 1px solid #e2e8f0;
+	background: #f8fafc;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.qr-placeholder i {
+	font-size: 2.8rem;
+	color: #64748b;
+}
+.qr-card-title {
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #1e293b;
+	margin-bottom: 0.25rem;
+	line-height: 1.25;
+}
+.qr-card-subtitle {
+	font-size: 0.75rem;
+	color: #64748b;
+	margin-bottom: 0.75rem;
+}
+.qr-card .btn-download {
+	width: 100%;
+	font-weight: 500;
+	font-size: 0.8rem;
 }
 </style>
 
@@ -540,6 +616,123 @@ document.addEventListener('DOMContentLoaded', function() {
 		html += '</div>';
 		
 		html += '</div>';
+		
+		modalContent.innerHTML = html;
+	}
+
+	// QR Code Modal loading
+	const qrCodeModal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+	
+	document.querySelectorAll('.qr-school-btn').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			const schoolId = this.getAttribute('data-school-id');
+			loadSchoolQrCodes(schoolId);
+		});
+	});
+
+	function loadSchoolQrCodes(schoolId) {
+		fetch('<?php echo base_url('schools/get_school_details/'); ?>' + schoolId)
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					const school = data.school;
+					const branches = data.branches || [];
+					const boards = school.boards || [];
+					
+					if (boards.length <= 1 && branches.length === 0) {
+						// Single board, no branches: download directly!
+						const boardId = boards.length === 1 ? boards[0].id : '';
+						const downloadUrl = '<?php echo base_url('schools/download_qr/'); ?>' + school.id + (boardId ? '/' + boardId : '');
+						window.location.href = downloadUrl;
+					} else {
+						// Multi-board or has branches: show modal
+						const modalContent = document.getElementById('qrCodeContent');
+						modalContent.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2 text-muted">Loading options...</p></div>';
+						qrCodeModal.show();
+						displaySchoolQrCodes(school, branches);
+					}
+				} else {
+					alert(data.message || 'Failed to load school details');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				alert('An error occurred while loading. Please try again.');
+			});
+	}
+
+	function displaySchoolQrCodes(school, branches) {
+		const modalContent = document.getElementById('qrCodeContent');
+		const modalTitle = document.getElementById('qrCodeModalLabel');
+		
+		modalTitle.textContent = 'Download QR Codes - ' + (school.school_name || 'School');
+		
+		let html = '';
+		
+		// 1. School Section
+		html += '<h6 class="text-primary border-bottom pb-2 mb-3"><i class="isax isax-building me-2"></i>School QR Codes</h6>';
+		html += '<div class="qr-grid mb-4">';
+		
+		// Check boards
+		if (school.boards && school.boards.length > 1) {
+			// Multi-board school: generate download for each board
+			school.boards.forEach(function(board) {
+				const downloadUrl = '<?php echo base_url('schools/download_qr/'); ?>' + school.id + '/' + board.id;
+				html += '<div class="qr-card">';
+				html += '  <div class="qr-placeholder"><i class="isax isax-scan-barcode"></i></div>';
+				html += '  <div class="qr-card-title text-truncate">' + school.school_name + '</div>';
+				html += '  <div class="qr-card-subtitle">' + board.board_name + '</div>';
+				html += '  <a href="' + downloadUrl + '" class="btn btn-sm btn-primary btn-download"><i class="isax isax-import me-1"></i>Download QR</a>';
+				html += '</div>';
+			});
+		} else {
+			// Single board or no board assigned: show download button
+			const boardId = school.boards && school.boards.length === 1 ? school.boards[0].id : '';
+			const boardName = school.boards && school.boards.length === 1 ? school.boards[0].board_name : '';
+			const downloadUrl = '<?php echo base_url('schools/download_qr/'); ?>' + school.id + (boardId ? '/' + boardId : '');
+			
+			html += '<div class="qr-card">';
+			html += '  <div class="qr-placeholder"><i class="isax isax-scan-barcode"></i></div>';
+			html += '  <div class="qr-card-title text-truncate">' + school.school_name + '</div>';
+			html += '  <div class="qr-card-subtitle">' + (boardName || 'Storefront') + '</div>';
+			html += '  <a href="' + downloadUrl + '" class="btn btn-sm btn-primary btn-download"><i class="isax isax-import me-1"></i>Download QR</a>';
+			html += '</div>';
+		}
+		html += '</div>';
+		
+		// 2. Branches Section (if any branches exist)
+		if (branches && branches.length > 0) {
+			html += '<h6 class="text-primary border-bottom pb-2 mb-3 mt-4"><i class="isax isax-building-3 me-2"></i>Branch QR Codes</h6>';
+			html += '<div class="qr-grid">';
+			
+			branches.forEach(function(branch) {
+				if (branch.boards && branch.boards.length > 1) {
+					// Multi-board branch
+					branch.boards.forEach(function(board) {
+						const downloadUrl = '<?php echo base_url('schools/download_branch_qr/'); ?>' + branch.id + '/' + board.id;
+						html += '<div class="qr-card">';
+						html += '  <div class="qr-placeholder"><i class="isax isax-scan-barcode"></i></div>';
+						html += '  <div class="qr-card-title text-truncate">' + branch.branch_name + '</div>';
+						html += '  <div class="qr-card-subtitle">' + board.board_name + '</div>';
+						html += '  <a href="' + downloadUrl + '" class="btn btn-sm btn-primary btn-download"><i class="isax isax-import me-1"></i>Download QR</a>';
+						html += '</div>';
+					});
+				} else {
+					// Single board branch
+					const boardId = branch.boards && branch.boards.length === 1 ? branch.boards[0].id : '';
+					const boardName = branch.boards && branch.boards.length === 1 ? branch.boards[0].board_name : '';
+					const downloadUrl = '<?php echo base_url('schools/download_branch_qr/'); ?>' + branch.id + (boardId ? '/' + boardId : '');
+					
+					html += '<div class="qr-card">';
+					html += '  <div class="qr-placeholder"><i class="isax isax-scan-barcode"></i></div>';
+					html += '  <div class="qr-card-title text-truncate">' + branch.branch_name + '</div>';
+					html += '  <div class="qr-card-subtitle">' + (boardName || 'Storefront') + '</div>';
+					html += '  <a href="' + downloadUrl + '" class="btn btn-sm btn-primary btn-download"><i class="isax isax-import me-1"></i>Download QR</a>';
+					html += '</div>';
+				}
+			});
+			html += '</div>';
+		}
 		
 		modalContent.innerHTML = html;
 	}

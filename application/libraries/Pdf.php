@@ -78,13 +78,3 @@ if (class_exists('Dompdf\Dompdf')) {
 		public function set_option($option, $value) { return $this; }
 	}
 }
-
-?>
-
-
-
-
-
-
-
-

@@ -366,5 +366,52 @@ class Branches extends Vendor_base
 		header('Content-Type: application/json');
 		echo json_encode($response);
 	}
+
+	/**
+	 * Get branch details with boards (AJAX)
+	 *
+	 * @param	int	$branch_id	Branch ID
+	 * @return	void
+	 */
+	public function get_branch_details($branch_id)
+	{
+		$branch = $this->Branch_model->getBranchById($branch_id, $this->current_vendor['id']);
+		if (!$branch)
+		{
+			$this->output
+				->set_content_type('application/json')
+				->set_output(json_encode(array(
+					'success' => false,
+					'message' => 'Branch not found'
+				)));
+			return;
+		}
+
+		// Get school boards (branches use boards from their parent school)
+		$this->load->model('School_board_model');
+		$board_ids = $this->School_model->getSchoolBoardIds($branch['school_id']);
+		$boards = array();
+		if (!empty($board_ids))
+		{
+			foreach ($board_ids as $board_id)
+			{
+				$board = $this->School_board_model->getBoardById($board_id, $this->current_vendor['id']);
+				if ($board)
+				{
+					$boards[] = $board;
+				}
+			}
+		}
+		$branch['boards'] = $boards;
+
+		$response = array(
+			'success' => true,
+			'branch' => $branch
+		);
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode($response));
+	}
 }
 
