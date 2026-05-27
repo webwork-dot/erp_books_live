@@ -160,11 +160,25 @@ class Products extends Vendor_base
 				if ($data['search_q'] !== '') {
 					$haystack = strtolower(
 						(string)$row['product_name'] . ' ' .
+						(string)$row['uniform_type_name'] . ' ' .
 						(string)$row['variation_key'] . ' ' .
+						(string)$row['gender'] . ' ' .
+						(string)$row['school_name'] . ' ' .
+						(string)$row['branch_name'] . ' ' .
+						(string)$row['board_name'] . ' ' .
+						(string)$row['grade_name'] . ' ' .
 						(string)$row['item_ref_id'] . ' ' .
 						(string)$row['item_type']
 					);
-					if (strpos($haystack, strtolower($data['search_q'])) === FALSE) {
+					$terms = array_filter(explode(' ', strtolower($data['search_q'])));
+					$matches_all = true;
+					foreach ($terms as $term) {
+						if (strpos($haystack, $term) === FALSE) {
+							$matches_all = false;
+							break;
+						}
+					}
+					if (!$matches_all) {
 						continue;
 					}
 				}
@@ -433,12 +447,25 @@ class Products extends Vendor_base
 			if ($q !== '') {
 				$haystack = strtolower(
 					(string)$row['product_name'] . ' ' .
+					(string)$row['uniform_type_name'] . ' ' .
 					(string)$row['variation_key'] . ' ' .
+					(string)$row['gender'] . ' ' .
 					(string)$row['school_name'] . ' ' .
+					(string)$row['branch_name'] . ' ' .
 					(string)$row['board_name'] . ' ' .
-					(string)$row['grade_name']
+					(string)$row['grade_name'] . ' ' .
+					(string)$row['item_ref_id'] . ' ' .
+					(string)$row['item_type']
 				);
-				if (strpos($haystack, strtolower($q)) === FALSE) {
+				$terms = array_filter(explode(' ', strtolower($q)));
+				$matches_all = true;
+				foreach ($terms as $term) {
+					if (strpos($haystack, $term) === FALSE) {
+						$matches_all = false;
+						break;
+					}
+				}
+				if (!$matches_all) {
 					continue;
 				}
 			}
@@ -689,6 +716,7 @@ class Products extends Vendor_base
 		$movement_map = array();
 		$class_name_map = array();
 		$product_image_map = array();
+		$seen_keys = array();
 
 		if ($this->db->table_exists('erp_classes')) {
 			$class_rows = $this->db
@@ -761,6 +789,12 @@ class Products extends Vendor_base
 				$row_school_id = isset($u['school_id']) ? (int)$u['school_id'] : 0;
 				$row_branch_id = isset($u['branch_id']) ? (int)$u['branch_id'] : 0;
 				$key = 'uniform|' . (int)$u['product_id'] . '|' . strtolower($variation_key) . '|' . $row_school_id . '|' . $row_branch_id;
+
+				if (isset($seen_keys[$key])) {
+					continue;
+				}
+				$seen_keys[$key] = true;
+
 				$grade_name = '-';
 				if (!empty($u['class_id'])) {
 					$class_ids = array_filter(array_map('intval', explode(',', (string)$u['class_id'])));
