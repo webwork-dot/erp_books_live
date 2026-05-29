@@ -133,4 +133,30 @@ class Master_size_chart_model extends CI_Model
 			->where('master_size_chart_id', (int) $master_size_chart_id)
 			->count_all_results('erp_master_size_chart_images');
 	}
+
+	public function getAllSizesGroupedByChart($vendor_id)
+	{
+		$this->db->select('sc.id as chart_id, sc.name as chart_name, s.name as size_name, s.id as size_id');
+		$this->db->from('erp_sizes s');
+		$this->db->join('erp_size_charts sc', 'sc.id = s.size_chart_id');
+		$this->db->where('sc.vendor_id', (int) $vendor_id);
+		$this->db->where('sc.status', 'active');
+		$this->db->where('s.status', 'active');
+		$this->db->order_by('sc.name', 'ASC');
+		$this->db->order_by('s.display_order', 'ASC');
+		$this->db->order_by('s.name', 'ASC');
+		return $this->db->get()->result_array();
+	}
+
+	public function getUniqueSizeNames($vendor_id)
+	{
+		$this->db->select('DISTINCT(s.name) as size_name');
+		$this->db->from('erp_sizes s');
+		$this->db->join('erp_size_charts sc', 'sc.id = s.size_chart_id');
+		$this->db->where('sc.vendor_id', (int) $vendor_id);
+		$this->db->where('sc.status', 'active');
+		$this->db->where('s.status', 'active');
+		$this->db->order_by('s.name', 'ASC');
+		return $this->db->get()->result_array();
+	}
 }

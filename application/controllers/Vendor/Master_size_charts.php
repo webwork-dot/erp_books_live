@@ -194,15 +194,16 @@ class Master_size_charts extends Vendor_base
 			$this->form_validation->set_rules('status', 'Status', 'required|in_list[active,inactive]');
 
 			if ($this->form_validation->run() === TRUE) {
+				$chart_data = $this->input->post('chart_data');
 				$chart_id = $this->Master_size_chart_model->createChart(array(
 					'vendor_id' => $this->current_vendor['id'],
 					'name' => $this->input->post('chart_name'),
 					'status' => $this->input->post('status'),
+					'chart_data' => !empty($chart_data) ? $chart_data : NULL
 				));
 
 				if ($chart_id) {
-					$n = $this->uploadImagesForChart($chart_id);
-					$this->session->set_flashdata('success', 'Master size chart created' . ($n ? ' with ' . $n . ' image(s).' : '.'));
+					$this->session->set_flashdata('success', 'Master size chart created successfully.');
 					redirect('master-size-charts');
 					return;
 				}
@@ -210,6 +211,8 @@ class Master_size_charts extends Vendor_base
 			}
 		}
 
+		$data['all_sizes_grouped'] = $this->Master_size_chart_model->getAllSizesGroupedByChart($this->current_vendor['id']);
+		$data['unique_sizes'] = $this->Master_size_chart_model->getUniqueSizeNames($this->current_vendor['id']);
 		$data['title'] = 'Add Master Size Chart';
 		$data['page_title'] = 'Add Master Size Chart';
 		$data['active_menu'] = 'master-size-charts';
@@ -231,9 +234,11 @@ class Master_size_charts extends Vendor_base
 			$this->form_validation->set_rules('status', 'Status', 'required|in_list[active,inactive]');
 
 			if ($this->form_validation->run() === TRUE) {
+				$chart_data = $this->input->post('chart_data');
 				$this->Master_size_chart_model->updateChart($id, $this->current_vendor['id'], array(
 					'name' => $this->input->post('chart_name'),
 					'status' => $this->input->post('status'),
+					'chart_data' => !empty($chart_data) ? $chart_data : NULL
 				));
 
 				$remove_ids = $this->input->post('remove_image_ids');
@@ -250,13 +255,14 @@ class Master_size_charts extends Vendor_base
 					}
 				}
 
-				$n = $this->uploadImagesForChart($id);
-				$this->session->set_flashdata('success', 'Master size chart updated' . ($n ? ' (' . $n . ' new image(s)).' : '.'));
+				$this->session->set_flashdata('success', 'Master size chart updated successfully.');
 				redirect('master-size-charts');
 				return;
 			}
 		}
 
+		$data['all_sizes_grouped'] = $this->Master_size_chart_model->getAllSizesGroupedByChart($this->current_vendor['id']);
+		$data['unique_sizes'] = $this->Master_size_chart_model->getUniqueSizeNames($this->current_vendor['id']);
 		$data['chart'] = $chart;
 		$data['images'] = $this->Master_size_chart_model->getImagesByChartId($id);
 		$data['title'] = 'Edit Master Size Chart';
