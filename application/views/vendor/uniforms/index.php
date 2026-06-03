@@ -287,9 +287,9 @@
 									<a href="<?php echo base_url('products/uniforms/edit/' . $uniform['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
 										<i class="isax isax-edit"></i>
 									</a>
-									<a href="<?php echo base_url('products/uniforms/delete/' . $uniform['id']); ?>" onclick="return confirm('Are you sure you want to delete this uniform?');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
+									<!-- <a href="<?php echo base_url('products/uniforms/delete/' . $uniform['id']); ?>" onclick="return confirm('Are you sure you want to delete this uniform?');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
 										<i class="isax isax-trash"></i>
-									</a>
+									</a> -->
 								</td>
 							</tr>
 						<?php endforeach; ?>
