@@ -218,6 +218,11 @@
 								<option value="Blue" <?php echo set_select('color', 'Blue', $uniform['color'] == 'Blue'); ?>>Blue</option>
 								<option value="Green" <?php echo set_select('color', 'Green', $uniform['color'] == 'Green'); ?>>Green</option>
 								<option value="Yellow" <?php echo set_select('color', 'Yellow', $uniform['color'] == 'Yellow'); ?>>Yellow</option>
+								<option value="Vayu" <?php echo set_select('color', 'Vayu', $uniform['color'] == 'Vayu'); ?>>Vayu</option>
+								<option value="Jal" <?php echo set_select('color', 'Jal', $uniform['color'] == 'Jal'); ?>>
+									Jal</option>
+								<option value="Agni" <?php echo set_select('color', 'Agni', $uniform['color'] == 'Agni'); ?>>Agni</option>
+								<option value="Prithvi" <?php echo set_select('color', 'Prithvi', $uniform['color'] == 'Prithvi'); ?>>Prithvi</option>
 							</select>
 						</div>
 					</div>
@@ -372,7 +377,8 @@
 									<option value="">None</option>
 									<?php foreach ($master_size_charts as $msc): ?>
 										<option value="<?php echo (int) $msc['id']; ?>" <?php echo (isset($uniform['master_size_chart_id']) && (int) $uniform['master_size_chart_id'] === (int) $msc['id']) ? 'selected' : ''; ?>>
-											<?php echo htmlspecialchars($msc['name']); ?></option>
+											<?php echo htmlspecialchars($msc['name']); ?>
+										</option>
 									<?php endforeach; ?>
 								</select>
 								<small class="text-muted d-block mt-1">Managed under Catalog → Master Size Charts.</small>
@@ -1164,7 +1170,7 @@ if (isset($size_prices) && !empty($size_prices)) {
 		$(document).ready(function () {
 			// Wait for Select2 to initialize
 			setTimeout(function () {
-				var previousSizeChartId = <?php echo isset($uniform) && isset($uniform['size_chart_id']) && $uniform['size_chart_id'] ? (int)$uniform['size_chart_id'] : '""'; ?>;
+				var previousSizeChartId = <?php echo isset($uniform) && isset($uniform['size_chart_id']) && $uniform['size_chart_id'] ? (int) $uniform['size_chart_id'] : '""'; ?>;
 				$('#size_chart_id').on('change', function () {
 					var sizeChartId = $(this).val();
 					console.log('Size chart changed to:', sizeChartId);
