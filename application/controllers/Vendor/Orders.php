@@ -3964,7 +3964,7 @@ class Orders extends Vendor_base
 		// Get order counts for each status (for tabs)
 		$vendor_id = $this->current_vendor['id'];
 		$page_data['order_counts'] = $this->Order_model->get_order_status_counts($vendor_id);
-		$page_data['order_status'] = 'pending';
+		$page_data['order_status'] = 'failed_payment';
 
 		// Pagination setup
 		$per_page = 10;
@@ -3979,7 +3979,7 @@ class Orders extends Vendor_base
 		// Setup pagination
 		$this->load->library('pagination');
 		$pagination_config = $this->get_pagination_config(
-			base_url('orders/pending'),
+			base_url('orders/failed-payment'),
 			$total_count,
 			$per_page
 		);
@@ -3989,9 +3989,9 @@ class Orders extends Vendor_base
 
 		// Prepare page data
 		$page_data['page_name'] = 'pending_orders';
-		$page_data['page_title'] = 'Pending Orders';
-		$page_data['current_page'] = 'Pending Orders';
-		$page_data['navigate'] = 'Pending Orders';
+		$page_data['page_title'] = 'Failed Payment Orders';
+		$page_data['current_page'] = 'Failed Payment Orders';
+		$page_data['navigate'] = 'Failed Payment Orders';
 		$page_data['current_vendor'] = $this->current_vendor;
 		$page_data['vendor_domain'] = $this->current_vendor['domain'];
 		$page_data['filter_data'] = $filter_data;
@@ -4001,13 +4001,65 @@ class Orders extends Vendor_base
 		$page_data['grades'] = $this->get_grades_for_filter();
 
 		// Load content view
-		$data['title'] = 'Pending Orders - ' . $this->current_vendor['name'];
+		$data['title'] = 'Failed Payment Orders - ' . $this->current_vendor['name'];
 		$data['current_vendor'] = $this->current_vendor;
 		$data['vendor_domain'] = $this->current_vendor['domain'];
 		$data['content'] = $this->load->view('vendor/orders/pending_orders', $page_data, TRUE);
 
 		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
+	/**
+	 * Mark order payment status as success manually
+	 *
+	 * @return	void
+	 */
+	public function mark_as_success()
+	{
+		$order_unique_id = $this->input->post('order_unique_id');
+
+		if (empty($order_unique_id)) {
+			echo json_encode(['status' => '400', 'message' => 'Order ID is required.']);
+			return;
+		}
+
+		$order = $this->Order_model->get_order($order_unique_id);
+		if (empty($order)) {
+			echo json_encode(['status' => '400', 'message' => 'Order not found.']);
+			return;
+		}
+
+		$order_data = $order[0];
+		$order_id = $order_data->id;
+
+		if ($order_data->payment_status == 'success') {
+			echo json_encode(['status' => '400', 'message' => 'Order payment is already success.']);
+			return;
+		}
+
+		$update_data = array(
+			'payment_status' => 'success'
+		);
+
+		$this->db->where('id', $order_id);
+		$this->db->update('tbl_order_details', $update_data);
+
+		if ($this->db->affected_rows() > 0) {
+			// Add status history entry for manual payment confirmation
+			$this->db->insert('tbl_order_status', array(
+				'order_id' => $order_id,
+				'user_id' => $order_data->user_id,
+				'product_id' => 0,
+				'status_title' => 'Payment Marked Success',
+				'status_desc' => 'Payment marked as success manually by vendor.',
+				'created_at' => date("Y-m-d H:i:s")
+			));
+
+			echo json_encode(['status' => '200', 'message' => 'Order payment marked as success successfully.']);
+		} else {
+			echo json_encode(['status' => '400', 'message' => 'Failed to update order payment status.']);
+		}
 	}
 
 	/**
@@ -4629,7 +4681,7 @@ class Orders extends Vendor_base
 		$this->db->select('*');
 		$this->db->from('tbl_order_details');
 		$this->db->where('id', $order_id);
-		$this->db->where('(payment_status="success" OR payment_status="cod" OR payment_status="payment_at_school" OR payment_method="cod" OR payment_method="payment_at_school")');
+		$this->db->where('(payment_status="success" OR payment_status="cod" OR payment_status="payment_at_school" OR payment_status="payment_at_scho" OR payment_method="cod" OR payment_method="payment_at_school" OR payment_method="payment_at_scho")');
 		$query = $this->db->get();
 
 		if ($query->num_rows() == 0) {

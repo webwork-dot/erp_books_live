@@ -325,7 +325,7 @@ if (!empty($additional_status)) {
         <i class="fa fa-history"></i> Order Timeline
       </button>
       <?php $os = $order_data[0]->order_status; ?>
-      <?php if ($os != '4' && $os != 4 && $os != '5' && $os != 5): ?>
+      <?php if ($order_data[0]->payment_status == 'success' && $os != '4' && $os != 4 && $os != '5' && $os != 5): ?>
         <button type="button" class="btn btn-outline-danger btn-sm"
           onclick="cancelOrder('<?= $order_data[0]->order_unique_id ?>', this)">
           <i class="fa fa-times me-1"></i> Cancel Order
@@ -334,27 +334,29 @@ if (!empty($additional_status)) {
       endif; ?>
     </div>
     <div class="d-flex gap-2">
-      <?php if ($os == '2' || $os == 2): ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm"
-          onclick="moveBackToPending('<?= $order_data[0]->order_unique_id ?>', this)">
-          <i class="fa fa-arrow-left me-1"></i> Move Back to New Order
-        </button>
-        <?php
-      endif; ?>
-      <?php if ($os == '6' || $os == 6): ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm"
-          onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)">
-          <i class="fa fa-arrow-left me-1"></i> Move Back to Processing
-        </button>
-        <?php
-      endif; ?>
-      <?php if ($os == '3' || $os == 3): ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm"
-          onclick="moveBackToProcessing('<?= $order_data[0]->order_unique_id ?>', this)">
-          <i class="fa fa-arrow-left me-1"></i> Move Back to Processing
-        </button>
-        <?php
-      endif; ?>
+      <?php if ($order_data[0]->payment_status == 'success'): ?>
+        <?php if ($os == '2' || $os == 2): ?>
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+            onclick="moveBackToPending('<?= $order_data[0]->order_unique_id ?>', this)">
+            <i class="fa fa-arrow-left me-1"></i> Move Back to New Order
+          </button>
+          <?php
+        endif; ?>
+        <?php if ($os == '6' || $os == 6): ?>
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+            onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)">
+            <i class="fa fa-arrow-left me-1"></i> Move Back to Processing
+          </button>
+          <?php
+        endif; ?>
+        <?php if ($os == '3' || $os == 3): ?>
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+            onclick="moveBackToProcessing('<?= $order_data[0]->order_unique_id ?>', this)">
+            <i class="fa fa-arrow-left me-1"></i> Move Back to Processing
+          </button>
+          <?php
+        endif; ?>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -389,7 +391,7 @@ if (!empty($additional_status)) {
               <span class="badge badge-pill badge-deliver-school">Deliver at School</span>
               <?php
             endif; ?>
-            <?php if ($order_data[0]->order_status != 5): ?>
+            <?php if ($order_data[0]->payment_status == 'success' && $order_data[0]->order_status != 5): ?>
               <?php if (!empty($order_data[0]->invoice_url)): ?>
                 <a href="<?php echo base_url($order_data[0]->invoice_url); ?>" class="btn btn-sm btn-success"
                   target="_blank">
@@ -1070,143 +1072,218 @@ if (!empty($additional_status)) {
           $awb_no = isset($order_data[0]->awb_no) ? trim($order_data[0]->awb_no) : '';
           $has_courier_selected = ($courier == 'manual' && $erp_courier_id > 0);
           ?>
+          <?php if ($order_data[0]->payment_status != 'success'): ?>
+            <div class="alert alert-danger border-0 mb-0">
+              <i class="fa fa-exclamation-triangle me-2"></i>
+              <strong>Payment Pending/Failed</strong><br>
+              This order cannot be processed until payment is marked as success.
+            </div>
+            <div class="d-grid mt-3">
+              <button class="btn btn-success btn-lg btn-mark-success-detail" data-id="<?php echo $order_data[0]->order_unique_id; ?>">
+                <i class="fa fa-check me-2"></i> Mark Payment as Success
+              </button>
+            </div>
+          <?php else: ?>
 
-          <!-- Status 1 & 2: Pending / Processing - Shipper selection & Self Delivery flow (exclude 6 - Ready for Shipment) -->
-          <?php if ($current_status == '1' || $current_status == 1 || $current_status == '2' || $current_status == 2): ?>
-            <?php if (empty($courier)): ?>
-              <!-- Shipper Selection -->
-              <div class="mb-3">
-                <p class="text-muted mb-3 text-center"><strong>Select Shipping Method</strong><br />
-                  <small class="text-muted mb-3 text-center">Assign a shipper to deliver your order</small>
-                </p>
 
-                <div class="row" style="margin: 0;">
-                  <div class="col-5" style="padding: 5px;">
-                    <button type="button" class="btn btn-outline-primary btn-lg w-100"
-                      onclick="selectShipper('<?= $order_data[0]->id ?>', 'manual', this)" style="width: 100%;">
-                      <i class="fa fa-truck"></i> Self Delivery
-                    </button>
+            <!-- Status 1 & 2: Pending / Processing - Shipper selection & Self Delivery flow (exclude 6 - Ready for Shipment) -->
+            <?php if ($current_status == '1' || $current_status == 1 || $current_status == '2' || $current_status == 2): ?>
+              <?php if (empty($courier)): ?>
+                <!-- Shipper Selection -->
+                <div class="mb-3">
+                  <p class="text-muted mb-3 text-center"><strong>Select Shipping Method</strong><br />
+                    <small class="text-muted mb-3 text-center">Assign a shipper to deliver your order</small>
+                  </p>
+
+                  <div class="row" style="margin: 0;">
+                    <div class="col-5" style="padding: 5px;">
+                      <button type="button" class="btn btn-outline-primary btn-lg w-100"
+                        onclick="selectShipper('<?= $order_data[0]->id ?>', 'manual', this)" style="width: 100%;">
+                        <i class="fa fa-truck"></i> Self Delivery
+                      </button>
+                    </div>
+                    <div class="col-2 text-center"
+                      style="padding: 5px; display: flex; align-items: center; justify-content: center;">
+                      <span class="text-muted" style="font-weight: bold;">OR</span>
+                    </div>
+                    <div class="col-5" style="padding: 5px;">
+                      <button type="button" class="btn btn-outline-info btn-lg w-100" data-bs-toggle="modal"
+                        data-bs-target="#thirdPartyShippingModal" style="width: 100%;">
+                        <i class="fa fa-shipping-fast"></i> 3rd Party
+                      </button>
+                    </div>
                   </div>
-                  <div class="col-2 text-center"
-                    style="padding: 5px; display: flex; align-items: center; justify-content: center;">
-                    <span class="text-muted" style="font-weight: bold;">OR</span>
-                  </div>
-                  <div class="col-5" style="padding: 5px;">
-                    <button type="button" class="btn btn-outline-info btn-lg w-100" data-bs-toggle="modal"
-                      data-bs-target="#thirdPartyShippingModal" style="width: 100%;">
-                      <i class="fa fa-shipping-fast"></i> 3rd Party
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <?php
-            elseif ($courier == 'manual'): ?>
-              <!-- Self Delivery - Flow: 1) Generate Label, 2) Select Courier, 3) Ready to Ship -->
-              <div class="mb-3">
-                <div class="alert alert-light border d-flex align-items-center mb-3">
-                  <i class="fa fa-truck text-primary me-2"></i>
-                  <span><strong>Self Delivery</strong> Selected</span>
-                </div>
-              </div>
-              <?php if (!$has_shipping_label && ($current_status == '2' || $current_status == 2)): ?>
-                <!-- Step 1: Generate shipping label first -->
-                <div class="d-grid">
-                  <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>"
-                    class="btn btn-primary btn-lg" id="generateLabelBtn" onclick="showGenerateLoading(this); return true;">
-                    <span id="generateLabelText">
-                      <i class="fa fa-file-pdf me-2"></i> Generate Shipping Label
-                    </span>
-                    <span id="generateLabelSpinner" style="display: none;">
-                      <i class="fa fa-spinner fa-spin me-2"></i> Generating...
-                    </span>
-                  </a>
                 </div>
                 <?php
-              elseif (!$has_courier_selected): ?>
-                <!-- Step 2: After label generated, select courier -->
-                <div class="alert alert-light border mb-2 small">
-                  <i class="fa fa-check-circle text-success me-1"></i> Shipping label generated
+              elseif ($courier == 'manual'): ?>
+                <!-- Self Delivery - Flow: 1) Generate Label, 2) Select Courier, 3) Ready to Ship -->
+                <div class="mb-3">
+                  <div class="alert alert-light border d-flex align-items-center mb-3">
+                    <i class="fa fa-truck text-primary me-2"></i>
+                    <span><strong>Self Delivery</strong> Selected</span>
+                  </div>
                 </div>
-                <div class="row" style="margin: 0;">
-                  <div class="col-6" style="padding: 5px;">
-                    <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
-                      class="btn btn-info btn-lg w-100" target="_blank" style="width: 100%;">
-                      <i class="fa fa-download me-2"></i> Download Label
+                <?php if (!$has_shipping_label && ($current_status == '2' || $current_status == 2)): ?>
+                  <!-- Step 1: Generate shipping label first -->
+                  <div class="d-grid">
+                    <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>"
+                      class="btn btn-primary btn-lg" id="generateLabelBtn" onclick="showGenerateLoading(this); return true;">
+                      <span id="generateLabelText">
+                        <i class="fa fa-file-pdf me-2"></i> Generate Shipping Label
+                      </span>
+                      <span id="generateLabelSpinner" style="display: none;">
+                        <i class="fa fa-spinner fa-spin me-2"></i> Generating...
+                      </span>
                     </a>
                   </div>
+                  <?php
+                elseif (!$has_courier_selected): ?>
+                  <!-- Step 2: After label generated, select courier -->
+                  <div class="alert alert-light border mb-2 small">
+                    <i class="fa fa-check-circle text-success me-1"></i> Shipping label generated
+                  </div>
+                  <div class="row" style="margin: 0;">
+                    <div class="col-6" style="padding: 5px;">
+                      <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
+                        class="btn btn-info btn-lg w-100" target="_blank" style="width: 100%;">
+                        <i class="fa fa-download me-2"></i> Download Label
+                      </a>
+                    </div>
+                    <div class="col-6" style="padding: 5px;">
+                      <button type="button" class="btn btn-primary btn-lg w-100" data-bs-toggle="modal"
+                        data-bs-target="#selectCourierModal" style="width: 100%;">
+                        <i class="fa fa-truck me-2"></i> Select Courier
+                      </button>
+                    </div>
+                  </div>
+                  <?php
+                else: ?>
+                  <!-- Step 3: Label + Courier selected - Ready to Ship or Out for Delivery -->
+                  <div class="alert alert-light border mb-2 small">
+                    <strong>Courier:</strong>
+                    <?= htmlspecialchars(isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-') ?>
+                    <?php if (!empty($awb_no)): ?><br><strong>AWB:</strong> <code><?= htmlspecialchars($awb_no) ?></code><?php
+                    endif; ?>
+                    <a href="#" class="ms-2" data-bs-toggle="modal" data-bs-target="#selectCourierModal">Edit</a>
+                  </div>
+                  <div class="row" style="margin: 0;">
+                    <div class="col-6" style="padding: 5px;">
+                      <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
+                        class="btn btn-info btn-lg w-100" target="_blank" style="width: 100%;">
+                        <i class="fa fa-download"></i> Download
+                      </a>
+                    </div>
+                    <div class="col-6" style="padding: 5px;">
+                      <button type="button" class="btn btn-warning btn-lg w-100"
+                        onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                        <i class="fa fa-check-square-o"></i> Ready to Ship
+                      </button>
+                    </div>
+                  </div>
+                  <?php
+                endif; ?>
+                <?php
+              elseif ($courier == '3rd_party' || $courier == 'shiprocket'): ?>
+                <!-- 3rd Party - Show provider info -->
+                <?php
+                $third_party_provider = isset($order_data[0]->third_party_provider) ? $order_data[0]->third_party_provider : 'shiprocket';
+                $provider_label = ucfirst($third_party_provider);
+                if ($provider_label == 'Bigship')
+                  $provider_label = 'Big Ship';
+                ?>
+                <div class="mb-3">
+                  <div class="alert alert-info border-0 mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                      <i class="fa fa-shipping-fast me-2"></i>
+                      <strong>3rd Party Shipping</strong>
+                    </div>
+                    <small class="text-muted"><?= htmlspecialchars($provider_label) ?></small>
+                    <?php if (!empty($order_data[0]->pkg_length_cm) || !empty($order_data[0]->pkg_weight_kg)): ?>
+                      <div class="mt-2 small">
+                        <strong>Dimensions:</strong>
+                        L: <?= htmlspecialchars($order_data[0]->pkg_length_cm ?? '-') ?> cm ×
+                        B: <?= htmlspecialchars($order_data[0]->pkg_breadth_cm ?? '-') ?> cm ×
+                        H: <?= htmlspecialchars($order_data[0]->pkg_height_cm ?? '-') ?> cm,
+                        W: <?= htmlspecialchars($order_data[0]->pkg_weight_kg ?? '-') ?> kg
+                      </div>
+                      <?php
+                    endif; ?>
+                    <?php if (!empty($order_data[0]->awb_no)): ?>
+                      <div class="mt-2">
+                        <strong>AWB:</strong> <code><?= htmlspecialchars($order_data[0]->awb_no) ?></code>
+                      </div>
+                      <?php
+                    endif; ?>
+                  </div>
+                </div>
+                <?php if ($has_shipping_label): ?>
+                  <div class="row" style="margin: 0;">
+                    <div class="col-6" style="padding: 5px;">
+                      <button type="button" class="btn btn-warning btn-lg w-100"
+                        onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                        <i class="fa fa-check-square-o"></i> Ready to Ship
+                      </button>
+                    </div>
+                    <div class="col-6" style="padding: 5px;">
+                      <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
+                        class="btn btn-outline-info btn-lg w-100" target="_blank" style="width: 100%;">
+                        <i class="fa fa-download"></i> Download
+                      </a>
+                    </div>
+                  </div>
+                  <?php
+                endif; ?>
+                <?php
+              endif; ?>
+              <?php
+            endif; ?>
+
+            <!-- Status 6: Ready for Shipment - Warehouse marked ready, show Out for Delivery button -->
+            <?php if ($current_status == '6' || $current_status == 6): ?>
+              <?php if ($has_shipping_label): ?>
+                <div class="row" style="margin: 0;">
                   <div class="col-6" style="padding: 5px;">
-                    <button type="button" class="btn btn-primary btn-lg w-100" data-bs-toggle="modal"
-                      data-bs-target="#selectCourierModal" style="width: 100%;">
-                      <i class="fa fa-truck me-2"></i> Select Courier
+                    <button type="button" class="btn btn-success btn-lg w-100"
+                      onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                      <i class="fa fa-truck"></i> Out for Delivery
                     </button>
+                  </div>
+                  <div class="col-6" style="padding: 5px;">
+                    <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
+                      class="btn btn-outline-info btn-lg w-100" target="_blank" style="width: 100%;">
+                      <i class="fa fa-download"></i> Download Label
+                    </a>
                   </div>
                 </div>
                 <?php
               else: ?>
-                <!-- Step 3: Label + Courier selected - Ready to Ship or Out for Delivery -->
-                <div class="alert alert-light border mb-2 small">
-                  <strong>Courier:</strong>
-                  <?= htmlspecialchars(isset($courier_info['courier_name']) ? $courier_info['courier_name'] : '-') ?>
-                  <?php if (!empty($awb_no)): ?><br><strong>AWB:</strong> <code><?= htmlspecialchars($awb_no) ?></code><?php
-                  endif; ?>
-                  <a href="#" class="ms-2" data-bs-toggle="modal" data-bs-target="#selectCourierModal">Edit</a>
-                </div>
-                <div class="row" style="margin: 0;">
-                  <div class="col-6" style="padding: 5px;">
-                    <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
-                      class="btn btn-info btn-lg w-100" target="_blank" style="width: 100%;">
-                      <i class="fa fa-download"></i> Download
-                    </a>
-                  </div>
-                  <div class="col-6" style="padding: 5px;">
-                    <button type="button" class="btn btn-warning btn-lg w-100"
-                      onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
-                      <i class="fa fa-check-square-o"></i> Ready to Ship
-                    </button>
-                  </div>
+                <div class="d-grid">
+                  <button type="button" class="btn btn-success btn-lg"
+                    onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)">
+                    <i class="fa fa-truck me-2"></i> Out for Delivery
+                  </button>
                 </div>
                 <?php
               endif; ?>
-              <?php
-            elseif ($courier == '3rd_party' || $courier == 'shiprocket'): ?>
-              <!-- 3rd Party - Show provider info -->
-              <?php
-              $third_party_provider = isset($order_data[0]->third_party_provider) ? $order_data[0]->third_party_provider : 'shiprocket';
-              $provider_label = ucfirst($third_party_provider);
-              if ($provider_label == 'Bigship')
-                $provider_label = 'Big Ship';
-              ?>
-              <div class="mb-3">
-                <div class="alert alert-info border-0 mb-3">
-                  <div class="d-flex align-items-center mb-2">
-                    <i class="fa fa-shipping-fast me-2"></i>
-                    <strong>3rd Party Shipping</strong>
-                  </div>
-                  <small class="text-muted"><?= htmlspecialchars($provider_label) ?></small>
-                  <?php if (!empty($order_data[0]->pkg_length_cm) || !empty($order_data[0]->pkg_weight_kg)): ?>
-                    <div class="mt-2 small">
-                      <strong>Dimensions:</strong>
-                      L: <?= htmlspecialchars($order_data[0]->pkg_length_cm ?? '-') ?> cm ×
-                      B: <?= htmlspecialchars($order_data[0]->pkg_breadth_cm ?? '-') ?> cm ×
-                      H: <?= htmlspecialchars($order_data[0]->pkg_height_cm ?? '-') ?> cm,
-                      W: <?= htmlspecialchars($order_data[0]->pkg_weight_kg ?? '-') ?> kg
-                    </div>
-                    <?php
-                  endif; ?>
-                  <?php if (!empty($order_data[0]->awb_no)): ?>
-                    <div class="mt-2">
-                      <strong>AWB:</strong> <code><?= htmlspecialchars($order_data[0]->awb_no) ?></code>
-                    </div>
-                    <?php
-                  endif; ?>
+              <div class="row mt-2" style="margin: 0;">
+                <div class="col-12" style="padding: 5px;">
+                  <button type="button" class="btn btn-outline-warning btn-lg w-100"
+                    onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                    <i class="fa fa-undo"></i> Unmark Ready (Move Back to Processing)
+                  </button>
                 </div>
               </div>
+              <?php
+            endif; ?>
+
+            <!-- Status 3: Out for Delivery - Show Delivered button + Move back to Processing -->
+            <?php if ($current_status == '3' || $current_status == 3): ?>
               <?php if ($has_shipping_label): ?>
                 <div class="row" style="margin: 0;">
                   <div class="col-6" style="padding: 5px;">
-                    <button type="button" class="btn btn-warning btn-lg w-100"
-                      onclick="markReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
-                      <i class="fa fa-check-square-o"></i> Ready to Ship
+                    <button type="button" class="btn btn-success btn-lg w-100"
+                      onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
+                      <i class="fa fa-check-circle"></i> Delivered
                     </button>
                   </div>
                   <div class="col-6" style="padding: 5px;">
@@ -1217,121 +1294,44 @@ if (!empty($additional_status)) {
                   </div>
                 </div>
                 <?php
-              endif; ?>
-              <?php
-            endif; ?>
-            <?php
-          endif; ?>
-
-          <!-- Status 6: Ready for Shipment - Warehouse marked ready, show Out for Delivery button -->
-          <?php if ($current_status == '6' || $current_status == 6): ?>
-            <?php if ($has_shipping_label): ?>
-              <div class="row" style="margin: 0;">
-                <div class="col-6" style="padding: 5px;">
-                  <button type="button" class="btn btn-success btn-lg w-100"
-                    onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
-                    <i class="fa fa-truck"></i> Out for Delivery
+              else: ?>
+                <div class="d-grid">
+                  <button type="button" class="btn btn-success btn-lg"
+                    onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)">
+                    <i class="fa fa-check-circle me-2"></i> Mark as Delivered
                   </button>
                 </div>
-                <div class="col-6" style="padding: 5px;">
-                  <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
-                    class="btn btn-outline-info btn-lg w-100" target="_blank" style="width: 100%;">
-                    <i class="fa fa-download"></i> Download Label
-                  </a>
-                </div>
-              </div>
-              <?php
-            else: ?>
-              <div class="d-grid">
-                <button type="button" class="btn btn-success btn-lg"
-                  onclick="moveToOutForDelivery('<?= $order_data[0]->order_unique_id ?>', this)">
-                  <i class="fa fa-truck me-2"></i> Out for Delivery
-                </button>
-              </div>
-              <?php
-            endif; ?>
-            <div class="row mt-2" style="margin: 0;">
-              <div class="col-12" style="padding: 5px;">
-                <button type="button" class="btn btn-outline-warning btn-lg w-100"
-                  onclick="unmarkReadyToShip('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
-                  <i class="fa fa-undo"></i> Unmark Ready (Move Back to Processing)
-                </button>
-              </div>
-            </div>
-            <?php
-          endif; ?>
-
-          <!-- Status 3: Out for Delivery - Show Delivered button + Move back to Processing -->
-          <?php if ($current_status == '3' || $current_status == 3): ?>
-            <?php if ($has_shipping_label): ?>
-              <div class="row" style="margin: 0;">
-                <div class="col-6" style="padding: 5px;">
-                  <button type="button" class="btn btn-success btn-lg w-100"
-                    onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)" style="width: 100%;">
-                    <i class="fa fa-check-circle"></i> Delivered
-                  </button>
-                </div>
-                <div class="col-6" style="padding: 5px;">
-                  <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
-                    class="btn btn-outline-info btn-lg w-100" target="_blank" style="width: 100%;">
-                    <i class="fa fa-download"></i> Download
-                  </a>
-                </div>
-              </div>
-              <?php
-            else: ?>
-              <div class="d-grid">
-                <button type="button" class="btn btn-success btn-lg"
-                  onclick="moveToDelivered('<?= $order_data[0]->order_unique_id ?>', this)">
-                  <i class="fa fa-check-circle me-2"></i> Mark as Delivered
-                </button>
-              </div>
-              <?php
-            endif; ?>
-            <?php
-          endif; ?>
-
-          <!-- Status 4: Delivered - Show info only -->
-          <?php if ($current_status == '4' || $current_status == 4): ?>
-            <div class="alert alert-success border-0 mb-3">
-              <div class="d-flex align-items-center mb-2">
-                <i class="fa fa-check-circle me-2"></i>
-                <strong>Order Delivered</strong>
-              </div>
-              <?php if (!empty($order_data[0]->delivery_date)): ?>
-                <small class="text-muted">
-                  <?= date('D, M d, Y, h:i A', strtotime($order_data[0]->delivery_date)) ?>
-                </small>
                 <?php
               endif; ?>
-            </div>
-            <?php if ($has_shipping_label): ?>
-              <div class="d-grid">
-                <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
-                  class="btn btn-outline-info" target="_blank">
-                  <i class="fa fa-download me-2"></i> Download Label
-                </a>
-              </div>
               <?php
             endif; ?>
-            <?php
-          endif; ?>
 
-          <!-- TESTING: Regenerate Label Button (Always Visible) -->
-          <!-- <hr class="my-3">
-          <div class="d-grid">
-            <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>" 
-               class="btn btn-warning btn-sm" 
-               id="regenerateLabelBtn"
-               onclick="showRegenerateLoading(this); return true;">
-              <span id="regenerateLabelText">
-                <i class="fa fa-refresh me-2"></i> Regenerate Label (Testing)
-              </span>
-              <span id="regenerateLabelSpinner" style="display: none;">
-                <i class="fa fa-spinner fa-spin me-2"></i> Generating...
-              </span>
-            </a>
-          </div> -->
+            <!-- Status 4: Delivered - Show info only -->
+            <?php if ($current_status == '4' || $current_status == 4): ?>
+              <div class="alert alert-success border-0 mb-3">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="fa fa-check-circle me-2"></i>
+                  <strong>Order Delivered</strong>
+                </div>
+                <?php if (!empty($order_data[0]->delivery_date)): ?>
+                  <small class="text-muted">
+                    <?= date('D, M d, Y, h:i A', strtotime($order_data[0]->delivery_date)) ?>
+                  </small>
+                  <?php
+                endif; ?>
+              </div>
+              <?php if ($has_shipping_label): ?>
+                <div class="d-grid">
+                  <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id); ?>"
+                    class="btn btn-outline-info" target="_blank">
+                    <i class="fa fa-download me-2"></i> Download Label
+                  </a>
+                </div>
+                <?php
+              endif; ?>
+              <?php
+            endif; ?>
+          <?php endif; ?>
         </div>
       </div>
 
@@ -2870,6 +2870,38 @@ if (!empty($additional_status)) {
   );
   $('#pickupAddressSelect').on('change', function () {
     validateThirdPartyForm();
+  });
+
+  $(document).on('click', '.btn-mark-success-detail', function(e) {
+    e.preventDefault();
+    var orderId = $(this).data('id');
+    
+    alertify.confirm('Confirm Action', 'Are you sure you want to mark the payment for order ' + orderId + ' as Success? This will enable processing and shipping actions for this order.', function() {
+      $.ajax({
+        url: '<?php echo base_url("orders/mark_as_success"); ?>',
+        type: 'POST',
+        data: {
+          order_unique_id: orderId,
+          <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+        },
+        dataType: 'json',
+        success: function(response) {
+          if (response.status == 200) {
+            alertify.success(response.message);
+            setTimeout(function() {
+              location.reload();
+            }, 1000);
+          } else {
+            alertify.error(response.message);
+          }
+        },
+        error: function() {
+          alertify.error('An error occurred. Please try again.');
+        }
+      });
+    }, function() {
+      // Cancelled
+    });
   });
 
 </script>

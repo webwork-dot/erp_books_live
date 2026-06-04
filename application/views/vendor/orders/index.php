@@ -219,6 +219,11 @@
                   Cancelled <?php if(isset($order_counts['cancelled']) && $order_counts['cancelled'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['cancelled']; ?></span><?php endif; ?>
                </a>
             </li>
+            <li class="nav-item">
+               <a class="nav-link tab-navigation <?php echo ($order_status == 'failed_payment') ? 'active' : ''; ?>" href="<?php echo base_url('orders/failed-payment'); ?>">
+                  Failed Payment <?php if(isset($order_counts['failed_payment']) && $order_counts['failed_payment'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['failed_payment']; ?></span><?php endif; ?>
+               </a>
+            </li>
          </ul>
       </div>
    </div>

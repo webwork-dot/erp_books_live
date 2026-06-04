@@ -67,6 +67,7 @@
 							$orders_delivered_active = strpos($current_uri, 'orders/delivered') !== false ? 'active' : '';
 							$orders_return_active = strpos($current_uri, 'orders/return') !== false ? 'active' : '';
 							$orders_cancelled_active = strpos($current_uri, 'orders/cancelled-orders') !== false ? 'active' : '';
+							$orders_failed_payment_active = strpos($current_uri, 'orders/failed-payment') !== false ? 'active' : '';
 
 							$schools_parent_active = $is_schools_section ? 'active subdrop' : '';
 							$schools_all_active = ($current_uri === 'schools' || $current_uri === 'schools/index') ? 'active' : '';
@@ -103,6 +104,7 @@
 											<li><a href="<?php echo base_url('orders/delivered'); ?>" class="<?php echo $orders_delivered_active; ?>">Delivered</a></li>
 											<li><a href="<?php echo base_url('orders/return'); ?>" class="<?php echo $orders_return_active; ?>">Return / Refund</a></li>
 											<li><a href="<?php echo base_url('orders/cancelled-orders'); ?>" class="<?php echo $orders_cancelled_active; ?>">Cancelled</a></li>
+											<li><a href="<?php echo base_url('orders/failed-payment'); ?>" class="<?php echo $orders_failed_payment_active; ?>">Failed Payment</a></li>
 										</ul>
 									</li>
 								</ul>

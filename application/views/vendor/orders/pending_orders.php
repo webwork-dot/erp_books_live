@@ -66,117 +66,122 @@
    <link rel="stylesheet" href="<?php echo base_url(); ?>assets/dist/css/bootstrap-select.css">
    <script src="<?php echo base_url(); ?>assets/dist/js/bootstrap-select.js"></script>
 
-   <!-- Order Tabs -->
-   <div class="row">
-      <div class="col-12">
-         <ul class="nav nav-tabs brbm0" role="tablist">
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'all' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders/all'); ?>">
-                  All Orders
-               </a>
-            </li>
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'pending') ? 'active' : ''; ?>" href="<?php echo base_url('orders/pending'); ?>">
-                  New Order <?php if(isset($order_counts['pending']) && $order_counts['pending'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['pending']; ?></span><?php endif; ?>
-               </a>
-            </li>
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'processing') ? 'active' : ''; ?>" href="<?php echo base_url('orders/processing'); ?>">
-                  Processing <?php if(isset($order_counts['processing']) && $order_counts['processing'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['processing']; ?></span><?php endif; ?>
-               </a>
-            </li>
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'ready_for_shipment') ? 'active' : ''; ?>" href="<?php echo base_url('orders/ready_for_shipment'); ?>">
-                  Ready for Shipment <?php if(isset($order_counts['ready_for_shipment']) && $order_counts['ready_for_shipment'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['ready_for_shipment']; ?></span><?php endif; ?>
-               </a>
-            </li>
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url('orders/out_for_delivery'); ?>">
-                  Out for Delivery <?php if(isset($order_counts['out_for_delivery']) && $order_counts['out_for_delivery'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['out_for_delivery']; ?></span><?php endif; ?>
-               </a>
-            </li>
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'delivered') ? 'active' : ''; ?>" href="<?php echo base_url('orders/delivered'); ?>">
-                  Delivered
-               </a>
-            </li>
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'return') ? 'active' : ''; ?>" href="<?php echo base_url('orders/return'); ?>">
-                  Return
-               </a>
-            </li>
-            <li class="nav-item">
-               <a class="nav-link tab-navigation <?php echo ($order_status == 'cancelled') ? 'active' : ''; ?>" href="<?php echo base_url('orders/cancelled-orders'); ?>">
-                  Cancelled
-               </a>
-            </li>
-         </ul>
-      </div>
-   </div>
-
-   <!-- Search Filter -->
-   <div class="row mb-3">
-      <div class="col-12">
-         <div class="card brtop0">
-            <div class="card-body">
-               <form method="get" action="<?php echo base_url('orders/pending'); ?>" class="row">
-                  <div class="col-md-3">
-                     <label>Keywords</label>
-                     <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone...">
-                  </div>
-                  <div class="col-md-2">
-                     <label>Pincode</label>
-                     <input type="text" name="pincode" class="form-control" value="<?php echo isset($filter_data['pincode']) ? htmlspecialchars($filter_data['pincode']) : ''; ?>" placeholder="Enter Pincode">
-                  </div>
-                  <div class="col-md-2">
-                     <label>School</label>
-                     <select name="school" class="form-control">
-                        <option value="">All Schools</option>
-                        <?php if(isset($schools) && !empty($schools)): ?>
-                           <?php foreach($schools as $school): ?>
-                              <option value="<?php echo $school['id']; ?>" <?php echo (isset($filter_data['school']) && $filter_data['school'] == $school['id']) ? 'selected' : ''; ?>>
-                                 <?php echo htmlspecialchars($school['name']); ?>
-                              </option>
-                           <?php endforeach; ?>
-                        <?php endif; ?>
-                     </select>
-                  </div>
-                  <div class="col-md-2">
-                     <label>Grade</label>
-                     <select name="grade" class="form-control">
-                        <option value="">All Grades</option>
-                        <?php if(isset($grades) && !empty($grades)): ?>
-                           <?php foreach($grades as $grade): ?>
-                              <option value="<?php echo $grade['id']; ?>" <?php echo (isset($filter_data['grade']) && $filter_data['grade'] == $grade['id']) ? 'selected' : ''; ?>>
-                                 <?php echo htmlspecialchars($grade['name']); ?>
-                              </option>
-                           <?php endforeach; ?>
-                        <?php endif; ?>
-                     </select>
-                  </div>
-                  <div class="col-md-3">
-                     <label>&nbsp;</label>
-                     <div>
-                        <button type="submit" class="btn btn-primary">Search</button>
-                        <a href="<?php echo base_url('orders/pending'); ?>" class="btn btn-secondary">Clear</a>
-                     </div>
-                  </div>
-               </form>
-            </div>
-         </div>
-      </div>
-   </div>
-
-   <div class="row">
-      <div class="col-12">
-         <div class="card mrg_bottom">
-            <div class="col-md-12" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px;">
-               <div class="d-block left">
-                  <div class="page_title" style="font-size: 20px;font-weight: 500;color:#000;">
-                     Pending Orders (<?= $total_count; ?>)
-                  </div>
-               </div>
-            </div>
+    <!-- Order Tabs -->
+    <div class="row">
+       <div class="col-12">
+          <ul class="nav nav-tabs brbm0" role="tablist">
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'all' || $order_status == '') ? 'active' : ''; ?>" href="<?php echo base_url('orders/all'); ?>">
+                   All Orders
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'pending') ? 'active' : ''; ?>" href="<?php echo base_url('orders/pending'); ?>">
+                   New Order <?php if(isset($order_counts['pending']) && $order_counts['pending'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['pending']; ?></span><?php endif; ?>
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'processing') ? 'active' : ''; ?>" href="<?php echo base_url('orders/processing'); ?>">
+                   Processing <?php if(isset($order_counts['processing']) && $order_counts['processing'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['processing']; ?></span><?php endif; ?>
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'ready_for_shipment') ? 'active' : ''; ?>" href="<?php echo base_url('orders/ready_for_shipment'); ?>">
+                   Ready for Shipment <?php if(isset($order_counts['ready_for_shipment']) && $order_counts['ready_for_shipment'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['ready_for_shipment']; ?></span><?php endif; ?>
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'out_for_delivery') ? 'active' : ''; ?>" href="<?php echo base_url('orders/out_for_delivery'); ?>">
+                   Out for Delivery <?php if(isset($order_counts['out_for_delivery']) && $order_counts['out_for_delivery'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['out_for_delivery']; ?></span><?php endif; ?>
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'delivered') ? 'active' : ''; ?>" href="<?php echo base_url('orders/delivered'); ?>">
+                   Delivered
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'return') ? 'active' : ''; ?>" href="<?php echo base_url('orders/return'); ?>">
+                   Return
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'cancelled') ? 'active' : ''; ?>" href="<?php echo base_url('orders/cancelled-orders'); ?>">
+                   Cancelled <?php if(isset($order_counts['cancelled']) && $order_counts['cancelled'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['cancelled']; ?></span><?php endif; ?>
+                </a>
+             </li>
+             <li class="nav-item">
+                <a class="nav-link tab-navigation <?php echo ($order_status == 'failed_payment') ? 'active' : ''; ?>" href="<?php echo base_url('orders/failed-payment'); ?>">
+                   Failed Payment <?php if(isset($order_counts['failed_payment']) && $order_counts['failed_payment'] > 0): ?><span class="badge bg-primary ms-1"><?php echo $order_counts['failed_payment']; ?></span><?php endif; ?>
+                </a>
+             </li>
+          </ul>
+       </div>
+    </div>
+ 
+    <!-- Search Filter -->
+    <div class="row mb-3">
+       <div class="col-12">
+          <div class="card brtop0">
+             <div class="card-body">
+                <form method="get" action="<?php echo base_url('orders/failed-payment'); ?>" class="row">
+                   <div class="col-md-3">
+                      <label>Keywords</label>
+                      <input type="text" name="keywords" class="form-control" value="<?php echo isset($filter_data['keywords']) ? htmlspecialchars($filter_data['keywords']) : ''; ?>" placeholder="Order ID, User Name, Phone...">
+                   </div>
+                   <div class="col-md-2">
+                      <label>Pincode</label>
+                      <input type="text" name="pincode" class="form-control" value="<?php echo isset($filter_data['pincode']) ? htmlspecialchars($filter_data['pincode']) : ''; ?>" placeholder="Enter Pincode">
+                   </div>
+                   <div class="col-md-2">
+                      <label>School</label>
+                      <select name="school" class="form-control">
+                         <option value="">All Schools</option>
+                         <?php if(isset($schools) && !empty($schools)): ?>
+                            <?php foreach($schools as $school): ?>
+                               <option value="<?php echo $school['id']; ?>" <?php echo (isset($filter_data['school']) && $filter_data['school'] == $school['id']) ? 'selected' : ''; ?>>
+                                  <?php echo htmlspecialchars($school['name']); ?>
+                               </option>
+                            <?php endforeach; ?>
+                         <?php endif; ?>
+                      </select>
+                   </div>
+                   <div class="col-md-2">
+                      <label>Grade</label>
+                      <select name="grade" class="form-control">
+                         <option value="">All Grades</option>
+                         <?php if(isset($grades) && !empty($grades)): ?>
+                            <?php foreach($grades as $grade): ?>
+                               <option value="<?php echo $grade['id']; ?>" <?php echo (isset($filter_data['grade']) && $filter_data['grade'] == $grade['id']) ? 'selected' : ''; ?>>
+                                  <?php echo htmlspecialchars($grade['name']); ?>
+                               </option>
+                            <?php endforeach; ?>
+                         <?php endif; ?>
+                      </select>
+                   </div>
+                   <div class="col-md-3">
+                      <label>&nbsp;</label>
+                      <div>
+                         <button type="submit" class="btn btn-primary">Search</button>
+                         <a href="<?php echo base_url('orders/failed-payment'); ?>" class="btn btn-secondary">Clear</a>
+                      </div>
+                   </div>
+                </form>
+             </div>
+          </div>
+       </div>
+    </div>
+ 
+    <div class="row">
+       <div class="col-12">
+          <div class="card mrg_bottom">
+             <div class="col-md-12" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px;">
+                <div class="d-block left">
+                   <div class="page_title" style="font-size: 20px;font-weight: 500;color:#000;">
+                      Failed Payment Orders (<?= $total_count; ?>)
+                   </div>
+                </div>
+             </div>
 
             <div class="col-md-12 table-responsive">
                <table class="table table-striped table-bordered table-hover">
@@ -242,9 +247,10 @@
                               </td>
                               <td><?php echo $item['payment_id']; ?></td>
                               <td><?php echo isset($item['razorpay_order_id']) ? $item['razorpay_order_id'] : '-'; ?></td>
-                              <td nowrap="">
-                                 <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn-sm btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
-                              </td>
+                               <td nowrap="">
+                                  <a href="<?php echo base_url('orders/view/' . $item['order_unique_id']); ?>" class="btn btn-primary btn-sm btn_edit" data-toggle="tooltip" title="View Details"><i class="fa fa-eye"></i></a>
+                                  <button class="btn btn-success btn-sm btn-mark-success" data-id="<?php echo $item['order_unique_id']; ?>" data-toggle="tooltip" title="Mark as Success"><i class="fa fa-check"></i></button>
+                               </td>
                            </tr>
                         <?php endforeach; 
                      else: ?>
@@ -295,6 +301,36 @@
             console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
          });
       }
+
+      // Mark payment as success
+      $('.btn-mark-success').on('click', function(e) {
+         e.preventDefault();
+         var orderId = $(this).data('id');
+         
+         alertify.confirm('Confirm Action', 'Are you sure you want to mark the payment for order ' + orderId + ' as Success? This will move the order to the New Order queue for processing.', function() {
+            $.ajax({
+               url: '<?php echo base_url("orders/mark_as_success"); ?>',
+               type: 'POST',
+               data: { order_unique_id: orderId },
+               dataType: 'json',
+               success: function(response) {
+                  if (response.status == 200) {
+                     alertify.success(response.message);
+                     setTimeout(function() {
+                        location.reload();
+                     }, 1000);
+                  } else {
+                     alertify.error(response.message);
+                  }
+               },
+               error: function() {
+                  alertify.error('An error occurred. Please try again.');
+               }
+            });
+         }, function() {
+            // Cancelled
+         });
+      });
    });
 </script>
 

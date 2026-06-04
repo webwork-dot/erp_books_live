@@ -564,7 +564,7 @@ class Order_model extends CI_Model
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE (d.id <> '')
-					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
+					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_status='payment_at_scho' OR d.payment_method='cod' OR d.payment_method='payment_at_school' OR d.payment_method='payment_at_scho')
 					$keyword_filter
 					$order_status_filter
 					$order_date_filter
@@ -732,7 +732,7 @@ class Order_model extends CI_Model
 				SELECT {$cols}
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
-				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
+				WHERE (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_status='payment_at_scho' OR d.payment_method='cod' OR d.payment_method='payment_at_school' OR d.payment_method='payment_at_scho')
 					AND d.order_status!='5' $keyword_filter $order_status_filter $order_date_filter $vendor_filter $pincode_filter $school_filter $grade_filter $payment_method_filter $delivery_type_filter
 				GROUP BY d.id
 				" . (($order_status == 'processing' || $order_status == 'ready_for_shipment') ? "ORDER BY (CASE WHEN (d.shipping_label IS NOT NULL AND TRIM(d.shipping_label) != '') OR (d.awb_no IS NOT NULL AND TRIM(d.awb_no) != '') THEN 0 ELSE 1 END) ASC, d.id DESC" : "ORDER BY d.id DESC") . "
@@ -936,26 +936,27 @@ class Order_model extends CI_Model
 			'processing' => 0,
 			'ready_for_shipment' => 0,
 			'out_for_delivery' => 0,
-			'cancelled' => 0
+			'cancelled' => 0,
+			'failed_payment' => 0
 		);
 
 		// Get pending orders count (status = 1)
-		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='1' AND order_status!='5'");
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_status='payment_at_scho' OR payment_method='cod' OR payment_method='payment_at_school' OR payment_method='payment_at_scho') AND order_status='1' AND order_status!='5'");
 		$result = $query->row();
 		$counts['pending'] = isset($result->count) ? (int)$result->count : 0;
 
 		// Get processing orders count (status = 2)
-		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='2' AND order_status!='5'");
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_status='payment_at_scho' OR payment_method='cod' OR payment_method='payment_at_school' OR payment_method='payment_at_scho') AND order_status='2' AND order_status!='5'");
 		$result = $query->row();
 		$counts['processing'] = isset($result->count) ? (int)$result->count : 0;
 
 		// Get ready for shipment orders count (status = 6)
-		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='6' AND order_status!='5'");
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_status='payment_at_scho' OR payment_method='cod' OR payment_method='payment_at_school' OR payment_method='payment_at_scho') AND order_status='6' AND order_status!='5'");
 		$result = $query->row();
 		$counts['ready_for_shipment'] = isset($result->count) ? (int)$result->count : 0;
 
 		// Get out for delivery orders count (status = 3)
-		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='cod' OR payment_method='payment_at_school') AND order_status='3' AND order_status!='5'");
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_status='payment_at_scho' OR payment_method='cod' OR payment_method='payment_at_school' OR payment_method='payment_at_scho') AND order_status='3' AND order_status!='5'");
 		$result = $query->row();
 		$counts['out_for_delivery'] = isset($result->count) ? (int)$result->count : 0;
 
@@ -963,6 +964,11 @@ class Order_model extends CI_Model
 		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE order_status='5'");
 		$result = $query->row();
 		$counts['cancelled'] = isset($result->count) ? (int)$result->count : 0;
+
+		// Get failed payment orders count
+		$query = $this->db->query("SELECT COUNT(*) as count FROM tbl_order_details WHERE (payment_status='pending' or payment_status='failed') AND payment_method<>'cod' AND payment_method<>'payment_at_school' AND payment_method<>'payment_at_scho'");
+		$result = $query->row();
+		$counts['failed_payment'] = isset($result->count) ? (int)$result->count : 0;
 
 		return $counts;
 	}
@@ -1194,7 +1200,7 @@ class Order_model extends CI_Model
 		}
 
 		// Base where clause (same as Reports_model)
-		$payment_filter = "(d.payment_status IN ('success','cod','payment_at_school') OR d.payment_method IN ('cod','payment_at_school'))";
+		$payment_filter = "(d.payment_status IN ('success','cod','payment_at_school','payment_at_scho') OR d.payment_method IN ('cod','payment_at_school','payment_at_scho'))";
 		$base_where = "d.id <> '' AND {$payment_filter} AND (d.order_status IS NULL OR d.order_status != '5') {$date_filter} {$extra_filters}";
 
 		// Get order IDs that match the filters
@@ -1266,7 +1272,7 @@ class Order_model extends CI_Model
 			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
 		}
 
-		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE (id<>'') AND (payment_status='pending' or payment_status='failed') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id asc");
+		$query = $this->db->query("SELECT id FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') AND payment_method<>'cod' AND payment_method<>'payment_at_school' AND payment_method<>'payment_at_scho') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id asc");
 		return $query->num_rows();
 	}
 
@@ -1329,7 +1335,7 @@ class Order_model extends CI_Model
 			$order_date_filter = " AND (DATE(order_date) BETWEEN '" . $this->db->escape_str($from) . "' AND '" . $this->db->escape_str($to) . "')";
 		}
 
-		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_method,payment_status,order_date,is_deliver_at_school FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') and payment_method<>'cod') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id desc LIMIT $offset,$per_page");
+		$query = $this->db->query("SELECT id,razorpay_order_id,payment_id,order_type,order_token,order_unique_id,user_name,user_phone,order_status,payment_method,payment_status,order_date,is_deliver_at_school FROM tbl_order_details WHERE (id<>'') AND ((payment_status='pending' or payment_status='failed') and payment_method<>'cod' and payment_method<>'payment_at_school' and payment_method<>'payment_at_scho') $keyword_filter $machine_filter $order_date_filter $pincode_filter $school_filter $grade_filter ORDER BY id desc LIMIT $offset,$per_page");
 		
 		if (!empty($query)) {
 			foreach ($query->result_array() as $item) {
@@ -1497,7 +1503,7 @@ class Order_model extends CI_Model
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE d.order_status = '" . $this->db->escape_str($order_status) . "'
-					AND (d.payment_status = 'success' OR d.payment_status = 'payment_at_school' OR d.payment_method = 'payment_at_school' OR d.payment_status = 'cod' OR d.payment_method = 'cod')
+					AND (d.payment_status = 'success' OR d.payment_status = 'payment_at_school' OR d.payment_status = 'payment_at_scho' OR d.payment_method = 'payment_at_school' OR d.payment_method = 'payment_at_scho' OR d.payment_status = 'cod' OR d.payment_method = 'cod')
 					$keyword_filter
 					$machine_filter
 					$order_date_filter
@@ -1599,7 +1605,7 @@ class Order_model extends CI_Model
 				FROM tbl_order_details d
 				INNER JOIN tbl_order_items oi ON oi.order_id = d.id
 				WHERE d.order_status = '" . $this->db->escape_str($order_status) . "'
-					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_method='cod' OR d.payment_method='payment_at_school')
+					AND (d.payment_status='success' OR d.payment_status='cod' OR d.payment_status='payment_at_school' OR d.payment_status='payment_at_scho' OR d.payment_method='cod' OR d.payment_method='payment_at_school' OR d.payment_method='payment_at_scho')
 					$keyword_filter
 					$machine_filter
 					$order_date_filter
