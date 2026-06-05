@@ -4,6 +4,7 @@
 		<p class="text-muted mb-0">Simple stock entry screen for uniforms/books with size-wise rows.</p>
 	</div>
 	<div class="d-flex gap-2">
+		<button type="button" class="btn btn-outline-info btn-sm" id="openOutOfStockMsgBtn">Out of Stock Msg</button>
 		<button type="button" class="btn btn-primary btn-sm" id="openStockAdjustModalBtn">Update Stock</button>
 		<a href="<?php echo base_url('products/stock_management/export'); ?>" class="btn btn-outline-success btn-sm">Download Excel (CSV)</a>
 	</div>
@@ -324,6 +325,34 @@
 	<?php endif; ?>
 
 <?php endif; ?>
+<!-- Out of Stock Message Modal -->
+<div class="modal fade" id="outOfStockMsgModal" tabindex="-1" aria-labelledby="outOfStockMsgModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title font-weight-bold" id="outOfStockMsgModalLabel">Configure Out of Stock Message</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<form id="outOfStockMsgForm">
+					<div class="mb-3">
+						<label for="out_of_stock_msg" class="form-label font-weight-semibold">Message for Out of Stock Items</label>
+						<textarea class="form-control" id="out_of_stock_msg" name="out_of_stock_msg" rows="4" maxlength="350" placeholder="Enter message to display when item is out of stock..."></textarea>
+						<div class="d-flex justify-content-between mt-1">
+							<small class="text-muted">Max 350 characters.</small>
+							<small class="text-primary font-weight-bold" id="charCounter">350 characters remaining</small>
+						</div>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" id="saveOutOfStockMsgBtn">Save Message</button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <div class="modal fade" id="stockHistoryModal" tabindex="-1" aria-hidden="true">
 	<div class="modal-dialog modal-xl modal-dialog-scrollable">
 		<div class="modal-content">
@@ -756,6 +785,130 @@ document.addEventListener('DOMContentLoaded', function() {
 	if (historyDirectionEl) {
 		historyDirectionEl.addEventListener('change', function() {
 			loadItemHistory(1);
+		});
+	}
+	var outOfStockMsgModalEl = document.getElementById('outOfStockMsgModal');
+	var outOfStockMsgModal = outOfStockMsgModalEl ? new bootstrap.Modal(outOfStockMsgModalEl) : null;
+	var outOfStockTextarea = document.getElementById('out_of_stock_msg');
+	var outOfStockCharCounter = document.getElementById('charCounter');
+
+	function initCKEditorInstance() {
+		if (typeof CKEDITOR !== 'undefined' && outOfStockTextarea) {
+			if (CKEDITOR.instances['out_of_stock_msg']) {
+				CKEDITOR.instances['out_of_stock_msg'].destroy();
+			}
+			CKEDITOR.replace('out_of_stock_msg', {
+				toolbar: [
+					{ name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline', 'Strike' ] },
+					{ name: 'paragraph', items: [ 'NumberedList', 'BulletedList' ] },
+					{ name: 'styles', items: [ 'Format', 'Font', 'FontSize' ] },
+					{ name: 'colors', items: [ 'TextColor', 'BGColor' ] },
+					{ name: 'tools', items: [ 'Maximize' ] }
+				],
+				height: 150
+			});
+
+			CKEDITOR.instances['out_of_stock_msg'].on('change', function() {
+				var text = CKEDITOR.instances['out_of_stock_msg'].getData();
+				var tempDiv = document.createElement("div");
+				tempDiv.innerHTML = text;
+				var plainText = tempDiv.textContent || tempDiv.innerText || "";
+				var remaining = 350 - plainText.length;
+				if (outOfStockCharCounter) {
+					outOfStockCharCounter.textContent = Math.max(0, remaining) + ' characters remaining';
+				}
+			});
+		}
+	}
+
+	// Load CKEditor dynamically if not present
+	if (typeof CKEDITOR === 'undefined') {
+		var ckScript = document.createElement('script');
+		ckScript.src = '<?php echo base_url("assets/ckeditor/ckeditor.js"); ?>';
+		ckScript.onload = function() {
+			initCKEditorInstance();
+		};
+		document.head.appendChild(ckScript);
+	} else {
+		initCKEditorInstance();
+	}
+
+	// Avoid Bootstrap 5 modal focus conflicts with CKEditor
+	document.addEventListener('focusin', function(e) {
+		if (e.target.closest(".cke_dialog") || e.target.closest(".cke")) {
+			e.stopImmediatePropagation();
+		}
+	});
+
+	if (outOfStockTextarea && outOfStockCharCounter) {
+		outOfStockTextarea.addEventListener('input', function() {
+			var remaining = 350 - outOfStockTextarea.value.length;
+			outOfStockCharCounter.textContent = remaining + ' characters remaining';
+		});
+	}
+
+	var openMsgBtn = document.getElementById('openOutOfStockMsgBtn');
+	if (openMsgBtn) {
+		openMsgBtn.addEventListener('click', function() {
+			if (!outOfStockMsgModal) return;
+			
+			fetch('<?php echo base_url('products/stock_management/get_out_of_stock_msg'); ?>')
+				.then(function(r) { return r.json(); })
+				.then(function(data) {
+					if (data.success) {
+						var val = data.out_of_stock_msg || '';
+						outOfStockTextarea.value = val;
+						if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['out_of_stock_msg']) {
+							CKEDITOR.instances['out_of_stock_msg'].setData(val);
+						}
+						outOfStockTextarea.dispatchEvent(new Event('input'));
+					} else {
+						alert('Failed to load message: ' + (data.message || 'Unknown error'));
+					}
+					outOfStockMsgModal.show();
+				})
+				.catch(function(e) {
+					console.error('Error fetching message:', e);
+					alert('Failed to fetch message.');
+					outOfStockMsgModal.show();
+				});
+		});
+	}
+
+	var saveMsgBtn = document.getElementById('saveOutOfStockMsgBtn');
+	if (saveMsgBtn) {
+		saveMsgBtn.addEventListener('click', function() {
+			if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['out_of_stock_msg']) {
+				CKEDITOR.instances['out_of_stock_msg'].updateElement();
+			}
+			var originalText = saveMsgBtn.innerHTML;
+			saveMsgBtn.disabled = true;
+			saveMsgBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+
+			var formData = new FormData();
+			formData.append('out_of_stock_msg', outOfStockTextarea.value);
+
+			fetch('<?php echo base_url('products/stock_management/update_out_of_stock_msg'); ?>', {
+				method: 'POST',
+				body: formData
+			})
+				.then(function(r) { return r.json(); })
+				.then(function(data) {
+					if (data.success) {
+						alert('Out of stock message updated successfully!');
+						outOfStockMsgModal.hide();
+					} else {
+						alert('Failed to update message: ' + (data.message || 'Unknown error'));
+					}
+				})
+				.catch(function(e) {
+					console.error('Error saving message:', e);
+					alert('Failed to save message.');
+				})
+				.finally(function() {
+					saveMsgBtn.disabled = false;
+					saveMsgBtn.innerHTML = originalText;
+				});
 		});
 	}
 });

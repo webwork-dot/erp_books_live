@@ -7737,4 +7737,65 @@ class Products extends Vendor_base
 
 		return TRUE;
 	}
+
+	/**
+	 * Get the out of stock message for the current client (vendor)
+	 *
+	 * @return void
+	 */
+	public function get_out_of_stock_msg()
+	{
+		header('Content-Type: application/json');
+		if (!$this->checkFeatureAccess('stock_management')) {
+			echo json_encode(array('success' => false, 'message' => 'Forbidden'));
+			return;
+		}
+
+		$client = $this->db->select('out_of_stock_msg')->from('erp_clients')->limit(1)->get()->row_array();
+		echo json_encode(array(
+			'success' => true,
+			'out_of_stock_msg' => isset($client['out_of_stock_msg']) ? $client['out_of_stock_msg'] : ''
+		));
+	}
+
+	/**
+	 * Update the out of stock message for the current client (vendor)
+	 *
+	 * @return void
+	 */
+	public function update_out_of_stock_msg()
+	{
+		header('Content-Type: application/json');
+		if (!$this->checkFeatureAccess('stock_management')) {
+			echo json_encode(array('success' => false, 'message' => 'Forbidden'));
+			return;
+		}
+
+		$msg = $this->input->post('out_of_stock_msg');
+		if ($msg !== NULL) {
+			$msg = trim((string)$msg);
+			if (mb_strlen($msg) > 2000) {
+				$msg = mb_substr($msg, 0, 2000);
+			}
+		} else {
+			$msg = '';
+		}
+
+		$first = $this->db->select('id')->from('erp_clients')->limit(1)->get()->row();
+		if (!$first) {
+			echo json_encode(array('success' => false, 'message' => 'No client found.'));
+			return;
+		}
+
+		$this->db->where('id', $first->id);
+		if ($this->db->update('erp_clients', array('out_of_stock_msg' => $msg))) {
+			echo json_encode(array(
+				'success' => true,
+				'message' => 'Out of stock message updated successfully.',
+				'out_of_stock_msg' => $msg
+			));
+		} else {
+			echo json_encode(array('success' => false, 'message' => 'Failed to update message.'));
+		}
+	}
 }

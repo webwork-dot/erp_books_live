@@ -368,6 +368,8 @@ $route['products/stock_management/adjust_bulk'] = 'Vendor/products/stock_managem
 $route['products/stock_management/search_items'] = 'Vendor/products/stock_management_search_items';
 $route['products/stock_management/export'] = 'Vendor/products/stock_management_export';
 $route['products/stock_management/item_history'] = 'Vendor/products/stock_management_item_history';
+$route['products/stock_management/get_out_of_stock_msg'] = 'Vendor/products/get_out_of_stock_msg';
+$route['products/stock_management/update_out_of_stock_msg'] = 'Vendor/products/update_out_of_stock_msg';
 
 // Variation management routes
 $route['products/variations'] = 'Vendor/products/variations';

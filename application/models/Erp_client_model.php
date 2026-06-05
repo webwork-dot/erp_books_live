@@ -98,7 +98,7 @@ class Erp_client_model extends CI_Model
 	 */
 	public function getFirstClient()
 	{
-		$query = $this->db->select('id, name, address, pincode, pan, gstin')
+		$query = $this->db->select('id, name, address, pincode, pan, gstin, out_of_stock_msg')
 			->from('erp_clients')
 			->limit(1)
 			->get();
@@ -108,12 +108,12 @@ class Erp_client_model extends CI_Model
 	/**
 	 * Update first client in erp_clients (simple, no ID check)
 	 *
-	 * @param	array	$data	Fields to update (name, address, pincode, pan, gstin)
+	 * @param	array	$data	Fields to update (name, address, pincode, pan, gstin, out_of_stock_msg)
 	 * @return	bool	TRUE on success
 	 */
 	public function updateFirstClient($data)
 	{
-		$allowed = array('name', 'address', 'pincode', 'pan', 'gstin');
+		$allowed = array('name', 'address', 'pincode', 'pan', 'gstin', 'out_of_stock_msg');
 		$update_data = array_intersect_key($data, array_flip($allowed));
 		if (empty($update_data)) return TRUE;
 		$first = $this->db->select('id')->from('erp_clients')->limit(1)->get()->row();
