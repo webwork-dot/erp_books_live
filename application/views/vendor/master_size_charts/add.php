@@ -96,6 +96,7 @@
 				<table class="table table-bordered table-hover align-middle mb-0" id="size-chart-table">
 					<thead class="table-light">
 						<tr id="table-header-row">
+							<th style="width: 40px;" class="text-center bg-white"></th>
 							<th style="min-width: 120px;" class="bg-white">Size</th>
 							<!-- Columns will be added dynamically here -->
 							<th style="width: 80px;" class="text-center bg-white">Action</th>
@@ -151,6 +152,19 @@
 .btn-delete-col:hover {
 	background: rgba(220, 53, 69, 0.1);
 }
+.draggable-row {
+	transition: opacity 0.15s ease-in-out;
+}
+.draggable-row.drag-over {
+	border-top: 2px solid #0d6efd !important;
+	background-color: rgba(13, 110, 253, 0.05) !important;
+}
+.drag-handle {
+	cursor: grab;
+}
+.drag-handle:active {
+	cursor: grabbing;
+}
 </style>
 
 <script>
@@ -186,9 +200,9 @@ document.addEventListener('DOMContentLoaded', function() {
 	function renderTable() {
 		// 1. Clear dynamic parts from header
 		const thElements = Array.from(tableHeaderRow.querySelectorAll('th'));
-		// Keep the first (Size) and last (Action) headers
+		// Keep the first (Grip), second (Size) and last (Action) headers
 		thElements.forEach((th, idx) => {
-			if (idx > 0 && idx < thElements.length - 1) {
+			if (idx > 1 && idx < thElements.length - 1) {
 				th.remove();
 			}
 		});
@@ -214,12 +228,22 @@ document.addEventListener('DOMContentLoaded', function() {
 		if (rows.length === 0) {
 			tableBody.appendChild(noRowsAlert);
 			// Set colSpan of noRowsAlert
-			noRowsAlert.querySelector('td').colSpan = columns.length + 2;
+			noRowsAlert.querySelector('td').colSpan = columns.length + 3;
 			return;
 		}
 
 		rows.forEach((row, rowIdx) => {
 			const tr = document.createElement('tr');
+			tr.setAttribute('draggable', 'true');
+			tr.className = 'draggable-row';
+			tr.dataset.rowIdx = rowIdx;
+
+			// Gripper Cell
+			const tdGrip = document.createElement('td');
+			tdGrip.className = 'text-center text-muted drag-handle align-middle';
+			tdGrip.style.cursor = 'grab';
+			tdGrip.innerHTML = '<i class="isax isax-menu fs-16"></i>';
+			tr.appendChild(tdGrip);
 
 			// First Cell: Size name (editable input)
 			const tdSize = document.createElement('td');
@@ -249,6 +273,27 @@ document.addEventListener('DOMContentLoaded', function() {
 				</button>
 			`;
 			tr.appendChild(tdAction);
+
+			// Drag & Drop event listeners on the row
+			tr.addEventListener('dragstart', handleDragStart);
+			tr.addEventListener('dragenter', handleDragEnter);
+			tr.addEventListener('dragover', handleDragOver);
+			tr.addEventListener('dragleave', handleDragLeave);
+			tr.addEventListener('drop', handleDrop);
+			tr.addEventListener('dragend', handleDragEnd);
+
+			// Disable row drag when focusing or hovering input fields to allow text selection
+			const inputs = tr.querySelectorAll('input');
+			inputs.forEach(input => {
+				input.addEventListener('focus', () => tr.setAttribute('draggable', 'false'));
+				input.addEventListener('blur', () => tr.setAttribute('draggable', 'true'));
+				input.addEventListener('mouseover', () => tr.setAttribute('draggable', 'false'));
+				input.addEventListener('mouseout', () => {
+					if (document.activeElement !== input) {
+						tr.setAttribute('draggable', 'true');
+					}
+				});
+			});
 
 			tableBody.appendChild(tr);
 		});
@@ -395,6 +440,57 @@ document.addEventListener('DOMContentLoaded', function() {
 			}
 		}
 	});
+
+	// Drag & Drop Handler Functions
+	let dragSrcEl = null;
+
+	function handleDragStart(e) {
+		const tr = this;
+		tr.style.opacity = '0.4';
+		dragSrcEl = tr;
+		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData('text/plain', tr.dataset.rowIdx);
+	}
+
+	function handleDragOver(e) {
+		if (e.preventDefault) {
+			e.preventDefault();
+		}
+		e.dataTransfer.dropEffect = 'move';
+		return false;
+	}
+
+	function handleDragEnter(e) {
+		this.classList.add('drag-over');
+	}
+
+	function handleDragLeave(e) {
+		this.classList.remove('drag-over');
+	}
+
+	function handleDrop(e) {
+		if (e.stopPropagation) {
+			e.stopPropagation();
+		}
+		
+		const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+		const toIdx = parseInt(this.dataset.rowIdx, 10);
+		
+		if (fromIdx !== toIdx && !isNaN(fromIdx) && !isNaN(toIdx)) {
+			const movedRow = rows.splice(fromIdx, 1)[0];
+			rows.splice(toIdx, 0, movedRow);
+			renderTable();
+		}
+		return false;
+	}
+
+	function handleDragEnd(e) {
+		this.style.opacity = '1';
+		const trs = tableBody.querySelectorAll('tr');
+		trs.forEach(function (tr) {
+			tr.classList.remove('drag-over');
+		});
+	}
 
 	// Delete row handler
 	tableBody.addEventListener('click', function(e) {
