@@ -510,7 +510,7 @@ class Crud_model extends CI_Model{
         return $resultdata;
     }
 
-    public function category_data($search, $school_id, $branch_id, $board_id = '', $class_id = '', $color = ''){
+    public function category_data($search, $school_id, $branch_id, $board_id = '', $class_id = '', $house_ids = ''){
 	    $resultdata     = array();
         if (!is_array($search)) {
             $search = ['0'];
@@ -540,10 +540,17 @@ class Crud_model extends CI_Model{
                 $keyword .= " AND FIND_IN_SET('" . $class_id . "', p.class_id)";
             }
 
-            if($color != ''){
-                $colors = explode(',', $color);
-                $colors = array_map(function($c) { return $this->db->escape_str(trim($c)); }, $colors);
-                $keyword .= " AND p.color IN ('" . implode("','", $colors) . "')";
+            if($house_ids != ''){
+                $house_arr = explode(',', $house_ids);
+                $house_arr = array_map('intval', $house_arr);
+                $house_arr = array_filter($house_arr);
+                if (!empty($house_arr)) {
+                    $house_conds = [];
+                    foreach ($house_arr as $h_id) {
+                        $house_conds[] = "FIND_IN_SET('" . $h_id . "', p.house_ids)";
+                    }
+                    $keyword .= " AND (" . implode(" OR ", $house_conds) . ")";
+                }
             }
 
             $query = $this->db->query("SELECT p.*,pvar.selling_price as selling,pvar.size_id as size,pvar.mrp FROM erp_uniforms as p INNER JOIN erp_uniform_size_prices as pvar ON p.id=pvar.uniform_id WHERE p.status='active' $keyword GROUP BY pvar.uniform_id ORDER BY pvar.id ASC");
@@ -2484,6 +2491,38 @@ class Crud_model extends CI_Model{
         $query = $this->db->query("SELECT color FROM erp_uniforms WHERE $keyword AND color != '' AND color IS NOT NULL GROUP BY color ORDER BY color ASC");
         return $query->result_array();
     }
+
+    public function get_houses_by_uniforms($school_id, $branch_id, $board_id, $class_id){
+         $keyword = " school_id = '" . $this->db->escape_str($school_id) . "'";
+         if ($branch_id) {
+             $keyword .= " AND branch_id = '" . $this->db->escape_str($branch_id) . "'";
+         }
+         if ($board_id) {
+             $keyword .= " AND board_id = '" . $this->db->escape_str($board_id) . "'";
+         }
+         if ($class_id) {
+             $keyword .= " AND FIND_IN_SET('" . $this->db->escape_str($class_id) . "', class_id)";
+         }
+
+         $query = $this->db->query("SELECT house_ids FROM erp_uniforms WHERE $keyword AND house_ids != '' AND house_ids IS NOT NULL");
+         $house_ids = [];
+         foreach ($query->result_array() as $row) {
+             if ($row['house_ids']) {
+                 $ids = explode(',', $row['house_ids']);
+                 foreach ($ids as $id) {
+                     $id = trim($id);
+                     if ($id !== '' && !in_array($id, $house_ids)) {
+                         $house_ids[] = (int)$id;
+                     }
+                 }
+             }
+         }
+
+         if (empty($house_ids)) return [];
+
+         $query = $this->db->query("SELECT id, name, color_code FROM erp_houses WHERE id IN (" . implode(',', $house_ids) . ") AND status = 'active' ORDER BY name ASC");
+         return $query->result_array();
+     }
 
     public function uniform_type_list($type, $slug, $board_id = '', $class_id = ''){
         $result = array();

@@ -1633,7 +1633,26 @@ class App_model extends CI_Model
         $total_product_discount = 0;
 
         foreach ($products as $product) {
-            $items_arr[] = (object) $product;
+            $item_obj = (object) $product;
+            if (empty($item_obj->school_name)) {
+                $vendor_db = $this->getVendorDB($vendor_id);
+                if ($vendor_db) {
+                    $school_id = !empty($item_obj->school_id) ? (int)$item_obj->school_id : 0;
+                    if ($school_id <= 0 && !empty($item_obj->product_id)) {
+                        $uni = $vendor_db->select('school_id')->from('erp_uniforms')->where('id', (int)$item_obj->product_id)->limit(1)->get()->row();
+                        if ($uni) {
+                            $school_id = (int)$uni->school_id;
+                        }
+                    }
+                    if ($school_id > 0) {
+                        $sch = $vendor_db->select('school_name')->from('erp_schools')->where('id', $school_id)->limit(1)->get()->row();
+                        if ($sch) {
+                            $item_obj->school_name = $sch->school_name;
+                        }
+                    }
+                }
+            }
+            $items_arr[] = $item_obj;
             $gst_total += isset($product['total_gst_amt']) ? (float) $product['total_gst_amt'] : 0;
             $total_product_discount += isset($product['discount_amt']) ? (float) $product['discount_amt'] : 0;
         }
@@ -1991,7 +2010,7 @@ class App_model extends CI_Model
 
         $items = $vendor_db->get_where('tbl_order_items', array('order_id' => $order_id))->result_array();
 
-        // Fetch images for each item
+        // Fetch images, sizes, classes, and school name for each item
         foreach ($items as &$item) {
             $item['product_image'] = '';
             if (!empty($item['product_id'])) {
@@ -2015,6 +2034,41 @@ class App_model extends CI_Model
 
                 if (!empty($img['image_path'])) {
                     $item['product_image'] = $base_url . ltrim($img['image_path'], '/');
+                }
+            }
+
+            // Get size name
+            $size_id = !empty($item['size_id']) ? (int)$item['size_id'] : 0;
+            if ($size_id > 0) {
+                $size_query = $vendor_db->select('name')->from('erp_sizes')->where('id', $size_id)->limit(1)->get()->row();
+                if ($size_query) {
+                    $item['size_name'] = $size_query->name;
+                }
+            }
+
+            // Get class name
+            $class_id = !empty($item['class_id']) ? (int)$item['class_id'] : 0;
+            if ($class_id > 0) {
+                $class_query = $vendor_db->select('class_name')->from('classes')->where('id', $class_id)->limit(1)->get()->row();
+                if ($class_query) {
+                    $item['class_name'] = $class_query->class_name;
+                }
+            }
+
+            // Get school name for uniform from erp_uniforms
+            if (empty($item['school_name'])) {
+                $school_id = !empty($item['school_id']) ? (int)$item['school_id'] : 0;
+                if ($school_id <= 0 && !empty($item['product_id'])) {
+                    $uni = $vendor_db->select('school_id')->from('erp_uniforms')->where('id', (int)$item['product_id'])->limit(1)->get()->row();
+                    if ($uni) {
+                        $school_id = (int)$uni->school_id;
+                    }
+                }
+                if ($school_id > 0) {
+                    $sch = $vendor_db->select('school_name')->from('erp_schools')->where('id', $school_id)->limit(1)->get()->row();
+                    if ($sch) {
+                        $item['school_name'] = $sch->school_name;
+                    }
                 }
             }
         }

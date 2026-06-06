@@ -28,10 +28,13 @@ $date = isset($order['date']) ? $order['date'] : '';
     </table>
     <table class="info-box">
         <tr>
-            <td class="box" style="width: 50%; text-align: center;">
+            <td class="box" style="width: 33%; text-align: center;">
                 <b><?php echo htmlspecialchars($order['order_unique_id'] ?? ''); ?></b>
             </td>
-            <td class="box" style="width: 50%; text-align: center;">
+            <td class="box" style="width: 33%; text-align: center;">
+                <b>QTY: <?php echo htmlspecialchars($order['total_qty'] ?? '0'); ?></b>
+            </td>
+            <td class="box" style="width: 34%; text-align: center;">
 				<b>
 					<?php
 					if(isset($order['payment_method']) && strtolower($order['payment_method']) == 'cod'){
@@ -62,20 +65,21 @@ $date = isset($order['date']) ? $order['date'] : '';
         <p><b>Address:</b> <?php echo htmlspecialchars($full_address); ?></p>
     </div>
     <hr>
-<table class="product-table">
+    <table class="product-table">
         <thead>
             <tr>
                 <th>Product</th>
-                <?php if ($order_type_label == 'Uniform' || $order_type_label == 'Individual'): ?>
-                <th style="width:15%; text-align:center;">Qty</th>
+                <?php if ($order_type_label != 'Bookset'): ?>
+                <th style="width:20%;">SKU</th>
                 <?php endif; ?>
+                <th style="width:15%; text-align:center;">Qty</th>
                 <th class="col-price" style="width:25%;">Price</th>
             </tr>
         </thead>
         <tbody>
             <?php if ($order_type_label == 'Bookset' && !empty($order['bookset_display_name'])): ?>
             <tr>
-                <td colspan="2" class="package-header"><b><?php echo htmlspecialchars($order['bookset_display_name']); ?></b></td>
+                <td colspan="3" class="package-header"><b><?php echo htmlspecialchars($order['bookset_display_name']); ?></b></td>
             </tr> 
             <?php endif; ?>
             <?php if ($order_type_label == 'Bookset'): ?>
@@ -85,6 +89,7 @@ $date = isset($order['date']) ? $order['date'] : '';
                         <?php $pkg_price = isset($pkg['package_price']) ? floatval($pkg['package_price']) : 0; ?>
                         <tr>
                             <td class="package-header"><b><?php echo htmlspecialchars($pkg_name); ?></b></td>
+                            <td style="text-align:center;">1</td>
                             <td class="col-price package-header" style="font-weight:400"><?php echo $pkg_price > 0 ? number_format($pkg_price, 2) : ''; ?></td>
                         </tr>
                     <?php endforeach; ?>
@@ -94,27 +99,24 @@ $date = isset($order['date']) ? $order['date'] : '';
                 <?php $items = isset($order['items']) && is_array($order['items']) ? $order['items'] : array(); foreach ($items as $item): ?>
                 <tr>
                     <td><?php echo htmlspecialchars(is_array($item) ? (isset($item['name']) ? $item['name'] : '') : $item); ?></td>
-                    <?php if ($order_type_label == 'Uniform' || $order_type_label == 'Individual'): ?>
+                    <?php if ($order_type_label != 'Bookset'): ?>
+                    <td><?php echo htmlspecialchars(is_array($item) && isset($item['sku']) ? $item['sku'] : ''); ?></td>
+                    <?php endif; ?>
                     <td style="text-align:center;"><?php echo htmlspecialchars(is_array($item) && isset($item['qty']) ? $item['qty'] : '1'); ?></td>
                     <td class="col-price"><?php echo htmlspecialchars(is_array($item) && isset($item['price']) && $item['price'] > 0 ? number_format($item['price'], 2) : ''); ?></td>
-                    <?php else: ?>
-                    <td class="col-price"></td>
-                    <?php endif; ?>
                 </tr>
                 <?php endforeach; ?>
                 
-                <?php if ($order_type_label == 'Uniform' || $order_type_label == 'Individual'): ?>
                 <tr>
-                    <td colspan="2" style="text-align:right;"><b>Total Amount:</b></td>
+                    <td colspan="<?php echo $order_type_label != 'Bookset' ? '3' : '2'; ?>" style="text-align:right;"><b>Total Amount:</b></td>
                     <td class="col-price"><b><?php echo isset($order['total_amt']) ? number_format((float)$order['total_amt'], 2) : ''; ?></b></td>
                 </tr>
-                <?php endif; ?>
             <?php endif; ?>
         </tbody>
         <?php if (isset($order['payment_method']) && $order['payment_method'] == 'cod'): ?>
         <tfoot>
             <tr>
-                <td colspan="2" style="text-align:center; padding: 8px 0;"><b>PLEASE COLLECT CASH : <?php echo number_format(round($order['total_amt']), 2); ?></b></td>
+                <td colspan="<?php echo $order_type_label != 'Bookset' ? '4' : '3'; ?>" style="text-align:center; padding: 8px 0;"><b>PLEASE COLLECT CASH : <?php echo number_format(round($order['total_amt']), 2); ?></b></td>
             </tr>
         </tfoot>
         <?php endif; ?>

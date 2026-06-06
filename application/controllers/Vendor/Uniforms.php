@@ -30,6 +30,7 @@ class Uniforms extends Vendor_base
 		$this->load->model('Branch_model');
 		$this->load->model('School_board_model');
 		$this->load->model('Location_model');
+		$this->load->model('House_model');
 		$this->load->library('form_validation');
 		$this->load->library('upload');
 	}
@@ -66,6 +67,9 @@ class Uniforms extends Vendor_base
 		}
 		if ($this->input->get('branch_id')) {
 			$filters['branch_id'] = $this->input->get('branch_id');
+		}
+		if ($this->input->get('house_id')) {
+			$filters['house_id'] = $this->input->get('house_id');
 		}
 
 		// Pagination
@@ -168,6 +172,7 @@ class Uniforms extends Vendor_base
 		// Get branches for filter (all branches for the vendor)
 		$this->load->model('Branch_model');
 		$data['branches'] = $this->Branch_model->getBranchesByVendor($this->current_vendor['id']);
+		$data['houses']   = $this->House_model->getAllHouses();
 
 		$data['title'] = 'Manage Uniforms';
 		$data['current_vendor'] = $this->current_vendor;
@@ -212,6 +217,7 @@ class Uniforms extends Vendor_base
 			$data['size_charts'] = $this->Uniform_model->getSizeChartsByVendor($this->current_vendor['id']);
 			$data['master_size_charts'] = $this->Uniform_model->getMasterSizeChartsByVendor($this->current_vendor['id'], NULL);
 			$data['classes'] = $this->Uniform_model->getAllClasses();
+			$data['houses'] = $this->House_model->getAllHouses();
 
 			$data['title'] = 'Add New Uniform';
 			$data['current_vendor'] = $this->current_vendor;
@@ -236,6 +242,12 @@ class Uniforms extends Vendor_base
 				$commission_value = NULL;
 			}
 			// Process form
+			$raw_house_ids = $this->input->post('house_ids');
+			$house_ids_str = NULL;
+			if (!empty($raw_house_ids) && is_array($raw_house_ids)) {
+				$house_ids_str = implode(',', array_filter(array_map('intval', $raw_house_ids)));
+			}
+
 			$uniform_data = array(
 				'vendor_id' => $this->current_vendor['id'],
 				'uniform_type_id' => $this->input->post('uniform_type_id'),
@@ -244,6 +256,7 @@ class Uniforms extends Vendor_base
 				'board_id' => $this->input->post('board_id'),
 				'gender' => $this->input->post('gender') ? implode(',', array_intersect($this->input->post('gender'), ['male', 'female', 'unisex'])) : NULL,
 				'color' => $this->input->post('color'),
+				'house_ids' => $house_ids_str,
 				'product_name' => $this->input->post('product_name'),
 				'isbn' => $this->input->post('isbn'),
 				'min_quantity' => $this->input->post('min_quantity'),
@@ -379,6 +392,8 @@ class Uniforms extends Vendor_base
 			$data['master_size_charts'] = $this->Uniform_model->getMasterSizeChartsByVendor($this->current_vendor['id'], $include_msc ?: NULL);
 			$data['classes'] = $this->Uniform_model->getAllClasses();
 			$data['selected_classes'] = !empty($uniform['class_id']) ? explode(',', $uniform['class_id']) : array();
+			$data['houses'] = $this->House_model->getAllHouses();
+			$data['selected_houses'] = !empty($uniform['house_ids']) ? explode(',', $uniform['house_ids']) : array();
 
 			// Get branches for selected school
 			if ($uniform['school_id']) {
@@ -437,6 +452,12 @@ class Uniforms extends Vendor_base
 				$commission_value = NULL;
 			}
 			// Process form
+			$raw_house_ids_edit = $this->input->post('house_ids');
+			$house_ids_str_edit = NULL;
+			if (!empty($raw_house_ids_edit) && is_array($raw_house_ids_edit)) {
+				$house_ids_str_edit = implode(',', array_filter(array_map('intval', $raw_house_ids_edit)));
+			}
+
 			$uniform_data = array(
 				'uniform_type_id' => $this->input->post('uniform_type_id'),
 				'school_id' => $this->input->post('school_id'),
@@ -444,6 +465,7 @@ class Uniforms extends Vendor_base
 				'board_id' => $this->input->post('board_id'),
 				'gender' => $this->input->post('gender') ? implode(',', array_intersect($this->input->post('gender'), ['male', 'female', 'unisex'])) : NULL,
 				'color' => $this->input->post('color'),
+				'house_ids' => $house_ids_str_edit,
 				'product_name' => $this->input->post('product_name'),
 				'slug' => slugify($this->input->post('product_name')) . '-' . $uniform_id,
 				'isbn' => $this->input->post('isbn'),
@@ -827,6 +849,75 @@ class Uniforms extends Vendor_base
 		}
 
 		echo json_encode(array('status' => 'success', 'boards' => $school_boards));
+	}
+
+	/**
+	 * Add house (AJAX)
+	 */
+	public function add_house()
+	{
+		header('Content-Type: application/json');
+
+		$name       = trim((string) $this->input->post('name'));
+		$color_code = trim((string) $this->input->post('color_code'));
+
+		if (empty($name)) {
+			echo json_encode(array('status' => 'error', 'message' => 'House name is required'));
+			return;
+		}
+
+		$data = array(
+			'name'       => $name,
+			'color_code' => $color_code ?: NULL,
+			'status'     => 'active',
+		);
+
+		$house_id = $this->House_model->createHouse($data);
+
+		if ($house_id) {
+			echo json_encode(array('status' => 'success', 'id' => $house_id, 'name' => $name, 'color_code' => $color_code));
+		} else {
+			echo json_encode(array('status' => 'error', 'message' => 'Failed to create house'));
+		}
+	}
+
+	/**
+	 * Edit house (AJAX)
+	 */
+	public function edit_house()
+	{
+		header('Content-Type: application/json');
+
+		$id         = (int) $this->input->post('id');
+		$name       = trim((string) $this->input->post('name'));
+		$color_code = trim((string) $this->input->post('color_code'));
+
+		if ($id <= 0 || empty($name)) {
+			echo json_encode(array('status' => 'error', 'message' => 'House ID and name are required'));
+			return;
+		}
+
+		$data = array(
+			'name'       => $name,
+			'color_code' => $color_code ?: NULL,
+		);
+
+		if ($this->House_model->updateHouse($id, $data)) {
+			echo json_encode(array('status' => 'success', 'id' => $id, 'name' => $name, 'color_code' => $color_code));
+		} else {
+			// May return false if nothing changed — still treat as success
+			echo json_encode(array('status' => 'success', 'id' => $id, 'name' => $name, 'color_code' => $color_code));
+		}
+	}
+
+	/**
+	 * Get all houses (AJAX — for dropdown refresh)
+	 */
+	public function get_houses()
+	{
+		header('Content-Type: application/json');
+		$houses = $this->House_model->getAllHouses();
+		echo json_encode(array('status' => 'success', 'houses' => $houses));
 	}
 
 	public function add_class()

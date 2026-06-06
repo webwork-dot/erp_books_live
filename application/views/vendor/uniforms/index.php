@@ -56,11 +56,11 @@
 			<div class="accordion" id="filterAccordion">
 				<div class="accordion-item">
 					<h2 class="accordion-header" id="headingFilters">
-						<button class="accordion-button <?php echo (isset($filters['school_id']) || isset($filters['uniform_type_id']) || isset($filters['board_id']) || isset($filters['material_id']) || isset($filters['gender']) || isset($filters['branch_id'])) ? '' : 'collapsed'; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilters" aria-expanded="<?php echo (isset($filters['school_id']) || isset($filters['uniform_type_id']) || isset($filters['board_id']) || isset($filters['material_id']) || isset($filters['gender']) || isset($filters['branch_id'])) ? 'true' : 'false'; ?>" aria-controls="collapseFilters">
+						<button class="accordion-button <?php echo (isset($filters['school_id']) || isset($filters['uniform_type_id']) || isset($filters['board_id']) || isset($filters['material_id']) || isset($filters['gender']) || isset($filters['branch_id']) || isset($filters['house_id'])) ? '' : 'collapsed'; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilters" aria-expanded="<?php echo (isset($filters['school_id']) || isset($filters['uniform_type_id']) || isset($filters['board_id']) || isset($filters['material_id']) || isset($filters['gender']) || isset($filters['branch_id']) || isset($filters['house_id'])) ? 'true' : 'false'; ?>" aria-controls="collapseFilters">
 							<i class="isax isax-filter me-2"></i> Additional Filters
 						</button>
 					</h2>
-					<div id="collapseFilters" class="accordion-collapse collapse <?php echo (isset($filters['school_id']) || isset($filters['uniform_type_id']) || isset($filters['board_id']) || isset($filters['material_id']) || isset($filters['gender']) || isset($filters['branch_id'])) ? 'show' : ''; ?>" aria-labelledby="headingFilters" data-bs-parent="#filterAccordion">
+					<div id="collapseFilters" class="accordion-collapse collapse <?php echo (isset($filters['school_id']) || isset($filters['uniform_type_id']) || isset($filters['board_id']) || isset($filters['material_id']) || isset($filters['gender']) || isset($filters['branch_id']) || isset($filters['house_id'])) ? 'show' : ''; ?>" aria-labelledby="headingFilters" data-bs-parent="#filterAccordion">
 						<div class="accordion-body">
 							<div class="row gx-3">
 								<div class="col-lg-3 col-md-6">
@@ -143,6 +143,21 @@
 												<?php foreach ($branches as $branch): ?>
 													<option value="<?php echo $branch['id']; ?>" <?php echo (isset($filters['branch_id']) && $filters['branch_id'] == $branch['id']) ? 'selected' : ''; ?>>
 														<?php echo htmlspecialchars($branch['branch_name']); ?>
+													</option>
+												<?php endforeach; ?>
+											<?php endif; ?>
+										</select>
+									</div>
+								</div>
+								<div class="col-lg-3 col-md-6">
+									<div class="mb-3">
+										<label class="form-label">House</label>
+										<select name="house_id" class="select">
+											<option value="">All Houses</option>
+											<?php if (!empty($houses)): ?>
+												<?php foreach ($houses as $house): ?>
+													<option value="<?php echo $house['id']; ?>" <?php echo (isset($filters['house_id']) && $filters['house_id'] == $house['id']) ? 'selected' : ''; ?>>
+														<?php echo htmlspecialchars($house['name']); ?>
 													</option>
 												<?php endforeach; ?>
 											<?php endif; ?>

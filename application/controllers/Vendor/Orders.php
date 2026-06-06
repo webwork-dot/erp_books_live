@@ -1132,47 +1132,65 @@ class Orders extends Vendor_base
 			$address_arr = array($default_address);
 		}
 
-		// When deliver at school/branch: if address is empty, use school/branch from order items with full address
+		// When deliver at school/branch: if address is empty, use school/branch from order details/items with full address
 		$addr_first = $address_arr[0];
 		$addr_empty = empty($addr_first->address) && empty($addr_first->city) && empty($addr_first->state) && empty($addr_first->pincode);
 		$address_from_school_branch = false;
-		if ($addr_empty && !empty($items_arr)) {
-			foreach ($items_arr as $oi) {
-				if (!empty($oi->branch_id)) {
-					$br = $this->db->select('sb.branch_name, sb.address, sb.pincode, s.school_name, c.name as city_name, st.name as state_name')
-						->from('erp_school_branches sb')
-						->join('erp_schools s', 's.id = sb.school_id', 'left')
-						->join('cities c', 'c.id = sb.city_id', 'left')
-						->join('states st', 'st.id = sb.state_id', 'left')
-						->where('sb.id', (int) $oi->branch_id)
-						->limit(1)->get()->row();
-					if ($br) {
-						$addr_first->address = $br->branch_name . (!empty($br->school_name) ? ' (' . $br->school_name . ')' : '');
-						if (!empty($br->address))
-							$addr_first->address .= ', ' . $br->address;
-						$addr_first->city = isset($br->city_name) ? $br->city_name : '';
-						$addr_first->state = isset($br->state_name) ? $br->state_name : '';
-						$addr_first->pincode = isset($br->pincode) ? $br->pincode : '';
-						$address_from_school_branch = true;
+		if ($addr_empty) {
+			$order_school_id = isset($order_data[0]->school_id) ? (int)$order_data[0]->school_id : 0;
+			$effective_school_id = $order_school_id;
+			$effective_branch_id = 0;
+			
+			$first_oi = null;
+			if (!empty($items_arr)) {
+				foreach ($items_arr as $oi) {
+					if (!empty($oi->branch_id)) {
+						$effective_branch_id = (int)$oi->branch_id;
 						break;
 					}
-				} elseif (!empty($oi->school_id)) {
-					$sch = $this->db->select('s.school_name, s.address, s.pincode, c.name as city_name, st.name as state_name')
-						->from('erp_schools s')
-						->join('cities c', 'c.id = s.city_id', 'left')
-						->join('states st', 'st.id = s.state_id', 'left')
-						->where('s.id', (int) $oi->school_id)
-						->limit(1)->get()->row();
-					if ($sch) {
-						$addr_first->address = $sch->school_name;
-						if (!empty($sch->address))
-							$addr_first->address .= ', ' . $sch->address;
-						$addr_first->city = isset($sch->city_name) ? $sch->city_name : '';
-						$addr_first->state = isset($sch->state_name) ? $sch->state_name : '';
-						$addr_first->pincode = isset($sch->pincode) ? $sch->pincode : '';
-						$address_from_school_branch = true;
-						break;
+				}
+				if ($effective_school_id == 0) {
+					foreach ($items_arr as $oi) {
+						if (!empty($oi->school_id)) {
+							$effective_school_id = (int)$oi->school_id;
+							break;
+						}
 					}
+				}
+			}
+
+			if ($effective_branch_id > 0) {
+				$br = $this->db->select('sb.branch_name, sb.address, sb.pincode, s.school_name, c.name as city_name, st.name as state_name')
+					->from('erp_school_branches sb')
+					->join('erp_schools s', 's.id = sb.school_id', 'left')
+					->join('cities c', 'c.id = sb.city_id', 'left')
+					->join('states st', 'st.id = sb.state_id', 'left')
+					->where('sb.id', $effective_branch_id)
+					->limit(1)->get()->row();
+				if ($br) {
+					$addr_first->address = $br->branch_name . (!empty($br->school_name) ? ' (' . $br->school_name . ')' : '');
+					if (!empty($br->address))
+						$addr_first->address .= ', ' . $br->address;
+					$addr_first->city = isset($br->city_name) ? $br->city_name : '';
+					$addr_first->state = isset($br->state_name) ? $br->state_name : '';
+					$addr_first->pincode = isset($br->pincode) ? $br->pincode : '';
+					$address_from_school_branch = true;
+				}
+			} elseif ($effective_school_id > 0) {
+				$sch = $this->db->select('s.school_name, s.address, s.pincode, c.name as city_name, st.name as state_name')
+					->from('erp_schools s')
+					->join('cities c', 'c.id = s.city_id', 'left')
+					->join('states st', 'st.id = s.state_id', 'left')
+					->where('s.id', $effective_school_id)
+					->limit(1)->get()->row();
+				if ($sch) {
+					$addr_first->address = $sch->school_name;
+					if (!empty($sch->address))
+						$addr_first->address .= ', ' . $sch->address;
+					$addr_first->city = isset($sch->city_name) ? $sch->city_name : '';
+					$addr_first->state = isset($sch->state_name) ? $sch->state_name : '';
+					$addr_first->pincode = isset($sch->pincode) ? $sch->pincode : '';
+					$address_from_school_branch = true;
 				}
 			}
 		}
@@ -1393,31 +1411,41 @@ class Orders extends Vendor_base
 		// Use is_deliver_at_school from tbl_order_details (single source of truth)
 		$is_deliver_at_school = (isset($order_data[0]->is_deliver_at_school) && (int) $order_data[0]->is_deliver_at_school === 1);
 
-		// Build uniform_info when school/branch available in order items (all uniform orders, or any order with school/branch)
+		// Build uniform_info when school/branch available in order details/items (all uniform orders, or any order with school/branch)
 		$uniform_info = null;
 		$uniform_student_details = array();
-		if (!empty($items_arr)) {
+		if (!empty($items_arr) || (!empty($order_data[0]->school_id))) {
 			$first_oi = null;
-			foreach ($items_arr as $oi) {
-				if (!empty($oi->branch_id) || !empty($oi->school_id)) {
-					$first_oi = $oi;
-					break;
+			if (!empty($items_arr)) {
+				foreach ($items_arr as $oi) {
+					if (!empty($oi->branch_id) || !empty($oi->school_id)) {
+						$first_oi = $oi;
+						break;
+					}
 				}
 			}
-			if ($first_oi) {
+			
+			$order_school_id = isset($order_data[0]->school_id) ? (int)$order_data[0]->school_id : 0;
+			$effective_school_id = $order_school_id;
+			$effective_branch_id = ($first_oi && !empty($first_oi->branch_id)) ? (int)$first_oi->branch_id : 0;
+			if ($effective_school_id == 0 && $first_oi && !empty($first_oi->school_id)) {
+				$effective_school_id = (int)$first_oi->school_id;
+			}
+
+			if ($effective_school_id > 0 || $effective_branch_id > 0) {
 				$uniform_info = new stdClass();
 				$uniform_info->school_name = '';
 				$uniform_info->branch_name = '';
 				$uniform_info->display_name = '';
 				$uniform_info->address = '';
 
-				if (!empty($first_oi->branch_id)) {
+				if ($effective_branch_id > 0) {
 					$br = $this->db->select('sb.branch_name, sb.address, sb.pincode, s.school_name, c.name as city_name, st.name as state_name')
 						->from('erp_school_branches sb')
 						->join('erp_schools s', 's.id = sb.school_id', 'left')
 						->join('cities c', 'c.id = sb.city_id', 'left')
 						->join('states st', 'st.id = sb.state_id', 'left')
-						->where('sb.id', (int) $first_oi->branch_id)
+						->where('sb.id', $effective_branch_id)
 						->limit(1)->get()->row();
 					if ($br) {
 						$uniform_info->branch_name = $br->branch_name;
@@ -1431,12 +1459,12 @@ class Orders extends Vendor_base
 						]);
 						$uniform_info->address = implode(', ', $addr_parts);
 					}
-				} elseif (!empty($first_oi->school_id)) {
+				} elseif ($effective_school_id > 0) {
 					$sch = $this->db->select('s.school_name, s.address, s.pincode, c.name as city_name, st.name as state_name')
 						->from('erp_schools s')
 						->join('cities c', 'c.id = s.city_id', 'left')
 						->join('states st', 'st.id = s.state_id', 'left')
-						->where('s.id', (int) $first_oi->school_id)
+						->where('s.id', $effective_school_id)
 						->limit(1)->get()->row();
 					if ($sch) {
 						$uniform_info->school_name = isset($sch->school_name) ? $sch->school_name : '';
@@ -4416,10 +4444,10 @@ class Orders extends Vendor_base
 	 *
 	 * @return	string	Invoice number e.g. INV/26-03/001
 	 */
-	private function _generate_invoice_number()
+	private function _generate_invoice_number($order_date = null)
 	{
-		$yy = date('y');
-		$mm = date('m');
+		$yy = !empty($order_date) ? date('y', strtotime($order_date)) : date('y');
+		$mm = !empty($order_date) ? date('m', strtotime($order_date)) : date('m');
 		$prefix = 'INV/' . $yy . '-' . $mm . '/';
 
 		$this->db->select('invoice_no');
@@ -4551,13 +4579,28 @@ class Orders extends Vendor_base
 						$item->class_name = $class_query->row()->class_name;
 					}
 				}
+				// Get school name for uniform from erp_uniforms
+				if (empty($item->school_name) && !empty($item->product_id)) {
+					$uni_school_q = $this->db->query("
+						SELECT s.school_name 
+						FROM erp_uniforms u 
+						JOIN erp_schools s ON s.id = u.school_id 
+						WHERE u.id = '" . (int)$item->product_id . "' 
+						LIMIT 1
+					");
+					if ($uni_school_q->num_rows() > 0) {
+						$item->school_name = $uni_school_q->row()->school_name;
+					}
+				}
 			}
 			// Get school name for any item with school_id
-			$school_id = !empty($item->school_id) ? (int)$item->school_id : 0;
-			if ($school_id > 0) {
-				$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . $school_id . "' LIMIT 1");
-				if ($school_query->num_rows() > 0) {
-					$item->school_name = $school_query->row()->school_name;
+			if (empty($item->school_name)) {
+				$school_id = !empty($item->school_id) ? (int)$item->school_id : 0;
+				if ($school_id > 0) {
+					$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . $school_id . "' LIMIT 1");
+					if ($school_query->num_rows() > 0) {
+						$item->school_name = $school_query->row()->school_name;
+					}
 				}
 			}
 		}
@@ -4644,7 +4687,16 @@ class Orders extends Vendor_base
 			return $order_row['school_name'];
 		if (!$this->db->table_exists('erp_schools'))
 			return '';
-		$item = $this->db->select('oi.school_id, s.school_name')->from('tbl_order_items oi')->join('erp_schools s', 's.id = oi.school_id', 'left')->where('oi.order_id', $order_id)->where('oi.school_id IS NOT NULL')->limit(1)->get()->row();
+		
+		$school_id = isset($order_row['school_id']) ? (int)$order_row['school_id'] : 0;
+		if ($school_id > 0) {
+			$sch = $this->db->select('school_name')->from('erp_schools')->where('id', $school_id)->limit(1)->get()->row();
+			if (!empty($sch) && !empty($sch->school_name)) {
+				return $sch->school_name;
+			}
+		}
+
+		$item = $this->db->select('oi.school_id, s.school_name')->from('tbl_order_items oi')->join('erp_schools s', 's.id = oi.school_id', 'left')->where('oi.order_id', $order_id)->where('oi.school_id IS NOT NULL')->where('oi.school_id > 0')->limit(1)->get()->row();
 		return !empty($item) && !empty($item->school_name) ? $item->school_name : '';
 	}
 
@@ -4782,10 +4834,12 @@ class Orders extends Vendor_base
 
 		// Generate invoice number if not exists (format: INV/26-03/001)
 		if (empty($order_details['invoice_no'])) {
-			$invoice_no = $this->_generate_invoice_number();
+			$invoice_no = $this->_generate_invoice_number($order_row['order_date']);
+			$invoice_date = !empty($order_row['invoice_date']) ? $order_row['invoice_date'] : $order_row['order_date'];
 			$this->db->where('id', $order_id);
-			$this->db->update('tbl_order_details', array('invoice_no' => $invoice_no));
+			$this->db->update('tbl_order_details', array('invoice_no' => $invoice_no, 'invoice_date' => $invoice_date));
 			$order_details['invoice_no'] = $invoice_no;
+			$order_details['invoice_date'] = date("d M Y", strtotime($invoice_date));
 		}
 
 		// Increase memory for PDF generation (dompdf can exhaust default limit with images)
@@ -4800,17 +4854,18 @@ class Orders extends Vendor_base
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		error_reporting(E_ALL & ~E_DEPRECATED);
 
-		// Vendor/company info from erp_clients (same as shipping label: logo + company details)
+		// Vendor/company info — strictly from erp_clients, no static fallbacks
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$company = $this->_get_invoice_company_from_erp_clients();
-		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : '-');
-		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
+		$order_details['company_name']    = isset($company['name'])    ? $company['name']    : '';
+		$company_addr = isset($company['address']) ? $company['address'] : '';
 		if (!empty($company['pincode'])) {
-			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
+			$company_addr = trim($company_addr . ', ' . $company['pincode']);
 		}
-		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : (!empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-');
-		$order_details['company_pan'] = !empty($company['pan']) ? $company['pan'] : (!empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-');
-		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
+		$order_details['company_address'] = $company_addr;
+		$order_details['company_gstin']   = isset($company['gstin'])   ? $company['gstin']   : '';
+		$order_details['company_pan']     = isset($company['pan'])     ? $company['pan']     : '';
+		$order_details['company_phone']   = isset($company['contact_number']) ? $company['contact_number'] : '';
 
 		// Fetch order_type, items_arr, bookset_products for product display (like shipping label)
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
@@ -4839,6 +4894,17 @@ class Orders extends Vendor_base
 			}
 		}
 
+
+
+		// Setup target directory and filename for saving generated invoice
+		$invoice_dir = FCPATH . 'uploads/app_invoices/';
+		if (!is_dir($invoice_dir)) {
+			@mkdir($invoice_dir, 0775, TRUE);
+		}
+		$pdfname = 'invoice_' . $order->order_unique_id . '.pdf';
+		$file_path = $invoice_dir . $pdfname;
+		$relative_path = 'uploads/app_invoices/' . $pdfname;
+
 		// Generate PDF
 		$this->pdf->set_paper("A4", "portrait");
 
@@ -4850,9 +4916,14 @@ class Orders extends Vendor_base
 			$this->pdf->set_option('isHtml5ParserEnabled', TRUE);
 			$this->pdf->load_html($html_content);
 			$this->pdf->render();
+			$pdf_output = $this->pdf->output();
+
+			if (is_dir($invoice_dir)) {
+				file_put_contents($file_path, $pdf_output);
+				$this->db->where('id', $order_id)->update('tbl_order_details', array('invoice_url' => $relative_path));
+			}
 
 			// Stream PDF for download
-			$pdfname = 'invoice_' . $order->order_unique_id . '.pdf';
 			$this->pdf->stream($pdfname, array("Attachment" => 1));
 			exit();
 		} catch (Exception $e) {
@@ -4863,9 +4934,14 @@ class Orders extends Vendor_base
 			$this->pdf->set_option('isHtml5ParserEnabled', FALSE);
 			$this->pdf->load_html($html_content);
 			$this->pdf->render();
+			$pdf_output = $this->pdf->output();
+
+			if (is_dir($invoice_dir)) {
+				file_put_contents($file_path, $pdf_output);
+				$this->db->where('id', $order_id)->update('tbl_order_details', array('invoice_url' => $relative_path));
+			}
 
 			// Stream PDF for download
-			$pdfname = 'invoice_' . $order->order_unique_id . '.pdf';
 			$this->pdf->stream($pdfname, array("Attachment" => 1));
 			exit();
 		}
@@ -4988,14 +5064,15 @@ class Orders extends Vendor_base
 
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$company = $this->_get_invoice_company_from_erp_clients();
-		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : '-');
-		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
+		$order_details['company_name']    = isset($company['name'])    ? $company['name']    : '';
+		$company_addr = isset($company['address']) ? $company['address'] : '';
 		if (!empty($company['pincode'])) {
-			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
+			$company_addr = trim($company_addr . ', ' . $company['pincode']);
 		}
-		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : (!empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-');
-		$order_details['company_pan'] = !empty($company['pan']) ? $company['pan'] : (!empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-');
-		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
+		$order_details['company_address'] = $company_addr;
+		$order_details['company_gstin']   = isset($company['gstin'])   ? $company['gstin']   : '';
+		$order_details['company_pan']     = isset($company['pan'])     ? $company['pan']     : '';
+		$order_details['company_phone']   = isset($company['contact_number']) ? $company['contact_number'] : '';
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
 		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
 		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
@@ -5376,6 +5453,7 @@ class Orders extends Vendor_base
 				if (!empty($name)) {
 					$product_names[] = array(
 						'name' => $name,
+						'sku' => isset($item->product_sku) ? $item->product_sku : '',
 						'qty' => isset($item->product_qty) ? $item->product_qty : 1,
 						'price' => isset($item->total_price) ? floatval($item->total_price) : 0
 					);
@@ -5446,6 +5524,14 @@ class Orders extends Vendor_base
 				$seller_gstin = $seller_row->gstin;
 		}
 
+		// Calculate total quantity ordered
+		$total_qty = 0;
+		if (!empty($items_arr)) {
+			foreach ($items_arr as $item) {
+				$total_qty += isset($item->product_qty) ? (int)$item->product_qty : 1;
+			}
+		}
+
 		// Prepare data for view - all keys with safe defaults to avoid undefined array key errors
 		$order_date = isset($order->order_date) ? date('d M Y', strtotime($order->order_date)) : '';
 		$data = array(
@@ -5453,6 +5539,7 @@ class Orders extends Vendor_base
 				'date' => $order_date,
 				'created_at' => $order_date,
 				'slot_no' => $slot_no,
+				'total_qty' => $total_qty,
 				'pincode' => $pincode,
 				'shipping_name' => $shipping_name,
 				'phone' => $phone,
@@ -5953,6 +6040,17 @@ class Orders extends Vendor_base
 			$logo_file_path = $logo_path;
 		}
 
+		// Seller/company info from erp_clients — no static fallbacks
+		$seller_company = $this->_get_invoice_company_from_erp_clients();
+		$seller_name    = isset($seller_company['name'])    ? $seller_company['name']    : '';
+		$seller_addr    = isset($seller_company['address']) ? $seller_company['address'] : '';
+		if (!empty($seller_company['pincode'])) {
+			$seller_addr = trim($seller_addr . ', ' . $seller_company['pincode']);
+		}
+		$seller_gstin   = isset($seller_company['gstin'])   ? $seller_company['gstin']   : '';
+		$seller_pan     = isset($seller_company['pan'])     ? $seller_company['pan']     : '';
+		$seller_phone   = isset($seller_company['contact_number']) ? $seller_company['contact_number'] : '';
+
 		// Prepare data for shipping label
 		$label_data = array(
 			'order' => $order,
@@ -5965,7 +6063,13 @@ class Orders extends Vendor_base
 			'shipping_number' => $shipping_number,
 			'barcode_url' => $barcode_url, // URL for HTML preview
 			'barcode_file_path' => $barcode_file_path, // Absolute file path for PDF
-			'barcode_base64' => $barcode_base64 // Base64 for PDF
+			'barcode_base64' => $barcode_base64, // Base64 for PDF
+			// Seller info from profile (erp_clients)
+			'seller_name'  => $seller_name,
+			'seller_addr'  => $seller_addr,
+			'seller_gstin' => $seller_gstin,
+			'seller_pan'   => $seller_pan,
+			'seller_phone' => $seller_phone,
 		);
 
 		// Start output buffering to prevent any output before headers

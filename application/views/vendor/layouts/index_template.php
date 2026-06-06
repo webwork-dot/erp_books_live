@@ -442,7 +442,7 @@ $(document).ready(function() {
 	// Load profile data
 	function loadProfileData() {
 		$.ajax({
-			url: window.location.origin + '/profile/get_profile',
+			url: '<?php echo base_url("profile/get_profile"); ?>',
 			type: 'GET',
 			dataType: 'json',
 			success: function(response) {
@@ -489,7 +489,7 @@ $(document).ready(function() {
 		};
 		
 		$.ajax({
-			url: window.location.origin + '/profile/update_profile',
+			url: '<?php echo base_url("profile/update_profile"); ?>',
 			type: 'POST',
 			data: formData,
 			dataType: 'json',

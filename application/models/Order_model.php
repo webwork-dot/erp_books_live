@@ -857,7 +857,11 @@ class Order_model extends CI_Model
 				}
 
 				$invoice_url_path = !empty($item['invoice_url']) ? $item['invoice_url'] : '';
-				$invoice_no = !empty($invoice_url_path) ? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
+				$invoice_no = (!empty($invoice_url_path) && file_exists(FCPATH . $invoice_url_path)) 
+					? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' 
+					: (!empty($item['invoice_no']) 
+						? '<a href="' . base_url('orders/download_invoice/' . $item['order_unique_id']) . '" target="_blank">' . $item['invoice_no'] . '</a>' 
+						: '-');
 				$is_payment_at_school = ($item['payment_method'] == 'payment_at_school' || $item['payment_method'] == 'payment_at_scho');
 				$is_deliver_at_school = (isset($item['is_deliver_at_school']) && (int)$item['is_deliver_at_school'] === 1);
 
@@ -1126,7 +1130,11 @@ class Order_model extends CI_Model
 			}
 
 			$invoice_url_path = !empty($item['invoice_url']) ? $item['invoice_url'] : '';
-			$invoice_no = !empty($invoice_url_path) ? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' : $item['invoice_no'];
+			$invoice_no = (!empty($invoice_url_path) && file_exists(FCPATH . $invoice_url_path)) 
+				? '<a href="' . base_url($invoice_url_path) . '" target="_blank">' . $item['invoice_no'] . '</a>' 
+				: (!empty($item['invoice_no']) 
+					? '<a href="' . base_url('orders/download_invoice/' . $item['order_unique_id']) . '" target="_blank">' . $item['invoice_no'] . '</a>' 
+					: '-');
 			$is_payment_at_school = ($item['payment_method'] == 'payment_at_school' || $item['payment_method'] == 'payment_at_scho');
 			$is_deliver_at_school = (isset($item['is_deliver_at_school']) && (int)$item['is_deliver_at_school'] === 1);
 

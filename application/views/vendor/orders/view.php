@@ -392,21 +392,18 @@ if (!empty($additional_status)) {
               <?php
             endif; ?>
             <?php if ($order_data[0]->payment_status == 'success' && $order_data[0]->order_status != 5): ?>
-              <?php if (!empty($order_data[0]->invoice_url)): ?>
+              <?php if (!empty($order_data[0]->invoice_url) && file_exists(FCPATH . $order_data[0]->invoice_url)): ?>
                 <a href="<?php echo base_url($order_data[0]->invoice_url); ?>" class="btn btn-sm btn-success"
                   target="_blank">
                   <i class="fa fa-download"></i> Invoice
                 </a>
-                <?php
-              else: ?>
+              <?php else: ?>
                 <a href="<?php echo base_url('orders/download_invoice/' . $order_data[0]->order_unique_id); ?>"
                   class="btn btn-sm btn-success" target="_blank">
                   <i class="fa fa-download"></i> Invoice
                 </a>
-                <?php
-              endif; ?>
-              <?php
-            endif; ?>
+              <?php endif; ?>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -963,6 +960,14 @@ if (!empty($additional_status)) {
                       <td class="text-center"><?= isset($val->product_qty) ? $val->product_qty : '1' ?></td>
                       <td class="text-end">
                         <?= $currency_code . ' ' . number_format(isset($val->product_price) ? $val->product_price : 0, 2) ?>
+                        <?php if (isset($val->product_qty) && (int) $val->product_qty > 1): ?>
+                          <?php
+                          $row_total = isset($val->total_price) && $val->total_price > 0 
+                            ? (float) $val->total_price 
+                            : (isset($val->product_price) ? (float) $val->product_price * (int) $val->product_qty : 0);
+                          ?>
+                          <br><small class="text-muted">(<?= $currency_code . ' ' . number_format($row_total, 2) ?> total)</small>
+                        <?php endif; ?>
                       </td>
                     </tr>
                     <?php

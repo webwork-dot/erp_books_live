@@ -210,20 +210,22 @@
 					<div class="col-xl-3 col-lg-4 col-md-6">
 						<div class="mb-2">
 							<label class="form-label fs-13 mb-1">Houses</label>
-							<select name="color" id="color" class="form-control form-control-sm select2-color"
-								data-placeholder="Select a house">
-								<option value=""></option>
-								<option value="Red" <?php echo set_select('color', 'Red', $uniform['color'] == 'Red'); ?>>
-									Red</option>
-								<option value="Blue" <?php echo set_select('color', 'Blue', $uniform['color'] == 'Blue'); ?>>Blue</option>
-								<option value="Green" <?php echo set_select('color', 'Green', $uniform['color'] == 'Green'); ?>>Green</option>
-								<option value="Yellow" <?php echo set_select('color', 'Yellow', $uniform['color'] == 'Yellow'); ?>>Yellow</option>
-								<option value="Vayu" <?php echo set_select('color', 'Vayu', $uniform['color'] == 'Vayu'); ?>>Vayu</option>
-								<option value="Jal" <?php echo set_select('color', 'Jal', $uniform['color'] == 'Jal'); ?>>
-									Jal</option>
-								<option value="Agni" <?php echo set_select('color', 'Agni', $uniform['color'] == 'Agni'); ?>>Agni</option>
-								<option value="Prithvi" <?php echo set_select('color', 'Prithvi', $uniform['color'] == 'Prithvi'); ?>>Prithvi</option>
+							<select name="house_ids[]" id="house_ids" class="form-control form-control-sm select2"
+								multiple data-placeholder="Select house(s)" style="width: 100%;">
+								<?php if (!empty($houses)): ?>
+									<?php foreach ($houses as $house): ?>
+										<option value="<?php echo $house['id']; ?>"
+											<?php echo (in_array($house['id'], $selected_houses)) ? 'selected' : ''; ?>>
+											<?php echo htmlspecialchars($house['name']); ?>
+										</option>
+									<?php endforeach; ?>
+								<?php endif; ?>
 							</select>
+							<div class="mt-1">
+								<a href="#" class="text-primary fs-12" data-bs-toggle="modal" data-bs-target="#addHouseModal">
+									<i class="isax isax-edit-2 me-1"></i> Add / Edit Houses
+								</a>
+							</div>
 						</div>
 					</div>
 					<div class="col-xl-3 col-lg-4 col-md-6">
@@ -2516,3 +2518,137 @@ if (isset($size_prices) && !empty($size_prices)) {
 		pointer-events: none;
 	}
 </style>
+
+<!-- Add / Edit Houses Modal -->
+<div class="modal fade" id="addHouseModal" tabindex="-1" aria-labelledby="addHouseModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="addHouseModalLabel">Manage Houses</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-4">
+					<h6 class="fw-bold mb-2">Add New House</h6>
+					<div class="row gx-2 align-items-end">
+						<div class="col-5">
+							<label class="form-label fs-12 mb-1">House Name</label>
+							<input type="text" id="new_house_name" class="form-control form-control-sm" placeholder="e.g. Phoenix">
+						</div>
+						<div class="col-4">
+							<label class="form-label fs-12 mb-1">Color</label>
+							<input type="color" id="new_house_color" class="form-control form-control-sm form-control-color" value="#6366f1">
+						</div>
+						<div class="col-3">
+							<button type="button" class="btn btn-primary btn-sm w-100" onclick="submitAddHouse()">Add</button>
+						</div>
+					</div>
+					<div id="add_house_msg" class="mt-2 fs-12"></div>
+				</div>
+				<hr>
+				<h6 class="fw-bold mb-2">Existing Houses</h6>
+				<div id="house_list_container" style="max-height:260px; overflow-y:auto;"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+var HOUSE_ADD_URL   = '<?php echo base_url('products/uniforms/add_house'); ?>';
+var HOUSE_EDIT_URL  = '<?php echo base_url('products/uniforms/edit_house'); ?>';
+var HOUSE_LIST_URL  = '<?php echo base_url('products/uniforms/get_houses'); ?>';
+var CSRF_TOKEN_NAME = '<?php echo $this->security->get_csrf_token_name(); ?>';
+var CSRF_TOKEN      = '<?php echo $this->security->get_csrf_hash(); ?>';
+
+function refreshHouseSelectOptions(houses) {
+	var $sel = $('#house_ids');
+	var selected = $sel.val() || [];
+	$sel.empty();
+	$.each(houses, function (i, h) {
+		var isSelected = selected.indexOf(String(h.id)) !== -1;
+		$sel.append(new Option(h.name, h.id, isSelected, isSelected));
+	});
+	if ($sel.hasClass('select2-hidden-accessible')) { $sel.trigger('change'); }
+}
+
+function loadHousesList() {
+	$.get(HOUSE_LIST_URL, function (resp) {
+		if (resp.status !== 'success') return;
+		var $container = $('#house_list_container').empty();
+		if (!resp.houses || resp.houses.length === 0) {
+			$container.html('<p class="text-muted fs-12">No houses found.</p>'); return;
+		}
+		$.each(resp.houses, function (i, house) {
+			var dotStyle = house.color_code
+				? 'display:inline-block;width:12px;height:12px;border-radius:50%;background:' + house.color_code + ';margin-right:6px;vertical-align:middle;'
+				: 'display:none;';
+			var row      = $('<div class="d-flex align-items-center justify-content-between py-1 border-bottom"></div>');
+			var dot      = $('<span></span>').attr('style', dotStyle);
+			var nameSpan = $('<span class="fs-13 flex-grow-1"></span>').text(house.name);
+			var colorDot = $('<input type="color" class="form-control form-control-color ms-2" style="width:32px;height:28px;padding:1px;">').val(house.color_code || '#6366f1');
+			var editInput = $('<input type="text" class="form-control form-control-sm ms-2 d-none" style="max-width:120px;">').val(house.name);
+			var editBtn   = $('<button type="button" class="btn btn-xs btn-outline-primary ms-2">Edit</button>');
+			var saveBtn   = $('<button type="button" class="btn btn-xs btn-success ms-2 d-none">Save</button>');
+			var cancelBtn = $('<button type="button" class="btn btn-xs btn-light ms-1 d-none">Cancel</button>');
+			var id = house.id, name = house.name;
+			editBtn.on('click', function () {
+				nameSpan.addClass('d-none'); editInput.removeClass('d-none').focus();
+				colorDot.removeClass('d-none'); editBtn.addClass('d-none');
+				saveBtn.removeClass('d-none'); cancelBtn.removeClass('d-none');
+			});
+			cancelBtn.on('click', function () {
+				editInput.addClass('d-none').val(name); nameSpan.removeClass('d-none');
+				editBtn.removeClass('d-none'); saveBtn.addClass('d-none'); cancelBtn.addClass('d-none');
+			});
+			saveBtn.on('click', function () {
+				var newName = editInput.val().trim(), newColor = colorDot.val();
+				if (!newName) { alert('House name cannot be empty'); return; }
+				$.ajax({
+					url: HOUSE_EDIT_URL, type: 'POST',
+					data: { id: id, name: newName, color_code: newColor, [CSRF_TOKEN_NAME]: CSRF_TOKEN },
+					dataType: 'json',
+					success: function (resp) {
+						if (resp.status === 'success') {
+							name = resp.name;
+							nameSpan.text(name).removeClass('d-none');
+							editInput.addClass('d-none').val(name);
+							editBtn.removeClass('d-none'); saveBtn.addClass('d-none'); cancelBtn.addClass('d-none');
+							$.get(HOUSE_LIST_URL, function (r) { if (r.status === 'success') refreshHouseSelectOptions(r.houses); });
+						} else { alert(resp.message || 'Failed to update'); }
+					},
+					error: function () { alert('Request failed.'); }
+				});
+			});
+			row.append(dot).append(nameSpan).append(editInput).append(colorDot).append(editBtn).append(saveBtn).append(cancelBtn);
+			$container.append(row);
+		});
+		refreshHouseSelectOptions(resp.houses);
+	});
+}
+
+function submitAddHouse() {
+	var name = $('#new_house_name').val().trim(), color = $('#new_house_color').val();
+	var $msg = $('#add_house_msg');
+	if (!name) { $msg.html('<span class="text-danger">Please enter a house name.</span>'); return; }
+	$.ajax({
+		url: HOUSE_ADD_URL, type: 'POST',
+		data: { name: name, color_code: color, [CSRF_TOKEN_NAME]: CSRF_TOKEN },
+		dataType: 'json',
+		success: function (resp) {
+			if (resp.status === 'success') {
+				$msg.html('<span class="text-success">House "' + resp.name + '" added!</span>');
+				$('#new_house_name').val('');
+				loadHousesList();
+			} else { $msg.html('<span class="text-danger">' + (resp.message || 'Failed') + '</span>'); }
+		},
+		error: function () { $msg.html('<span class="text-danger">Request failed.</span>'); }
+	});
+}
+
+$(document).ready(function () {
+	$('#addHouseModal').on('show.bs.modal', function () { loadHousesList(); });
+});
+</script>

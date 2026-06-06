@@ -97,6 +97,13 @@ class Uniform_model extends CI_Model
 			$this->db->where('erp_uniforms.branch_id', $filters['branch_id']);
 		}
 		
+		if (isset($filters['house_id']) && !empty($filters['house_id']))
+		{
+			$this->db->group_start();
+			$this->db->where("FIND_IN_SET('".$this->db->escape_str($filters['house_id'])."', erp_uniforms.house_ids) >", 0);
+			$this->db->group_end();
+		}
+		
 		$this->db->order_by('erp_uniforms.id', 'DESC');
 		
 		if ($limit !== NULL)
@@ -164,6 +171,13 @@ class Uniform_model extends CI_Model
 		if (isset($filters['branch_id']))
 		{
 			$this->db->where('branch_id', $filters['branch_id']);
+		}
+		
+		if (isset($filters['house_id']) && !empty($filters['house_id']))
+		{
+			$this->db->group_start();
+			$this->db->where("FIND_IN_SET('".$this->db->escape_str($filters['house_id'])."', house_ids) >", 0);
+			$this->db->group_end();
 		}
 		
 		return $this->db->count_all_results();
