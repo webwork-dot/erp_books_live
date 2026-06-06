@@ -33,10 +33,10 @@ $is_igst = (stripos($place_of_supply, 'Maharashtra') === false) ? 1 : 0;
 
 $currency = isset($d['currency_code']) ? $d['currency_code'] : '₹';
 $logo_src = isset($d['logo_src']) ? $d['logo_src'] : '';
-$company_name = isset($d['company_name']) ? $d['company_name'] : '';
+$company_name = isset($d['company_name']) ? $d['company_name'] : '-';
 $company_address = isset($d['company_address']) ? $d['company_address'] : '';
-$company_gstin = isset($d['company_gstin']) ? $d['company_gstin'] : '';
-$company_pan = isset($d['company_pan']) ? $d['company_pan'] : '';
+$company_gstin = isset($d['company_gstin']) ? $d['company_gstin'] : '-';
+$company_pan = isset($d['company_pan']) ? $d['company_pan'] : '-';
 $company_phone = isset($d['company_phone']) ? $d['company_phone'] : '';
 
 // Total invoice value for calculations

@@ -137,24 +137,6 @@
 
         
 
-        <!-- SHIP FROM (seller info from profile) -->
-        <?php
-        $seller_name  = isset($seller_name)  ? $seller_name  : '';
-        $seller_addr  = isset($seller_addr)  ? $seller_addr  : '';
-        $seller_gstin = isset($seller_gstin) ? $seller_gstin : '';
-        $seller_pan   = isset($seller_pan)   ? $seller_pan   : '';
-        $seller_phone = isset($seller_phone) ? $seller_phone : '';
-        if ($seller_name || $seller_addr || $seller_gstin): ?>
-        <div class="section mt-12">
-            <div class="title">SHIP FROM</div>
-            <?php if ($seller_name): ?><div><strong><?php echo htmlspecialchars($seller_name); ?></strong></div><?php endif; ?>
-            <?php if ($seller_addr): ?><div style="word-wrap:break-word;"><?php echo htmlspecialchars($seller_addr); ?></div><?php endif; ?>
-            <?php if ($seller_phone): ?><div>Contact: <?php echo htmlspecialchars($seller_phone); ?></div><?php endif; ?>
-            <?php if ($seller_gstin): ?><div>GSTIN: <?php echo htmlspecialchars($seller_gstin); ?></div><?php endif; ?>
-            <?php if ($seller_pan): ?><div>PAN: <?php echo htmlspecialchars($seller_pan); ?></div><?php endif; ?>
-        </div>
-        <?php endif; ?>
-
         <!-- Ship to + Order details -->
         <table class="mt-12">
             <tr>

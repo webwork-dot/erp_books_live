@@ -29,15 +29,21 @@ class Profile extends Vendor_base
 	}
 
 	/**
-	 * Get profile data (AJAX) - reads directly from erp_clients
+	 * Get profile data (AJAX) - reads directly from erp_clients in vendor database
 	 *
 	 * @return	void
 	 */
 	public function get_profile()
 	{
 		header('Content-Type: application/json');
-		
-		$client = $this->Erp_client_model->getFirstClient();
+
+		// Use vendor database (already switched by Vendor_base)
+		$query = $this->db->select('id, name, address, pincode, pan, gstin')
+						  ->from('erp_clients')
+						  ->limit(1)
+						  ->get();
+		$client = ($query->num_rows() > 0) ? $query->row_array() : null;
+
 		if ($client) {
 			echo json_encode(array(
 				'success' => true,
@@ -55,14 +61,14 @@ class Profile extends Vendor_base
 	}
 
 	/**
-	 * Update profile (AJAX) - updates erp_clients directly
+	 * Update profile (AJAX) - updates erp_clients directly in vendor database AND master database
 	 *
 	 * @return	void
 	 */
 	public function update_profile()
 	{
 		header('Content-Type: application/json');
-		
+
 		$update_data = array(
 			'name' => $this->input->post('name') ? trim($this->input->post('name')) : '',
 			'address' => $this->input->post('address') ? trim($this->input->post('address')) : '',
@@ -71,8 +77,19 @@ class Profile extends Vendor_base
 			'gstin' => $this->input->post('gstin') ? strtoupper(trim($this->input->post('gstin'))) : ''
 		);
 
-		$this->Erp_client_model->updateFirstClient($update_data);
-		
+		// Use vendor database (already switched by Vendor_base)
+		// First get the first client's ID
+		$first = $this->db->select('id')->from('erp_clients')->limit(1)->get()->row();
+		if ($first) {
+			$this->db->where('id', $first->id)->update('erp_clients', $update_data);
+		}
+
+		// Also update master database
+		$master_db = $this->load->database('default', TRUE);
+		if ($this->current_vendor && isset($this->current_vendor['id'])) {
+			$master_db->where('id', $this->current_vendor['id'])->update('erp_clients', $update_data);
+		}
+
 		echo json_encode(array(
 			'success' => true,
 			'message' => 'Profile updated successfully',

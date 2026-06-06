@@ -4854,18 +4854,17 @@ class Orders extends Vendor_base
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		error_reporting(E_ALL & ~E_DEPRECATED);
 
-		// Vendor/company info — strictly from erp_clients, no static fallbacks
+		// Vendor/company info from erp_clients (same as shipping label: logo + company details)
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$company = $this->_get_invoice_company_from_erp_clients();
-		$order_details['company_name']    = isset($company['name'])    ? $company['name']    : '';
-		$company_addr = isset($company['address']) ? $company['address'] : '';
+		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : '-');
+		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
 		if (!empty($company['pincode'])) {
-			$company_addr = trim($company_addr . ', ' . $company['pincode']);
+			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
 		}
-		$order_details['company_address'] = $company_addr;
-		$order_details['company_gstin']   = isset($company['gstin'])   ? $company['gstin']   : '';
-		$order_details['company_pan']     = isset($company['pan'])     ? $company['pan']     : '';
-		$order_details['company_phone']   = isset($company['contact_number']) ? $company['contact_number'] : '';
+		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : (!empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-');
+		$order_details['company_pan'] = !empty($company['pan']) ? $company['pan'] : (!empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-');
+		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
 
 		// Fetch order_type, items_arr, bookset_products for product display (like shipping label)
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
@@ -5064,15 +5063,14 @@ class Orders extends Vendor_base
 
 		$order_details['logo_src'] = $this->_get_invoice_logo_base64();
 		$company = $this->_get_invoice_company_from_erp_clients();
-		$order_details['company_name']    = isset($company['name'])    ? $company['name']    : '';
-		$company_addr = isset($company['address']) ? $company['address'] : '';
+		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : '-');
+		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : (!empty($this->current_vendor['address']) ? $this->current_vendor['address'] : '');
 		if (!empty($company['pincode'])) {
-			$company_addr = trim($company_addr . ', ' . $company['pincode']);
+			$order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
 		}
-		$order_details['company_address'] = $company_addr;
-		$order_details['company_gstin']   = isset($company['gstin'])   ? $company['gstin']   : '';
-		$order_details['company_pan']     = isset($company['pan'])     ? $company['pan']     : '';
-		$order_details['company_phone']   = isset($company['contact_number']) ? $company['contact_number'] : '';
+		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : (!empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-');
+		$order_details['company_pan'] = !empty($company['pan']) ? $company['pan'] : (!empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-');
+		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
 		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
 		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
@@ -6040,17 +6038,6 @@ class Orders extends Vendor_base
 			$logo_file_path = $logo_path;
 		}
 
-		// Seller/company info from erp_clients — no static fallbacks
-		$seller_company = $this->_get_invoice_company_from_erp_clients();
-		$seller_name    = isset($seller_company['name'])    ? $seller_company['name']    : '';
-		$seller_addr    = isset($seller_company['address']) ? $seller_company['address'] : '';
-		if (!empty($seller_company['pincode'])) {
-			$seller_addr = trim($seller_addr . ', ' . $seller_company['pincode']);
-		}
-		$seller_gstin   = isset($seller_company['gstin'])   ? $seller_company['gstin']   : '';
-		$seller_pan     = isset($seller_company['pan'])     ? $seller_company['pan']     : '';
-		$seller_phone   = isset($seller_company['contact_number']) ? $seller_company['contact_number'] : '';
-
 		// Prepare data for shipping label
 		$label_data = array(
 			'order' => $order,
@@ -6063,13 +6050,7 @@ class Orders extends Vendor_base
 			'shipping_number' => $shipping_number,
 			'barcode_url' => $barcode_url, // URL for HTML preview
 			'barcode_file_path' => $barcode_file_path, // Absolute file path for PDF
-			'barcode_base64' => $barcode_base64, // Base64 for PDF
-			// Seller info from profile (erp_clients)
-			'seller_name'  => $seller_name,
-			'seller_addr'  => $seller_addr,
-			'seller_gstin' => $seller_gstin,
-			'seller_pan'   => $seller_pan,
-			'seller_phone' => $seller_phone,
+			'barcode_base64' => $barcode_base64 // Base64 for PDF
 		);
 
 		// Start output buffering to prevent any output before headers
