@@ -304,7 +304,12 @@ class Uniforms extends Vendor_base
 				$this->Uniform_model->updateUniform($uniform_id, array('slug' => $slug));
 
 				// Save size prices if provided
-				$size_prices = $this->input->post('size_prices');
+				$size_prices_json = $this->input->post('size_prices_json');
+				if (!empty($size_prices_json)) {
+					$size_prices = json_decode($size_prices_json, TRUE);
+				} else {
+					$size_prices = $this->input->post('size_prices');
+				}
 				if (!is_array($size_prices)) {
 					$size_prices = array();
 				}
@@ -518,7 +523,12 @@ class Uniforms extends Vendor_base
 			$this->handleImageUploads($uniform_id);
 
 			// Save size prices if provided
-			$size_prices = $this->input->post('size_prices');
+			$size_prices_json = $this->input->post('size_prices_json');
+			if (!empty($size_prices_json)) {
+				$size_prices = json_decode($size_prices_json, TRUE);
+			} else {
+				$size_prices = $this->input->post('size_prices');
+			}
 			if (!is_array($size_prices)) {
 				$size_prices = array();
 			}

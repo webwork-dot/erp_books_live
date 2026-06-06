@@ -7,6 +7,7 @@
 </div>
 <!-- End Breadcrumb -->
 <?php echo form_open_multipart(isset($uniform) ? base_url('products/uniforms/edit/' . $uniform['id']) : base_url('products/uniforms/add'), array('id' => 'uniform-form')); ?>
+<input type="hidden" name="size_prices_json" id="size_prices_json" value="">
 <!-- Images Card (Outside Main Card) -->
 <div class="row mt-2">
 	<div class="col-12">
@@ -1134,6 +1135,12 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 
 		// Image preview is handled by image-sortable.js script
 		// No custom handler needed - image-sortable.js handles file input changes, drag-and-drop, and main image selection
+
+		// Intercept form submission to populate size_prices_json
+		$('#uniform-form').on('submit', function (e) {
+			var sizePricesJson = prepareSizePricesJson();
+			$('#size_prices_json').val(sizePricesJson);
+		});
 	});
 
 	function loadBranches(schoolId) {
@@ -1524,6 +1531,56 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 		});
 	}
 
+	function prepareSizePricesJson() {
+		// Save current values first
+		saveCurrentValues();
+
+		// Get selected classes
+		var selectedClasses = [];
+		$('#class_ids option:selected').each(function () {
+			selectedClasses.push($(this).val());
+		});
+
+		var sizePricesObj = {};
+
+		added_sizes.forEach(function (size) {
+			var sizeId = size.id;
+			if (selectedClasses.length === 0) {
+				var key = '0_' + sizeId;
+				var mrp = priceValues[key]?.mrp || '';
+				var sp = priceValues[key]?.selling_price || '';
+				
+				if (!sizePricesObj['0']) {
+					sizePricesObj['0'] = {};
+				}
+				sizePricesObj['0'][sizeId] = {
+					class_id: 0,
+					size_id: parseInt(sizeId),
+					mrp: mrp,
+					selling_price: sp
+				};
+			} else {
+				selectedClasses.forEach(function (classId) {
+					var key = classId + '_' + sizeId;
+					var mrp = priceValues[key]?.mrp || '';
+					var sp = priceValues[key]?.selling_price || '';
+					
+					if (!sizePricesObj[classId]) {
+						sizePricesObj[classId] = {};
+					}
+					sizePricesObj[classId][sizeId] = {
+						class_id: parseInt(classId),
+						size_id: parseInt(sizeId),
+						mrp: mrp,
+						selling_price: sp
+					};
+				});
+			}
+		});
+
+		return JSON.stringify(sizePricesObj);
+	}
+
 	function renderPricingGroups(skipSaveCurrent = false) {
 		// 1. Save typed values first to avoid data loss
 		if (!skipSaveCurrent) {
@@ -1576,16 +1633,14 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 				<td>
 					<div class="input-group input-group-sm">
 						<span class="input-group-text">₹</span>
-						<input type="hidden" name="size_prices[0][${sizeId}][class_id]" value="0" form="uniform-form">
-						<input type="hidden" name="size_prices[0][${sizeId}][size_id]" value="${sizeId}" form="uniform-form">
-						<input type="number" name="size_prices[0][${sizeId}][mrp]" id="mrp_0_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="0">
+						<input type="number" id="mrp_0_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="0">
 					</div>
 					<small class="text-danger mrp-error fs-11" id="mrp_error_0_${sizeId}" style="display:none;">MRP must be >= Selling Price</small>
 				</td>
 				<td>
 					<div class="input-group input-group-sm">
 						<span class="input-group-text">₹</span>
-						<input type="number" name="size_prices[0][${sizeId}][selling_price]" id="selling_price_0_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="0">
+						<input type="number" id="selling_price_0_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="0">
 					</div>
 					<small class="text-danger selling-price-error fs-11" id="selling_price_error_0_${sizeId}" style="display:none;">Selling Price must be <= MRP</small>
 				</td>
@@ -1629,18 +1684,16 @@ $commissionValue = $this->input->post('school_commission_value') ?? '';
 					${sizeTd}
 					<td class="align-middle text-dark fw-semibold fs-12">${className}</td>
 					<td>
-						<input type="hidden" name="size_prices[${classId}][${sizeId}][class_id]" value="${classId}" form="uniform-form">
-						<input type="hidden" name="size_prices[${classId}][${sizeId}][size_id]" value="${sizeId}" form="uniform-form">
 						<div class="input-group input-group-sm">
 							<span class="input-group-text">₹</span>
-							<input type="number" name="size_prices[${classId}][${sizeId}][mrp]" id="mrp_${classId}_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="${classId}" data-first-row="${isFirst}">
+							<input type="number" id="mrp_${classId}_${sizeId}" class="form-control mrp-input" step="0.01" min="0" required placeholder="0.00" value="${mrpVal}" data-size-id="${sizeId}" data-class-id="${classId}" data-first-row="${isFirst}">
 						</div>
 						<small class="text-danger mrp-error fs-11" id="mrp_error_${classId}_${sizeId}" style="display:none;">MRP must be >= Selling Price</small>
 					</td>
 					<td>
 						<div class="input-group input-group-sm">
 							<span class="input-group-text">₹</span>
-							<input type="number" name="size_prices[${classId}][${sizeId}][selling_price]" id="selling_price_${classId}_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required form="uniform-form" placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="${classId}" data-first-row="${isFirst}">
+							<input type="number" id="selling_price_${classId}_${sizeId}" class="form-control selling-price-input" step="0.01" min="0" required placeholder="0.00" value="${spVal}" data-size-id="${sizeId}" data-class-id="${classId}" data-first-row="${isFirst}">
 						</div>
 						<small class="text-danger selling-price-error fs-11" id="selling_price_error_${classId}_${sizeId}" style="display:none;">Selling Price must be <= MRP</small>
 					</td>
