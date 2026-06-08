@@ -234,9 +234,11 @@
 					<div class="col-xl-3 col-lg-4 col-md-6">
 						<div class="mb-2">
 							<label class="form-label fs-13 mb-1">Uniform Tag</label>
-							<select name="uniform_tag" id="uniform_tag" class="form-select form-select-sm">
-								<option value="regular" <?php echo (isset($uniform) && $uniform['uniform_tag'] == 'regular') ? 'selected' : ''; ?>>Regular</option>
-								<option value="PT" <?php echo (isset($uniform) && $uniform['uniform_tag'] == 'PT') ? 'selected' : ''; ?>>PT Uniform</option>
+							<select name="uniform_tag[]" id="uniform_tag" class="form-select form-select-sm select2" multiple
+								data-placeholder="Select Uniform Tag" style="width: 100%;">
+								<?php $selected_tags = (isset($uniform) && !empty($uniform['uniform_tag'])) ? explode(',', $uniform['uniform_tag']) : array(); ?>
+								<option value="regular" <?php echo in_array('regular', $selected_tags) ? 'selected' : ''; ?>>Regular</option>
+								<option value="PT" <?php echo in_array('PT', $selected_tags) ? 'selected' : ''; ?>>PT Uniform</option>
 							</select>
 						</div>
 					</div>
