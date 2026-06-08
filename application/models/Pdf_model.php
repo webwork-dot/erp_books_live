@@ -501,8 +501,11 @@ class Pdf_model extends CI_Model
                         <div><b>City:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->city) ? $address_obj->city : '') . '</div>
                         <div><b>State:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->state) ? $address_obj->state : '') . '</div>
                         <div><b>Pincode:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '') . '</div>
-                        <div><b>Country:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->country) ? $address_obj->country : '') . '</div>
-                    </td>
+                        <div><b>Country:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->country) ? $address_obj->country : '') . '</div>';
+            if (!empty($address_obj) && !empty($address_obj->landmark)) {
+                $output .= '<div><b>Landmark:</b> ' . htmlspecialchars($address_obj->landmark) . '</div>';
+            }
+            $output .= '</td>
                     <td style="width:35%; text-align:center; vertical-align:middle;">';
 
             // Display barcode or qr_code based on what's available

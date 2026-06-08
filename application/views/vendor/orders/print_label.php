@@ -189,6 +189,9 @@ $date = isset($order['date']) ? $order['date'] : '';
                 isset($order['pincode']) ? $order['pincode'] : ''
             );
             $full_address = trim(implode(', ', array_filter($addr_parts)));
+            if (!empty($order['landmark'])) {
+                $full_address .= '. Landmark: ' . $order['landmark'];
+            }
             ?>
             <p><b>Address:</b> <?php echo htmlspecialchars($full_address); ?></p>
         </div>

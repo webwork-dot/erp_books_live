@@ -5353,11 +5353,13 @@ class Orders extends Vendor_base
 		$address_city = '';
 		$address_state = '';
 		$address_country = '';
+		$landmark = '';
 		if (!empty($address_obj)) {
 			$address_line1 = isset($address_obj->address) ? $address_obj->address : '';
 			$address_city = isset($address_obj->city) ? $address_obj->city : '';
 			$address_state = isset($address_obj->state) ? $address_obj->state : '';
 			$address_country = isset($address_obj->country) ? $address_obj->country : '';
+			$landmark = isset($address_obj->landmark) ? $address_obj->landmark : '';
 			$addr_parts = array($address_line1, $address_city, $address_state, isset($address_obj->pincode) ? $address_obj->pincode : '', $address_country);
 			$address = trim(implode(', ', array_filter($addr_parts)));
 		}
@@ -5548,6 +5550,7 @@ class Orders extends Vendor_base
 				'address_city' => $address_city,
 				'address_state' => $address_state,
 				'address_country' => $address_country,
+				'landmark' => $landmark,
 				'student_name' => $student_name,
 				'roll_number' => $roll_number,
 				'items' => $product_names,
