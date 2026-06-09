@@ -3,7 +3,10 @@
 	<div>
 		<h6>Manage Textbooks</h6>
 	</div>
-	<div>
+	<div class="d-flex gap-2">
+		<a href="<?php echo base_url('products/textbook/import'); ?>" class="btn btn-outline-primary">
+			<i class="isax isax-import"></i> Bulk Import
+		</a>
 		<a href="<?php echo base_url('products/textbook/add'); ?>" class="btn btn-primary">
 			<i class="isax isax-add"></i> Add New Textbook
 		</a>

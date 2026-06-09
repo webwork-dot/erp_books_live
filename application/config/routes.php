@@ -298,6 +298,8 @@ $route['products/textbook/add_grade'] = 'Vendor/products/textbook_add_grade';
 $route['products/textbook/add_age'] = 'Vendor/products/textbook_add_age';
 $route['products/textbook/add_subject'] = 'Vendor/products/textbook_add_subject';
 $route['products/textbook/delete_image/(:num)'] = 'Vendor/products/textbook_delete_image/$1';
+$route['products/textbook/import/template'] = 'Vendor/products/textbook_import_template';
+$route['products/textbook/import'] = 'Vendor/products/textbook_import';
 
 // Notebook routes under products
 $route['products/notebooks'] = 'Vendor/products/notebook_index';
@@ -308,6 +310,8 @@ $route['products/notebooks/toggle_status/(:num)'] = 'Vendor/products/notebook_to
 $route['products/notebooks/add_type'] = 'Vendor/products/notebook_add_type';
 $route['products/notebooks/add_brand'] = 'Vendor/products/notebook_add_brand';
 $route['products/notebooks/delete_image/(:num)'] = 'Vendor/products/notebook_delete_image/$1';
+$route['products/notebooks/import/template'] = 'Vendor/products/notebook_import_template';
+$route['products/notebooks/import'] = 'Vendor/products/notebook_import';
 
 // Bookset routes under products/books
 $route['products/books/bookset'] = 'Vendor/products/bookset_index';

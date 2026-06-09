@@ -4852,6 +4852,79 @@ class Products extends Vendor_base
 		
 		echo json_encode(array('status' => 'success', 'message' => 'Image deleted successfully'));
 	}
+
+	/**
+	 * Textbook bulk import — upload Excel and upsert legacy + erp_products rows.
+	 */
+	public function textbook_import()
+	{
+		$this->load->model('Book_product_import_model');
+		$data = array(
+			'title' => 'Bulk Import Textbooks - ' . $this->current_vendor['name'],
+			'current_vendor' => $this->current_vendor,
+			'vendor_domain' => $this->getVendorDomainForUrl(),
+			'import_results' => NULL,
+			'breadcrumb' => array(
+				array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+				array('label' => 'Products', 'url' => '#'),
+				array('label' => 'Textbooks', 'url' => base_url($this->config->item('base_url') . '/products/textbook')),
+				array('label' => 'Bulk Import', 'active' => true),
+			),
+		);
+
+		if ($this->input->method() === 'post')
+		{
+			$upload = $this->processBookImportUpload();
+			if ($upload['error'])
+			{
+				$this->session->set_flashdata('error', $upload['error']);
+			}
+			else
+			{
+				try
+				{
+					$data['import_results'] = $this->Book_product_import_model->importTextbooks(
+						$upload['path'],
+						$this->current_vendor['id']
+					);
+					$summary = $data['import_results'];
+					$this->session->set_flashdata(
+						'success',
+						'Import finished: ' . (int) $summary['created'] . ' created, '
+						. (int) $summary['updated'] . ' updated, '
+						. (int) $summary['failed'] . ' failed.'
+					);
+				}
+				catch (Exception $e)
+				{
+					$this->session->set_flashdata('error', $e->getMessage());
+				}
+				@unlink($upload['path']);
+			}
+		}
+
+		$data['content'] = $this->load->view('vendor/products/books/textbook/import', $data, TRUE);
+		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
+	/**
+	 * Download textbook import template (.xlsx).
+	 */
+	public function textbook_import_template()
+	{
+		$this->output->enable_profiler(FALSE);
+		$this->load->model('Book_product_import_model');
+		try
+		{
+			$spreadsheet = $this->Book_product_import_model->buildTextbookTemplate($this->current_vendor['id']);
+			$this->Book_product_import_model->streamSpreadsheet($spreadsheet, 'textbook_import_template.xlsx');
+		}
+		catch (Exception $e)
+		{
+			$this->session->set_flashdata('error', $e->getMessage());
+			redirect(base_url('products/textbook/import'));
+		}
+	}
 	
 	/**
 	 * Notebook Index
@@ -7636,6 +7709,116 @@ class Products extends Vendor_base
 		$this->db->delete('erp_notebook_images');
 		
 		echo json_encode(array('status' => 'success', 'message' => 'Image deleted successfully'));
+	}
+
+	/**
+	 * Notebook bulk import — upload Excel and upsert legacy + erp_products rows.
+	 */
+	public function notebook_import()
+	{
+		$this->load->model('Book_product_import_model');
+		$data = array(
+			'title' => 'Bulk Import Notebooks - ' . $this->current_vendor['name'],
+			'current_vendor' => $this->current_vendor,
+			'vendor_domain' => $this->getVendorDomainForUrl(),
+			'import_results' => NULL,
+			'breadcrumb' => array(
+				array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+				array('label' => 'Notebooks', 'url' => base_url($this->config->item('base_url') . '/products/notebooks')),
+				array('label' => 'Bulk Import', 'active' => true),
+			),
+		);
+
+		if ($this->input->method() === 'post')
+		{
+			$upload = $this->processBookImportUpload();
+			if ($upload['error'])
+			{
+				$this->session->set_flashdata('error', $upload['error']);
+			}
+			else
+			{
+				try
+				{
+					$data['import_results'] = $this->Book_product_import_model->importNotebooks(
+						$upload['path'],
+						$this->current_vendor['id']
+					);
+					$summary = $data['import_results'];
+					$this->session->set_flashdata(
+						'success',
+						'Import finished: ' . (int) $summary['created'] . ' created, '
+						. (int) $summary['updated'] . ' updated, '
+						. (int) $summary['failed'] . ' failed.'
+					);
+				}
+				catch (Exception $e)
+				{
+					$this->session->set_flashdata('error', $e->getMessage());
+				}
+				@unlink($upload['path']);
+			}
+		}
+
+		$data['content'] = $this->load->view('vendor/products/books/notebooks/import', $data, TRUE);
+		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
+	/**
+	 * Download notebook import template (.xlsx).
+	 */
+	public function notebook_import_template()
+	{
+		$this->output->enable_profiler(FALSE);
+		$this->load->model('Book_product_import_model');
+		try
+		{
+			$spreadsheet = $this->Book_product_import_model->buildNotebookTemplate($this->current_vendor['id']);
+			$this->Book_product_import_model->streamSpreadsheet($spreadsheet, 'notebook_import_template.xlsx');
+		}
+		catch (Exception $e)
+		{
+			$this->session->set_flashdata('error', $e->getMessage());
+			redirect(base_url('products/notebooks/import'));
+		}
+	}
+
+	/**
+	 * Validate uploaded .xlsx for book product import.
+	 *
+	 * @return	array{path: string|null, error: string|null}
+	 */
+	private function processBookImportUpload()
+	{
+		if (empty($_FILES['import_file']['name']))
+		{
+			return array('path' => NULL, 'error' => 'Please choose an Excel file to upload.');
+		}
+
+		if ((int) $_FILES['import_file']['error'] !== UPLOAD_ERR_OK)
+		{
+			return array('path' => NULL, 'error' => 'File upload failed. Please try again.');
+		}
+
+		$ext = strtolower(pathinfo($_FILES['import_file']['name'], PATHINFO_EXTENSION));
+		if ($ext !== 'xlsx')
+		{
+			return array('path' => NULL, 'error' => 'Only .xlsx files are supported.');
+		}
+
+		$max_size = 5 * 1024 * 1024;
+		if ((int) $_FILES['import_file']['size'] > $max_size)
+		{
+			return array('path' => NULL, 'error' => 'File is too large. Maximum size is 5 MB.');
+		}
+
+		$dest = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'book_import_' . uniqid() . '.xlsx';
+		if (!move_uploaded_file($_FILES['import_file']['tmp_name'], $dest))
+		{
+			return array('path' => NULL, 'error' => 'Could not save uploaded file.');
+		}
+
+		return array('path' => $dest, 'error' => NULL);
 	}
 
 	/**
