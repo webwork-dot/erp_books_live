@@ -836,7 +836,7 @@ class Products extends Vendor_base
 				->from('erp_products')
 				->where('vendor_id', (int)$this->current_vendor['id'])
 				->where('is_deleted', 0)
-				->where('status', 'active')
+				->where('status', $this->Product_model->active_product_status())
 				->where('type !=', 'uniform')
 				->order_by('product_name', 'ASC')
 				->get()
@@ -1689,6 +1689,31 @@ class Products extends Vendor_base
 		
 		if ($product_id)
 		{
+			$this->Product_model->create_product(array(
+				'vendor_id'        => $this->current_vendor['id'],
+				'category_id'      => NULL,
+				'type'             => 'individual',
+				'product_name'     => $product_data['product_name'],
+				'description'      => $product_data['product_description'],
+				'status'           => $this->Product_model->normalize_product_status($product_data['status']),
+				'selling_price'    => $product_data['selling_price'],
+				'product_mrp'      => $product_data['mrp'],
+				'gst'              => isset($product_data['gst_percentage']) ? $product_data['gst_percentage'] : NULL,
+				'isbn'             => isset($product_data['isbn']) ? $product_data['isbn'] : NULL,
+				'hsn'              => isset($product_data['hsn']) ? $product_data['hsn'] : NULL,
+				'sku'              => isset($product_data['sku']) ? $product_data['sku'] : NULL,
+				'quantity'         => 0,
+				'length'           => $product_data['packaging_length'],
+				'width'            => $product_data['packaging_width'],
+				'height'           => $product_data['packaging_height'],
+				'weight'           => $product_data['packaging_weight'],
+				'meta_title'       => $product_data['meta_title'],
+				'meta_keyword'     => $product_data['meta_keywords'],
+				'meta_description' => $product_data['meta_description'],
+				'min_quantity'     => $product_data['min_quantity'],
+				'legacy_table'     => 'erp_individual_products',
+				'legacy_id'        => $product_id,
+			));
 			// Add categories - handle both category_id and subcategory_id
 			$category_ids = array();
 			
@@ -2080,6 +2105,30 @@ class Products extends Vendor_base
 		
 		if ($updated)
 		{
+			$unified = $this->Product_model->get_product_by_legacy('erp_individual_products', $id, $this->current_vendor['id']);
+			if ($unified)
+			{
+				$fresh_individual = $this->Individual_product_model->getProductById($id);
+				$this->Product_model->update_product($unified['id'], array(
+					'product_name'     => $product_data['product_name'],
+					'description'      => $product_data['product_description'],
+					'status'           => $this->Product_model->normalize_product_status(isset($fresh_individual['status']) ? $fresh_individual['status'] : 'active'),
+					'selling_price'    => $product_data['selling_price'],
+					'product_mrp'      => $product_data['mrp'],
+					'gst'              => $product_data['gst_percentage'],
+					'isbn'             => $product_data['isbn'],
+					'hsn'              => $product_data['hsn'],
+					'sku'              => $product_data['sku'],
+					'length'           => $product_data['packaging_length'],
+					'width'            => $product_data['packaging_width'],
+					'height'           => $product_data['packaging_height'],
+					'weight'           => $product_data['packaging_weight'],
+					'meta_title'       => $product_data['meta_title'],
+					'meta_keyword'     => $product_data['meta_keywords'],
+					'meta_description' => $product_data['meta_description'],
+					'min_quantity'     => $product_data['min_quantity'],
+				));
+			}
 			// Update categories
 			$category_ids = array();
 			
@@ -2246,6 +2295,13 @@ class Products extends Vendor_base
 			{
 				$this->load->model('Individual_product_model');
 				$this->Individual_product_model->addProductImages($product_id, $images_data);
+				$this->Product_model->sync_product_images_from_legacy(
+					$this->current_vendor['id'],
+					'erp_individual_products',
+					$product_id,
+					'erp_individual_product_images',
+					'product_id'
+				);
 			}
 			
 			if (!empty($upload_errors))
@@ -2296,9 +2352,7 @@ class Products extends Vendor_base
 								}
 								
 								// Delete from erp_product_images table (unified table)
-								$this->db->where('legacy_table', 'erp_individual_product_images');
-								$this->db->where('legacy_id', $image_id);
-								$this->db->delete('erp_product_images');
+								$this->Product_model->delete_image_by_legacy('erp_individual_product_images', $image_id);
 								
 								break;
 							}
@@ -2339,23 +2393,36 @@ class Products extends Vendor_base
 							'image_order' => $order,
 							'is_main' => $is_main
 						));
+						$this->Product_model->update_legacy_image_sync(
+							'erp_individual_product_images',
+							$image_id,
+							NULL,
+							$is_main,
+							$order
+						);
 					}
 				}
 			}
 		}
 		
-		// If main_image_id is set but not in image_order, update it separately
+		// If main_image_id is set but not in image_order, update legacy row only
 		if (!empty($main_image_id) && (empty($image_order) || strpos($image_order, $main_image_id) === false))
 		{
-			// First, set all images to not main
 			$this->db->where('product_id', $product_id);
 			$this->db->update('erp_individual_product_images', array('is_main' => 0));
 			
-			// Then set the specified image as main
 			$this->db->where('id', $main_image_id);
 			$this->db->where('product_id', $product_id);
 			$this->db->update('erp_individual_product_images', array('is_main' => 1));
 		}
+
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_individual_products',
+			$product_id,
+			'erp_individual_product_images',
+			'product_id'
+		);
 	}
 	
 	/**
@@ -2555,6 +2622,13 @@ class Products extends Vendor_base
 			case 'individual':
 				// Delete individual product
 				$this->load->model('Individual_product_model');
+
+				$unified = $this->Product_model->get_product_by_legacy('erp_individual_products', $id, $this->current_vendor['id']);
+				if ($unified)
+				{
+					$this->Product_model->delete_product_images($unified['id'], $this->current_vendor['id']);
+					$this->Product_model->delete_product($unified['id']);
+				}
 				
 				// Delete images
 				$images = $this->Individual_product_model->getProductImages($id);
@@ -3709,7 +3783,7 @@ class Products extends Vendor_base
 						'slug'           => NULL,
 						'product_name'   => $textbook_data['product_name'],
 						'description'    => $textbook_data['product_description'],
-						'status'         => ($textbook_data['status'] === 'active') ? 1 : 0,
+						'status'         => $this->Product_model->normalize_product_status($textbook_data['status']),
 						'brand_id'       => $textbook_data['publisher_id'],
 						'board_id'       => $textbook_data['board_id'],
 						'grade_id'       => NULL,
@@ -3801,6 +3875,21 @@ class Products extends Vendor_base
 										'created_at' => date('Y-m-d H:i:s')
 									);
 									$this->db->insert('erp_textbook_images', $image_data);
+									if ($this->db->affected_rows())
+									{
+										$legacy_image_id = $this->db->insert_id();
+										$uploaded_image_ids[$key] = $legacy_image_id;
+										$this->Product_model->sync_legacy_image(
+											$this->current_vendor['id'],
+											'erp_textbooks',
+											$textbook_id,
+											'erp_textbook_images',
+											$legacy_image_id,
+											$image_data['image_path'],
+											0,
+											$image_data['image_order']
+										);
+									}
 								}
 								else
 								{
@@ -3821,7 +3910,22 @@ class Products extends Vendor_base
 							$this->db->update('erp_textbook_images', array('is_main' => 0));
 							$this->db->where('id', $uploaded_image_ids[$main_image_index]);
 							$this->db->update('erp_textbook_images', array('is_main' => 1));
-						}
+			$this->Product_model->set_main_image_by_legacy(
+				$this->current_vendor['id'],
+				'erp_textbooks',
+				$textbook_id,
+				'erp_textbook_images',
+				$uploaded_image_ids[$main_image_index]
+			);
+		}
+
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_textbooks',
+			$textbook_id,
+			'erp_textbook_images',
+			'textbook_id'
+		);
 						if (!empty($upload_errors))
 						{
 							$this->session->set_flashdata('error', 'Some images failed to upload: ' . implode(', ', $upload_errors));
@@ -4059,13 +4163,14 @@ class Products extends Vendor_base
 				$this->db->update('erp_textbooks', $textbook_data);
 
 				// Mirror changes into unified erp_products row (if it exists)
+				$fresh_textbook = $this->db->where('id', $id)->where('vendor_id', $this->current_vendor['id'])->get('erp_textbooks')->row_array();
 				$product = $this->Product_model->get_product_by_legacy('erp_textbooks', $id, $this->current_vendor['id']);
-				if ($product)
+				if ($product && $fresh_textbook)
 				{
 					$product_update = array(
 						'product_name'    => $textbook_data['product_name'],
 						'description'     => $textbook_data['product_description'],
-						'status'          => ($textbook_data['status'] === 'active') ? 1 : 0,
+						'status'          => $this->Product_model->normalize_product_status($fresh_textbook['status']),
 						'brand_id'        => $textbook_data['publisher_id'],
 						'board_id'        => $textbook_data['board_id'],
 						'selling_price'   => $textbook_data['selling_price'],
@@ -4113,6 +4218,7 @@ class Products extends Vendor_base
 					
 					$files = $_FILES['images'];
 					$upload_errors = array();
+					$uploaded_image_ids = array();
 					
 					foreach ($files['name'] as $key => $filename)
 					{
@@ -4153,7 +4259,20 @@ class Products extends Vendor_base
 								);
 								$this->db->insert('erp_textbook_images', $image_data);
 								$insert_id = $this->db->insert_id();
-								$uploaded_image_ids[$image_order - 1] = $insert_id;
+								if ($insert_id)
+								{
+									$uploaded_image_ids[$key] = $insert_id;
+									$this->Product_model->sync_legacy_image(
+										$this->current_vendor['id'],
+										'erp_textbooks',
+										$id,
+										'erp_textbook_images',
+										$insert_id,
+										$image_data['image_path'],
+										0,
+										$image_data['image_order']
+									);
+								}
 							}
 							else
 							{
@@ -4270,6 +4389,7 @@ class Products extends Vendor_base
 					$deleted_ids = explode(',', $deleted_image_ids);
 					foreach ($deleted_ids as $deleted_id) {
 						if (!empty($deleted_id)) {
+							$this->Product_model->delete_image_by_legacy('erp_textbook_images', $deleted_id);
 							$this->db->where('id', $deleted_id);
 							$this->db->where('textbook_id', $id);
 							$this->db->delete('erp_textbook_images');
@@ -4287,6 +4407,7 @@ class Products extends Vendor_base
 							$this->db->update('erp_textbook_images', array(
 								'image_order' => $index
 							));
+							$this->Product_model->update_legacy_image_sync('erp_textbook_images', $image_id, NULL, NULL, $index);
 						}
 					}
 				}
@@ -4303,7 +4424,22 @@ class Products extends Vendor_base
 					$this->db->update('erp_textbook_images', array(
 						'is_main' => 1
 					));
+					$this->Product_model->set_main_image_by_legacy(
+						$this->current_vendor['id'],
+						'erp_textbooks',
+						$id,
+						'erp_textbook_images',
+						$main_image_id
+					);
 				}
+
+				$this->Product_model->sync_main_image_from_legacy(
+					$this->current_vendor['id'],
+					'erp_textbooks',
+					$id,
+					'erp_textbook_images',
+					'textbook_id'
+				);
 
 				$this->session->set_flashdata('success', 'Textbook product updated successfully');
 				redirect(base_url('products/textbook'));
@@ -4463,7 +4599,7 @@ class Products extends Vendor_base
 		$product = $this->Product_model->get_product_by_legacy('erp_textbooks', $id, $this->current_vendor['id']);
 		if ($product) {
 			$this->Product_model->update_product($product['id'], array(
-				'status' => ($new_status === 'active') ? 1 : 0,
+				'status' => $this->Product_model->normalize_product_status($new_status),
 				'updated_at' => date('Y-m-d H:i:s')
 			));
 		}
@@ -4495,7 +4631,7 @@ class Products extends Vendor_base
 		$product = $this->Product_model->get_product_by_legacy('erp_notebooks', $id, $this->current_vendor['id']);
 		if ($product) {
 			$this->Product_model->update_product($product['id'], array(
-				'status' => ($new_status === 'active') ? 1 : 0,
+				'status' => $this->Product_model->normalize_product_status($new_status),
 				'updated_at' => date('Y-m-d H:i:s')
 			));
 		}
@@ -6994,7 +7130,7 @@ class Products extends Vendor_base
 						'slug'           => NULL, // can be generated later if needed
 						'product_name'   => $notebook_data['product_name'],
 						'description'    => $notebook_data['product_description'],
-						'status'         => ($notebook_data['status'] === 'active') ? 1 : 0,
+						'status'         => $this->Product_model->normalize_product_status($notebook_data['status']),
 						'brand_id'       => $notebook_data['brand_id'],
 						'board_id'       => NULL,
 						'grade_id'       => NULL,
@@ -7174,7 +7310,7 @@ class Products extends Vendor_base
 					$product_update = array(
 						'product_name'    => $notebook_data['product_name'],
 						'description'     => $notebook_data['product_description'],
-						'status'          => ($notebook_data['status'] === 'active') ? 1 : 0,
+						'status'          => $this->Product_model->normalize_product_status($notebook_data['status']),
 						'brand_id'        => $notebook_data['brand_id'],
 						'selling_price'   => $notebook_data['selling_price'],
 						'product_mrp'     => $notebook_data['mrp'],
@@ -7421,8 +7557,21 @@ class Products extends Vendor_base
 						]);
 
 						if ($this->db->affected_rows()) {
-							$uploaded_image_ids[$order] = $this->db->insert_id();
+							$legacy_image_id = $this->db->insert_id();
+							$uploaded_image_ids[$order] = $legacy_image_id;
 							$uploaded_count++;
+							$image_path = 'uploads/notebooks/images/' . $date_folder . '/' . $upload_data['file_name'];
+							$is_main = ($start_order == 0 && $order == $main_image_index) ? 1 : 0;
+							$this->Product_model->sync_legacy_image(
+								$this->current_vendor['id'],
+								'erp_notebooks',
+								$notebook_id,
+								'erp_notebook_images',
+								$legacy_image_id,
+								$image_path,
+								$is_main,
+								$final_order
+							);
 						}
 					}
 					else
@@ -7442,7 +7591,23 @@ class Products extends Vendor_base
 
 				$this->db->where('id', $uploaded_image_ids[$main_image_index])
 						->update('erp_notebook_images', ['is_main' => 1]);
-			}
+
+			$this->Product_model->set_main_image_by_legacy(
+				$this->current_vendor['id'],
+				'erp_notebooks',
+				$notebook_id,
+				'erp_notebook_images',
+				$uploaded_image_ids[$main_image_index]
+			);
+		}
+
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_notebooks',
+			$notebook_id,
+			'erp_notebook_images',
+			'notebook_id'
+		);
 
 			if (!empty($upload_errors)) {
 				$this->session->set_flashdata(
@@ -7491,9 +7656,7 @@ class Products extends Vendor_base
 					}
 					
 					// Delete from erp_product_images table (unified table)
-					$this->db->where('legacy_table', 'erp_notebook_images');
-					$this->db->where('legacy_id', $img['id']);
-					$this->db->delete('erp_product_images');
+					$this->Product_model->delete_image_by_legacy('erp_notebook_images', $img['id']);
 				}
 
 				$this->db->where('notebook_id', $notebook_id);
@@ -7516,6 +7679,14 @@ class Products extends Vendor_base
 				$this->db->where('id', $main_image_id)
 						->where('notebook_id', $notebook_id)
 						->update('erp_notebook_images', ['is_main' => 1]);
+
+				$this->Product_model->set_main_image_by_legacy(
+					$this->current_vendor['id'],
+					'erp_notebooks',
+					$notebook_id,
+					'erp_notebook_images',
+					$main_image_id
+				);
 			}
 		}
 
@@ -7536,10 +7707,19 @@ class Products extends Vendor_base
 								->update('erp_notebook_images', [
 									'image_order' => $order
 								]);
+						$this->Product_model->update_legacy_image_sync('erp_notebook_images', $image_id, NULL, NULL, $order);
 					}
 				}
 			}
 		}
+
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_notebooks',
+			$notebook_id,
+			'erp_notebook_images',
+			'notebook_id'
+		);
 	}
 
 	

@@ -26,6 +26,7 @@ class Uniforms extends Vendor_base
 	{
 		parent::__construct();
 		$this->load->model('Uniform_model');
+		$this->load->model('Product_model');
 		$this->load->model('School_model');
 		$this->load->model('Branch_model');
 		$this->load->model('School_board_model');
@@ -295,6 +296,8 @@ class Uniforms extends Vendor_base
 			$uniform_id = $this->Uniform_model->createUniform($uniform_data);
 
 			if ($uniform_id) {
+				$this->Product_model->create_product($this->buildUnifiedUniformPayload($uniform_data, $uniform_id));
+
 				// Handle image uploads
 				$this->handleImageUploads($uniform_id);
 
@@ -509,6 +512,16 @@ class Uniforms extends Vendor_base
 			// Try to update uniform data (may return FALSE if no changes, which is OK)
 			$update_result = $this->Uniform_model->updateUniform($uniform_id, $uniform_data);
 
+			$unified = $this->Product_model->get_product_by_legacy('erp_uniforms', $uniform_id, $this->current_vendor['id']);
+			if ($unified)
+			{
+				$this->Product_model->update_product($unified['id'], $this->buildUnifiedUniformPayload($uniform_data, $uniform_id, FALSE));
+			}
+			else
+			{
+				$this->Product_model->create_product($this->buildUnifiedUniformPayload($uniform_data, $uniform_id));
+			}
+
 			// Check if there are image updates to process
 			$main_image_id = $this->input->post('main_image_id');
 			$image_order = $this->input->post('image_order');
@@ -592,6 +605,13 @@ class Uniforms extends Vendor_base
 
 		if (!$uniform || $uniform['vendor_id'] != $this->current_vendor['id']) {
 			show_404();
+		}
+
+		$unified = $this->Product_model->get_product_by_legacy('erp_uniforms', $uniform_id, $this->current_vendor['id']);
+		if ($unified)
+		{
+			$this->Product_model->delete_product_images($unified['id'], $this->current_vendor['id']);
+			$this->Product_model->delete_product($unified['id']);
 		}
 
 		if ($this->Uniform_model->deleteUniform($uniform_id)) {
@@ -1275,9 +1295,10 @@ class Uniforms extends Vendor_base
 			if ($this->upload->do_upload('image')) {
 				$data = $this->upload->data();
 
+				$image_path = 'uploads/uniforms/images/' . $date_folder . '/' . $data['file_name'];
 				$image_id = $this->Uniform_model->addUniformImage([
 					'uniform_id' => $uniform_id,
-					'image_path' => 'uploads/uniforms/images/' . $date_folder . '/' . $data['file_name'],
+					'image_path' => $image_path,
 					'image_order' => $start_order + $uploaded_count,
 					'is_main' => 0
 				]);
@@ -1285,6 +1306,16 @@ class Uniforms extends Vendor_base
 				if ($image_id) {
 					$uploaded_ids[$order] = $image_id;
 					$uploaded_count++;
+					$this->Product_model->sync_legacy_image(
+						$this->current_vendor['id'],
+						'erp_uniforms',
+						$uniform_id,
+						'erp_uniform_images',
+						$image_id,
+						$image_path,
+						0,
+						$start_order + $uploaded_count - 1
+					);
 				}
 			} else {
 				$upload_errors[] = $files['name'][$index] . ': ' . $this->upload->display_errors('', '');
@@ -1298,7 +1329,23 @@ class Uniforms extends Vendor_base
 
 			$this->db->where('id', $uploaded_ids[$main_image_index])
 				->update('erp_uniform_images', ['is_main' => 1]);
+
+			$this->Product_model->set_main_image_by_legacy(
+				$this->current_vendor['id'],
+				'erp_uniforms',
+				$uniform_id,
+				'erp_uniform_images',
+				$uploaded_ids[$main_image_index]
+			);
 		}
+
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_uniforms',
+			$uniform_id,
+			'erp_uniform_images',
+			'uniform_id'
+		);
 
 		if ($upload_errors) {
 			$this->session->set_flashdata(
@@ -1352,6 +1399,8 @@ class Uniforms extends Vendor_base
 					if (is_file($file_path)) {
 						@unlink($file_path);
 					}
+
+					$this->Product_model->delete_image_by_legacy('erp_uniform_images', $img['id']);
 				}
 
 				// Delete from DB
@@ -1376,6 +1425,14 @@ class Uniforms extends Vendor_base
 				$this->db->where('id', $main_image_id)
 					->where('uniform_id', $uniform_id)
 					->update('erp_uniform_images', ['is_main' => 1]);
+
+				$this->Product_model->set_main_image_by_legacy(
+					$this->current_vendor['id'],
+					'erp_uniforms',
+					$uniform_id,
+					'erp_uniform_images',
+					$main_image_id
+				);
 			}
 		}
 
@@ -1397,13 +1454,68 @@ class Uniforms extends Vendor_base
 						$this->db->update('erp_uniform_images', [
 							'image_order' => $order
 						]);
+						$this->Product_model->update_legacy_image_sync('erp_uniform_images', $image_id, NULL, NULL, $order);
 					}
 				}
 			}
 		}
+
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_uniforms',
+			$uniform_id,
+			'erp_uniform_images',
+			'uniform_id'
+		);
 	}
 
 
+
+
+	/**
+	 * Build unified erp_products payload from uniform data.
+	 *
+	 * @param array $uniform_data
+	 * @param int $uniform_id
+	 * @param bool $include_legacy Include legacy_table/legacy_id keys
+	 * @return array
+	 */
+	private function buildUnifiedUniformPayload(array $uniform_data, $uniform_id, $include_legacy = TRUE)
+	{
+		$payload = array(
+			'vendor_id'        => (int) $this->current_vendor['id'],
+			'category_id'      => NULL,
+			'type'             => 'uniform',
+			'product_name'     => $uniform_data['product_name'],
+			'description'      => isset($uniform_data['product_description']) ? $uniform_data['product_description'] : NULL,
+			'status'           => $this->Product_model->normalize_product_status(isset($uniform_data['status']) ? $uniform_data['status'] : 'active'),
+			'board_id'         => isset($uniform_data['board_id']) ? (int) $uniform_data['board_id'] : NULL,
+			'discount'         => 0,
+			'discount_amount'  => 0,
+			'selling_price'    => isset($uniform_data['price']) ? (float) $uniform_data['price'] : 0,
+			'product_mrp'      => isset($uniform_data['price']) ? (float) $uniform_data['price'] : 0,
+			'gst'              => isset($uniform_data['gst_percentage']) ? $uniform_data['gst_percentage'] : NULL,
+			'isbn'             => isset($uniform_data['isbn']) ? $uniform_data['isbn'] : NULL,
+			'hsn'              => isset($uniform_data['hsn']) ? $uniform_data['hsn'] : NULL,
+			'length'           => isset($uniform_data['packaging_length']) ? $uniform_data['packaging_length'] : NULL,
+			'width'            => isset($uniform_data['packaging_width']) ? $uniform_data['packaging_width'] : NULL,
+			'height'           => isset($uniform_data['packaging_height']) ? $uniform_data['packaging_height'] : NULL,
+			'weight'           => isset($uniform_data['packaging_weight']) ? $uniform_data['packaging_weight'] : NULL,
+			'meta_title'       => isset($uniform_data['meta_title']) ? $uniform_data['meta_title'] : NULL,
+			'meta_keyword'     => isset($uniform_data['meta_keywords']) ? $uniform_data['meta_keywords'] : NULL,
+			'meta_description' => isset($uniform_data['meta_description']) ? $uniform_data['meta_description'] : NULL,
+			'material_id'      => isset($uniform_data['material_id']) ? (int) $uniform_data['material_id'] : NULL,
+			'min_quantity'     => isset($uniform_data['min_quantity']) ? (int) $uniform_data['min_quantity'] : 0,
+		);
+
+		if ($include_legacy)
+		{
+			$payload['legacy_table'] = 'erp_uniforms';
+			$payload['legacy_id'] = (int) $uniform_id;
+		}
+
+		return $payload;
+	}
 
 
 	/**
@@ -1436,6 +1548,14 @@ class Uniforms extends Vendor_base
 		// Update the uniform status
 		$update_data = array('status' => $new_status);
 		$result = $this->Uniform_model->updateUniform($uniform_id, $update_data);
+
+		$unified = $this->Product_model->get_product_by_legacy('erp_uniforms', $uniform_id, $this->current_vendor['id']);
+		if ($unified)
+		{
+			$this->Product_model->update_product($unified['id'], array(
+				'status' => $this->Product_model->normalize_product_status($new_status),
+			));
+		}
 
 		if ($result) {
 			echo json_encode(array(

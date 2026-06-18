@@ -18,3 +18,4 @@ erp_master.sql
 *.sql
 /backups
 /scratch
+/ganeshbook_frontend

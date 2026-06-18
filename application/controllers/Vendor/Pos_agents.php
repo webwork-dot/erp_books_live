@@ -882,7 +882,7 @@ class Pos_agents extends Vendor_base
             }
         }
         if ($this->db->table_exists('erp_products')) {
-            $products = $this->db->select('id AS item_ref_id,product_name')->from('erp_products')->where('vendor_id', (int)$vendor_id)->where('is_deleted', 0)->where('status', 'active')->where('type !=', 'uniform')->order_by('product_name', 'ASC')->get()->result_array();
+            $products = $this->db->select('id AS item_ref_id,product_name')->from('erp_products')->where('vendor_id', (int)$vendor_id)->where('is_deleted', 0)->where('status', 1)->where('type !=', 'uniform')->order_by('product_name', 'ASC')->get()->result_array();
             foreach ($products as $p) {
                 $rows[] = array(
                     'item_type' => 'book',

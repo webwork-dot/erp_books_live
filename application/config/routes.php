@@ -38,6 +38,18 @@ $route['erp-admin/features/check_slug/(:any)/(:num)'] = 'Erp_admin/features/chec
 $route['erp-admin/features/check_slug/(:any)'] = 'Erp_admin/features/check_slug/$1';
 $route['erp-admin/users'] = 'Erp_admin/users';
 
+// Product migration (legacy → erp_products / erp_product_images)
+$route['erp-admin/product-migration/run'] = 'Erp_admin/Product_migration/run';
+$route['erp-admin/product-migration/run_all'] = 'Erp_admin/Product_migration/run_all';
+$route['erp-admin/product-migration/sync_images'] = 'Erp_admin/Product_migration/sync_images';
+// Common URL variants (underscore / lowercase)
+$route['erp_admin/product_migration/run'] = 'Erp_admin/Product_migration/run';
+$route['erp_admin/product_migration/run_all'] = 'Erp_admin/Product_migration/run_all';
+$route['erp_admin/product_migration/sync_images'] = 'Erp_admin/Product_migration/sync_images';
+$route['Erp_admin/Product_migration/run'] = 'Erp_admin/Product_migration/run';
+$route['Erp_admin/Product_migration/run_all'] = 'Erp_admin/Product_migration/run_all';
+$route['Erp_admin/Product_migration/sync_images'] = 'Erp_admin/Product_migration/sync_images';
+
 // Client Admin Routes
 $route['client-admin'] = 'Client_admin/dashboard';
 $route['client-admin/auth/login'] = 'Client_admin/auth/login';
