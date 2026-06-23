@@ -27,9 +27,16 @@
 										}
 									endforeach;
 									?>
-									<?php foreach ($stationery_images as $img): ?>
+									<?php foreach ($stationery_images as $img):
+										$stored_path = trim($img['image_path']);
+										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+											$image_url = $stored_path;
+										} else {
+											$image_url = get_vendor_domain_url() . '/' . ltrim($stored_path, '/');
+										}
+									?>
 										<div class="image-preview-item existing-image" data-image-id="<?php echo $img['id']; ?>" style="position: relative; display: inline-block; margin: 3px; cursor: move; vertical-align: top;">
-											<img src="<?php echo base_url('assets/uploads/' . ltrim($img['image_path'], '/')); ?>" alt="Stationery Image" style="width: 120px; height: 120px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px 4px 0 0; display: block;">
+											<img src="<?php echo $image_url; ?>" alt="Stationery Image" style="width: 120px; height: 120px; object-fit: cover; border: 2px solid #ddd; border-radius: 4px 4px 0 0; display: block;" onerror="this.onerror=null; this.src='<?php echo base_url('assets/template/img/placeholder-image.png'); ?>';">
 											<div class="image-buttons" style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.75); display: flex; gap: 2px; padding: 3px; border-radius: 0 0 4px 4px;">
 												<button type="button" class="btn btn-sm set-main-existing-btn" data-image-id="<?php echo $img['id']; ?>" style="font-size: 10px; padding: 3px 6px; flex: 1; line-height: 1.2; border: none; white-space: nowrap; <?php echo ($img['id'] == $main_image_id) ? 'background: #28a745; color: #fff;' : 'background: #007bff; color: #fff;'; ?>">
 													<?php echo ($img['id'] == $main_image_id) ? 'Main' : 'Set Main'; ?>
@@ -165,6 +172,15 @@
 								<input type="number" name="days_to_exchange" id="days_to_exchange" class="form-control" value="<?php echo set_value('days_to_exchange', $stationery['days_to_exchange']); ?>" min="0">
 							</div>
 						</div>
+					<div class="col-lg-6 col-md-6">
+						<div class="mb-3">
+							<label class="form-label">Status</label>
+							<select name="status" id="status" class="select">
+								<option value="active" <?php echo ((string) set_value('status', $stationery['status']) === 'active') ? 'selected' : ''; ?>>Active</option>
+								<option value="inactive" <?php echo ((string) set_value('status', $stationery['status']) === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+							</select>
+						</div>
+					</div>
 					</div>
 					
 					<!-- Description Fields -->
@@ -236,20 +252,31 @@
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
 							<label class="form-label">GST (%) <span class="text-danger">*</span></label>
-							<input type="number" name="gst_percentage" id="gst_percentage" class="form-control" form="stationery-form" value="<?php echo set_value('gst_percentage', $stationery['gst_percentage']); ?>" step="0.01" min="0" max="100" required>
+							<select name="gst_percentage" id="gst_percentage" class="form-control" form="stationery-form" required>
+								<option value="">Select GST %</option>
+								<?php
+								$current_gst = set_value('gst_percentage', floatval($stationery['gst_percentage']));
+								$gst_options = [0, 5, 12, 18, 28];
+								foreach ($gst_options as $gst_val):
+									$selected = ($current_gst != '' && floatval($current_gst) == $gst_val) ? 'selected' : '';
+									if (empty($selected) && !empty(set_value('gst_percentage'))) {
+										$selected = (set_value('gst_percentage') == $gst_val) ? 'selected' : '';
+									}
+								?>
+									<option value="<?php echo $gst_val; ?>" <?php echo $selected; ?>>
+										<?php echo $gst_val; ?>%
+									</option>
+								<?php endforeach; ?>
+								<?php if (!empty($current_gst) && !in_array(floatval($current_gst), $gst_options)): ?>
+									<option value="<?php echo htmlspecialchars($current_gst); ?>" selected>
+										<?php echo htmlspecialchars($current_gst); ?>%
+									</option>
+								<?php endif; ?>
+							</select>
 							<?php echo form_error('gst_percentage', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<label class="form-label">Select GST</label>
-							<select name="gst_type" id="gst_type" class="select" form="stationery-form">
-								<option value="">Select GST Type</option>
-								<option value="igst" <?php echo ($stationery['gst_type'] == 'igst') ? 'selected' : ''; ?>>IGST</option>
-								<option value="cgst_sgst" <?php echo ($stationery['gst_type'] == 'cgst_sgst') ? 'selected' : ''; ?>>CGST + SGST</option>
-							</select>
-						</div>
-					</div>
+					<input type="hidden" name="gst_type" id="gst_type" value="<?php echo set_value('gst_type', $stationery['gst_type']); ?>">
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
 							<label class="form-label">HSN</label>
@@ -280,7 +307,9 @@
 						<div class="mb-3">
 							<label class="form-label">Selling Price <span class="text-danger">*</span></label>
 							<input type="number" name="selling_price" id="selling_price" class="form-control" form="stationery-form" value="<?php echo set_value('selling_price', $stationery['selling_price']); ?>" step="0.01" min="0" required>
+							<small class="text-muted fs-12">Must be less than or equal to MRP</small>
 							<?php echo form_error('selling_price', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+							<div id="selling_price_error" class="text-danger fs-13 mt-1" style="display: none;">Selling price must be less than or equal to MRP</div>
 						</div>
 					</div>
 				</div>
@@ -456,32 +485,6 @@ window.addEventListener('load', function() {
 	
 	// Wait a bit for everything to be ready
 	setTimeout(initCKEditor, 300);
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-	// Image preview
-	document.getElementById('images').addEventListener('change', function(e) {
-		var preview = document.getElementById('image-preview');
-		preview.innerHTML = '';
-		
-		for (var i = 0; i < e.target.files.length; i++) {
-			var file = e.target.files[i];
-			if (file.type.startsWith('image/')) {
-				var reader = new FileReader();
-				reader.onload = function(e) {
-					var img = document.createElement('img');
-					img.src = e.target.result;
-					img.style.width = '100px';
-					img.style.height = '120px';
-					img.style.objectFit = 'cover';
-					img.style.borderRadius = '4px';
-					img.style.margin = '5px';
-					preview.appendChild(img);
-				};
-				reader.readAsDataURL(file);
-			}
-		}
-	});
 });
 
 
@@ -767,4 +770,35 @@ function deleteImage(imageId) {
 		alert('An error occurred');
 	});
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+	var mrpField = document.getElementById('mrp');
+	var sellingPriceField = document.getElementById('selling_price');
+	var errorDiv = document.getElementById('selling_price_error');
+
+	if (!mrpField || !sellingPriceField || !errorDiv) {
+		return;
+	}
+
+	function validatePrices() {
+		var mrp = parseFloat(mrpField.value) || 0;
+		var sellingPrice = parseFloat(sellingPriceField.value) || 0;
+
+		if (mrp > 0 && sellingPrice > 0 && sellingPrice > mrp) {
+			errorDiv.style.display = 'block';
+			sellingPriceField.setCustomValidity('Selling price must be less than or equal to MRP');
+			sellingPriceField.classList.add('is-invalid');
+		} else {
+			errorDiv.style.display = 'none';
+			sellingPriceField.setCustomValidity('');
+			sellingPriceField.classList.remove('is-invalid');
+		}
+	}
+
+	mrpField.addEventListener('input', validatePrices);
+	mrpField.addEventListener('change', validatePrices);
+	sellingPriceField.addEventListener('input', validatePrices);
+	sellingPriceField.addEventListener('change', validatePrices);
+	validatePrices();
+});
 </script>

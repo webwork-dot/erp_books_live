@@ -49,6 +49,14 @@ $config['textbook_upload'] = [
     'max_size'     => 5120
 ];
 
+$config['stationery_upload'] = [
+    'base_root'    => '/www/webwork/',
+    'root_path'    => '/www/webwork/',
+    'relative_dir' => 'uploads/stationery/images/',
+    'allowed_types'=> ['jpg','jpeg','png','gif','webp'],
+    'max_size'     => 5120
+];
+
 $config['vendor_logo_upload'] = [
     'base_root'    => '/www/webwork/',
     'root_path'    => '/www/webwork/',

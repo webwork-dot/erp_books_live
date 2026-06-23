@@ -142,6 +142,15 @@
 								<input type="number" name="days_to_exchange" id="days_to_exchange" class="form-control" value="<?php echo set_value('days_to_exchange', isset($stationery) ? $stationery['days_to_exchange'] : ''); ?>" min="0">
 							</div>
 						</div>
+					<div class="col-lg-6 col-md-6">
+						<div class="mb-3">
+							<label class="form-label">Status</label>
+							<select name="status" id="status" class="select">
+								<option value="active" <?php echo set_select('status', 'active', !isset($stationery) || (isset($stationery['status']) && $stationery['status'] == 'active')); ?>>Active</option>
+								<option value="inactive" <?php echo set_select('status', 'inactive', isset($stationery) && isset($stationery['status']) && $stationery['status'] == 'inactive'); ?>>Inactive</option>
+							</select>
+						</div>
+					</div>
 					</div>
 					
 					<!-- Description Fields -->
@@ -213,20 +222,31 @@
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
 							<label class="form-label">GST (%) <span class="text-danger">*</span></label>
-							<input type="number" name="gst_percentage" id="gst_percentage" class="form-control" form="stationery-form" value="<?php echo set_value('gst_percentage', isset($stationery) ? $stationery['gst_percentage'] : 0); ?>" step="0.01" min="0" max="100" required>
+							<select name="gst_percentage" id="gst_percentage" class="form-control" form="stationery-form" required>
+								<option value="">Select GST %</option>
+								<?php
+								$current_gst = set_value('gst_percentage', isset($stationery) ? floatval($stationery['gst_percentage']) : '');
+								$gst_options = [0, 5, 12, 18, 28];
+								foreach ($gst_options as $gst_val):
+									$selected = ($current_gst != '' && floatval($current_gst) == $gst_val) ? 'selected' : '';
+									if (empty($selected) && !empty(set_value('gst_percentage'))) {
+										$selected = (set_value('gst_percentage') == $gst_val) ? 'selected' : '';
+									}
+								?>
+									<option value="<?php echo $gst_val; ?>" <?php echo $selected; ?>>
+										<?php echo $gst_val; ?>%
+									</option>
+								<?php endforeach; ?>
+								<?php if (!empty($current_gst) && !in_array(floatval($current_gst), $gst_options)): ?>
+									<option value="<?php echo htmlspecialchars($current_gst); ?>" selected>
+										<?php echo htmlspecialchars($current_gst); ?>%
+									</option>
+								<?php endif; ?>
+							</select>
 							<?php echo form_error('gst_percentage', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
-					<div class="col-lg-6 col-md-6">
-						<div class="mb-3">
-							<label class="form-label">Select GST</label>
-							<select name="gst_type" id="gst_type" class="select" form="stationery-form">
-								<option value="">Select GST Type</option>
-								<option value="igst" <?php echo (isset($stationery) && isset($stationery['gst_type']) && $stationery['gst_type'] == 'igst') ? 'selected' : ''; ?>>IGST</option>
-								<option value="cgst_sgst" <?php echo (isset($stationery) && isset($stationery['gst_type']) && $stationery['gst_type'] == 'cgst_sgst') ? 'selected' : ''; ?>>CGST + SGST</option>
-							</select>
-						</div>
-					</div>
+					<input type="hidden" name="gst_type" id="gst_type" value="<?php echo set_value('gst_type', isset($stationery) ? $stationery['gst_type'] : ''); ?>">
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
 							<label class="form-label">HSN</label>
@@ -257,7 +277,9 @@
 						<div class="mb-3">
 							<label class="form-label">Selling Price <span class="text-danger">*</span></label>
 							<input type="number" name="selling_price" id="selling_price" class="form-control" form="stationery-form" value="<?php echo set_value('selling_price', isset($stationery) ? $stationery['selling_price'] : ''); ?>" step="0.01" min="0" required>
+							<small class="text-muted fs-12">Must be less than or equal to MRP</small>
 							<?php echo form_error('selling_price', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+							<div id="selling_price_error" class="text-danger fs-13 mt-1" style="display: none;">Selling price must be less than or equal to MRP</div>
 						</div>
 					</div>
 					<div class="col-lg-6 col-md-6">
@@ -448,32 +470,6 @@ window.addEventListener('load', function() {
 	setTimeout(initCKEditor, 300);
 });
 
-document.addEventListener('DOMContentLoaded', function() {
-	// Image preview
-	document.getElementById('images').addEventListener('change', function(e) {
-		var preview = document.getElementById('image-preview');
-		preview.innerHTML = '';
-		
-		for (var i = 0; i < e.target.files.length; i++) {
-			var file = e.target.files[i];
-			if (file.type.startsWith('image/')) {
-				var reader = new FileReader();
-				reader.onload = function(e) {
-					var img = document.createElement('img');
-					img.src = e.target.result;
-					img.style.width = '100px';
-					img.style.height = '120px';
-					img.style.objectFit = 'cover';
-					img.style.borderRadius = '4px';
-					img.style.margin = '5px';
-					preview.appendChild(img);
-				};
-				reader.readAsDataURL(file);
-			}
-		}
-	});
-});
-
 
 function addCategory() {
 	var name = document.getElementById('category_name').value;
@@ -650,4 +646,35 @@ function addColour() {
 		alert('An error occurred');
 	});
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+	var mrpField = document.getElementById('mrp');
+	var sellingPriceField = document.getElementById('selling_price');
+	var errorDiv = document.getElementById('selling_price_error');
+
+	if (!mrpField || !sellingPriceField || !errorDiv) {
+		return;
+	}
+
+	function validatePrices() {
+		var mrp = parseFloat(mrpField.value) || 0;
+		var sellingPrice = parseFloat(sellingPriceField.value) || 0;
+
+		if (mrp > 0 && sellingPrice > 0 && sellingPrice > mrp) {
+			errorDiv.style.display = 'block';
+			sellingPriceField.setCustomValidity('Selling price must be less than or equal to MRP');
+			sellingPriceField.classList.add('is-invalid');
+		} else {
+			errorDiv.style.display = 'none';
+			sellingPriceField.setCustomValidity('');
+			sellingPriceField.classList.remove('is-invalid');
+		}
+	}
+
+	mrpField.addEventListener('input', validatePrices);
+	mrpField.addEventListener('change', validatePrices);
+	sellingPriceField.addEventListener('input', validatePrices);
+	sellingPriceField.addEventListener('change', validatePrices);
+	validatePrices();
+});
 </script>

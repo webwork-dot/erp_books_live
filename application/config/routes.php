@@ -297,6 +297,8 @@ $route['products/stationery/add_category'] = 'Vendor/products/stationery_add_cat
 $route['products/stationery/add_brand'] = 'Vendor/products/stationery_add_brand';
 $route['products/stationery/add_colour'] = 'Vendor/products/stationery_add_colour';
 $route['products/stationery/delete_image/(:num)'] = 'Vendor/products/stationery_delete_image/$1';
+$route['products/stationery/import/template'] = 'Vendor/products/stationery_import_template';
+$route['products/stationery/import'] = 'Vendor/products/stationery_import';
 
 // Textbook routes under products
 $route['products/textbook'] = 'Vendor/products/textbook_index';

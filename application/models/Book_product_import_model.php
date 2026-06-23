@@ -8,7 +8,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 /**
- * Bulk import for textbooks and notebooks (legacy + erp_products dual-write).
+ * Bulk import for textbooks, notebooks, and stationery (legacy + erp_products dual-write).
  */
 class Book_product_import_model extends CI_Model
 {
@@ -34,6 +34,18 @@ class Book_product_import_model extends CI_Model
 	);
 
 	const NOTEBOOK_BINDING_TYPES = array('center_binding', 'perfect_binding', 'spiral_binding');
+
+	const STATIONERY_HEADERS = array(
+		'category*', 'product_name*', 'brand*', 'colour*',
+		'min_quantity*', 'product_description*', 'gst_percentage*', 'mrp*', 'selling_price*',
+		'isbn', 'sku', 'product_code', 'days_to_exchange', 'pointers',
+		'packaging_length', 'packaging_width', 'packaging_height', 'packaging_weight',
+		'gst_type', 'hsn',
+		'meta_title', 'meta_keywords', 'meta_description',
+		'is_individual', 'is_set', 'status',
+	);
+
+	const STATIONERY_GST_TYPES = array('igst', 'cgst_sgst');
 
 	const TEMPLATE_DATA_ROWS = 500;
 
@@ -115,6 +127,33 @@ class Book_product_import_model extends CI_Model
 	}
 
 	/**
+	 * @return	Spreadsheet
+	 */
+	public function buildStationeryTemplate($vendor_id)
+	{
+		$this->bootstrapSpreadsheet();
+		$spreadsheet = new Spreadsheet();
+		$sheet = $spreadsheet->getActiveSheet();
+		$sheet->setTitle('Stationery');
+
+		$this->writeHeaderRow($sheet, self::STATIONERY_HEADERS);
+		$sheet->fromArray(array(
+			'Pens & Pencils', 'Sample Ballpoint Pen', 'Sample Brand', 'Blue',
+			'1', 'Smooth writing ballpoint pen', '12', '50', '45',
+			'9780000000003', 'ST-001', 'PC-ST-001', '7', 'Key features here',
+			'15', '2', '2', '20',
+			'igst', '9608',
+			'Meta title', 'pen, stationery', 'Meta description',
+			'1', '1', 'active',
+		), NULL, 'A2');
+
+		$refSheets = $this->addStationeryReferenceSheets($spreadsheet, $vendor_id);
+		$this->applyStationeryDropdowns($sheet, $refSheets);
+
+		return $spreadsheet;
+	}
+
+	/**
 	 * @param	string	$file_path
 	 * @param	int		$vendor_id
 	 * @return	array
@@ -171,6 +210,41 @@ class Book_product_import_model extends CI_Model
 			{
 				$parsed = $this->validateAndParseNotebookRow($row, $lookups);
 				$status = $this->upsertNotebook($vendor_id, $parsed);
+				$results[$status]++;
+				$results['rows'][] = array('line' => $line, 'status' => $status, 'message' => ucfirst($status) . ': ' . $parsed['product_name']);
+			}
+			catch (Exception $e)
+			{
+				$results['failed']++;
+				$results['rows'][] = array('line' => $line, 'status' => 'failed', 'message' => $e->getMessage());
+			}
+		}
+
+		return $results;
+	}
+
+	/**
+	 * @param	string	$file_path
+	 * @param	int		$vendor_id
+	 * @return	array
+	 */
+	public function importStationery($file_path, $vendor_id)
+	{
+		$this->bootstrapSpreadsheet();
+		$rows = $this->parseImportFile($file_path, self::STATIONERY_HEADERS);
+		$lookups = $this->loadStationeryLookups($vendor_id);
+		$results = array('total' => 0, 'created' => 0, 'updated' => 0, 'failed' => 0, 'rows' => array());
+
+		foreach ($rows as $item)
+		{
+			$line = $item['line'];
+			$row = $item['data'];
+			$results['total']++;
+
+			try
+			{
+				$parsed = $this->validateAndParseStationeryRow($row, $lookups);
+				$status = $this->upsertStationery($vendor_id, $parsed);
 				$results[$status]++;
 				$results['rows'][] = array('line' => $line, 'status' => $status, 'message' => ucfirst($status) . ': ' . $parsed['product_name']);
 			}
@@ -312,6 +386,39 @@ class Book_product_import_model extends CI_Model
 			$this->applyListValidation($sheet, $cols['types'], 2, $endRow, $this->sheetListFormula($refSheets['Types']), FALSE, 'Types', 'Pick from list or type multiple comma-separated type names.');
 		}
 		$this->applyListValidation($sheet, $cols['binding_type'], 2, $endRow, '"center_binding,perfect_binding,spiral_binding"', FALSE, 'Binding Type', 'Select binding type or type the value manually.');
+		$this->applyListValidation($sheet, $cols['is_individual'], 2, $endRow, '"0,1"', TRUE, 'Is Individual', '1 = yes, 0 = no.');
+		$this->applyListValidation($sheet, $cols['is_set'], 2, $endRow, '"0,1"', TRUE, 'Is Set', '1 = yes, 0 = no.');
+		$this->applyListValidation($sheet, $cols['status'], 2, $endRow, '"active,inactive"', TRUE, 'Status', 'Product visibility status.');
+	}
+
+	protected function addStationeryReferenceSheets(Spreadsheet $spreadsheet, $vendor_id)
+	{
+		$refs = array();
+		$refs['Categories'] = $this->addNameSheet($spreadsheet, 'Categories', $this->fetchNames('erp_stationery_categories', $vendor_id));
+		$refs['Brands'] = $this->addNameSheet($spreadsheet, 'Brands', $this->fetchNames('erp_stationery_brands', $vendor_id));
+		$refs['Colours'] = $this->addNameSheet($spreadsheet, 'Colours', $this->fetchNames('erp_stationery_colours', $vendor_id));
+
+		return $refs;
+	}
+
+	protected function applyStationeryDropdowns($sheet, array $refSheets)
+	{
+		$cols = $this->headerColumnMap(self::STATIONERY_HEADERS);
+		$endRow = self::TEMPLATE_DATA_ROWS + 1;
+
+		if (isset($refSheets['Categories']))
+		{
+			$this->applyListValidation($sheet, $cols['category'], 2, $endRow, $this->sheetListFormula($refSheets['Categories']), FALSE, 'Category', 'Pick from list or type a new category name.');
+		}
+		if (isset($refSheets['Brands']))
+		{
+			$this->applyListValidation($sheet, $cols['brand'], 2, $endRow, $this->sheetListFormula($refSheets['Brands']), FALSE, 'Brand', 'Pick from list or type a new brand name.');
+		}
+		if (isset($refSheets['Colours']))
+		{
+			$this->applyListValidation($sheet, $cols['colour'], 2, $endRow, $this->sheetListFormula($refSheets['Colours']), FALSE, 'Colour', 'Pick from list or type a new colour name.');
+		}
+		$this->applyListValidation($sheet, $cols['gst_type'], 2, $endRow, '"igst,cgst_sgst"', FALSE, 'GST Type', 'Select igst or cgst_sgst, or leave blank.');
 		$this->applyListValidation($sheet, $cols['is_individual'], 2, $endRow, '"0,1"', TRUE, 'Is Individual', '1 = yes, 0 = no.');
 		$this->applyListValidation($sheet, $cols['is_set'], 2, $endRow, '"0,1"', TRUE, 'Is Set', '1 = yes, 0 = no.');
 		$this->applyListValidation($sheet, $cols['status'], 2, $endRow, '"active,inactive"', TRUE, 'Status', 'Product visibility status.');
@@ -473,6 +580,48 @@ class Book_product_import_model extends CI_Model
 			'brands' => $this->nameIdMap('erp_textbook_publishers', $vendor_id),
 			'types' => $this->nameIdMap('erp_textbook_types', $vendor_id),
 		);
+	}
+
+	protected function loadStationeryLookups($vendor_id)
+	{
+		return array(
+			'vendor_id' => (int) $vendor_id,
+			'categories' => $this->nameIdMap('erp_stationery_categories', $vendor_id),
+			'brands' => $this->nameIdMap('erp_stationery_brands', $vendor_id),
+			'colours' => $this->nameIdMap('erp_stationery_colours', $vendor_id),
+		);
+	}
+
+	protected function resolveOrCreateStationeryLookup($table, $vendor_id, $name, array &$lookupMap)
+	{
+		$name = trim((string) $name);
+		if ($name === '')
+		{
+			throw new RuntimeException('Lookup name cannot be empty.');
+		}
+
+		$key = $this->normalizeLookupName($name);
+		if (isset($lookupMap[$key]))
+		{
+			return (int) $lookupMap[$key];
+		}
+
+		$now = date('Y-m-d H:i:s');
+		$this->db->insert($table, array(
+			'vendor_id' => (int) $vendor_id,
+			'name' => $name,
+			'status' => 'active',
+			'created_at' => $now,
+			'updated_at' => $now,
+		));
+		$id = (int) $this->db->insert_id();
+		if ($id <= 0)
+		{
+			throw new RuntimeException('Failed to create lookup "' . $name . '".');
+		}
+
+		$lookupMap[$key] = $id;
+		return $id;
 	}
 
 	protected function nameIdMap($table, $vendor_id)
@@ -752,6 +901,88 @@ class Book_product_import_model extends CI_Model
 			'packaging_height' => $this->nullableFloat($this->optionalField($row, 'packaging_height')),
 			'packaging_weight' => $this->nullableFloat($this->optionalField($row, 'packaging_weight')),
 			'product_code' => $this->nullable($this->optionalField($row, 'product_code')),
+			'hsn' => $this->nullable($this->optionalField($row, 'hsn')),
+			'meta_title' => $this->nullable($this->optionalField($row, 'meta_title')),
+			'meta_keywords' => $this->nullable($this->optionalField($row, 'meta_keywords')),
+			'meta_description' => $this->nullable($this->optionalField($row, 'meta_description')),
+			'is_individual' => $this->parseBool01($this->optionalField($row, 'is_individual'), 0),
+			'is_set' => $this->parseBool01($this->optionalField($row, 'is_set'), 0),
+			'status' => $this->parseStatus($this->optionalField($row, 'status')),
+		);
+	}
+
+	protected function validateAndParseStationeryRow(array $row, array &$lookups)
+	{
+		$vendor_id = $lookups['vendor_id'];
+
+		$category_name = $this->requireField($row, 'category', 'category');
+		$category_id = $this->resolveOrCreateStationeryLookup(
+			'erp_stationery_categories',
+			$vendor_id,
+			$category_name,
+			$lookups['categories']
+		);
+
+		$product_name = $this->requireField($row, 'product_name', 'product_name');
+
+		$brand_name = $this->requireField($row, 'brand', 'brand');
+		$brand_id = $this->resolveOrCreateStationeryLookup(
+			'erp_stationery_brands',
+			$vendor_id,
+			$brand_name,
+			$lookups['brands']
+		);
+
+		$colour_name = $this->requireField($row, 'colour', 'colour');
+		$colour_id = $this->resolveOrCreateStationeryLookup(
+			'erp_stationery_colours',
+			$vendor_id,
+			$colour_name,
+			$lookups['colours']
+		);
+
+		$min_quantity = (int) $this->requireField($row, 'min_quantity', 'min_quantity');
+		if ($min_quantity < 1)
+		{
+			throw new RuntimeException('min_quantity must be at least 1.');
+		}
+
+		$product_description = $this->requireField($row, 'product_description', 'product_description');
+		$gst_percentage = (float) $this->requireField($row, 'gst_percentage', 'gst_percentage');
+		$mrp = (float) $this->requireField($row, 'mrp', 'mrp');
+		$selling_price = (float) $this->requireField($row, 'selling_price', 'selling_price');
+
+		if ($mrp < $selling_price)
+		{
+			throw new RuntimeException('MRP must be greater than or equal to selling_price.');
+		}
+
+		$gst_type = $this->nullable($this->optionalField($row, 'gst_type'));
+		if ($gst_type !== NULL && !in_array($gst_type, self::STATIONERY_GST_TYPES, TRUE))
+		{
+			throw new RuntimeException('gst_type must be igst or cgst_sgst.');
+		}
+
+		return array(
+			'category_id' => $category_id,
+			'brand_id' => $brand_id,
+			'colour_id' => $colour_id,
+			'product_name' => $product_name,
+			'min_quantity' => $min_quantity,
+			'product_description' => $product_description,
+			'gst_percentage' => $gst_percentage,
+			'gst_type' => $gst_type,
+			'mrp' => $mrp,
+			'selling_price' => $selling_price,
+			'isbn' => $this->nullable($this->optionalField($row, 'isbn')),
+			'sku' => $this->nullable($this->optionalField($row, 'sku')),
+			'product_code' => $this->nullable($this->optionalField($row, 'product_code')),
+			'days_to_exchange' => $this->nullableInt($this->optionalField($row, 'days_to_exchange')),
+			'pointers' => $this->nullable($this->optionalField($row, 'pointers')),
+			'packaging_length' => $this->nullableFloat($this->optionalField($row, 'packaging_length')),
+			'packaging_width' => $this->nullableFloat($this->optionalField($row, 'packaging_width')),
+			'packaging_height' => $this->nullableFloat($this->optionalField($row, 'packaging_height')),
+			'packaging_weight' => $this->nullableFloat($this->optionalField($row, 'packaging_weight')),
 			'hsn' => $this->nullable($this->optionalField($row, 'hsn')),
 			'meta_title' => $this->nullable($this->optionalField($row, 'meta_title')),
 			'meta_keywords' => $this->nullable($this->optionalField($row, 'meta_keywords')),
@@ -1113,6 +1344,114 @@ class Book_product_import_model extends CI_Model
 				'type_id' => (int) $type_id,
 			));
 		}
+	}
+
+	protected function upsertStationery($vendor_id, array $parsed)
+	{
+		$this->db->trans_start();
+
+		$existing = $this->findExistingLegacyRow('erp_stationery', $vendor_id, $parsed['isbn'], $parsed['sku']);
+		$is_update = !empty($existing);
+		$now = date('Y-m-d H:i:s');
+
+		$legacy_data = array(
+			'category_id' => $parsed['category_id'],
+			'brand_id' => $parsed['brand_id'],
+			'colour_id' => $parsed['colour_id'],
+			'product_name' => $parsed['product_name'],
+			'isbn' => $parsed['isbn'],
+			'sku' => $parsed['sku'],
+			'product_code' => $parsed['product_code'],
+			'min_quantity' => $parsed['min_quantity'],
+			'days_to_exchange' => $parsed['days_to_exchange'],
+			'pointers' => $parsed['pointers'],
+			'product_description' => $parsed['product_description'],
+			'packaging_length' => $parsed['packaging_length'],
+			'packaging_width' => $parsed['packaging_width'],
+			'packaging_height' => $parsed['packaging_height'],
+			'packaging_weight' => $parsed['packaging_weight'],
+			'gst_percentage' => $parsed['gst_percentage'],
+			'gst_type' => $parsed['gst_type'],
+			'hsn' => $parsed['hsn'],
+			'mrp' => $parsed['mrp'],
+			'selling_price' => $parsed['selling_price'],
+			'meta_title' => $parsed['meta_title'],
+			'meta_keywords' => $parsed['meta_keywords'],
+			'meta_description' => $parsed['meta_description'],
+			'is_individual' => $parsed['is_individual'],
+			'is_set' => $parsed['is_set'],
+			'status' => $parsed['status'],
+			'updated_at' => $now,
+		);
+
+		if ($is_update)
+		{
+			$stationery_id = (int) $existing['id'];
+			$this->db->where('id', $stationery_id);
+			$this->db->where('vendor_id', (int) $vendor_id);
+			$this->db->update('erp_stationery', $legacy_data);
+		}
+		else
+		{
+			$legacy_data['vendor_id'] = (int) $vendor_id;
+			$legacy_data['created_at'] = $now;
+			$this->db->insert('erp_stationery', $legacy_data);
+			$stationery_id = (int) $this->db->insert_id();
+		}
+
+		if ($stationery_id <= 0)
+		{
+			$this->db->trans_complete();
+			throw new RuntimeException('Failed to save stationery product.');
+		}
+
+		$product_payload = array(
+			'vendor_id' => (int) $vendor_id,
+			'category_id' => $parsed['category_id'],
+			'type' => 'stationery',
+			'product_name' => $legacy_data['product_name'],
+			'description' => $legacy_data['product_description'],
+			'status' => $this->Product_model->normalize_product_status($legacy_data['status']),
+			'discount' => 0,
+			'discount_amount' => 0,
+			'selling_price' => $legacy_data['selling_price'],
+			'product_mrp' => $legacy_data['mrp'],
+			'gst' => $legacy_data['gst_percentage'],
+			'isbn' => $legacy_data['isbn'],
+			'hsn' => $legacy_data['hsn'],
+			'sku' => $legacy_data['sku'],
+			'product_code' => $legacy_data['product_code'],
+			'pointers' => $legacy_data['pointers'],
+			'quantity' => 0,
+			'length' => $legacy_data['packaging_length'],
+			'width' => $legacy_data['packaging_width'],
+			'height' => $legacy_data['packaging_height'],
+			'weight' => $legacy_data['packaging_weight'],
+			'meta_title' => $legacy_data['meta_title'],
+			'meta_keyword' => $legacy_data['meta_keywords'],
+			'meta_description' => $legacy_data['meta_description'],
+			'min_quantity' => $legacy_data['min_quantity'],
+			'legacy_table' => 'erp_stationery',
+			'legacy_id' => $stationery_id,
+		);
+
+		$product = $this->Product_model->get_product_by_legacy('erp_stationery', $stationery_id, $vendor_id);
+		if ($product)
+		{
+			$this->Product_model->update_product($product['id'], $product_payload);
+		}
+		else
+		{
+			$this->Product_model->create_product($product_payload);
+		}
+
+		$this->db->trans_complete();
+		if ($this->db->trans_status() === FALSE)
+		{
+			throw new RuntimeException('Database error while saving stationery.');
+		}
+
+		return $is_update ? 'updated' : 'created';
 	}
 
 	/**

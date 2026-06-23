@@ -902,20 +902,61 @@ class Products extends Vendor_base
 		$offset = ($page - 1) * $per_page;
 		
 		// Get total count for pagination
-		// $total_stationery = $this->Stationery_model->getTotalStationeryByVendor($this->current_vendor['id'], $filters);
-		$total_stationery = 0; // Placeholder - replace with actual model call
+		$this->db->select('s.id');
+		$this->db->from('erp_stationery s');
+		$this->db->join('erp_stationery_categories c', 'c.id = s.category_id', 'left');
+		$this->db->where('s.vendor_id', $this->current_vendor['id']);
+		if (!empty($filters['status']))
+		{
+			$this->db->where('s.status', $filters['status']);
+		}
+		if (!empty($filters['category_id']))
+		{
+			$this->db->where('s.category_id', (int) $filters['category_id']);
+		}
+		if (!empty($filters['search']))
+		{
+			$this->db->group_start();
+			$this->db->like('s.product_name', $filters['search']);
+			$this->db->or_like('s.isbn', $filters['search']);
+			$this->db->or_like('s.sku', $filters['search']);
+			$this->db->group_end();
+		}
+		$total_stationery = $this->db->count_all_results();
 		
-		// Get stationery with pagination
-		// $data['stationery_list'] = $this->Stationery_model->getStationeryByVendor($this->current_vendor['id'], $filters, $per_page, $offset);
-		$data['stationery_list'] = array(); // Placeholder - replace with actual model call
+		$this->db->select('s.*, c.name AS category_name');
+		$this->db->from('erp_stationery s');
+		$this->db->join('erp_stationery_categories c', 'c.id = s.category_id', 'left');
+		$this->db->where('s.vendor_id', $this->current_vendor['id']);
+		if (!empty($filters['status']))
+		{
+			$this->db->where('s.status', $filters['status']);
+		}
+		if (!empty($filters['category_id']))
+		{
+			$this->db->where('s.category_id', (int) $filters['category_id']);
+		}
+		if (!empty($filters['search']))
+		{
+			$this->db->group_start();
+			$this->db->like('s.product_name', $filters['search']);
+			$this->db->or_like('s.isbn', $filters['search']);
+			$this->db->or_like('s.sku', $filters['search']);
+			$this->db->group_end();
+		}
+		$this->db->order_by('s.id', 'DESC');
+		$this->db->limit($per_page, $offset);
+		$data['stationery_list'] = $this->db->get()->result_array();
 		$data['total_stationery'] = $total_stationery;
 		$data['per_page'] = $per_page;
 		$data['current_page'] = $page;
 		$data['total_pages'] = ceil($total_stationery / $per_page);
 		
 		// Get categories for filter
-		// $data['categories'] = $this->Category_model->getCategoriesByVendor($this->current_vendor['id']);
-		$data['categories'] = array(); // Placeholder - replace with actual model call
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$this->db->where('status', 'active');
+		$this->db->order_by('name', 'ASC');
+		$data['categories'] = $this->db->get('erp_stationery_categories')->result_array();
 		
 		$data['title'] = 'Manage Stationery';
 		$data['current_vendor'] = $this->current_vendor;
@@ -3108,25 +3149,47 @@ class Products extends Vendor_base
 	public function stationery_add()
 	{
 		$this->load->library('form_validation');
-		
-		// Load models (you'll need to create these models)
-		// $this->load->model('Stationery_model');
-		// $this->load->model('Category_model');
-		// $this->load->model('Brand_model');
-		// $this->load->model('Colour_model');
-		
-		// For now, prepare empty data
-		$data['categories'] = array(); // $this->Category_model->getCategoriesByVendor($this->current_vendor['id']);
-		$data['brands'] = array(); // $this->Brand_model->getBrandsByVendor($this->current_vendor['id']);
-		$data['colours'] = array(); // $this->Colour_model->getColoursByVendor($this->current_vendor['id']);
+		$this->load->helper('common');
+		$data = $this->loadStationeryFormLookups();
 		
 		if ($this->input->method() == 'post')
 		{
-			// Handle form submission
-			// Validation and save logic will go here
-			// For now, just redirect back
-			$this->session->set_flashdata('success', 'Stationery product added successfully (placeholder)');
-			redirect($this->config->item('base_url') . '/products/stationery');
+			$this->form_validation->set_rules('category_id', 'Category', 'required|integer');
+			$this->form_validation->set_rules('brand_id', 'Brand', 'required|integer');
+			$this->form_validation->set_rules('colour_id', 'Colour', 'required|integer');
+			$this->form_validation->set_rules('product_name', 'Product Name', 'required');
+			$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
+			$this->form_validation->set_rules('product_description', 'Product Description', 'required');
+			$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
+			$this->form_validation->set_rules('mrp', 'MRP', 'required|numeric');
+			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required|numeric|callback_validate_stationery_selling_price');
+			
+			if ($this->form_validation->run() == FALSE)
+			{
+				// reload form with errors
+			}
+			elseif (empty($_FILES['images']['name'][0]))
+			{
+				$this->session->set_flashdata('error', 'At least one product image is required.');
+			}
+			else
+			{
+				$stationery_data = $this->stationeryDataFromPost($this->current_vendor['id'], TRUE);
+				
+				$this->db->insert('erp_stationery', $stationery_data);
+				$stationery_id = (int) $this->db->insert_id();
+				
+				if ($stationery_id > 0)
+				{
+					$this->Product_model->create_product($this->stationeryUnifiedProductPayload($stationery_data, $stationery_id));
+					$this->handleStationeryImageUploads($stationery_id);
+					$this->session->set_flashdata('success', 'Stationery product created successfully.');
+					redirect(base_url('products/stationery'));
+					return;
+				}
+				
+				$this->session->set_flashdata('error', 'Failed to create stationery product.');
+			}
 		}
 		
 		$data['title'] = 'Add Stationery - ' . $this->current_vendor['name'];
@@ -3139,10 +3202,7 @@ class Products extends Vendor_base
 			array('label' => 'Add New', 'active' => true)
 		);
 		
-		// Load content view
 		$data['content'] = $this->load->view('vendor/products/stationery/add', $data, TRUE);
-		
-		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
 	
@@ -3160,57 +3220,65 @@ class Products extends Vendor_base
 		}
 		
 		$this->load->library('form_validation');
+		$this->load->helper('common');
 		
-		// Load models (you'll need to create these models)
-		// $this->load->model('Stationery_model');
-		// $this->load->model('Category_model');
-		// $this->load->model('Brand_model');
-		// $this->load->model('Colour_model');
+		$this->db->where('id', $id);
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$stationery = $this->db->get('erp_stationery')->row_array();
 		
-		// Get stationery data
-		// $stationery = $this->Stationery_model->getStationeryById($id, $this->current_vendor['id']);
-		// if (!$stationery) {
-		//     show_404();
-		// }
+		if (!$stationery)
+		{
+			show_404();
+		}
 		
-		// For now, prepare placeholder data
-		$data['stationery'] = array(
-			'id' => $id,
-			'category_id' => '',
-			'product_name' => '',
-			'isbn' => '',
-			'sku' => '',
-			'product_code' => '',
-			'min_quantity' => 1,
-			'days_to_exchange' => '',
-			'pointers' => '',
-			'product_description' => '',
-			'packaging_length' => '',
-			'packaging_width' => '',
-			'packaging_height' => '',
-			'packaging_weight' => '',
-			'gst_percentage' => 0,
-			'gst_type' => '',
-			'hsn' => '',
-			'mrp' => '',
-			'selling_price' => '',
-			'meta_title' => '',
-			'meta_keywords' => '',
-			'meta_description' => ''
-		);
-		$data['stationery_images'] = array();
+		$data = $this->loadStationeryFormLookups();
+		$data['stationery'] = $stationery;
 		
-		$data['categories'] = array(); // $this->Category_model->getCategoriesByVendor($this->current_vendor['id']);
-		$data['brands'] = array(); // $this->Brand_model->getBrandsByVendor($this->current_vendor['id']);
-		$data['colours'] = array(); // $this->Colour_model->getColoursByVendor($this->current_vendor['id']);
+		$this->db->where('stationery_id', $id);
+		$this->db->order_by('image_order', 'ASC');
+		$data['stationery_images'] = $this->db->get('erp_stationery_images')->result_array();
 		
 		if ($this->input->method() == 'post')
 		{
-			// Handle form submission
-			// Validation and update logic will go here
-			// For now, just redirect back
-			$this->session->set_flashdata('success', 'Stationery product updated successfully (placeholder)');
-			redirect($this->config->item('base_url') . '/products/stationery');
+			$this->form_validation->set_rules('category_id', 'Category', 'required|integer');
+			$this->form_validation->set_rules('brand_id', 'Brand', 'required|integer');
+			$this->form_validation->set_rules('colour_id', 'Colour', 'required|integer');
+			$this->form_validation->set_rules('product_name', 'Product Name', 'required');
+			$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
+			$this->form_validation->set_rules('product_description', 'Product Description', 'required');
+			$this->form_validation->set_rules('gst_percentage', 'GST (%)', 'required|numeric');
+			$this->form_validation->set_rules('mrp', 'MRP', 'required|numeric');
+			$this->form_validation->set_rules('selling_price', 'Selling Price', 'required|numeric|callback_validate_stationery_selling_price');
+			
+			if ($this->form_validation->run() == FALSE)
+			{
+				// reload form with errors
+			}
+			else
+			{
+				$stationery_data = $this->stationeryDataFromPost($this->current_vendor['id'], FALSE);
+				
+				$this->db->where('id', $id);
+				$this->db->where('vendor_id', $this->current_vendor['id']);
+				$this->db->update('erp_stationery', $stationery_data);
+				
+				$product = $this->Product_model->get_product_by_legacy('erp_stationery', $id, $this->current_vendor['id']);
+				if ($product)
+				{
+					$this->Product_model->update_product($product['id'], $this->stationeryUnifiedProductPayload($stationery_data, $id));
+				}
+				else
+				{
+					$this->Product_model->create_product($this->stationeryUnifiedProductPayload($stationery_data, $id));
+				}
+				
+				$this->handleStationeryImageUploads($id);
+				$this->handleStationeryImageUpdates($id);
+				
+				$this->session->set_flashdata('success', 'Stationery product updated successfully.');
+				redirect(base_url('products/stationery'));
+				return;
+			}
 		}
 		
 		$data['title'] = 'Edit Stationery - ' . $this->current_vendor['name'];
@@ -3223,10 +3291,7 @@ class Products extends Vendor_base
 			array('label' => 'Edit', 'active' => true)
 		);
 		
-		// Load content view
 		$data['content'] = $this->load->view('vendor/products/stationery/edit', $data, TRUE);
-		
-		// Load main layout
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
 	
@@ -3243,10 +3308,76 @@ class Products extends Vendor_base
 			show_404();
 		}
 		
-		// Delete logic will go here
-		// For now, just redirect
-		$this->session->set_flashdata('success', 'Stationery product deleted successfully (placeholder)');
-		redirect($this->config->item('base_url') . '/products/stationery');
+		$this->load->helper('common');
+		
+		$this->db->where('id', $id);
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$stationery = $this->db->get('erp_stationery')->row_array();
+		
+		if (!$stationery)
+		{
+			$this->session->set_flashdata('error', 'Stationery not found.');
+			redirect(base_url('products/stationery'));
+			return;
+		}
+		
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('stationery_upload');
+		$vendor_folder = get_vendor_domain_folder();
+		
+		$this->db->trans_start();
+		
+		$this->db->where('stationery_id', $id);
+		$images = $this->db->get('erp_stationery_images')->result_array();
+		foreach ($images as $image)
+		{
+			$base_root = isset($uploadCfg['base_root']) ? rtrim($uploadCfg['base_root'], '/') : '/www/webwork';
+			$path1 = $base_root . '/' . $vendor_folder . '/' . $image['image_path'];
+			$path2 = rtrim(FCPATH, '/') . '/' . $vendor_folder . '/' . $image['image_path'];
+			$path3 = rtrim(FCPATH, '/') . '/' . $image['image_path'];
+			if (file_exists($path1))
+			{
+				@unlink($path1);
+			}
+			elseif (file_exists($path2))
+			{
+				@unlink($path2);
+			}
+			elseif (file_exists($path3))
+			{
+				@unlink($path3);
+			}
+			
+			$this->db->where('legacy_table', 'erp_stationery_images');
+			$this->db->where('legacy_id', $image['id']);
+			$this->db->delete('erp_product_images');
+		}
+		
+		$product = $this->Product_model->get_product_by_legacy('erp_stationery', $id, $this->current_vendor['id']);
+		if ($product)
+		{
+			$this->Product_model->delete_product($product['id']);
+		}
+		
+		$this->db->where('stationery_id', $id);
+		$this->db->delete('erp_stationery_images');
+		
+		$this->db->where('id', $id);
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$this->db->delete('erp_stationery');
+		
+		$this->db->trans_complete();
+		
+		if ($this->db->trans_status() === FALSE)
+		{
+			$this->session->set_flashdata('error', 'Failed to delete stationery product.');
+		}
+		else
+		{
+			$this->session->set_flashdata('success', 'Stationery product deleted successfully.');
+		}
+		
+		redirect(base_url('products/stationery'));
 	}
 	
 	/**
@@ -3256,26 +3387,8 @@ class Products extends Vendor_base
 	 */
 	public function stationery_add_category()
 	{
-		if ($this->input->method() != 'post')
-		{
-			show_404();
-		}
-		
-		$name = $this->input->post('name');
-		
-		if (empty($name))
-		{
-			echo json_encode(array('status' => 'error', 'message' => 'Name is required'));
-			return;
-		}
-		
-		// Add category logic will go here
-		// For now, return placeholder
-		echo json_encode(array(
-			'status' => 'success',
-			'id' => 1,
-			'name' => $name
-		));
+		header('Content-Type: application/json');
+		$this->stationeryAjaxInsertLookup('erp_stationery_categories', 'Category');
 	}
 	
 	/**
@@ -3285,26 +3398,8 @@ class Products extends Vendor_base
 	 */
 	public function stationery_add_brand()
 	{
-		if ($this->input->method() != 'post')
-		{
-			show_404();
-		}
-		
-		$name = $this->input->post('name');
-		
-		if (empty($name))
-		{
-			echo json_encode(array('status' => 'error', 'message' => 'Name is required'));
-			return;
-		}
-		
-		// Add brand logic will go here
-		// For now, return placeholder
-		echo json_encode(array(
-			'status' => 'success',
-			'id' => 1,
-			'name' => $name
-		));
+		header('Content-Type: application/json');
+		$this->stationeryAjaxInsertLookup('erp_stationery_brands', 'Brand');
 	}
 	
 	/**
@@ -3314,26 +3409,8 @@ class Products extends Vendor_base
 	 */
 	public function stationery_add_colour()
 	{
-		if ($this->input->method() != 'post')
-		{
-			show_404();
-		}
-		
-		$name = $this->input->post('name');
-		
-		if (empty($name))
-		{
-			echo json_encode(array('status' => 'error', 'message' => 'Name is required'));
-			return;
-		}
-		
-		// Add colour logic will go here
-		// For now, return placeholder
-		echo json_encode(array(
-			'status' => 'success',
-			'id' => 1,
-			'name' => $name
-		));
+		header('Content-Type: application/json');
+		$this->stationeryAjaxInsertLookup('erp_stationery_colours', 'Colour');
 	}
 	
 	/**
@@ -7722,6 +7799,383 @@ class Products extends Vendor_base
 		);
 	}
 
+	protected function loadStationeryFormLookups()
+	{
+		$data = array();
+		$vendor_id = $this->current_vendor['id'];
+		
+		$this->db->where('vendor_id', $vendor_id);
+		$this->db->where('status', 'active');
+		$this->db->order_by('name', 'ASC');
+		$data['categories'] = $this->db->get('erp_stationery_categories')->result_array();
+		
+		$this->db->where('vendor_id', $vendor_id);
+		$this->db->where('status', 'active');
+		$this->db->order_by('name', 'ASC');
+		$data['brands'] = $this->db->get('erp_stationery_brands')->result_array();
+		
+		$this->db->where('vendor_id', $vendor_id);
+		$this->db->where('status', 'active');
+		$this->db->order_by('name', 'ASC');
+		$data['colours'] = $this->db->get('erp_stationery_colours')->result_array();
+		
+		return $data;
+	}
+
+	protected function stationeryDataFromPost($vendor_id, $is_create = TRUE)
+	{
+		$now = date('Y-m-d H:i:s');
+		$gst_type = $this->input->post('gst_type');
+		$status = $this->input->post('status');
+		$data = array(
+			'category_id' => (int) $this->input->post('category_id'),
+			'brand_id' => (int) $this->input->post('brand_id'),
+			'colour_id' => (int) $this->input->post('colour_id'),
+			'product_name' => $this->input->post('product_name'),
+			'isbn' => $this->input->post('isbn') ? $this->input->post('isbn') : NULL,
+			'sku' => $this->input->post('sku') ? $this->input->post('sku') : NULL,
+			'product_code' => $this->input->post('product_code') ? $this->input->post('product_code') : NULL,
+			'min_quantity' => $this->input->post('min_quantity') ? (int) $this->input->post('min_quantity') : 1,
+			'days_to_exchange' => $this->input->post('days_to_exchange') ? (int) $this->input->post('days_to_exchange') : NULL,
+			'pointers' => $this->input->post('pointers') ? $this->input->post('pointers') : NULL,
+			'product_description' => $this->input->post('product_description'),
+			'packaging_length' => $this->input->post('packaging_length') ? $this->input->post('packaging_length') : NULL,
+			'packaging_width' => $this->input->post('packaging_width') ? $this->input->post('packaging_width') : NULL,
+			'packaging_height' => $this->input->post('packaging_height') ? $this->input->post('packaging_height') : NULL,
+			'packaging_weight' => $this->input->post('packaging_weight') ? $this->input->post('packaging_weight') : NULL,
+			'gst_percentage' => $this->input->post('gst_percentage') ? $this->input->post('gst_percentage') : 0,
+			'gst_type' => $gst_type ? $gst_type : NULL,
+			'hsn' => $this->input->post('hsn') ? $this->input->post('hsn') : NULL,
+			'mrp' => $this->input->post('mrp'),
+			'selling_price' => $this->input->post('selling_price'),
+			'meta_title' => $this->input->post('meta_title') ? $this->input->post('meta_title') : NULL,
+			'meta_keywords' => $this->input->post('meta_keywords') ? $this->input->post('meta_keywords') : NULL,
+			'meta_description' => $this->input->post('meta_description') ? $this->input->post('meta_description') : NULL,
+			'is_individual' => $this->input->post('is_individual') ? 1 : 0,
+			'is_set' => $this->input->post('is_set') ? 1 : 0,
+			'status' => ($status === 'inactive') ? 'inactive' : 'active',
+			'updated_at' => $now,
+		);
+		
+		if ($is_create)
+		{
+			$data['vendor_id'] = (int) $vendor_id;
+			$data['created_at'] = $now;
+		}
+		
+		return $data;
+	}
+
+	public function validate_stationery_selling_price($selling_price)
+	{
+		$mrp = $this->input->post('mrp');
+
+		if ($mrp !== NULL && $mrp !== '' && $selling_price !== NULL && $selling_price !== '' && (float) $selling_price > (float) $mrp)
+		{
+			$this->form_validation->set_message('validate_stationery_selling_price', 'Selling price must be less than or equal to MRP.');
+			return FALSE;
+		}
+
+		return TRUE;
+	}
+
+	protected function stationeryUnifiedProductPayload(array $stationery_data, $stationery_id)
+	{
+		return array(
+			'vendor_id' => (int) $this->current_vendor['id'],
+			'category_id' => $stationery_data['category_id'],
+			'type' => 'stationery',
+			'product_name' => $stationery_data['product_name'],
+			'description' => $stationery_data['product_description'],
+			'status' => $this->Product_model->normalize_product_status(isset($stationery_data['status']) ? $stationery_data['status'] : 'active'),
+			'discount' => 0,
+			'discount_amount' => 0,
+			'selling_price' => $stationery_data['selling_price'],
+			'product_mrp' => $stationery_data['mrp'],
+			'gst' => $stationery_data['gst_percentage'],
+			'isbn' => $stationery_data['isbn'],
+			'hsn' => $stationery_data['hsn'],
+			'sku' => $stationery_data['sku'],
+			'product_code' => $stationery_data['product_code'],
+			'pointers' => $stationery_data['pointers'],
+			'quantity' => 0,
+			'length' => $stationery_data['packaging_length'],
+			'width' => $stationery_data['packaging_width'],
+			'height' => $stationery_data['packaging_height'],
+			'weight' => $stationery_data['packaging_weight'],
+			'meta_title' => $stationery_data['meta_title'],
+			'meta_keyword' => $stationery_data['meta_keywords'],
+			'meta_description' => $stationery_data['meta_description'],
+			'min_quantity' => $stationery_data['min_quantity'],
+			'legacy_table' => 'erp_stationery',
+			'legacy_id' => (int) $stationery_id,
+		);
+	}
+
+	protected function stationeryAjaxInsertLookup($table, $label)
+	{
+		if ($this->input->method() != 'post')
+		{
+			show_404();
+		}
+		
+		$name = trim((string) $this->input->post('name'));
+		if ($name === '')
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Name is required'));
+			return;
+		}
+		
+		$this->db->where('vendor_id', $this->current_vendor['id']);
+		$this->db->where('name', $name);
+		$existing = $this->db->get($table)->row_array();
+		if ($existing)
+		{
+			echo json_encode(array('status' => 'error', 'message' => $label . ' already exists'));
+			return;
+		}
+		
+		$now = date('Y-m-d H:i:s');
+		$this->db->insert($table, array(
+			'vendor_id' => $this->current_vendor['id'],
+			'name' => $name,
+			'status' => 'active',
+			'created_at' => $now,
+			'updated_at' => $now,
+		));
+		$id = (int) $this->db->insert_id();
+		if ($id <= 0)
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Failed to add ' . strtolower($label)));
+			return;
+		}
+		
+		echo json_encode(array('status' => 'success', 'id' => $id, 'name' => $name));
+	}
+
+	protected function handleStationeryImageUploads($stationery_id)
+	{
+		if (empty($_FILES['images']['name'][0]))
+		{
+			return;
+		}
+		
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('stationery_upload');
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
+		$date_folder = date('Y_m_d');
+		$upload_path = rtrim($uploadCfg['root_path'], '/')
+			. '/'
+			. $vendor_folder . '/'
+			. $uploadCfg['relative_dir']
+			. $date_folder
+			. '/';
+		
+		if (!is_dir($upload_path))
+		{
+			mkdir($upload_path, 0755, true);
+		}
+		
+		$files = $_FILES['images'];
+		$image_order_json = $this->input->post('image_order');
+		$image_order = json_decode($image_order_json, TRUE);
+		$main_image_index = (int) $this->input->post('main_image_index');
+		
+		$this->db->select_max('image_order');
+		$this->db->where('stationery_id', $stationery_id);
+		$max_order_result = $this->db->get('erp_stationery_images')->row_array();
+		$start_order = $max_order_result['image_order'] !== NULL
+			? ((int) $max_order_result['image_order'] + 1)
+			: 0;
+		
+		if (!is_array($image_order))
+		{
+			$image_order = array();
+			for ($i = 0; $i < count($files['name']); $i++)
+			{
+				$image_order[] = $i;
+			}
+		}
+		
+		$this->load->library('upload');
+		$upload_errors = array();
+		$uploaded_count = 0;
+		$uploaded_image_ids = array();
+		
+		foreach ($image_order as $order => $original_index)
+		{
+			if (isset($files['name'][$original_index]) && $files['error'][$original_index] == 0)
+			{
+				$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
+				if (!in_array($file_ext, $uploadCfg['allowed_types'], TRUE))
+				{
+					$upload_errors[] = $files['name'][$original_index] . ': Invalid file type';
+					continue;
+				}
+				
+				$_FILES['image']['name'] = $files['name'][$original_index];
+				$_FILES['image']['type'] = $files['type'][$original_index];
+				$_FILES['image']['tmp_name'] = $files['tmp_name'][$original_index];
+				$_FILES['image']['error'] = $files['error'][$original_index];
+				$_FILES['image']['size'] = $files['size'][$original_index];
+				
+				$config = array(
+					'upload_path' => $upload_path,
+					'allowed_types' => implode('|', $uploadCfg['allowed_types']),
+					'max_size' => $uploadCfg['max_size'],
+					'file_name' => 'stationery_' . $stationery_id . '_' . uniqid() . '_' . $original_index,
+					'overwrite' => FALSE,
+				);
+				$this->upload->initialize($config);
+				
+				if ($this->upload->do_upload('image'))
+				{
+					$upload_data = $this->upload->data();
+					$final_order = $start_order + $uploaded_count;
+					$image_path = 'uploads/stationery/images/' . $date_folder . '/' . $upload_data['file_name'];
+					$is_main = ($start_order == 0 && $order == $main_image_index) ? 1 : 0;
+					
+					$this->db->insert('erp_stationery_images', array(
+						'stationery_id' => $stationery_id,
+						'image_path' => $image_path,
+						'image_order' => $final_order,
+						'is_main' => $is_main,
+						'created_at' => date('Y-m-d H:i:s'),
+					));
+					
+					if ($this->db->affected_rows())
+					{
+						$legacy_image_id = (int) $this->db->insert_id();
+						$uploaded_image_ids[$order] = $legacy_image_id;
+						$uploaded_count++;
+						$this->Product_model->sync_legacy_image(
+							$this->current_vendor['id'],
+							'erp_stationery',
+							$stationery_id,
+							'erp_stationery_images',
+							$legacy_image_id,
+							$image_path,
+							$is_main,
+							$final_order
+						);
+					}
+				}
+				else
+				{
+					$error = $this->upload->display_errors('', '');
+					$upload_errors[] = $files['name'][$original_index] . ': ' . $error;
+					log_message('error', 'Stationery image upload failed: ' . $error);
+				}
+			}
+		}
+		
+		if ($start_order === 0 && isset($uploaded_image_ids[$main_image_index]))
+		{
+			$this->db->where('stationery_id', $stationery_id)->update('erp_stationery_images', array('is_main' => 0));
+			$this->db->where('id', $uploaded_image_ids[$main_image_index])->update('erp_stationery_images', array('is_main' => 1));
+			$this->Product_model->set_main_image_by_legacy(
+				$this->current_vendor['id'],
+				'erp_stationery',
+				$stationery_id,
+				'erp_stationery_images',
+				$uploaded_image_ids[$main_image_index]
+			);
+		}
+		
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_stationery',
+			$stationery_id,
+			'erp_stationery_images',
+			'stationery_id'
+		);
+		
+		if (!empty($upload_errors))
+		{
+			$this->session->set_flashdata('error', 'Some images failed to upload: ' . implode(', ', $upload_errors));
+		}
+	}
+
+	protected function handleStationeryImageUpdates($stationery_id)
+	{
+		$image_order = $this->input->post('image_order');
+		$main_image_id = $this->input->post('main_image_id');
+		$deleted_image_ids = $this->input->post('deleted_image_ids');
+		
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('stationery_upload');
+		
+		if (!empty($deleted_image_ids))
+		{
+			$deleted_ids = array_filter(array_map('trim', explode(',', $deleted_image_ids)));
+			if (!empty($deleted_ids))
+			{
+				$this->db->where('stationery_id', $stationery_id);
+				$this->db->where_in('id', $deleted_ids);
+				$images_to_delete = $this->db->get('erp_stationery_images')->result_array();
+				
+				foreach ($images_to_delete as $img)
+				{
+					$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . ltrim($img['image_path'], '/');
+					if (file_exists($image_path))
+					{
+						@unlink($image_path);
+					}
+					$this->Product_model->delete_image_by_legacy('erp_stationery_images', $img['id']);
+				}
+				
+				$this->db->where('stationery_id', $stationery_id);
+				$this->db->where_in('id', $deleted_ids);
+				$this->db->delete('erp_stationery_images');
+			}
+		}
+		
+		if (!empty($main_image_id) && is_numeric($main_image_id))
+		{
+			$this->db->where('id', $main_image_id);
+			$this->db->where('stationery_id', $stationery_id);
+			if ($this->db->count_all_results('erp_stationery_images') == 1)
+			{
+				$this->db->where('stationery_id', $stationery_id)->update('erp_stationery_images', array('is_main' => 0));
+				$this->db->where('id', $main_image_id)->where('stationery_id', $stationery_id)->update('erp_stationery_images', array('is_main' => 1));
+				$this->Product_model->set_main_image_by_legacy(
+					$this->current_vendor['id'],
+					'erp_stationery',
+					$stationery_id,
+					'erp_stationery_images',
+					$main_image_id
+				);
+			}
+		}
+		
+		if (!empty($image_order))
+		{
+			$image_ids = array_filter(array_map('trim', explode(',', $image_order)));
+			foreach ($image_ids as $order => $image_id)
+			{
+				if (is_numeric($image_id))
+				{
+					$this->db->where('id', $image_id);
+					$this->db->where('stationery_id', $stationery_id);
+					if ($this->db->count_all_results('erp_stationery_images') == 1)
+					{
+						$this->db->where('id', $image_id)->update('erp_stationery_images', array('image_order' => $order));
+						$this->Product_model->update_legacy_image_sync('erp_stationery_images', $image_id, NULL, NULL, $order);
+					}
+				}
+			}
+		}
+		
+		$this->Product_model->sync_main_image_from_legacy(
+			$this->current_vendor['id'],
+			'erp_stationery',
+			$stationery_id,
+			'erp_stationery_images',
+			'stationery_id'
+		);
+	}
+
 	
 	/**
 	 * Notebook Add Type (AJAX)
@@ -7889,6 +8343,79 @@ class Products extends Vendor_base
 		$this->db->delete('erp_notebook_images');
 		
 		echo json_encode(array('status' => 'success', 'message' => 'Image deleted successfully'));
+	}
+
+	/**
+	 * Stationery bulk import — upload Excel and upsert legacy + erp_products rows.
+	 */
+	public function stationery_import()
+	{
+		$this->load->model('Book_product_import_model');
+		$data = array(
+			'title' => 'Bulk Import Stationery - ' . $this->current_vendor['name'],
+			'current_vendor' => $this->current_vendor,
+			'vendor_domain' => $this->getVendorDomainForUrl(),
+			'import_results' => NULL,
+			'breadcrumb' => array(
+				array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+				array('label' => 'Products', 'url' => '#'),
+				array('label' => 'Stationery', 'url' => base_url($this->config->item('base_url') . '/products/stationery')),
+				array('label' => 'Bulk Import', 'active' => true),
+			),
+		);
+
+		if ($this->input->method() === 'post')
+		{
+			$upload = $this->processBookImportUpload();
+			if ($upload['error'])
+			{
+				$this->session->set_flashdata('error', $upload['error']);
+			}
+			else
+			{
+				try
+				{
+					$data['import_results'] = $this->Book_product_import_model->importStationery(
+						$upload['path'],
+						$this->current_vendor['id']
+					);
+					$summary = $data['import_results'];
+					$this->session->set_flashdata(
+						'success',
+						'Import finished: ' . (int) $summary['created'] . ' created, '
+						. (int) $summary['updated'] . ' updated, '
+						. (int) $summary['failed'] . ' failed.'
+					);
+				}
+				catch (Exception $e)
+				{
+					$this->session->set_flashdata('error', $e->getMessage());
+				}
+				@unlink($upload['path']);
+			}
+		}
+
+		$data['content'] = $this->load->view('vendor/products/stationery/import', $data, TRUE);
+		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
+	/**
+	 * Download stationery import template (.xlsx).
+	 */
+	public function stationery_import_template()
+	{
+		$this->output->enable_profiler(FALSE);
+		$this->load->model('Book_product_import_model');
+		try
+		{
+			$spreadsheet = $this->Book_product_import_model->buildStationeryTemplate($this->current_vendor['id']);
+			$this->Book_product_import_model->streamSpreadsheet($spreadsheet, 'stationery_import_template.xlsx');
+		}
+		catch (Exception $e)
+		{
+			$this->session->set_flashdata('error', $e->getMessage());
+			redirect(base_url('products/stationery/import'));
+		}
 	}
 
 	/**
