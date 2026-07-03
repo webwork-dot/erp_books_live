@@ -4561,8 +4561,18 @@ class Orders extends Vendor_base
 	private function _get_invoice_items_arr($order_id)
 	{
 		$items = $this->db->select('*')->from('tbl_order_items')->where('order_id', $order_id)->order_by('id', 'ASC')->get()->result();
+		$cloth_product_ids = $this->_get_cloth_product_id_map($items);
 		foreach ($items as $item) {
-			if (isset($item->order_type) && $item->order_type == 'uniform' || (isset($item->is_variation) && $item->is_variation == 1)) {
+			$is_cloth_item = $this->_is_cloth_order_item($item, $cloth_product_ids);
+			$is_uniform_item = isset($item->order_type) && $item->order_type === 'uniform';
+			$is_variation_item = !$is_cloth_item && isset($item->is_variation) && (int) $item->is_variation === 1;
+
+			if ($is_cloth_item) {
+				$item->is_cloth = 1;
+				$item->school_name = '';
+			}
+
+			if ($is_uniform_item || $is_cloth_item || $is_variation_item) {
 				// Get size name
 				$size_id = !empty($item->size_id) ? (int)$item->size_id : 0;
 				if ($size_id > 0) {
@@ -4571,6 +4581,9 @@ class Orders extends Vendor_base
 						$item->size_name = $size_query->row()->name;
 					}
 				}
+			}
+
+			if ($is_uniform_item || $is_variation_item) {
 				// Get class name
 				$class_id = !empty($item->class_id) ? (int)$item->class_id : 0;
 				if ($class_id > 0) {
@@ -4579,8 +4592,8 @@ class Orders extends Vendor_base
 						$item->class_name = $class_query->row()->class_name;
 					}
 				}
-				// Get school name for uniform from erp_uniforms
-				if (empty($item->school_name) && !empty($item->product_id)) {
+				// Get school name for uniform from erp_uniforms (never for cloth — shared numeric IDs)
+				if ($is_uniform_item && empty($item->school_name) && !empty($item->product_id)) {
 					$uni_school_q = $this->db->query("
 						SELECT s.school_name 
 						FROM erp_uniforms u 
@@ -4593,8 +4606,8 @@ class Orders extends Vendor_base
 					}
 				}
 			}
-			// Get school name for any item with school_id
-			if (empty($item->school_name)) {
+			// Get school name for any item with school_id (skip cloth products)
+			if (!$is_cloth_item && empty($item->school_name)) {
 				$school_id = !empty($item->school_id) ? (int)$item->school_id : 0;
 				if ($school_id > 0) {
 					$school_query = $this->db->query("SELECT school_name FROM erp_schools WHERE id = '" . $school_id . "' LIMIT 1");
@@ -4679,10 +4692,95 @@ class Orders extends Vendor_base
 	}
 
 	/**
+	 * Product IDs in erp_products with type=cloths for the given order lines.
+	 *
+	 * @param	array	$items
+	 * @return	array<int,bool>
+	 */
+	private function _get_cloth_product_id_map($items)
+	{
+		$map = array();
+		if (!$this->db->table_exists('erp_products') || empty($items)) {
+			return $map;
+		}
+		$product_ids = array();
+		foreach ($items as $item) {
+			$pid = is_array($item)
+				? (isset($item['product_id']) ? (int) $item['product_id'] : 0)
+				: (isset($item->product_id) ? (int) $item->product_id : 0);
+			if ($pid > 0) {
+				$product_ids[$pid] = $pid;
+			}
+		}
+		if (empty($product_ids)) {
+			return $map;
+		}
+		$rows = $this->db->select('id')
+			->from('erp_products')
+			->where_in('id', array_values($product_ids))
+			->where('type', 'cloths')
+			->get()
+			->result_array();
+		foreach ($rows as $row) {
+			$map[(int) $row['id']] = true;
+		}
+		return $map;
+	}
+
+	/**
+	 * Whether an order line is a cloth product (order_type=cloth or erp_products.type=cloths).
+	 *
+	 * @param	object|array	$item
+	 * @param	array<int,bool>	$cloth_product_ids
+	 */
+	private function _is_cloth_order_item($item, $cloth_product_ids = null)
+	{
+		$order_type = '';
+		$product_id = 0;
+		if (is_array($item)) {
+			$order_type = isset($item['order_type']) ? strtolower((string) $item['order_type']) : '';
+			$product_id = isset($item['product_id']) ? (int) $item['product_id'] : 0;
+		} else {
+			$order_type = isset($item->order_type) ? strtolower((string) $item->order_type) : '';
+			$product_id = isset($item->product_id) ? (int) $item->product_id : 0;
+		}
+		if ($order_type === 'cloth' || $order_type === 'cloths') {
+			return true;
+		}
+		if ($product_id > 0 && is_array($cloth_product_ids) && !empty($cloth_product_ids[$product_id])) {
+			return true;
+		}
+		if ($product_id > 0 && $this->db->table_exists('erp_products')) {
+			$row = $this->db->select('id')->from('erp_products')->where('id', $product_id)->where('type', 'cloths')->limit(1)->get()->row();
+			if (!empty($row)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Get school name for order
 	 */
-	private function _get_order_school_name($order_id, $order_row)
+	private function _get_order_school_name($order_id, $order_row, $cloth_product_ids = null)
 	{
+		$items = $this->db->select('order_type, product_id, school_id')->from('tbl_order_items')->where('order_id', $order_id)->get()->result();
+		if (empty($cloth_product_ids) && !empty($items)) {
+			$cloth_product_ids = $this->_get_cloth_product_id_map($items);
+		}
+		if (!empty($items)) {
+			$all_cloth = true;
+			foreach ($items as $it) {
+				if (!$this->_is_cloth_order_item($it, $cloth_product_ids)) {
+					$all_cloth = false;
+					break;
+				}
+			}
+			if ($all_cloth) {
+				return '';
+			}
+		}
+
 		if (!empty($order_row['school_name']))
 			return $order_row['school_name'];
 		if (!$this->db->table_exists('erp_schools'))
@@ -4696,8 +4794,22 @@ class Orders extends Vendor_base
 			}
 		}
 
-		$item = $this->db->select('oi.school_id, s.school_name')->from('tbl_order_items oi')->join('erp_schools s', 's.id = oi.school_id', 'left')->where('oi.order_id', $order_id)->where('oi.school_id IS NOT NULL')->where('oi.school_id > 0')->limit(1)->get()->row();
-		return !empty($item) && !empty($item->school_name) ? $item->school_name : '';
+		if (!empty($items)) {
+			foreach ($items as $it) {
+				if ($this->_is_cloth_order_item($it, $cloth_product_ids)) {
+					continue;
+				}
+				$item_school_id = isset($it->school_id) ? (int) $it->school_id : 0;
+				if ($item_school_id > 0) {
+					$sch = $this->db->select('school_name')->from('erp_schools')->where('id', $item_school_id)->limit(1)->get()->row();
+					if (!empty($sch) && !empty($sch->school_name)) {
+						return $sch->school_name;
+					}
+				}
+			}
+		}
+
+		return '';
 	}
 
 	/**
@@ -4719,14 +4831,15 @@ class Orders extends Vendor_base
 		$order = $order_data[0];
 		$order_id = $order->id;
 
-		// Check if invoice already exists
-		if (!empty($order->invoice_url) && file_exists($order->invoice_url)) {
-			// Download existing invoice
-			$this->load->helper('download');
-			$data = file_get_contents($order->invoice_url);
-			$name = 'invoice_' . $order->order_unique_id . '.pdf';
-			force_download($name, $data);
-			return;
+		// Always regenerate so template/logic updates apply (remove stale cached PDF if present)
+		if (!empty($order->invoice_url)) {
+			$cached_path = $order->invoice_url;
+			if (strpos($cached_path, FCPATH) !== 0) {
+				$cached_path = FCPATH . ltrim($cached_path, '/');
+			}
+			if (is_file($cached_path)) {
+				@unlink($cached_path);
+			}
 		}
 
 		// Generate invoice on the fly - get order details from tbl_order_details
@@ -4869,8 +4982,9 @@ class Orders extends Vendor_base
 		// Fetch order_type, items_arr, bookset_products for product display (like shipping label)
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
 		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
+		$order_details['cloth_product_ids'] = $this->_get_cloth_product_id_map($order_details['items_arr']);
 		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
-		$order_details['order_obj'] = (object) array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
+		$order_details['order_obj'] = (object) array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row, $order_details['cloth_product_ids'])));
 
 		// Prepare data for invoice view
 		$page_data['data'] = $order_details;
@@ -5073,8 +5187,9 @@ class Orders extends Vendor_base
 		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);
 		$order_details['items_arr'] = $this->_get_invoice_items_arr($order_id);
+		$order_details['cloth_product_ids'] = $this->_get_cloth_product_id_map($order_details['items_arr']);
 		$order_details['bookset_products'] = $this->_get_invoice_bookset_products($order_id, $order_details['order_type_label']);
-		$order_details['order_obj'] = (object) array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row)));
+		$order_details['order_obj'] = (object) array_merge($order_row, array('order_unique_id' => $order->order_unique_id, 'invoice_no' => $order_details['invoice_no'], 'school_name' => $this->_get_order_school_name($order_id, $order_row, $order_details['cloth_product_ids'])));
 
 		$page_data['data'] = $order_details;
 		$invoice_view_path = APPPATH . 'views/invoice/invoice_bill.php';

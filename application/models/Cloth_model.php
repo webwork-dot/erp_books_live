@@ -127,8 +127,22 @@ class Cloth_model extends CI_Model
 		return $row ?: NULL;
 	}
 
+	/**
+	 * Keep only real erp_products columns (drops JOIN aliases like color_name).
+	 */
+	protected function sanitizeClothRowForDb(array $data)
+	{
+		if (!$this->db->table_exists('erp_products')) {
+			return $data;
+		}
+
+		$allowed = array_flip($this->db->list_fields('erp_products'));
+		return array_intersect_key($data, $allowed);
+	}
+
 	public function createCloth(array $data)
 	{
+		$data = $this->sanitizeClothRowForDb($data);
 		$data['type'] = self::PRODUCT_TYPE;
 		$data['legacy_table'] = NULL;
 		$data['legacy_id'] = NULL;
@@ -146,6 +160,7 @@ class Cloth_model extends CI_Model
 
 	public function updateCloth($product_id, array $data)
 	{
+		$data = $this->sanitizeClothRowForDb($data);
 		$data['updated_at'] = date('Y-m-d H:i:s');
 		$this->db->where('id', (int) $product_id);
 		$this->db->where('type', self::PRODUCT_TYPE);

@@ -10,6 +10,7 @@ $d = $data;
 $shipping = isset($d['shipping']) ? $d['shipping'] : array();
 $order_type_label = isset($d['order_type_label']) ? $d['order_type_label'] : 'Individual';
 $items_arr = isset($d['items_arr']) ? $d['items_arr'] : array();
+$cloth_product_ids = isset($d['cloth_product_ids']) && is_array($d['cloth_product_ids']) ? $d['cloth_product_ids'] : array();
 $bookset_products = isset($d['bookset_products']) ? $d['bookset_products'] : array();
 $order = isset($d['order_obj']) ? $d['order_obj'] : (object) array();
 $products = isset($d['products']) ? $d['products'] : array();
@@ -525,11 +526,20 @@ if (!empty($order->razorpay_order_id)) {
             $total_gst += $gst_amt;
             $total_incl += $total_price;
 
-            $item_school = !empty($p_obj->school_name) ? $p_obj->school_name : (!empty($order->school_name) ? $order->school_name : '');
-            $school_str = !empty($item_school) ? '<b>' . htmlspecialchars($item_school) . '</b><br>' : '';
+            $line_product_id = isset($p_obj->product_id) ? (int) $p_obj->product_id : 0;
+            $is_cloth_item = !empty($p_obj->is_cloth)
+              || (isset($p_obj->order_type) && in_array(strtolower((string) $p_obj->order_type), array('cloth', 'cloths'), true))
+              || ($line_product_id > 0 && !empty($cloth_product_ids[$line_product_id]));
+            $school_str = '';
+            if (!$is_cloth_item) {
+              $item_school = !empty($p_obj->school_name) ? $p_obj->school_name : (!empty($order->school_name) ? $order->school_name : '');
+              $school_str = !empty($item_school) ? '<b>' . htmlspecialchars($item_school) . '</b><br>' : '';
+            }
 
             $desc = htmlspecialchars(isset($p_obj->product_title) ? $p_obj->product_title : '');
-            if (isset($p_obj->order_type) && $p_obj->order_type == 'uniform' || (isset($p_obj->is_variation) && $p_obj->is_variation == 1)) {
+            $is_uniform_or_variation = (isset($p_obj->order_type) && $p_obj->order_type == 'uniform')
+              || (!$is_cloth_item && isset($p_obj->is_variation) && $p_obj->is_variation == 1);
+            if ($is_uniform_or_variation) {
               if (empty($p_obj->class_name) && empty($p_obj->size_name) && !empty($p_obj->variation_name)) {
                 $desc .= '<br><small>' . htmlspecialchars($p_obj->variation_name) . '</small>';
               }
@@ -541,6 +551,12 @@ if (!empty($order->razorpay_order_id)) {
               }
               if (!empty($p_obj->hsn)) {
                 $desc .= '<br><small>HSN: ' . htmlspecialchars($p_obj->hsn) . '</small>';
+              }
+            } elseif ($is_cloth_item) {
+              if (!empty($p_obj->size_name)) {
+                $desc .= '<br><small>Size: ' . htmlspecialchars($p_obj->size_name) . '</small>';
+              } elseif (!empty($p_obj->variation_name)) {
+                $desc .= '<br><small>' . htmlspecialchars($p_obj->variation_name) . '</small>';
               }
             }
 

@@ -320,7 +320,16 @@ class Cloths extends Vendor_base
 
 		$this->db->trans_begin();
 		$new_data = $source;
-		unset($new_data['id'], $new_data['cloth_type_name'], $new_data['material_name'], $new_data['size_chart_name'], $new_data['master_size_chart_name'], $new_data['status_label']);
+		unset(
+			$new_data['id'],
+			$new_data['cloth_type_name'],
+			$new_data['material_name'],
+			$new_data['color_name'],
+			$new_data['color_code'],
+			$new_data['size_chart_name'],
+			$new_data['master_size_chart_name'],
+			$new_data['status_label']
+		);
 		$new_data['product_name'] = trim($source['product_name']) . ' copy';
 		$new_data['slug'] = slugify($new_data['product_name']) . '-tmp-' . time();
 		$new_data['created_at'] = date('Y-m-d H:i:s');
