@@ -212,6 +212,8 @@
 										$feature_url = '';
 										if ($feature['slug'] == 'uniforms') {
 											$feature_url = base_url('products/uniforms');
+										} elseif ($feature['slug'] == 'cloths') {
+											$feature_url = base_url('products/cloths');
 										} elseif ($feature['slug'] == 'stationery') {
 											$feature_url = base_url('products/stationery');
 										} else {
@@ -234,7 +236,7 @@
 													<?php endforeach; ?>
 												</ul>
 											</li>
-											<?php if (strtolower(trim((string)$feature['slug'])) === 'uniforms'): ?>
+											<?php if (strtolower(trim((string)$feature['slug'])) === 'uniforms' || strtolower(trim((string)$feature['slug'])) === 'cloths'): ?>
 												<li>
 													<a href="<?php echo base_url('size-charts'); ?>" class="<?php echo (strpos($current_uri, 'size-charts') !== false || strpos($current_uri, 'size_charts') !== false) ? 'active' : ''; ?>">
 														<i class="isax isax-ruler"></i><span>Size Charts</span>
@@ -252,7 +254,7 @@
 													<i class="isax isax-box"></i><span><?php echo htmlspecialchars($feature['name']); ?></span>
 												</a>
 											</li>
-											<?php if (strtolower(trim((string)$feature['slug'])) === 'uniforms'): ?>
+											<?php if (strtolower(trim((string)$feature['slug'])) === 'uniforms' || strtolower(trim((string)$feature['slug'])) === 'cloths'): ?>
 												<li>
 													<a href="<?php echo base_url('size-charts'); ?>" class="<?php echo (strpos($current_uri, 'size-charts') !== false || strpos($current_uri, 'size_charts') !== false) ? 'active' : ''; ?>">
 														<i class="isax isax-ruler"></i><span>Size Charts</span>

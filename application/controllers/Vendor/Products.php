@@ -1426,6 +1426,53 @@ class Products extends Vendor_base
 		}
 		}
 		
+		// Get cloths from erp_products
+		if ($this->db->table_exists('erp_products') && (empty($filters['product_type']) || $filters['product_type'] == 'cloths'))
+		{
+			$this->db->select('id, product_name, status, isbn, sku, product_mrp, selling_price');
+			$this->db->from('erp_products');
+			$this->db->where('vendor_id', $this->current_vendor['id']);
+			$this->db->where('type', 'cloths');
+			$this->db->where('is_deleted', 0);
+			if (isset($filters['status'])) {
+				$this->db->where('status', $this->Product_model->normalize_product_status($filters['status']));
+			}
+			if (!empty($filters['search'])) {
+				$this->db->group_start();
+				$this->db->like('product_name', $filters['search']);
+				$this->db->or_like('sku', $filters['search']);
+				$this->db->or_like('isbn', $filters['search']);
+				$this->db->group_end();
+			}
+			$cloth_rows = $this->db->get()->result_array();
+			foreach ($cloth_rows as $crow) {
+				$product = array(
+					'id' => $crow['id'],
+					'product_name' => $crow['product_name'],
+					'product_type' => 'cloths',
+					'status' => ((int) $crow['status'] === 1) ? 'active' : 'inactive',
+					'image' => '',
+					'sku' => isset($crow['sku']) ? $crow['sku'] : '',
+					'isbn' => isset($crow['isbn']) ? $crow['isbn'] : '',
+					'mrp' => isset($crow['product_mrp']) ? $crow['product_mrp'] : 0,
+					'selling_price' => isset($crow['selling_price']) ? $crow['selling_price'] : 0,
+					'additional_info' => '',
+				);
+				$img = $this->Product_model->get_main_product_image($crow['id'], $this->current_vendor['id']);
+				if ($img && !empty($img['image_path'])) {
+					$image_path = $img['image_path'];
+					if (strpos($image_path, 'assets/uploads/') === 0) {
+						$product['image'] = $image_path;
+					} elseif (strpos($image_path, 'uploads/') === 0) {
+						$product['image'] = 'assets/' . $image_path;
+					} else {
+						$product['image'] = 'assets/uploads/' . ltrim($image_path, '/');
+					}
+				}
+				$products_list[] = $product;
+			}
+		}
+		
 		// Get individual products from erp_individual_products table
 		if (empty($filters['product_type']) || $filters['product_type'] == 'individual')
 		{
@@ -1932,6 +1979,9 @@ class Products extends Vendor_base
 					break;
 				case 'uniform':
 					redirect($this->config->item('base_url') . '/products/uniforms/edit/' . $id);
+					break;
+				case 'cloths':
+					redirect($this->config->item('base_url') . '/products/cloths/edit/' . $id);
 					break;
 			}
 			return;

@@ -274,6 +274,20 @@ $route['products/uniforms/duplicate_uniform'] = 'Vendor/uniforms/duplicate_unifo
 $route['products/uniforms/toggle_status/(:num)'] = 'Vendor/uniforms/toggle_status/$1';
 $route['products/uniforms/toggle_status'] = 'Vendor/uniforms/toggle_status';
 
+// Cloths routes under products
+$route['products/cloths'] = 'Vendor/cloths/index';
+$route['products/cloths/add'] = 'Vendor/cloths/add';
+$route['products/cloths/edit/(:num)'] = 'Vendor/cloths/edit/$1';
+$route['products/cloths/delete/(:num)'] = 'Vendor/cloths/delete/$1';
+$route['products/cloths/get_sizes'] = 'Vendor/cloths/get_sizes';
+$route['products/cloths/add_cloth_type'] = 'Vendor/cloths/add_cloth_type';
+$route['products/cloths/add_material'] = 'Vendor/cloths/add_material';
+$route['products/cloths/add_color'] = 'Vendor/cloths/add_color';
+$route['products/cloths/delete_image/(:num)'] = 'Vendor/cloths/delete_image/$1';
+$route['products/cloths/duplicate_cloth'] = 'Vendor/cloths/duplicate_cloth';
+$route['products/cloths/toggle_status/(:num)'] = 'Vendor/cloths/toggle_status/$1';
+$route['products/cloths/toggle_status'] = 'Vendor/cloths/toggle_status';
+
 // Size charts routes
 $route['size-charts'] = 'Vendor/size_charts/index';
 $route['size-charts/add'] = 'Vendor/size_charts/add';

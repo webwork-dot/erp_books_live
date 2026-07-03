@@ -16,7 +16,7 @@ class Master_size_charts extends Vendor_base
 
 	private function enforceUniformFeatureAccess()
 	{
-		if ($this->checkFeatureAccess('uniforms') || $this->checkFeatureAccess('uniform')) {
+		if ($this->checkFeatureAccess('uniforms') || $this->checkFeatureAccess('uniform') || $this->checkFeatureAccess('cloths')) {
 			return;
 		}
 		$enabled_features = $this->getEnabledFeatures();
@@ -24,7 +24,7 @@ class Master_size_charts extends Vendor_base
 			foreach ($enabled_features as $feature) {
 				$slug = isset($feature['slug']) ? strtolower(trim((string) $feature['slug'])) : '';
 				$name = isset($feature['name']) ? strtolower(trim((string) $feature['name'])) : '';
-				if ($slug === 'uniforms' || $slug === 'uniform' || strpos($name, 'uniform') !== false) {
+				if ($slug === 'uniforms' || $slug === 'uniform' || $slug === 'cloths' || strpos($name, 'uniform') !== false || strpos($name, 'cloth') !== false) {
 					return;
 				}
 			}

@@ -1,0 +1,361 @@
+<!-- Start Breadcrumb -->
+<div class="d-flex d-block align-items-center justify-content-between flex-wrap gap-3 mb-3">
+	<div>
+		<h6>Manage Cloths</h6>
+	</div>
+	<div>
+		<a href="<?php echo base_url('products/cloths/add'); ?>" class="btn btn-primary">
+			<i class="isax isax-add"></i> Add New Cloth
+		</a>
+	</div>
+</div>
+<!-- End Breadcrumb -->
+
+<!-- Filters -->
+<div class="card mb-3">
+	<div class="card-body">
+		
+		<form method="get" action="<?php echo base_url('products/cloths'); ?>">
+			<?php if (!empty($cloths)): ?>
+				<div class="mb-3">
+					<p class="text-muted mb-0">Total Cloths: <strong><?php echo $total_cloths; ?></strong></p>
+				</div>
+			<?php endif; ?>
+
+
+			<!-- Search on Top -->
+			<div class="row gx-3 mb-3">
+				<div class="col-lg-8 col-md-8">
+					<div class="mb-3">
+						<label class="form-label">Search</label>
+						<input type="text" name="search" class="form-control" value="<?php echo isset($filters['search']) ? htmlspecialchars($filters['search']) : ''; ?>" placeholder="Product Name, ISBN, SKU...">
+					</div>
+				</div>
+				<div class="col-lg-2 col-md-4">
+					<div class="mb-3">
+						<label class="form-label">Status</label>
+						<select name="status" class="select">
+							<option value="">All Status</option>
+							<option value="active" <?php echo (isset($filters['status']) && $filters['status'] == 'active') ? 'selected' : ''; ?>>Active</option>
+							<option value="inactive" <?php echo (isset($filters['status']) && $filters['status'] == 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+						</select>
+					</div>
+				</div>
+				<div class="col-lg-2 col-md-4">
+					<div class="mb-3">
+						<label class="form-label">&nbsp;</label>
+						<div class="d-flex gap-2">
+							<button type="submit" class="btn btn-primary flex-fill">Filter</button>
+							<a href="<?php echo base_url('products/cloths'); ?>" class="btn btn-outline-secondary">Clear</a>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Accordion for Additional Filters -->
+			<div class="accordion" id="filterAccordion">
+				<div class="accordion-item">
+					<h2 class="accordion-header" id="headingFilters">
+						<button class="accordion-button <?php echo (isset($filters['cloth_type_id']) || isset($filters['material_id']) || isset($filters['gender'])) ? '' : 'collapsed'; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilters" aria-expanded="<?php echo (isset($filters['cloth_type_id']) || isset($filters['material_id']) || isset($filters['gender'])) ? 'true' : 'false'; ?>" aria-controls="collapseFilters">
+							<i class="isax isax-filter me-2"></i> Additional Filters
+						</button>
+					</h2>
+					<div id="collapseFilters" class="accordion-collapse collapse <?php echo (isset($filters['cloth_type_id']) || isset($filters['material_id']) || isset($filters['gender'])) ? 'show' : ''; ?>" aria-labelledby="headingFilters" data-bs-parent="#filterAccordion">
+						<div class="accordion-body">
+							<div class="row gx-3">
+								<div class="col-lg-3 col-md-6">
+									<div class="mb-3">
+										<label class="form-label">Cloth Type</label>
+										<select name="cloth_type_id" class="select">
+											<option value="">All Types</option>
+											<?php if (!empty($cloth_types)): ?>
+												<?php foreach ($cloth_types as $type): ?>
+													<option value="<?php echo $type['id']; ?>" <?php echo (isset($filters['cloth_type_id']) && $filters['cloth_type_id'] == $type['id']) ? 'selected' : ''; ?>>
+														<?php echo htmlspecialchars($type['name']); ?>
+													</option>
+												<?php endforeach; ?>
+											<?php endif; ?>
+										</select>
+									</div>
+								</div>
+								<div class="col-lg-3 col-md-6">
+									<div class="mb-3">
+										<label class="form-label">Material</label>
+										<select name="material_id" class="select">
+											<option value="">All Materials</option>
+											<?php if (!empty($materials)): ?>
+												<?php foreach ($materials as $material): ?>
+													<option value="<?php echo $material['id']; ?>" <?php echo (isset($filters['material_id']) && $filters['material_id'] == $material['id']) ? 'selected' : ''; ?>>
+														<?php echo htmlspecialchars($material['name']); ?>
+													</option>
+												<?php endforeach; ?>
+											<?php endif; ?>
+										</select>
+									</div>
+								</div>
+								<div class="col-lg-3 col-md-6">
+									<div class="mb-3">
+										<label class="form-label">Gender</label>
+										<select name="gender" class="select">
+											<option value="">All Genders</option>
+											<option value="male" <?php echo (isset($filters['gender']) && $filters['gender'] == 'male') ? 'selected' : ''; ?>>Male</option>
+											<option value="female" <?php echo (isset($filters['gender']) && $filters['gender'] == 'female') ? 'selected' : ''; ?>>Female</option>
+											<option value="unisex" <?php echo (isset($filters['gender']) && $filters['gender'] == 'unisex') ? 'selected' : ''; ?>>Unisex</option>
+										</select>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+
+<!-- Cloths List -->
+<div class="card">
+	<div class="card-body">
+		<?php if (!empty($cloths)): ?>
+			<div class="mb-3">
+				<p class="text-muted mb-0">Total Cloths: <strong><?php echo $total_cloths; ?></strong></p>
+			</div>
+		<?php endif; ?>
+		<div class="table-responsive">
+			<table class="table">
+				<thead>
+					<tr>
+						<th>Image</th>
+						<th>Product Name</th>
+						<th>Cloth Type</th>
+						<th>Material</th>
+						<th>Size chart gallery</th>
+						<th>Gender</th>
+						<th>MRP</th>
+						<th>Selling Price</th>
+						<th>GST %</th>
+						<th>Current Qty</th>
+						<th>Status</th>
+						<th class="text-end">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php if (!empty($cloths)): ?>
+						<?php $sr_no = (($current_page - 1) * $per_page) + 1; foreach ($cloths as $cloth): ?>
+							<tr>
+								<td>
+									<?php
+										$stored_path = trim($cloth['thumbnail']);
+										if (strpos($stored_path, 'http://') === 0 || strpos($stored_path, 'https://') === 0) {
+											$image_url = $stored_path;
+										} else {
+											$image_url = get_vendor_domain_url().'/' . $stored_path;
+										}
+									?>
+									<img src="<?php echo $image_url; ?>" alt="Uniform" style="width: 50px; height: 60px; object-fit: cover; border-radius: 4px;">
+
+								
+								</td>
+								<td>
+									<strong><?php echo htmlspecialchars($cloth['product_name']); ?></strong>
+									<?php if (!empty($cloth['isbn'])): ?>
+										<br><small class="text-muted">ISBN/SKU: <?php echo htmlspecialchars($cloth['isbn']); ?></small>
+									<?php endif; ?>
+								</td>
+								<td><?php echo htmlspecialchars($cloth['cloth_type_name'] ? $cloth['cloth_type_name'] : '-'); ?></td>
+								<td><?php echo htmlspecialchars($cloth['material_name'] ? $cloth['material_name'] : '-'); ?></td>
+								<td><?php echo !empty($cloth['master_size_chart_name']) ? htmlspecialchars($cloth['master_size_chart_name']) : '<span class="text-muted">—</span>'; ?></td>
+								<td>
+									<span class="badge badge-info">
+										<?php 
+										$genders = !empty($cloth['gender']) ? explode(',', $cloth['gender']) : array();
+										$genders = array_map('ucfirst', $genders);
+										echo !empty($genders) ? implode(', ', $genders) : '-'; 
+										?>
+									</span>
+								</td>
+								<td>
+									<?php if (!empty($cloth['size_prices'])): ?>
+										<?php if ($cloth['min_mrp'] == $cloth['max_mrp']): ?>
+											₹<?php echo number_format($cloth['min_mrp'], 2); ?>
+										<?php else: ?>
+											₹<?php echo number_format($cloth['min_mrp'], 2); ?> - ₹<?php echo number_format($cloth['max_mrp'], 2); ?>
+										<?php endif; ?>
+									<?php elseif (!empty($cloth['price'])): ?>
+										₹<?php echo number_format($cloth['price'], 2); ?>
+									<?php else: ?>
+										<span class="text-muted">-</span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<?php if (!empty($cloth['size_prices'])): ?>
+										<?php if ($cloth['min_selling_price'] == $cloth['max_selling_price']): ?>
+											₹<?php echo number_format($cloth['min_selling_price'], 2); ?>
+										<?php else: ?>
+											₹<?php echo number_format($cloth['min_selling_price'], 2); ?> - ₹<?php echo number_format($cloth['max_selling_price'], 2); ?>
+										<?php endif; ?>
+									<?php else: ?>
+										<span class="text-muted">-</span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<?php if (!empty($cloth['gst'])): ?>
+										<?php echo number_format((float) $cloth['gst'], 2); ?>%
+									<?php else: ?>
+										<span class="text-muted">-</span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<?php
+										$stock_qty = isset($cloth['current_stock_qty']) ? (float)$cloth['current_stock_qty'] : 0.0;
+										$low_stock = $stock_qty <= 5;
+									?>
+									<span class="badge <?php echo $low_stock ? 'badge-danger' : 'badge-success'; ?>">
+										<?php echo number_format($stock_qty, 2); ?>
+									</span>
+								</td>
+								<td>
+									<div class="form-check form-switch">
+										<input class="form-check-input"
+											type="checkbox"
+											id="status-switch-<?php echo $cloth['id']; ?>"
+											<?php echo ($cloth['status_label'] === 'active') ? 'checked' : ''; ?>
+											onchange="toggleClothStatus(
+												<?php echo $cloth['id']; ?>,
+												this.checked ? 'inactive' : 'active'
+											)">
+									</div>
+								</td>
+
+								<td class="text-end">
+									<button type="button"
+										class="btn btn-sm btn-outline-secondary"
+										data-bs-toggle="tooltip"
+										title="Duplicate"
+										onclick='openDuplicateClothModal(<?php echo (int) $cloth['id']; ?>, <?php echo json_encode($cloth['product_name']); ?>)'>
+										<i class="isax isax-copy"></i>
+									</button>
+									<a href="<?php echo base_url('products/cloths/edit/' . $cloth['id']); ?>" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
+										<i class="isax isax-edit"></i>
+									</a>
+									<!-- <a href="<?php echo base_url('products/cloths/delete/' . $cloth['id']); ?>" onclick="return confirm('Are you sure you want to delete this uniform?');" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
+										<i class="isax isax-trash"></i>
+									</a> -->
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php else: ?>
+						<tr>
+							<td colspan="11" class="text-center text-muted">No cloths found</td>
+						</tr>
+					<?php endif; ?>
+				</tbody>
+			</table>
+		</div>
+		
+		<?php if (!empty($cloths)): ?>
+			<div class="mt-3 d-flex justify-content-between align-items-center">
+				<?php if ($total_pages > 1): ?>
+					<nav aria-label="Page navigation">
+						<ul class="pagination pagination-sm mb-0">
+							<?php if ($current_page > 1): ?>
+								<li class="page-item">
+									<a class="page-link" href="<?php echo base_url('products/cloths?' . http_build_query(array_merge($filters, array('page' => $current_page - 1)))); ?>">Previous</a>
+								</li>
+							<?php else: ?>
+								<li class="page-item disabled">
+									<span class="page-link">Previous</span>
+								</li>
+							<?php endif; ?>
+							
+							<?php for ($i = 1; $i <= $total_pages; $i++): ?>
+								<?php if ($i == $current_page): ?>
+									<li class="page-item active">
+										<span class="page-link"><?php echo $i; ?></span>
+									</li>
+								<?php else: ?>
+								<li class="page-item">
+									<a class="page-link" href="<?php echo base_url('products/cloths?' . http_build_query(array_merge($filters, array('page' => $i)))); ?>"><?php echo $i; ?></a>
+								</li>
+								<?php endif; ?>
+							<?php endfor; ?>
+							
+							<?php if ($current_page < $total_pages): ?>
+								<li class="page-item">
+									<a class="page-link" href="<?php echo base_url('products/cloths?' . http_build_query(array_merge($filters, array('page' => $current_page + 1)))); ?>">Next</a>
+								</li>
+							<?php else: ?>
+								<li class="page-item disabled">
+									<span class="page-link">Next</span>
+								</li>
+							<?php endif; ?>
+						</ul>
+					</nav>
+				<?php endif; ?>
+			</div>
+		<?php endif; ?>
+	</div>
+</div>
+
+<div class="modal fade" id="duplicateClothModal" tabindex="-1" aria-labelledby="duplicateClothModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="duplicateClothModalLabel">Duplicate Cloth</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<?php echo form_open(base_url('products/cloths/duplicate_cloth'), array('id' => 'duplicateClothForm')); ?>
+			<div class="modal-body">
+				<input type="hidden" name="cloth_id" id="duplicate_cloth_id" value="">
+				<p class="mb-2">Are you sure you want to duplicate this cloth?</p>
+				<p class="mb-0 text-muted">New cloth name will be: <strong id="duplicate_cloth_new_name"></strong></p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+				<button type="submit" class="btn btn-primary">Duplicate</button>
+			</div>
+			<?php echo form_close(); ?>
+		</div>
+	</div>
+</div>
+
+<script>
+function openDuplicateClothModal(clothId, clothName)
+{
+	$('#duplicate_cloth_id').val(clothId);
+	$('#duplicate_cloth_new_name').text((clothName || 'Cloth') + ' copy');
+	const modalEl = document.getElementById('duplicateClothModal');
+	if (modalEl && window.bootstrap && typeof bootstrap.Modal !== 'undefined') {
+		const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+		modal.show();
+	}
+}
+
+function toggleClothStatus(clothId, currentStatus)
+{
+	const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+
+	$.ajax({
+		url: "<?php echo base_url('products/cloths/toggle_status'); ?>/" + clothId,
+		type: "POST",
+		dataType: "json",
+		data: {
+			status: newStatus,
+			<?php echo $this->security->get_csrf_token_name(); ?>:
+			"<?php echo $this->security->get_csrf_hash(); ?>"
+		},
+		success: function(response) {
+			if (response.status !== 'success') {
+				alert(response.message);
+				// revert toggle
+				$('#status-switch-' + clothId).prop('checked', currentStatus === 'active');
+			}
+		},
+		error: function() {
+			alert('Something went wrong');
+			$('#status-switch-' + clothId).prop('checked', currentStatus === 'active');
+		}
+	});
+}
+</script>
+

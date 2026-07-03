@@ -210,6 +210,9 @@
 										case 'uniform':
 											$edit_url = base_url('products/uniforms/edit/' . $product['id']);
                                             break;
+										case 'cloths':
+											$edit_url = base_url('products/cloths/edit/' . $product['id']);
+                                            break;
 										case 'individual':
 											$edit_url = base_url('products/individual-products/edit/' . $product['id']);
                                             break;
@@ -234,6 +237,9 @@
                                             break;
 										case 'uniform':
 											$delete_url = base_url('products/uniforms/delete/' . $product['id']);
+                                            break;
+										case 'cloths':
+											$delete_url = base_url('products/cloths/delete/' . $product['id']);
                                             break;
 										case 'individual':
 											$delete_url = base_url('products/individual-products/delete/' . $product['id']);

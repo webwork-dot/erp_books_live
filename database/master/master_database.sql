@@ -129,7 +129,8 @@ INSERT INTO `erp_features` (`name`, `slug`, `description`, `is_active`) VALUES
 ('Uniforms', 'uniforms', 'Uniforms module for managing uniform products', 1),
 ('Stationery', 'stationery', 'Stationery module for managing stationery items', 1),
 ('Bags', 'bags', 'Bags module for managing bag products', 1),
-('Sports', 'sports', 'Sports items module', 1)
+('Sports', 'sports', 'Sports items module', 1),
+('Cloths', 'cloths', 'Cloths module for general apparel products', 1)
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 
 -- =============================================
