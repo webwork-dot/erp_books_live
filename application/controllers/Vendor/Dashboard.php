@@ -321,6 +321,8 @@ class Dashboard extends Vendor_base
 						// Get parent_id information from master database to filter main categories
 						$feature_parent_map = array();
 						$feature_active_map = array();
+						$feature_slug_map = array();
+						$feature_name_map = array();
 						
 						try {
 							// Temporarily switch to master database
@@ -343,15 +345,8 @@ class Dashboard extends Vendor_base
 									foreach ($master_query->result_array() as $mf) {
 										$feature_parent_map[$mf['id']] = $mf['parent_id'];
 										$feature_active_map[$mf['id']] = $mf['is_active'];
-										
-										// Only include main categories (no parent_id) that are active
-										if (empty($mf['parent_id']) && $mf['is_active'] == 1) {
-											$enabled_features[] = array(
-												'id' => $mf['id'],
-												'slug' => $mf['slug'],
-												'name' => $mf['name']
-											);
-										}
+										$feature_slug_map[$mf['id']] = $mf['slug'];
+										$feature_name_map[$mf['id']] = $mf['name'];
 									}
 								}
 							}
@@ -367,6 +362,27 @@ class Dashboard extends Vendor_base
 							if (!empty($this->current_vendor['database_name'])) {
 								$this->load->library('Tenant');
 								$this->tenant->switchDatabase($this->current_vendor);
+							}
+						}
+						
+						// Build the enabled features list from the vendor's own enabled
+						// features (same logic as index_template.php). Master data is only
+						// used to filter out subcategories and inactive features. When a
+						// feature is missing from the master erp_features table (e.g. a
+						// custom/legacy feature such as "cloths"), default to including it
+						// as a main category so the sidebar stays consistent with the rest
+						// of the pages, which rely on the layout's fallback computation.
+						foreach ($all_vendor_features as $vf) {
+							$feature_id = (int) $vf['feature_id'];
+							$parent_id = isset($feature_parent_map[$feature_id]) ? $feature_parent_map[$feature_id] : NULL;
+							$is_active = isset($feature_active_map[$feature_id]) ? $feature_active_map[$feature_id] : 1;
+							
+							if (empty($feature_parent_map) || (empty($parent_id) && $is_active == 1)) {
+								$enabled_features[] = array(
+									'id' => $feature_id,
+									'slug' => isset($vf['feature_slug']) ? $vf['feature_slug'] : (isset($feature_slug_map[$feature_id]) ? $feature_slug_map[$feature_id] : ''),
+									'name' => isset($vf['feature_name']) ? $vf['feature_name'] : (isset($feature_name_map[$feature_id]) ? $feature_name_map[$feature_id] : '')
+								);
 							}
 						}
 					}
