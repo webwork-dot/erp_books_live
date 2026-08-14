@@ -220,14 +220,23 @@ class Individual_product_model extends CI_Model
 	public function createCategory($data)
 	{
 		$data['created_at'] = date('Y-m-d H:i:s');
-		$this->db->insert('erp_individual_product_categories', $data);
-		
-		if ($this->db->affected_rows() > 0)
+		$this->ensureAutoIncrementPrimaryKey('erp_individual_product_categories');
+
+		if (!$this->db->insert('erp_individual_product_categories', $data))
 		{
-			return $this->db->insert_id();
+			$error = $this->db->error();
+			log_message('error', 'Failed to create category: ' . (isset($error['message']) ? $error['message'] : 'insert failed'));
+			return FALSE;
 		}
-		
-		return FALSE;
+
+		$id = (int) $this->db->insert_id();
+		if ($id <= 0)
+		{
+			log_message('error', 'Category was inserted but insert_id is 0. Table erp_individual_product_categories is missing AUTO_INCREMENT.');
+			return FALSE;
+		}
+
+		return $id;
 	}
 	
 	/**
@@ -255,14 +264,80 @@ class Individual_product_model extends CI_Model
 	public function createColor($data)
 	{
 		$data['created_at'] = date('Y-m-d H:i:s');
-		$this->db->insert('erp_individual_product_colors', $data);
-		
-		if ($this->db->affected_rows() > 0)
+		$this->ensureAutoIncrementPrimaryKey('erp_individual_product_colors');
+
+		if (!$this->db->insert('erp_individual_product_colors', $data))
 		{
-			return $this->db->insert_id();
+			$error = $this->db->error();
+			log_message('error', 'Failed to create color: ' . (isset($error['message']) ? $error['message'] : 'insert failed'));
+			return FALSE;
 		}
-		
-		return FALSE;
+
+		$id = (int) $this->db->insert_id();
+		if ($id <= 0)
+		{
+			log_message('error', 'Color was inserted but insert_id is 0. Table erp_individual_product_colors is missing AUTO_INCREMENT.');
+			return FALSE;
+		}
+
+		return $id;
+	}
+
+	/**
+	 * Ensure id column is AUTO_INCREMENT PRIMARY KEY.
+	 * Some vendor dumps are imported without keys, so inserts succeed with id=0.
+	 *
+	 * @param	string	$table
+	 * @return	bool
+	 */
+	private function ensureAutoIncrementPrimaryKey($table)
+	{
+		static $checked = array();
+		if (isset($checked[$table]))
+		{
+			return $checked[$table];
+		}
+
+		if (!$this->db->table_exists($table))
+		{
+			$checked[$table] = FALSE;
+			return FALSE;
+		}
+
+		$col = $this->db->query('SHOW COLUMNS FROM `' . $table . "` LIKE 'id'")->row_array();
+		if (empty($col))
+		{
+			$checked[$table] = FALSE;
+			return FALSE;
+		}
+
+		$extra = isset($col['Extra']) ? strtolower($col['Extra']) : '';
+		if (strpos($extra, 'auto_increment') !== FALSE)
+		{
+			$checked[$table] = TRUE;
+			return TRUE;
+		}
+
+		$this->db->query('SET @ai := 0');
+		$this->db->query('UPDATE `' . $table . '` SET `id` = (@ai := @ai + 1)');
+
+		$has_primary = $this->db->query("SHOW INDEX FROM `" . $table . "` WHERE Key_name = 'PRIMARY'")->num_rows() > 0;
+		$sql = 'ALTER TABLE `' . $table . '` MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT';
+		if (!$has_primary)
+		{
+			$sql .= ', ADD PRIMARY KEY (`id`)';
+		}
+
+		if (!$this->db->query($sql))
+		{
+			$error = $this->db->error();
+			log_message('error', 'Failed to add AUTO_INCREMENT on ' . $table . ': ' . (isset($error['message']) ? $error['message'] : 'alter failed'));
+			$checked[$table] = FALSE;
+			return FALSE;
+		}
+
+		$checked[$table] = TRUE;
+		return TRUE;
 	}
 	
 	/**

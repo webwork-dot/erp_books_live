@@ -196,12 +196,8 @@
 									<?php if (isset($enabled_features) && !empty($enabled_features)): ?>
 									<?php foreach ($enabled_features as $feature): ?>
 										<?php 
-										// Skip Individual products - hidden but not removed
-										if (strtolower($feature['slug']) == 'individual-products' || 
-											strtolower($feature['slug']) == 'individual_products' ||
-											strtolower($feature['slug']) == 'pos' ||
-											stripos($feature['name'], 'Individual products') !== false ||
-											stripos($feature['name'], 'Individual Products') !== false) {
+										// Skip POS in Catalog; it has its own sidebar section
+										if (strtolower($feature['slug']) == 'pos') {
 											continue;
 										}
 										

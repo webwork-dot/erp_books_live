@@ -146,21 +146,27 @@ class Variation_model extends CI_Model
 	 */
 	public function createVariationValue($data)
 	{
-		// Remove display_order if present
 		if (isset($data['display_order']))
 		{
 			unset($data['display_order']);
 		}
-		
+
 		$data['created_at'] = date('Y-m-d H:i:s');
-		$this->db->insert('erp_variation_values', $data);
-		
-		if ($this->db->affected_rows() > 0)
+		if (!$this->db->insert('erp_variation_values', $data))
 		{
-			return $this->db->insert_id();
+			$error = $this->db->error();
+			log_message('error', 'Failed to create variation value: ' . (isset($error['message']) ? $error['message'] : 'insert failed'));
+			return FALSE;
 		}
-		
-		return FALSE;
+
+		$id = (int) $this->db->insert_id();
+		if ($id <= 0)
+		{
+			log_message('error', 'Variation value was inserted but insert_id is 0. Table erp_variation_values is missing AUTO_INCREMENT.');
+			return FALSE;
+		}
+
+		return $id;
 	}
 	
 	/**
@@ -476,6 +482,38 @@ class Variation_model extends CI_Model
 		}
 		
 		return $combinations;
+	}
+
+	public function getMinCombinationPrice($product_id)
+	{
+		$row = $this->db->select('MIN(selling_price) AS selling_price, MIN(mrp) AS mrp', FALSE)
+			->from('erp_variation_combination_prices')
+			->where('product_id', (int) $product_id)
+			->get()
+			->row_array();
+
+		if (empty($row) || (float) $row['selling_price'] <= 0)
+		{
+			return NULL;
+		}
+
+		return $row;
+	}
+
+	public function syncUnifiedProductPrices($legacy_id)
+	{
+		$price = $this->getMinCombinationPrice($legacy_id);
+		if (empty($price))
+		{
+			return FALSE;
+		}
+
+		$this->db->where('legacy_table', 'erp_individual_products');
+		$this->db->where('legacy_id', (int) $legacy_id);
+		return $this->db->update('erp_products', array(
+			'selling_price' => $price['selling_price'],
+			'product_mrp' => $price['mrp'],
+		));
 	}
 	
 	/**

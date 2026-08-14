@@ -1695,7 +1695,10 @@ class Products extends Vendor_base
 		// Validation rules
 		$this->form_validation->set_rules('product_name', 'Product Name', 'required|trim');
 		$this->form_validation->set_rules('category_id', 'Category', 'required|integer');
-		$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'integer');
+		if ($this->input->post('subcategory_id') !== NULL && $this->input->post('subcategory_id') !== '')
+		{
+			$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'integer');
+		}
 		$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
 		$this->form_validation->set_rules('product_origin', 'Product Origin', 'required|trim');
 		$this->form_validation->set_rules('product_description', 'Product Description', 'required|trim');
@@ -1858,6 +1861,7 @@ class Products extends Vendor_base
 						if (!empty($formatted_combinations))
 						{
 							$this->Variation_model->saveProductCombinations($product_id, $formatted_combinations);
+							$this->Variation_model->syncUnifiedProductPrices($product_id);
 						}
 					}
 				}
@@ -2120,7 +2124,10 @@ class Products extends Vendor_base
 		// Validation rules
 		$this->form_validation->set_rules('product_name', 'Product Name', 'required|trim');
 		$this->form_validation->set_rules('category_id', 'Category', 'required|integer');
-		$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'integer');
+		if ($this->input->post('subcategory_id') !== NULL && $this->input->post('subcategory_id') !== '')
+		{
+			$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'integer');
+		}
 		$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
 		$this->form_validation->set_rules('product_origin', 'Product Origin', 'required|trim');
 		$this->form_validation->set_rules('product_description', 'Product Description', 'required|trim');
@@ -2278,6 +2285,7 @@ class Products extends Vendor_base
 						if (!empty($formatted_combinations))
 						{
 							$this->Variation_model->saveProductCombinations($id, $formatted_combinations);
+							$this->Variation_model->syncUnifiedProductPrices($id);
 						}
 					}
 				}
@@ -2975,39 +2983,122 @@ class Products extends Vendor_base
 	public function add_variation_value()
 	{
 		header('Content-Type: application/json');
-		
+
 		$type_id = $this->input->post('type_id');
-		$name = $this->input->post('name');
-		
-		if (empty($type_id) || empty($name))
+		$values_json = $this->input->post('values');
+		$values = array();
+
+		if (!empty($values_json))
+		{
+			$decoded = json_decode($values_json, TRUE);
+			if (is_array($decoded))
+			{
+				$values = $decoded;
+			}
+		}
+
+		if (empty($values))
+		{
+			$name = trim((string) $this->input->post('name'));
+			if ($name !== '')
+			{
+				$values[] = array(
+					'name' => $name,
+					'value' => $this->input->post('value')
+				);
+			}
+		}
+
+		if (empty($type_id) || empty($values))
 		{
 			echo json_encode(array('status' => 'error', 'message' => 'Variation type ID and value name are required'));
 			return;
 		}
-		
+
 		$this->load->model('Variation_model');
-		
-		$data = array(
-			'variation_type_id' => $type_id,
-			'name' => $name,
-			'value' => $this->input->post('value'),
-			'status' => 'active'
-		);
-		
-		$value_id = $this->Variation_model->createVariationValue($data);
-		
-		if ($value_id)
+		$type = $this->Variation_model->getVariationTypeById($type_id);
+		if (!$type || (int) $type['vendor_id'] !== (int) $this->current_vendor['id'])
 		{
+			echo json_encode(array('status' => 'error', 'message' => 'Variation type not found'));
+			return;
+		}
+
+		$added = 0;
+		$failed = 0;
+		$last_id = 0;
+		$last_name = '';
+		$errors = array();
+
+		foreach ($values as $item)
+		{
+			$name = isset($item['name']) ? trim((string) $item['name']) : '';
+			if ($name === '')
+			{
+				$failed++;
+				continue;
+			}
+
+			if ($this->Variation_model->checkVariationValueNameExists($name, $type_id))
+			{
+				$failed++;
+				$errors[] = $name . ' already exists';
+				continue;
+			}
+
+			$value_id = $this->Variation_model->createVariationValue(array(
+				'variation_type_id' => $type_id,
+				'name' => $name,
+				'value' => isset($item['value']) ? $item['value'] : '',
+				'status' => 'active'
+			));
+
+			if ($value_id)
+			{
+				$added++;
+				$last_id = $value_id;
+				$last_name = $name;
+			}
+			else
+			{
+				$failed++;
+			}
+		}
+
+		if ($added > 0)
+		{
+			$message = 'Successfully added ' . $added . ' value(s)!';
+			if ($failed > 0)
+			{
+				$message = 'Added ' . $added . ' value(s) successfully. ' . $failed . ' failed.';
+				if (!empty($errors))
+				{
+					$message .= ' ' . implode('. ', $errors);
+				}
+			}
+
 			echo json_encode(array(
 				'status' => 'success',
-				'id' => $value_id,
-				'name' => $name
+				'id' => $last_id,
+				'name' => $last_name,
+				'added_count' => $added,
+				'failed_count' => $failed,
+				'message' => $message
 			));
+			return;
 		}
-		else
+
+		$message = 'Failed to create variation value';
+		if (!empty($errors))
 		{
-			echo json_encode(array('status' => 'error', 'message' => 'Failed to create variation value'));
+			$message = implode('. ', $errors);
 		}
+
+		echo json_encode(array(
+			'status' => 'error',
+			'message' => $message,
+			'added_count' => 0,
+			'failed_count' => $failed
+		));
 	}
 	
 	/**

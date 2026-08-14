@@ -88,14 +88,16 @@
 						<div class="mb-3">
 							<label class="form-label">Category <span class="text-danger">*</span></label>
 							<div class="input-group">
-								<select name="category_id" id="category_id" class="select" required>
-									<option value="">Select Category</option>
-									<?php if (!empty($parent_categories)): ?>
-										<?php foreach ($parent_categories as $parent): ?>
-											<option value="<?php echo $parent['id']; ?>"><?php echo htmlspecialchars($parent['name']); ?></option>
-										<?php endforeach; ?>
-									<?php endif; ?>
-								</select>
+								<div class="flex-grow-1">
+									<select name="category_id" id="category_id" class="select" form="individual-product-form" required>
+										<option value="">Select Category</option>
+										<?php if (!empty($parent_categories)): ?>
+											<?php foreach ($parent_categories as $parent): ?>
+												<option value="<?php echo $parent['id']; ?>"><?php echo htmlspecialchars($parent['name']); ?></option>
+											<?php endforeach; ?>
+										<?php endif; ?>
+									</select>
+								</div>
 								<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal" style="padding: 0.4rem 1rem;">
 									<i class="isax isax-add"></i> Add
 								</button>
@@ -108,9 +110,11 @@
 						<div class="mb-3">
 							<label class="form-label">Subcategory</label>
 							<div class="input-group">
-								<select name="subcategory_id" id="subcategory_id" class="select">
-									<option value="">Select Subcategory (Optional)</option>
-								</select>
+								<div class="flex-grow-1">
+									<select name="subcategory_id" id="subcategory_id" class="select" form="individual-product-form">
+										<option value="">Select Subcategory (Optional)</option>
+									</select>
+								</div>
 								<button type="button" class="btn btn-outline-primary" id="addSubcategoryBtn" data-bs-toggle="modal" data-bs-target="#addSubcategoryModal" style="padding: 0.4rem 1rem;" disabled>
 									<i class="isax isax-add"></i> Add
 								</button>
@@ -268,7 +272,7 @@
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
 							<label class="form-label">Selling Price <span class="text-danger">*</span></label>
-							<input type="number" name="selling_price" id="selling_price" class="form-control" form="individual-product-form" value="<?php echo set_value('selling_price'); ?>" step="0.01" min="0" max="" required>
+							<input type="number" name="selling_price" id="selling_price" class="form-control" form="individual-product-form" value="<?php echo set_value('selling_price'); ?>" step="0.01" min="0" required>
 							<small class="text-muted fs-12">Must be less than or equal to MRP</small>
 							<?php echo form_error('selling_price', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 							<div id="selling_price_error" class="text-danger fs-13 mt-1" style="display: none;">Selling price must be less than or equal to MRP</div>
@@ -497,6 +501,19 @@
 <script src="<?php echo base_url('assets/ckeditor/ckeditor.js'); ?>"></script>
 <script src="<?php echo base_url('assets/js/image-sortable.js'); ?>"></script>
 <script>
+function showError(message) {
+	if (typeof Swal !== 'undefined') {
+		Swal.fire({
+			icon: 'error',
+			title: 'Error',
+			text: message,
+			confirmButtonColor: '#dc3545'
+		});
+	} else {
+		alert('Error: ' + message);
+	}
+}
+
 // Initialize CKEditor
 window.addEventListener('load', function() {
 	function initCKEditor() {
@@ -519,6 +536,58 @@ window.addEventListener('load', function() {
 // Store variation combinations data
 var variationCombinationsData = [];
 
+function setBasePriceFieldsEnabled(enabled) {
+	['mrp', 'selling_price'].forEach(function(id) {
+		var field = document.getElementById(id);
+		if (!field) {
+			return;
+		}
+		field.disabled = !enabled;
+		if (enabled) {
+			field.setAttribute('required', 'required');
+		} else {
+			field.removeAttribute('required');
+			field.removeAttribute('max');
+			field.setCustomValidity('');
+			field.classList.remove('is-invalid');
+		}
+	});
+}
+
+function bindBasePriceValidation() {
+	var mrpField = document.getElementById('mrp');
+	var sellingPriceField = document.getElementById('selling_price');
+	if (!mrpField || !sellingPriceField || mrpField.dataset.priceValidationBound === '1') {
+		return;
+	}
+
+	function validatePrices() {
+		var mrp = parseFloat(mrpField.value) || 0;
+		var sellingPrice = parseFloat(sellingPriceField.value) || 0;
+		var errorDiv = document.getElementById('selling_price_error');
+
+		if (mrp > 0 && sellingPrice > 0 && sellingPrice > mrp) {
+			if (errorDiv) {
+				errorDiv.style.display = 'block';
+			}
+			sellingPriceField.setCustomValidity('Selling price must be less than or equal to MRP');
+			sellingPriceField.classList.add('is-invalid');
+		} else {
+			if (errorDiv) {
+				errorDiv.style.display = 'none';
+			}
+			sellingPriceField.setCustomValidity('');
+			sellingPriceField.classList.remove('is-invalid');
+		}
+	}
+
+	mrpField.addEventListener('input', validatePrices);
+	mrpField.addEventListener('change', validatePrices);
+	sellingPriceField.addEventListener('input', validatePrices);
+	sellingPriceField.addEventListener('change', validatePrices);
+	mrpField.dataset.priceValidationBound = '1';
+}
+
 // Handle variation type selection change
 function handleVariationTypeChange() {
 	var selectedTypes = [];
@@ -528,80 +597,26 @@ function handleVariationTypeChange() {
 		var select = document.getElementById('variation_type_ids');
 		selectedTypes = Array.from(select.selectedOptions).map(opt => opt.value);
 	}
-	
+
 	var priceSection = document.getElementById('price_section');
 	var variationPricingSection = document.getElementById('variation_pricing_section');
 	var variationInfoSection = document.getElementById('variation_info_section');
-	var mrpField = document.getElementById('mrp');
-	var sellingPriceField = document.getElementById('selling_price');
-	
-	// Add real-time validation for MRP and selling price
-	if (mrpField && sellingPriceField) {
-		function validatePrices() {
-			var mrp = parseFloat(mrpField.value) || 0;
-			var sellingPrice = parseFloat(sellingPriceField.value) || 0;
-			var errorDiv = document.getElementById('selling_price_error');
-			
-			if (mrp > 0 && sellingPrice > 0 && sellingPrice > mrp) {
-				if (errorDiv) {
-					errorDiv.style.display = 'block';
-				}
-				if (sellingPriceField) {
-					sellingPriceField.setCustomValidity('Selling price must be less than or equal to MRP');
-					sellingPriceField.classList.add('is-invalid');
-				}
-				if (mrpField) {
-					mrpField.setAttribute('max', sellingPrice);
-				}
-			} else {
-				if (errorDiv) {
-					errorDiv.style.display = 'none';
-				}
-				if (sellingPriceField) {
-					sellingPriceField.setCustomValidity('');
-					sellingPriceField.classList.remove('is-invalid');
-				}
-				if (mrpField && mrp > 0) {
-					sellingPriceField.setAttribute('max', mrp - 0.01);
-				}
-			}
-		}
-		
-		mrpField.addEventListener('input', validatePrices);
-		mrpField.addEventListener('change', validatePrices);
-		sellingPriceField.addEventListener('input', validatePrices);
-		sellingPriceField.addEventListener('change', validatePrices);
-		
-		// Set initial max attribute
-		if (mrpField.value) {
-			var mrp = parseFloat(mrpField.value) || 0;
-			if (mrp > 0) {
-				sellingPriceField.setAttribute('max', mrp - 0.01);
-			}
-		}
-	}
-	
+
+	bindBasePriceValidation();
+
 	if (selectedTypes.length === 0) {
-		// No variations - show base price
 		priceSection.style.display = 'block';
 		variationPricingSection.style.display = 'none';
 		variationInfoSection.style.display = 'none';
-		if (mrpField) mrpField.setAttribute('required', 'required');
-		if (sellingPriceField) sellingPriceField.setAttribute('required', 'required');
+		setBasePriceFieldsEnabled(true);
 		variationCombinationsData = [];
 		document.getElementById('variation_combinations').value = '';
 	} else {
-		// Has variations - hide base price, show variation pricing
 		priceSection.style.display = 'none';
 		variationPricingSection.style.display = 'block';
 		variationInfoSection.style.display = 'block';
-		if (mrpField) mrpField.removeAttribute('required');
-		if (sellingPriceField) sellingPriceField.removeAttribute('required');
-		
-		// Show selected variation info
+		setBasePriceFieldsEnabled(false);
 		updateVariationInfo(selectedTypes);
-		
-		// Generate combinations
 		generateVariationCombinations(selectedTypes);
 	}
 }
@@ -971,32 +986,40 @@ function loadSizeColorPricing() {
 
 // Add category function
 // Load subcategories when category is selected
-function loadSubcategories(categoryId) {
+function loadSubcategories(categoryId, selectedId) {
 	var subcategorySelect = document.getElementById('subcategory_id');
 	var $subcategorySelect = $('#subcategory_id');
 	var addSubcategoryBtn = document.getElementById('addSubcategoryBtn');
-	
+	selectedId = selectedId ? String(selectedId) : '';
+
+	function reinitSubcategorySelect() {
+		if ($subcategorySelect.hasClass('select')) {
+			$subcategorySelect.select2({
+				minimumResultsForSearch: -1,
+				width: '100%'
+			});
+			if (selectedId) {
+				$subcategorySelect.val(selectedId).trigger('change.select2');
+			}
+		}
+	}
+
 	if (!categoryId) {
-		// Clear subcategories and disable button
 		if ($subcategorySelect.length && $subcategorySelect.hasClass('select2-hidden-accessible')) {
 			$subcategorySelect.select2('destroy');
 		}
 		subcategorySelect.innerHTML = '<option value="">Select Subcategory (Optional)</option>';
-		if ($subcategorySelect.hasClass('select')) {
-			$subcategorySelect.select2();
-		}
+		reinitSubcategorySelect();
 		if (addSubcategoryBtn) {
 			addSubcategoryBtn.disabled = true;
 		}
 		return;
 	}
-	
-	// Enable add button
+
 	if (addSubcategoryBtn) {
 		addSubcategoryBtn.disabled = false;
 	}
-	
-	// Set parent category in subcategory modal
+
 	var subcategoryParentSelect = document.getElementById('subcategory_parent_id');
 	if (subcategoryParentSelect) {
 		subcategoryParentSelect.value = categoryId;
@@ -1004,32 +1027,29 @@ function loadSubcategories(categoryId) {
 			$('#subcategory_parent_id').val(categoryId).trigger('change');
 		}
 	}
-	
-	// Fetch subcategories
+
 	fetch('<?php echo base_url("products/individual-products/get_subcategories"); ?>?parent_id=' + categoryId)
 		.then(response => response.json())
 		.then(data => {
 			if (data.status === 'success') {
-				// Destroy Select2 if initialized
 				if ($subcategorySelect.length && $subcategorySelect.hasClass('select2-hidden-accessible')) {
 					$subcategorySelect.select2('destroy');
 				}
-				
-				// Clear and populate subcategories
+
 				subcategorySelect.innerHTML = '<option value="">Select Subcategory (Optional)</option>';
 				if (data.subcategories && data.subcategories.length > 0) {
 					data.subcategories.forEach(function(sub) {
 						var option = document.createElement('option');
 						option.value = sub.id;
 						option.textContent = sub.name;
+						if (selectedId && String(sub.id) === selectedId) {
+							option.selected = true;
+						}
 						subcategorySelect.appendChild(option);
 					});
 				}
-				
-				// Reinitialize Select2
-				if ($subcategorySelect.hasClass('select')) {
-					$subcategorySelect.select2();
-				}
+
+				reinitSubcategorySelect();
 			}
 		})
 		.catch(error => {
@@ -1151,9 +1171,15 @@ function addSubcategory() {
 			option.selected = true;
 			select.appendChild(option);
 			
-			// Reinitialize Select2 (global script will handle it)
 			if ($select.hasClass('select')) {
-				$select.select2();
+				if ($select.hasClass('select2-hidden-accessible')) {
+					$select.select2('destroy');
+				}
+				$select.select2({
+					minimumResultsForSearch: -1,
+					width: '100%'
+				});
+				$select.val(String(data.id)).trigger('change.select2');
 			}
 			
 			document.getElementById('addSubcategoryForm').reset();
@@ -1301,6 +1327,19 @@ document.addEventListener('DOMContentLoaded', function() {
 			
 			// Collect variation pricing before form submit and validate prices
 			$('form#individual-product-form').on('submit', function(e) {
+				['category_id', 'subcategory_id'].forEach(function(fieldId) {
+					var $field = $('#' + fieldId);
+					if ($field.length) {
+						$field.prop('disabled', false);
+						var currentVal = $field.val();
+						if (currentVal !== null && currentVal !== undefined) {
+							$field.find('option').prop('selected', false);
+							$field.find('option[value="' + currentVal + '"]').prop('selected', true);
+							$field.val(currentVal);
+						}
+					}
+				});
+
 				// Validate base prices if no variations
 				var hasVariations = $('#variation_type_ids').val() && $('#variation_type_ids').val().length > 0;
 				if (!hasVariations) {
