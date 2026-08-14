@@ -98,28 +98,28 @@
 										<?php endif; ?>
 									</select>
 								</div>
-								<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal" style="padding: 0.4rem 1rem;">
+								<button type="button" class="btn btn-outline-primary" id="addCategoryBtn" data-bs-toggle="modal" data-bs-target="#addCategoryModal" style="padding: 0.4rem 1rem;" <?php echo (empty($parent_categories) || count($parent_categories) < 3) ? '' : 'disabled'; ?> title="<?php echo (!empty($parent_categories) && count($parent_categories) >= 3) ? 'Maximum 3 categories allowed' : 'Add category'; ?>">
 									<i class="isax isax-add"></i> Add
 								</button>
 							</div>
-							<small class="text-muted fs-13">Select a main category.</small>
+							<small class="text-muted fs-13">Select a main category. Maximum 3 categories.</small>
 							<?php echo form_error('category_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
 					<div class="col-lg-6 col-md-6">
 						<div class="mb-3">
-							<label class="form-label">Subcategory</label>
+							<label class="form-label">Subcategory <span class="text-danger">*</span></label>
 							<div class="input-group">
 								<div class="flex-grow-1">
-									<select name="subcategory_id" id="subcategory_id" class="select" form="individual-product-form">
-										<option value="">Select Subcategory (Optional)</option>
+									<select name="subcategory_id" id="subcategory_id" class="select" form="individual-product-form" required>
+										<option value="">Select Subcategory</option>
 									</select>
 								</div>
 								<button type="button" class="btn btn-outline-primary" id="addSubcategoryBtn" data-bs-toggle="modal" data-bs-target="#addSubcategoryModal" style="padding: 0.4rem 1rem;" disabled>
 									<i class="isax isax-add"></i> Add
 								</button>
 							</div>
-							<small class="text-muted fs-13">Select a subcategory (optional).</small>
+							<small class="text-muted fs-13">Select a subcategory.</small>
 							<?php echo form_error('subcategory_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
@@ -1114,6 +1114,18 @@ function addCategory() {
 			// Load subcategories for the newly added category
 			loadSubcategories(data.id);
 			
+			var addCategoryBtn = document.getElementById('addCategoryBtn');
+			var parentCount = select.querySelectorAll('option[value]:not([value=""])').length;
+			if (addCategoryBtn && parentCount >= 3) {
+				addCategoryBtn.setAttribute('disabled', 'disabled');
+				addCategoryBtn.setAttribute('title', 'Maximum 3 categories allowed');
+				var modalEl = document.getElementById('addCategoryModal');
+				if (modalEl && typeof bootstrap !== 'undefined') {
+					var modal = bootstrap.Modal.getInstance(modalEl);
+					if (modal) modal.hide();
+				}
+			}
+
 			document.getElementById('addCategoryForm').reset();
 			var nameInput = document.getElementById('category_name');
 			nameInput.placeholder = 'Added: ' + data.name + ' (add another or close)';

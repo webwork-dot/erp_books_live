@@ -1695,10 +1695,7 @@ class Products extends Vendor_base
 		// Validation rules
 		$this->form_validation->set_rules('product_name', 'Product Name', 'required|trim');
 		$this->form_validation->set_rules('category_id', 'Category', 'required|integer');
-		if ($this->input->post('subcategory_id') !== NULL && $this->input->post('subcategory_id') !== '')
-		{
-			$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'integer');
-		}
+		$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'required|integer');
 		$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
 		$this->form_validation->set_rules('product_origin', 'Product Origin', 'required|trim');
 		$this->form_validation->set_rules('product_description', 'Product Description', 'required|trim');
@@ -2124,10 +2121,7 @@ class Products extends Vendor_base
 		// Validation rules
 		$this->form_validation->set_rules('product_name', 'Product Name', 'required|trim');
 		$this->form_validation->set_rules('category_id', 'Category', 'required|integer');
-		if ($this->input->post('subcategory_id') !== NULL && $this->input->post('subcategory_id') !== '')
-		{
-			$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'integer');
-		}
+		$this->form_validation->set_rules('subcategory_id', 'Subcategory', 'required|integer');
 		$this->form_validation->set_rules('min_quantity', 'Min Quantity', 'required|integer|greater_than[0]');
 		$this->form_validation->set_rules('product_origin', 'Product Origin', 'required|trim');
 		$this->form_validation->set_rules('product_description', 'Product Description', 'required|trim');
@@ -2542,12 +2536,19 @@ class Products extends Vendor_base
 		}
 		
 		$this->load->model('Individual_product_model');
+
+		$parent_id = $this->input->post('parent_id') ? $this->input->post('parent_id') : NULL;
+		if (empty($parent_id) && $this->Individual_product_model->countParentCategories($this->current_vendor['id']) >= 3)
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'You can add a maximum of 3 categories.'));
+			return;
+		}
 		
 		$data = array(
 			'vendor_id' => $this->current_vendor['id'],
 			'name' => $name,
 			'description' => $this->input->post('description'),
-			'parent_id' => $this->input->post('parent_id') ? $this->input->post('parent_id') : NULL,
+			'parent_id' => $parent_id,
 			'status' => 'active'
 		);
 		

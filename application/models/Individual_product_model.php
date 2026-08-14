@@ -194,6 +194,11 @@ class Individual_product_model extends CI_Model
 		
 		return $query->result_array();
 	}
+
+	public function countParentCategories($vendor_id)
+	{
+		return count($this->getParentCategoriesByVendor($vendor_id));
+	}
 	
 	/**
 	 * Get subcategories by parent category
@@ -219,6 +224,15 @@ class Individual_product_model extends CI_Model
 	 */
 	public function createCategory($data)
 	{
+		if (empty($data['parent_id']) && !empty($data['vendor_id']))
+		{
+			if ($this->countParentCategories((int) $data['vendor_id']) >= 3)
+			{
+				log_message('error', 'Cannot create more than 3 parent categories.');
+				return FALSE;
+			}
+		}
+
 		$data['created_at'] = date('Y-m-d H:i:s');
 		$this->ensureAutoIncrementPrimaryKey('erp_individual_product_categories');
 
