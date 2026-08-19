@@ -6488,10 +6488,8 @@ class Products extends Vendor_base
 				}
 				else
 				{
-					// Start transaction
 					$this->db->trans_start();
 					
-					// Calculate package counts
 					$mandatory_count = 0;
 					$optional_count = 0;
 					$mandatory_optional_count = 0;
@@ -6512,7 +6510,6 @@ class Products extends Vendor_base
 						}
 					}
 					
-					// Create bookset
 				$bookset_data = array(
 					'vendor_id' => $this->current_vendor['id'],
 					'school_id' => $this->input->post('school_id'),
@@ -6527,7 +6524,6 @@ class Products extends Vendor_base
 					'updated_at' => date('Y-m-d H:i:s')
 				);
 				
-				// Generate slug for the bookset
 				$bookset_data['slug'] = $this->generate_bookset_slug($bookset_data);
 					
 					$this->db->insert('erp_booksets', $bookset_data);
@@ -6535,10 +6531,8 @@ class Products extends Vendor_base
 					
 					if ($bookset_id)
 					{
-						// Create packages
 						foreach ($packages_data as $pkg)
 						{
-							// Determine package counts
 							$pkg_mandatory = 0;
 							$pkg_optional = 0;
 							$pkg_mandatory_optional = 0;
@@ -6556,7 +6550,6 @@ class Products extends Vendor_base
 								$pkg_mandatory_optional = 1;
 							}
 							
-							// Create package
 							$package_data = array(
 								'vendor_id' => $this->current_vendor['id'],
 								'bookset_id' => $bookset_id,
@@ -6577,7 +6570,7 @@ class Products extends Vendor_base
 								'status' => $this->input->post('status'),
 								'with_product' => 0,
 								'category_id' => NULL,
-								'category' => NULL, // Packages without products don't have a category
+								'category' => NULL,
 								'created_at' => date('Y-m-d H:i:s'),
 								'updated_at' => date('Y-m-d H:i:s')
 							);
@@ -6589,7 +6582,8 @@ class Products extends Vendor_base
 						
 						if ($this->db->trans_status() === FALSE)
 						{
-							$this->session->set_flashdata('error', 'Failed to create bookset. Please try again.');
+							log_message('error', 'Bookset creation failed: DB transaction error. Last query: ' . $this->db->last_query());
+							$this->session->set_flashdata('error', 'Failed to create bookset (DB error). Please try again.');
 						}
 						else
 						{
@@ -6600,7 +6594,8 @@ class Products extends Vendor_base
 					}
 					else
 					{
-						$this->session->set_flashdata('error', 'Failed to create bookset. Please try again.');
+						log_message('error', 'Bookset insert failed. Last query: ' . $this->db->last_query() . ' | DB Error: ' . json_encode($this->db->error()));
+						$this->session->set_flashdata('error', 'Failed to create bookset (insert failed). DB: ' . json_encode($this->db->error()));
 					}
 				}
 			}

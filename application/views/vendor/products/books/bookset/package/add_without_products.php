@@ -191,7 +191,7 @@
 <script>
 (function() {
 	function initScript() {
-		if (typeof window.jQuery === 'undefined') {
+		if (typeof window.jQuery === 'undefined' || typeof window.jQuery.fn.select2 === 'undefined') {
 			setTimeout(initScript, 100);
 			return;
 		}

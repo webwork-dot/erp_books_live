@@ -11,7 +11,12 @@
 	<meta name="author" content="ERP Team">
 
 	<!-- Favicon -->
-	<link rel="shortcut icon" type="image/x-icon" href="<?php echo base_url('assets/template/img/favicon.png'); ?>">
+	<?php 
+	$favicon_url = (isset($current_vendor['favicon']) && !empty($current_vendor['favicon']) && file_exists(FCPATH . $current_vendor['favicon'])) 
+		? base_url($current_vendor['favicon']) 
+		: base_url('assets/template/img/favicon.png');
+	?>
+	<link rel="shortcut icon" type="image/x-icon" href="<?php echo $favicon_url; ?>">
 
 	<!-- Apple Touch Icon -->
 	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('assets/template/img/apple-touch-icon.png'); ?>">
