@@ -2572,6 +2572,93 @@ class Products extends Vendor_base
 	}
 	
 	/**
+	 * Get category by ID (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function individual_products_get_category()
+	{
+		header('Content-Type: application/json');
+
+		$id = $this->input->get('id');
+		if (empty($id))
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Category ID is required'));
+			return;
+		}
+
+		$this->load->model('Individual_product_model');
+		$category = $this->Individual_product_model->getCategoryById($id, $this->current_vendor['id']);
+
+		if (!$category)
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Category not found'));
+			return;
+		}
+
+		echo json_encode(array(
+			'status' => 'success',
+			'category' => array(
+				'id' => (int) $category['id'],
+				'name' => $category['name'],
+				'description' => isset($category['description']) ? $category['description'] : '',
+				'parent_id' => !empty($category['parent_id']) ? (int) $category['parent_id'] : NULL,
+				'is_subcategory' => !empty($category['parent_id']),
+			),
+		));
+	}
+
+	/**
+	 * Update category (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function individual_products_update_category()
+	{
+		header('Content-Type: application/json');
+
+		$id = $this->input->post('id');
+		$name = trim((string) $this->input->post('name'));
+
+		if (empty($id) || $name === '')
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Category ID and name are required'));
+			return;
+		}
+
+		$this->load->model('Individual_product_model');
+		$category = $this->Individual_product_model->getCategoryById($id, $this->current_vendor['id']);
+
+		if (!$category)
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Category not found'));
+			return;
+		}
+
+		$updated = $this->Individual_product_model->updateCategory($id, $this->current_vendor['id'], array(
+			'name' => $name,
+			'description' => $this->input->post('description'),
+		));
+
+		if (!$updated)
+		{
+			echo json_encode(array('status' => 'error', 'message' => 'Failed to update category'));
+			return;
+		}
+
+		$fresh = $this->Individual_product_model->getCategoryById($id, $this->current_vendor['id']);
+
+		echo json_encode(array(
+			'status' => 'success',
+			'id' => (int) $fresh['id'],
+			'name' => $fresh['name'],
+			'description' => isset($fresh['description']) ? $fresh['description'] : '',
+			'parent_id' => !empty($fresh['parent_id']) ? (int) $fresh['parent_id'] : NULL,
+			'is_subcategory' => !empty($fresh['parent_id']),
+		));
+	}
+
+	/**
 	 * Get subcategories by parent (AJAX)
 	 *
 	 * @return	void

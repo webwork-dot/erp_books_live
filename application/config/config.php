@@ -506,6 +506,8 @@ $config['csrf_exclude_uris'] = array(
 	'products/uniforms/edit_house',
 	'products/uniforms/get_houses',
 	'products/individual-products/add_category',
+	'products/individual-products/update_category',
+	'products/individual-products/get_category',
 	'products/individual-products/get_subcategories',
 	'products/individual-products/add_color',
 	'products/individual-products/get_sizes',

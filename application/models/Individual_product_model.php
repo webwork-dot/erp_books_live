@@ -252,6 +252,60 @@ class Individual_product_model extends CI_Model
 
 		return $id;
 	}
+
+	/**
+	 * Get a single category by ID for the current vendor
+	 *
+	 * @param	int	$id		Category ID
+	 * @param	int	$vendor_id	Vendor ID
+	 * @return	array|null
+	 */
+	public function getCategoryById($id, $vendor_id)
+	{
+		$this->db->where('id', (int) $id);
+		$this->db->where('vendor_id', (int) $vendor_id);
+		$this->db->where('status', 'active');
+		$query = $this->db->get('erp_individual_product_categories');
+
+		return $query->num_rows() > 0 ? $query->row_array() : NULL;
+	}
+
+	/**
+	 * Update category name/description
+	 *
+	 * @param	int	$id		Category ID
+	 * @param	int	$vendor_id	Vendor ID
+	 * @param	array	$data	Fields to update (name, description)
+	 * @return	bool
+	 */
+	public function updateCategory($id, $vendor_id, $data)
+	{
+		$category = $this->getCategoryById($id, $vendor_id);
+		if (!$category)
+		{
+			return FALSE;
+		}
+
+		$update = array();
+		if (isset($data['name']) && trim($data['name']) !== '')
+		{
+			$update['name'] = trim($data['name']);
+		}
+		if (array_key_exists('description', $data))
+		{
+			$update['description'] = $data['description'];
+		}
+
+		if (empty($update))
+		{
+			return FALSE;
+		}
+
+		$this->db->where('id', (int) $id);
+		$this->db->where('vendor_id', (int) $vendor_id);
+
+		return $this->db->update('erp_individual_product_categories', $update);
+	}
 	
 	/**
 	 * Get all colors by vendor

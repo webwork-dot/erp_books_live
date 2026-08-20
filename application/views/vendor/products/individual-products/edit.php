@@ -137,6 +137,9 @@
 								<button type="button" class="btn btn-outline-primary" id="addCategoryBtn" data-bs-toggle="modal" data-bs-target="#addCategoryModal" style="padding: 0.4rem 1rem;" <?php echo (empty($parent_categories) || count($parent_categories) < 3) ? '' : 'disabled'; ?> title="<?php echo (!empty($parent_categories) && count($parent_categories) >= 3) ? 'Maximum 3 categories allowed' : 'Add category'; ?>">
 									<i class="isax isax-add"></i> Add
 								</button>
+								<button type="button" class="btn btn-outline-secondary" id="editCategoryBtn" onclick="openEditCategoryModal()" style="padding: 0.4rem 1rem;" disabled title="Edit selected category">
+									<i class="isax isax-edit"></i> Edit
+								</button>
 							</div>
 							<small class="text-muted fs-13">Select a main category. Maximum 3 categories.</small>
 							<?php echo form_error('category_id', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
@@ -158,6 +161,9 @@
 								</div>
 								<button type="button" class="btn btn-outline-primary" id="addSubcategoryBtn" data-bs-toggle="modal" data-bs-target="#addSubcategoryModal" style="padding: 0.4rem 1rem;" <?php echo empty($selected_category_id) ? 'disabled' : ''; ?>>
 									<i class="isax isax-add"></i> Add
+								</button>
+								<button type="button" class="btn btn-outline-secondary" id="editSubcategoryBtn" onclick="openEditSubcategoryModal()" style="padding: 0.4rem 1rem;" disabled title="Edit selected subcategory">
+									<i class="isax isax-edit"></i> Edit
 								</button>
 							</div>
 							<small class="text-muted fs-13">Select a subcategory.</small>
@@ -390,6 +396,7 @@
 			</div>
 			<div class="modal-body">
 				<form id="addCategoryForm">
+					<input type="hidden" id="category_edit_id" value="">
 					<div class="mb-3">
 						<label class="form-label">Name <span class="text-danger">*</span></label>
 						<input type="text" name="name" id="category_name" class="form-control" required>
@@ -402,7 +409,7 @@
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-				<button type="button" class="btn btn-primary" onclick="addCategory()">Add Category</button>
+				<button type="button" class="btn btn-primary" id="categoryModalSaveBtn" onclick="saveCategoryModal()">Add Category</button>
 			</div>
 		</div>
 	</div>
@@ -418,6 +425,7 @@
 			</div>
 			<div class="modal-body">
 				<form id="addSubcategoryForm">
+					<input type="hidden" id="subcategory_edit_id" value="">
 					<div class="mb-3">
 						<label class="form-label">Parent Category</label>
 						<select name="parent_id" id="subcategory_parent_id" class="select" required>
@@ -442,7 +450,7 @@
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-				<button type="button" class="btn btn-primary" onclick="addSubcategory()">Add Subcategory</button>
+				<button type="button" class="btn btn-primary" id="subcategoryModalSaveBtn" onclick="saveSubcategoryModal()">Add Subcategory</button>
 			</div>
 		</div>
 	</div>
@@ -552,6 +560,19 @@ function showError(message) {
 		});
 	} else {
 		alert('Error: ' + message);
+	}
+}
+
+function showSuccess(message) {
+	if (typeof Swal !== 'undefined') {
+		Swal.fire({
+			icon: 'success',
+			title: 'Success',
+			text: message,
+			confirmButtonColor: '#198754'
+		});
+	} else {
+		alert(message);
 	}
 }
 
@@ -1098,6 +1119,237 @@ function loadSubcategories(categoryId, selectedId) {
 		});
 }
 
+function resetCategoryModalAdd() {
+	document.getElementById('category_edit_id').value = '';
+	document.getElementById('addCategoryForm').reset();
+	document.getElementById('addCategoryModalLabel').textContent = 'Add Category';
+	document.getElementById('categoryModalSaveBtn').textContent = 'Add Category';
+}
+
+function resetSubcategoryModalAdd() {
+	document.getElementById('subcategory_edit_id').value = '';
+	document.getElementById('addSubcategoryForm').reset();
+	document.getElementById('addSubcategoryModalLabel').textContent = 'Add Subcategory';
+	document.getElementById('subcategoryModalSaveBtn').textContent = 'Add Subcategory';
+	var parentSelect = document.getElementById('subcategory_parent_id');
+	if (parentSelect) {
+		parentSelect.disabled = false;
+	}
+}
+
+function updateCategoryEditButtonState() {
+	var editBtn = document.getElementById('editCategoryBtn');
+	var categoryId = document.getElementById('category_id').value;
+	if (editBtn) {
+		editBtn.disabled = !categoryId;
+	}
+}
+
+function updateSubcategoryEditButtonState() {
+	var editBtn = document.getElementById('editSubcategoryBtn');
+	var subcategoryId = document.getElementById('subcategory_id').value;
+	if (editBtn) {
+		editBtn.disabled = !subcategoryId;
+	}
+}
+
+function updateSelectOptionLabel(selectId, optionId, label) {
+	var select = document.getElementById(selectId);
+	if (!select || !optionId) {
+		return;
+	}
+	var option = select.querySelector('option[value="' + optionId + '"]');
+	if (option) {
+		option.textContent = label;
+	}
+	if (typeof $ !== 'undefined' && $('#' + selectId).hasClass('select2-hidden-accessible')) {
+		$('#' + selectId).trigger('change.select2');
+	}
+}
+
+function openEditCategoryModal() {
+	var categoryId = document.getElementById('category_id').value;
+	if (!categoryId) {
+		showError('Please select a category to edit');
+		return;
+	}
+
+	fetch('<?php echo base_url("products/individual-products/get_category"); ?>?id=' + encodeURIComponent(categoryId))
+		.then(response => response.json())
+		.then(data => {
+			if (data.status !== 'success' || !data.category) {
+				showError(data.message || 'Failed to load category');
+				return;
+			}
+			if (data.category.is_subcategory) {
+				showError('Please use Edit on the subcategory field');
+				return;
+			}
+
+			document.getElementById('category_edit_id').value = data.category.id;
+			document.getElementById('category_name').value = data.category.name;
+			document.getElementById('category_description').value = data.category.description || '';
+			document.getElementById('addCategoryModalLabel').textContent = 'Edit Category';
+			document.getElementById('categoryModalSaveBtn').textContent = 'Update Category';
+
+			var modalEl = document.getElementById('addCategoryModal');
+			if (modalEl && typeof bootstrap !== 'undefined') {
+				bootstrap.Modal.getOrCreateInstance(modalEl).show();
+			}
+		})
+		.catch(error => {
+			console.error('Error:', error);
+			showError('An error occurred');
+		});
+}
+
+function openEditSubcategoryModal() {
+	var subcategoryId = document.getElementById('subcategory_id').value;
+	if (!subcategoryId) {
+		showError('Please select a subcategory to edit');
+		return;
+	}
+
+	fetch('<?php echo base_url("products/individual-products/get_category"); ?>?id=' + encodeURIComponent(subcategoryId))
+		.then(response => response.json())
+		.then(data => {
+			if (data.status !== 'success' || !data.category) {
+				showError(data.message || 'Failed to load subcategory');
+				return;
+			}
+			if (!data.category.is_subcategory) {
+				showError('Please use Edit on the category field');
+				return;
+			}
+
+			document.getElementById('subcategory_edit_id').value = data.category.id;
+			document.getElementById('subcategory_name').value = data.category.name;
+			document.getElementById('subcategory_description').value = data.category.description || '';
+
+			var parentSelect = document.getElementById('subcategory_parent_id');
+			if (parentSelect) {
+				parentSelect.value = data.category.parent_id || '';
+				parentSelect.disabled = true;
+				if ($('#subcategory_parent_id').hasClass('select2-hidden-accessible')) {
+					$('#subcategory_parent_id').val(data.category.parent_id || '').trigger('change.select2');
+				}
+			}
+
+			document.getElementById('addSubcategoryModalLabel').textContent = 'Edit Subcategory';
+			document.getElementById('subcategoryModalSaveBtn').textContent = 'Update Subcategory';
+
+			var modalEl = document.getElementById('addSubcategoryModal');
+			if (modalEl && typeof bootstrap !== 'undefined') {
+				bootstrap.Modal.getOrCreateInstance(modalEl).show();
+			}
+		})
+		.catch(error => {
+			console.error('Error:', error);
+			showError('An error occurred');
+		});
+}
+
+function saveCategoryModal() {
+	if (document.getElementById('category_edit_id').value) {
+		updateCategory();
+	} else {
+		addCategory();
+	}
+}
+
+function saveSubcategoryModal() {
+	if (document.getElementById('subcategory_edit_id').value) {
+		updateSubcategory();
+	} else {
+		addSubcategory();
+	}
+}
+
+function updateCategory() {
+	var id = document.getElementById('category_edit_id').value;
+	var name = document.getElementById('category_name').value;
+	var description = document.getElementById('category_description').value;
+
+	if (!id || !name) {
+		showError('Please enter a name');
+		return;
+	}
+
+	var formData = new FormData();
+	formData.append('id', id);
+	formData.append('name', name);
+	formData.append('description', description);
+
+	fetch('<?php echo base_url("products/individual-products/update_category"); ?>', {
+		method: 'POST',
+		body: formData
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.status === 'success') {
+			updateSelectOptionLabel('category_id', data.id, data.name);
+			updateSelectOptionLabel('subcategory_parent_id', data.id, data.name);
+
+			var modalEl = document.getElementById('addCategoryModal');
+			if (modalEl && typeof bootstrap !== 'undefined') {
+				var modal = bootstrap.Modal.getInstance(modalEl);
+				if (modal) modal.hide();
+			}
+
+			resetCategoryModalAdd();
+			showSuccess('Category updated successfully');
+		} else {
+			showError(data.message || 'Failed to update category');
+		}
+	})
+	.catch(error => {
+		console.error('Error:', error);
+		showError('An error occurred');
+	});
+}
+
+function updateSubcategory() {
+	var id = document.getElementById('subcategory_edit_id').value;
+	var name = document.getElementById('subcategory_name').value;
+	var description = document.getElementById('subcategory_description').value;
+
+	if (!id || !name) {
+		showError('Please enter a name');
+		return;
+	}
+
+	var formData = new FormData();
+	formData.append('id', id);
+	formData.append('name', name);
+	formData.append('description', description);
+
+	fetch('<?php echo base_url("products/individual-products/update_category"); ?>', {
+		method: 'POST',
+		body: formData
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.status === 'success') {
+			updateSelectOptionLabel('subcategory_id', data.id, data.name);
+
+			var modalEl = document.getElementById('addSubcategoryModal');
+			if (modalEl && typeof bootstrap !== 'undefined') {
+				var modal = bootstrap.Modal.getInstance(modalEl);
+				if (modal) modal.hide();
+			}
+
+			resetSubcategoryModalAdd();
+			showSuccess('Subcategory updated successfully');
+		} else {
+			showError(data.message || 'Failed to update subcategory');
+		}
+	})
+	.catch(error => {
+		console.error('Error:', error);
+		showError('An error occurred');
+	});
+}
+
 function addCategory() {
 	var name = document.getElementById('category_name').value;
 	var description = document.getElementById('category_description').value;
@@ -1422,21 +1674,41 @@ document.addEventListener('DOMContentLoaded', function() {
 			$('#category_id').on('change', function() {
 				var categoryId = $(this).val();
 				loadSubcategories(categoryId);
+				updateCategoryEditButtonState();
+				updateSubcategoryEditButtonState();
 			});
-			
-			// Set parent category when subcategory modal opens
+
+			$('#subcategory_id').on('change', function() {
+				updateSubcategoryEditButtonState();
+			});
+
+			updateCategoryEditButtonState();
+			updateSubcategoryEditButtonState();
+
+			$('#addCategoryModal').on('show.bs.modal', function() {
+				if (!document.getElementById('category_edit_id').value) {
+					resetCategoryModalAdd();
+				}
+			});
+
 			$('#addSubcategoryModal').on('show.bs.modal', function() {
-				var categoryId = $('#category_id').val();
-				if (categoryId) {
-					var subcategoryParentSelect = document.getElementById('subcategory_parent_id');
-					if (subcategoryParentSelect) {
-						subcategoryParentSelect.value = categoryId;
-						if ($('#subcategory_parent_id').hasClass('select2-hidden-accessible')) {
-							$('#subcategory_parent_id').val(categoryId).trigger('change');
+				if (!document.getElementById('subcategory_edit_id').value) {
+					resetSubcategoryModalAdd();
+					var categoryId = $('#category_id').val();
+					if (categoryId) {
+						var subcategoryParentSelect = document.getElementById('subcategory_parent_id');
+						if (subcategoryParentSelect) {
+							subcategoryParentSelect.value = categoryId;
+							if ($('#subcategory_parent_id').hasClass('select2-hidden-accessible')) {
+								$('#subcategory_parent_id').val(categoryId).trigger('change');
+							}
 						}
 					}
 				}
 			});
+
+			$('#addCategoryModal').on('hidden.bs.modal', resetCategoryModalAdd);
+			$('#addSubcategoryModal').on('hidden.bs.modal', resetSubcategoryModalAdd);
 			
 			// Handle variation type selection change
 			$('#variation_type_ids').on('change', function() {
