@@ -1516,9 +1516,10 @@ class Products extends Vendor_base
 						if (isset($img['is_main']) && $img['is_main'] == 1)
 						{
 							$image_path = $img['image_path'];
-							// Handle different path formats
 							if (strpos($image_path, 'assets/uploads/') === 0) {
 								$product['image'] = $image_path;
+							} elseif (strpos($image_path, 'uploads/') === 0) {
+								$product['image'] = 'assets/' . $image_path;
 							} elseif (strpos($image_path, 'vendors/') === 0) {
 								$product['image'] = 'assets/uploads/' . $image_path;
 							} else {
@@ -1531,9 +1532,10 @@ class Products extends Vendor_base
 					if (empty($product['image']) && !empty($images[0]))
 					{
 						$image_path = $images[0]['image_path'];
-						// Handle different path formats
 						if (strpos($image_path, 'assets/uploads/') === 0) {
 							$product['image'] = $image_path;
+						} elseif (strpos($image_path, 'uploads/') === 0) {
+							$product['image'] = 'assets/' . $image_path;
 						} elseif (strpos($image_path, 'vendors/') === 0) {
 							$product['image'] = 'assets/uploads/' . $image_path;
 						} else {
@@ -2319,88 +2321,149 @@ class Products extends Vendor_base
 	 */
 	protected function handleIndividualProductImageUploads($product_id)
 	{
-		if (!empty($_FILES['images']['name'][0]))
+		if (empty($_FILES['images']['name'][0]))
 		{
-			$this->config->load('upload');
-			$uploadCfg = $this->config->item('individual_product_upload');
-			$this->load->helper('common');
-			$vendor_folder = get_vendor_domain_folder();
-			$date_folder = date('Y_m_d');
-			$upload_path = rtrim($uploadCfg['root_path'], '/') . '/' . $uploadCfg['relative_dir'] . $vendor_folder . '/' . $date_folder . '/';
-			if (!is_dir($upload_path)) { mkdir($upload_path, 0755, TRUE); }
-			
-			$files = $_FILES['images'];
-			$image_order = json_decode($this->input->post('image_order'), TRUE);
-			$main_image_index = (int)$this->input->post('main_image_index');
-			
-			if (!is_array($image_order))
+			return;
+		}
+
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('individual_product_upload');
+		if (empty($uploadCfg) || empty($uploadCfg['root_path']))
+		{
+			log_message('error', 'Individual product upload config missing.');
+			$this->session->set_flashdata('warning', 'Image upload is not configured.');
+			return;
+		}
+
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
+		$date_folder = date('Y_m_d');
+		$relative_dir = trim($uploadCfg['relative_dir'], '/') . '/';
+		$upload_path = rtrim($uploadCfg['root_path'], '/')
+			. '/'
+			. $vendor_folder . '/'
+			. $relative_dir
+			. $date_folder
+			. '/';
+
+		if (!is_dir($upload_path) && !@mkdir($upload_path, 0755, TRUE) && !is_dir($upload_path))
+		{
+			log_message('error', 'Failed to create individual product upload directory: ' . $upload_path);
+			$this->session->set_flashdata('warning', 'Could not create image upload folder. Please contact support.');
+			return;
+		}
+
+		$files = $_FILES['images'];
+		$image_order = json_decode($this->input->post('image_order'), TRUE);
+		$main_image_index = (int) $this->input->post('main_image_index');
+
+		if (!is_array($image_order))
+		{
+			$image_order = array();
+			for ($i = 0; $i < count($files['name']); $i++)
 			{
-				$image_order = array();
-				for ($i = 0; $i < count($files['name']); $i++)
-				{
-					$image_order[] = $i;
-				}
+				$image_order[] = $i;
 			}
-			
-			$upload_errors = array();
-			$images_data = array();
-			
-			foreach ($image_order as $order => $original_index)
+		}
+
+		$this->load->library('upload');
+		$upload_errors = array();
+		$uploaded_count = 0;
+		$uploaded_image_ids = array();
+
+		foreach ($image_order as $order => $original_index)
+		{
+			if (!isset($files['name'][$original_index]) || $files['error'][$original_index] != 0 || empty($files['name'][$original_index]))
 			{
-				if (isset($files['name'][$original_index]) && $files['error'][$original_index] == 0 && !empty($files['name'][$original_index]))
-				{
-					$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
-					if (!in_array($file_ext, $uploadCfg['allowed_types'], true)) { $upload_errors[] = $files['name'][$original_index] . ': Invalid file type'; continue; }
-					
-					// Reset $_FILES array for this iteration
-					$_FILES['image']['name'] = $files['name'][$original_index];
-					$_FILES['image']['type'] = $files['type'][$original_index];
-					$_FILES['image']['tmp_name'] = $files['tmp_name'][$original_index];
-					$_FILES['image']['error'] = $files['error'][$original_index];
-					$_FILES['image']['size'] = $files['size'][$original_index];
-					
-					$config['upload_path'] = $upload_path;
-					$config['allowed_types'] = implode('|', $uploadCfg['allowed_types']);
-					$config['max_size'] = $uploadCfg['max_size'];
-					$config['file_name'] = 'individual_product_' . $product_id . '_' . uniqid() . '_' . $original_index . '.' . $file_ext;
-					$config['overwrite'] = FALSE;
-					
-					$this->load->library('upload');
-					$this->upload->initialize($config);
-					
-					if ($this->upload->do_upload('image'))
-					{
-						$upload_data = $this->upload->data();
-						$images_data[] = array(
-							'path' => 'uploads/' . $uploadCfg['relative_dir'] . $vendor_folder . '/' . $date_folder . '/' . $upload_data['file_name'],
-							'order' => $order,
-							'is_main' => ($order == $main_image_index) ? 1 : 0
-						);
-					}
-					else
-					{
-						$upload_errors[] = $files['name'][$original_index] . ': ' . $this->upload->display_errors('', '');
-					}
-				}
+				continue;
 			}
-			
-			if (!empty($images_data))
+
+			$file_ext = strtolower(pathinfo($files['name'][$original_index], PATHINFO_EXTENSION));
+			if (!in_array($file_ext, $uploadCfg['allowed_types'], TRUE))
 			{
-				$this->load->model('Individual_product_model');
-				$this->Individual_product_model->addProductImages($product_id, $images_data);
-				$this->Product_model->sync_product_images_from_legacy(
+				$upload_errors[] = $files['name'][$original_index] . ': Invalid file type';
+				continue;
+			}
+
+			$_FILES['image']['name'] = $files['name'][$original_index];
+			$_FILES['image']['type'] = $files['type'][$original_index];
+			$_FILES['image']['tmp_name'] = $files['tmp_name'][$original_index];
+			$_FILES['image']['error'] = $files['error'][$original_index];
+			$_FILES['image']['size'] = $files['size'][$original_index];
+
+			$config = array(
+				'upload_path' => $upload_path,
+				'allowed_types' => implode('|', $uploadCfg['allowed_types']),
+				'max_size' => $uploadCfg['max_size'],
+				'file_name' => 'individual_product_' . $product_id . '_' . uniqid() . '_' . $original_index . '.' . $file_ext,
+				'overwrite' => FALSE,
+			);
+			$this->upload->initialize($config);
+
+			if (!$this->upload->do_upload('image'))
+			{
+				$error = $this->upload->display_errors('', '');
+				$upload_errors[] = $files['name'][$original_index] . ': ' . $error;
+				log_message('error', 'Individual product image upload failed: ' . $error . ' path=' . $upload_path);
+				continue;
+			}
+
+			$upload_data = $this->upload->data();
+			$image_path = $relative_dir . $date_folder . '/' . $upload_data['file_name'];
+			$is_main = ($uploaded_count === 0 && $order == $main_image_index) ? 1 : (($order == $main_image_index) ? 1 : 0);
+
+			$this->db->insert('erp_individual_product_images', array(
+				'product_id' => $product_id,
+				'image_path' => $image_path,
+				'image_order' => $order,
+				'is_main' => $is_main,
+				'created_at' => date('Y-m-d H:i:s'),
+			));
+
+			if ($this->db->affected_rows())
+			{
+				$legacy_image_id = (int) $this->db->insert_id();
+				$uploaded_image_ids[$order] = $legacy_image_id;
+				$uploaded_count++;
+				$this->Product_model->sync_legacy_image(
 					$this->current_vendor['id'],
 					'erp_individual_products',
 					$product_id,
 					'erp_individual_product_images',
-					'product_id'
+					$legacy_image_id,
+					$image_path,
+					$is_main,
+					$order
 				);
 			}
-			
-			if (!empty($upload_errors))
-			{
-				$this->session->set_flashdata('warning', 'Some images failed to upload: ' . implode(', ', $upload_errors));
-			}
+		}
+
+		if ($uploaded_count > 0 && isset($uploaded_image_ids[$main_image_index]))
+		{
+			$this->db->where('product_id', $product_id)->update('erp_individual_product_images', array('is_main' => 0));
+			$this->db->where('id', $uploaded_image_ids[$main_image_index])->update('erp_individual_product_images', array('is_main' => 1));
+			$this->Product_model->set_main_image_by_legacy(
+				$this->current_vendor['id'],
+				'erp_individual_products',
+				$product_id,
+				'erp_individual_product_images',
+				$uploaded_image_ids[$main_image_index]
+			);
+		}
+		elseif ($uploaded_count > 0)
+		{
+			$this->Product_model->sync_product_images_from_legacy(
+				$this->current_vendor['id'],
+				'erp_individual_products',
+				$product_id,
+				'erp_individual_product_images',
+				'product_id'
+			);
+		}
+
+		if (!empty($upload_errors))
+		{
+			$this->session->set_flashdata('warning', 'Some images failed to upload: ' . implode(', ', $upload_errors));
 		}
 	}
 	
@@ -2417,6 +2480,8 @@ class Products extends Vendor_base
 		$deleted_image_ids = $this->input->post('deleted_image_ids');
 		$this->config->load('upload');
 		$uploadCfg = $this->config->item('individual_product_upload');
+		$this->load->helper('common');
+		$vendor_folder = get_vendor_domain_folder();
 		
 		// Handle deleted images
 		if (!empty($deleted_image_ids))
@@ -2438,7 +2503,7 @@ class Products extends Vendor_base
 						{
 							if ($img['id'] == $image_id)
 							{
-								$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . ltrim($img['image_path'], '/');
+								$image_path = rtrim($uploadCfg['root_path'], '/') . '/' . $vendor_folder . '/' . ltrim($img['image_path'], '/');
 								if (file_exists($image_path))
 								{
 									@unlink($image_path);
