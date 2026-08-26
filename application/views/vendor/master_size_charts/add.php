@@ -532,8 +532,8 @@ document.addEventListener('DOMContentLoaded', function() {
 			return;
 		}
 
-		if (columns.length === 0 || rows.length === 0) {
-			alert('To save a size chart table, you must add at least one column and one size row.');
+		if (columns.length > 0 && rows.length === 0) {
+			alert('To save measurement columns, you must add at least one size row.');
 			e.preventDefault();
 			return;
 		}
