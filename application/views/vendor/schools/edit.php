@@ -148,20 +148,20 @@
 			<div class="card-body p-2">
 				<div class="row g-2">
 					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
-						<label class="form-label fs-13 mb-1">Admin Name <span class="text-danger">*</span></label>
-						<input type="text" name="admin_name" class="form-control form-control-sm" value="<?php echo set_value('admin_name', $school['admin_name']); ?>" required>
+						<label class="form-label fs-13 mb-1">Admin Name</label>
+						<input type="text" name="admin_name" class="form-control form-control-sm" value="<?php echo set_value('admin_name', $school['admin_name']); ?>">
 						<?php echo form_error('admin_name', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
 					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
-						<label class="form-label fs-13 mb-1">Admin Phone <span class="text-danger">*</span></label>
-						<input type="text" name="admin_phone" class="form-control form-control-sm" value="<?php echo set_value('admin_phone', $school['admin_phone']); ?>" required>
+						<label class="form-label fs-13 mb-1">Admin Phone</label>
+						<input type="text" name="admin_phone" class="form-control form-control-sm" value="<?php echo set_value('admin_phone', $school['admin_phone']); ?>">
 						<?php echo form_error('admin_phone', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
 					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
-						<label class="form-label fs-13 mb-1">Admin Email <span class="text-danger">*</span></label>
-						<input type="email" name="admin_email" class="form-control form-control-sm" value="<?php echo set_value('admin_email', $school['admin_email']); ?>" required>
+						<label class="form-label fs-13 mb-1">Admin Email</label>
+						<input type="email" name="admin_email" class="form-control form-control-sm" value="<?php echo set_value('admin_email', $school['admin_email']); ?>">
 						<?php echo form_error('admin_email', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					

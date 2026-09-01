@@ -141,27 +141,27 @@
 			<div class="card-body p-2">
 				<div class="row g-2">
 					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
-						<label class="form-label fs-13 mb-1">Admin Name <span class="text-danger">*</span></label>
-						<input type="text" name="admin_name" class="form-control form-control-sm" value="<?php echo set_value('admin_name'); ?>" required>
+						<label class="form-label fs-13 mb-1">Admin Name</label>
+						<input type="text" name="admin_name" class="form-control form-control-sm" value="<?php echo set_value('admin_name'); ?>">
 						<?php echo form_error('admin_name', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
 					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
-						<label class="form-label fs-13 mb-1">Admin Phone <span class="text-danger">*</span></label>
-						<input type="text" name="admin_phone" class="form-control form-control-sm" value="<?php echo set_value('admin_phone'); ?>" required>
+						<label class="form-label fs-13 mb-1">Admin Phone</label>
+						<input type="text" name="admin_phone" class="form-control form-control-sm" value="<?php echo set_value('admin_phone'); ?>">
 						<?php echo form_error('admin_phone', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
 					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
-						<label class="form-label fs-13 mb-1">Admin Email <span class="text-danger">*</span></label>
-						<input type="email" name="admin_email" class="form-control form-control-sm" value="<?php echo set_value('admin_email'); ?>" required>
+						<label class="form-label fs-13 mb-1">Admin Email</label>
+						<input type="email" name="admin_email" class="form-control form-control-sm" value="<?php echo set_value('admin_email'); ?>">
 						<?php echo form_error('admin_email', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
 					
 					<div class="col-xl-3 col-lg-4 col-md-6 mb-2">
-						<label class="form-label fs-13 mb-1">Admin Password <span class="text-danger">*</span></label>
+						<label class="form-label fs-13 mb-1">Admin Password</label>
 						<div class="position-relative">
-							<input type="password" name="admin_password" id="admin_password" class="form-control form-control-sm" required minlength="6">
+							<input type="password" name="admin_password" id="admin_password" class="form-control form-control-sm">
 							<span class="position-absolute end-0 top-50 translate-middle-y pe-2" style="cursor: pointer;" onclick="togglePassword('admin_password')">
 								<i class="isax isax-eye fs-14" id="admin_password-eye"></i>
 							</span>
@@ -266,10 +266,6 @@ $(document).ready(function () {
 			imagesSection.hide();
 			// Remove required from school-specific fields
 			$('#school_board').prop('required', false);
-			$('input[name="admin_name"]').prop('required', false);
-			$('input[name="admin_phone"]').prop('required', false);
-			$('input[name="admin_email"]').prop('required', false);
-			$('input[name="admin_password"]').prop('required', false);
 		} else {
 			parentContainer.hide();
 			$('#parent_school_id').prop('required', false);
@@ -282,10 +278,6 @@ $(document).ready(function () {
 			imagesSection.show();
 			// Add required back to school-specific fields
 			$('#school_board').prop('required', true);
-			$('input[name="admin_name"]').prop('required', true);
-			$('input[name="admin_phone"]').prop('required', true);
-			$('input[name="admin_email"]').prop('required', true);
-			$('input[name="admin_password"]').prop('required', true);
 		}
 	});
 	

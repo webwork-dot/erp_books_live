@@ -132,10 +132,10 @@ class Schools extends Vendor_base
 		$this->form_validation->set_rules('state_id', 'State', 'required|integer');
 		$this->form_validation->set_rules('city_id', 'City', 'required|integer');
 		$this->form_validation->set_rules('pincode', 'Pincode', 'required|trim|min_length[6]|max_length[10]');
-		$this->form_validation->set_rules('admin_name', 'Admin Name', 'required|trim');
-		$this->form_validation->set_rules('admin_phone', 'Admin Phone', 'required|trim');
-		$this->form_validation->set_rules('admin_email', 'Admin Email', 'required|valid_email');
-		$this->form_validation->set_rules('admin_password', 'Admin Password', 'required|min_length[6]');
+		$this->form_validation->set_rules('admin_name', 'Admin Name', 'trim');
+		$this->form_validation->set_rules('admin_phone', 'Admin Phone', 'trim');
+		$this->form_validation->set_rules('admin_email', 'Admin Email', 'trim|valid_email');
+		$this->form_validation->set_rules('admin_password', 'Admin Password', 'trim|min_length[6]');
 
 		if ($this->form_validation->run() == FALSE) {
 			// Get states and boards for dropdown
@@ -290,10 +290,10 @@ class Schools extends Vendor_base
 		$this->form_validation->set_rules('state_id', 'State', 'required|integer');
 		$this->form_validation->set_rules('city_id', 'City', 'required|integer');
 		$this->form_validation->set_rules('pincode', 'Pincode', 'required|trim|min_length[6]|max_length[10]');
-		$this->form_validation->set_rules('admin_name', 'Admin Name', 'required|trim');
-		$this->form_validation->set_rules('admin_phone', 'Admin Phone', 'required|trim');
-		$this->form_validation->set_rules('admin_email', 'Admin Email', 'required|valid_email');
-		$this->form_validation->set_rules('admin_password', 'Admin Password', 'min_length[6]');
+		$this->form_validation->set_rules('admin_name', 'Admin Name', 'trim');
+		$this->form_validation->set_rules('admin_phone', 'Admin Phone', 'trim');
+		$this->form_validation->set_rules('admin_email', 'Admin Email', 'trim|valid_email');
+		$this->form_validation->set_rules('admin_password', 'Admin Password', 'trim|min_length[6]');
 		$this->form_validation->set_rules('status', 'Status', 'required|in_list[active,inactive,suspended]');
 		// Use callback to validate school_board array
 		$this->form_validation->set_rules('school_board', 'School Board', 'callback_validate_school_boards');
