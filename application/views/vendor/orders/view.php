@@ -2019,22 +2019,22 @@ if (!empty($additional_status)) {
           <div class="row g-2">
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Length (cm)</label>
-              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_length_cm) ? (float)$order_data[0]->pkg_length_cm : '' ?>">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Breadth (cm)</label>
-              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_breadth_cm) ? (float)$order_data[0]->pkg_breadth_cm : '' ?>">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Height (cm)</label>
-              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_height_cm) ? (float)$order_data[0]->pkg_height_cm : '' ?>">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Weight (kg)</label>
-              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" placeholder="0">
+              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_weight_kg) ? (float)$order_data[0]->pkg_weight_kg : '' ?>">
             </div>
           </div>
         </div>
@@ -2313,34 +2313,9 @@ if (!empty($additional_status)) {
     });
   }
 
-  // 3rd Party Shipping Modal (single order uses save_third_party_shipping)
+  // 3rd Party Shipping Modal (single order reuses bulk_save_third_party_shipping)
+  var orderIdForThirdParty = '<?= (int) ($order_data[0]->id ?? 0) ?>';
   var orderUniqueIdForThirdParty = '<?= addslashes($order_data[0]->order_unique_id ?? '') ?>';
-  /*
-  $('#thirdPartyShippingModal').on('show.bs.modal', function() {
-    $('#thirdPartyProvider').val('');
-    $('#thirdPartyShippingModal .third-party-option').removeClass('active');
-    $('#pkgLength, #pkgBreadth, #pkgHeight, #pkgWeight').val('');
-    $('#saveThirdPartyBtn').prop('disabled', true);
-    $('#vendorAddressDisplay').html('<span class="text-muted">Loading...</span>');
-    $.get('<?php echo base_url("orders/get_vendor_address"); ?>', function(data) {
-  if (data.success && data.address_full) {
-    $('#vendorAddressDisplay').html('<span>' + (data.address_full || 'Please add address in Profile.') + '</span>');
-  } else {
-    $('#vendorAddressDisplay').html('<span class="text-warning">Please add address in Profile.</span>');
-  }
-    }).fail(function () {
-    $('#vendorAddressDisplay').html('<span class="text-warning">Could not load address.</span>');
-  });
-  });
-  */
-
-  $('#thirdPartyShippingModal .third-party-option').on('click', function () {
-    var provider = $(this).data('provider');
-    $('#thirdPartyProvider').val(provider);
-    $('#thirdPartyShippingModal .third-party-option').removeClass('active');
-    $(this).addClass('active');
-    $('#saveThirdPartyBtn').prop('disabled', false);
-  });
 
 
   // Select Courier Modal - load couriers when modal opens
@@ -2589,10 +2564,14 @@ if (!empty($additional_status)) {
 <script>
   $('#thirdPartyShippingModal').on('show.bs.modal', function () {
 
-    $('#thirdPartyProvidersContainer').html('<span class="text-muted">Loading providers...</span>');
+    $('#thirdPartyProvider').val('');
     $('#pickupAddressSection').hide();
     $('#pickupAddressSelect').html('<option value="">Select Pickup Address</option>');
+    $('#velocityScheduleSection').hide();
     $('#saveThirdPartyBtn').prop('disabled', true);
+    $('#saveBtnText').show();
+    $('#saveBtnLoader').hide();
+    $('#thirdPartyProvidersContainer').html('<span class="text-muted">Loading providers...</span>');
 
     $.get('<?php echo base_url("vendor/orders/get_active_shipping_providers"); ?>', function (res) {
 
@@ -2632,6 +2611,7 @@ if (!empty($additional_status)) {
     $('#thirdPartyProvider').val(provider);
 
     loadPickupAddresses(provider);
+    validateThirdPartyForm();
   });
 
 
@@ -2643,10 +2623,8 @@ if (!empty($additional_status)) {
   var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
 
 
-
-
   /* =========================================
-    SAVE THIRD PARTY SHIPPING
+    SAVE THIRD PARTY SHIPPING (USING BULK ENDPOINT)
   ========================================= */
   function saveThirdPartyShipping() {
 
@@ -2663,6 +2641,11 @@ if (!empty($additional_status)) {
     var fromTime = $('#fromTime').val();
     var toTime = $('#toTime').val();
 
+    if (!orderIdForThirdParty) {
+      Swal.fire('Error', 'Invalid order ID.', 'warning');
+      return;
+    }
+
     if (!provider || !pickup) {
       Swal.fire('Error', 'Select provider & pickup address.', 'warning');
       return;
@@ -2673,11 +2656,12 @@ if (!empty($additional_status)) {
       return;
     }
 
-    if (provider.toLowerCase() === 'velocity') {
-      let scheduleDate = $('#scheduleDate').val();
-      let fromTime = $('#fromTime').val();
-      let toTime = $('#toTime').val();
+    if (length <= 0 || breadth <= 0 || height <= 0) {
+      Swal.fire('Error', 'Package dimensions must be greater than 0.', 'warning');
+      return;
+    }
 
+    if (provider.toLowerCase() === 'velocity') {
       if (!scheduleDate || !fromTime || !toTime) {
         Swal.fire('Error', 'Pickup schedule is required for Velocity.', 'warning');
         return;
@@ -2698,7 +2682,7 @@ if (!empty($additional_status)) {
         return;
       }
 
-      // Optional: Minimum 1 hour window
+      // Optional: Minimum 30 minutes window
       let from = new Date(scheduleDate + 'T' + fromTime);
       let to = new Date(scheduleDate + 'T' + toTime);
 
@@ -2711,7 +2695,7 @@ if (!empty($additional_status)) {
     }
 
     var ajaxData = {
-      order_unique_id: orderUniqueIdForThirdParty,
+      order_ids: [orderIdForThirdParty],
       third_party_provider: provider,
       pickup_address_id: pickup,
       length: length,
@@ -2732,7 +2716,7 @@ if (!empty($additional_status)) {
     $('#saveBtnLoader').show();
 
     $.ajax({
-      url: '<?php echo base_url("orders/save_third_party_shipping"); ?>',
+      url: '<?php echo base_url("orders/bulk_save_third_party_shipping"); ?>',
       type: 'POST',
       dataType: 'json',
       data: ajaxData
@@ -2741,22 +2725,47 @@ if (!empty($additional_status)) {
         if (res.csrf && res.csrf.hash) {
           csrfHash = res.csrf.hash;
         }
-        $btn.prop('disabled', false);
-        $('#saveBtnText').show();
-        $('#saveBtnLoader').hide();
 
         if (res.status === '200') {
-          Swal.fire({
-            title: 'Success',
-            text: res.message || '3rd party shipping saved.',
-            icon: 'success',
-            customClass: { confirmButton: 'btn btn-primary' },
-            buttonsStyling: false
-          }).then(() => location.reload());
+          var failedData = res.data && typeof res.data === 'object' && Object.keys(res.data).length > 0;
+          if (failedData) {
+            $btn.prop('disabled', false);
+            $('#saveBtnText').show();
+            $('#saveBtnLoader').hide();
+
+            var failedMsg = '';
+            for (var ord in res.data) {
+              failedMsg += res.data[ord] + '\n';
+            }
+            Swal.fire({
+              title: 'Shipping allocation failed',
+              html: '<p class="text-start mb-2">' + (res.message || 'Booking failed.') + '</p>' +
+                    '<pre class="text-start small bg-light p-2 rounded mb-0" style="max-height: 200px; overflow: auto; white-space: pre-wrap;">' + failedMsg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>',
+              icon: 'error',
+              customClass: { confirmButton: 'btn btn-primary' },
+              buttonsStyling: false
+            });
+          } else {
+            Swal.fire({
+              title: 'Success',
+              text: res.message || '3rd party shipping saved.',
+              icon: 'success',
+              customClass: { confirmButton: 'btn btn-primary' },
+              buttonsStyling: false
+            }).then(() => location.reload());
+          }
         } else {
+          $btn.prop('disabled', false);
+          $('#saveBtnText').show();
+          $('#saveBtnLoader').hide();
+
+          var errDetail = res.data && typeof res.data === 'object' && Object.keys(res.data).length > 0
+            ? '<pre class="text-start small bg-light p-2 rounded mt-2" style="white-space: pre-wrap;">' + Object.keys(res.data).map(function(k){ return (Object.keys(res.data).length > 1 ? k + ': ' : '') + res.data[k]; }).join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
+            : '';
+
           Swal.fire({
             title: 'Shipping allocation failed',
-            text: res.message || 'Could not assign shipping. Please try again.',
+            html: '<p class="mb-0">' + (res.message || 'Could not assign shipping. Please try again.').replace(/\n/g, '<br>') + '</p>' + errDetail,
             icon: 'error',
             customClass: { confirmButton: 'btn btn-primary' },
             buttonsStyling: false
@@ -2835,12 +2844,14 @@ if (!empty($additional_status)) {
           });
 
           $('#pickupAddressSelect').html(options);
+          validateThirdPartyForm();
 
         } else {
 
           $('#pickupAddressSelect').html(
             '<option value="">No pickup address found</option>'
           );
+          validateThirdPartyForm();
         }
 
       })
@@ -2849,6 +2860,7 @@ if (!empty($additional_status)) {
         $('#pickupAddressSelect').html(
           '<option value="">Error loading pickup addresses</option>'
         );
+        validateThirdPartyForm();
       });
   }
 
