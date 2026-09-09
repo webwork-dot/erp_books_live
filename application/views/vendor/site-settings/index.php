@@ -89,6 +89,20 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="shipping_charge">Shipping Charge (₹)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" step="0.01" min="0" class="form-control" id="shipping_charge" name="shipping_charge"
+                                               value="<?php echo isset($settings['shipping_charge']) ? htmlspecialchars($settings['shipping_charge']) : '60.00'; ?>"
+                                               placeholder="e.g. 60.00">
+                                    </div>
+                                    <small class="form-text text-muted">Fixed shipping charge applied during checkout for home delivery orders.</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Branding Tab -->

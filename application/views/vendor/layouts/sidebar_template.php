@@ -279,6 +279,17 @@
 									</li>
 								</ul>
 							</li>
+
+							<li class="menu-title"><span>Settings</span></li>
+							<li>
+								<ul>
+									<li>
+										<a href="<?php echo base_url('site-settings'); ?>" class="<?php echo (strpos($current_uri, 'site-settings') !== false) ? 'active' : ''; ?>">
+											<i class="isax isax-setting-2"></i><span>Site Settings</span>
+										</a>
+									</li>
+								</ul>
+							</li>
 						</ul>
 						<script>
 						function toggleSubmenu(arrowElement) {
@@ -324,7 +335,10 @@
 						</script>
 					</div>
 					<div class="sidebar-footer" style="margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                        <ul class="menu-list">
+                        <ul class="menu-list" style="display: flex; gap: 10px; list-style: none; padding: 0; margin: 0;">
+                            <li>
+                                <a href="<?php echo base_url('site-settings'); ?>" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Site Settings"><i class="isax isax-setting-2"></i></a>
+                            </li>
                             <li>
                                 <a href="<?php echo base_url('logout'); ?>" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Logout"><i class="isax isax-login-15"></i></a>
                             </li>

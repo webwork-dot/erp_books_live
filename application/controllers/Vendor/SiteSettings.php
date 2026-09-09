@@ -93,6 +93,7 @@ class SiteSettings extends Vendor_base
 		$this->form_validation->set_rules('meta_keywords', 'Meta Keywords', 'trim');
 		$this->form_validation->set_rules('meta_description', 'Meta Description', 'trim|max_length[500]');
 		$this->form_validation->set_rules('since_text', 'Since Text', 'trim|max_length[255]');
+		$this->form_validation->set_rules('shipping_charge', 'Shipping Charge', 'trim|numeric|greater_than_equal_to[0]');
 
 		if ($this->form_validation->run() === FALSE) {
 			// Validation failed, reload form with errors
@@ -113,6 +114,10 @@ class SiteSettings extends Vendor_base
 			'since_text' => $this->input->post('since_text'),
 			'custom_css' => $this->input->post('custom_css')
 		);
+
+		if ($this->input->post('shipping_charge') !== null) {
+			$settings_data['shipping_charge'] = (float) $this->input->post('shipping_charge');
+		}
 
 		// Handle logo upload
 		log_message('debug', 'Starting logo upload process');

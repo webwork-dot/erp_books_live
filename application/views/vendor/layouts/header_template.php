@@ -322,6 +322,9 @@
 									<a class="dropdown-item d-flex align-items-center" href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#profileModal">
 										<i class="isax isax-profile-circle me-2"></i>Profile Information
 									</a>
+									<a class="dropdown-item d-flex align-items-center" href="<?php echo base_url('site-settings'); ?>">
+										<i class="isax isax-setting-2 me-2"></i>Site Settings
+									</a>
 									<?php 
 									$logout_url = base_url('logout');
 									?>
