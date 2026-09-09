@@ -4478,60 +4478,101 @@ class Orders extends Vendor_base
 	 */
 	private function _get_invoice_logo_base64()
 	{
-		// Same source as shipping label: erp_clients.logo
+		$logo_rel = '';
+		$vendor_domain = !empty($this->current_vendor['domain']) ? trim($this->current_vendor['domain']) : '';
+
 		if ($this->db->table_exists('erp_clients')) {
-			$logo_row = $this->db->select('logo')->from('erp_clients')->limit(1)->get()->row();
+			$logo_row = $this->db->select('logo, domain')->from('erp_clients')->limit(1)->get()->row();
 			if (!empty($logo_row) && !empty($logo_row->logo)) {
-				$logo_path = FCPATH . ltrim($logo_row->logo, '/');
-				if (file_exists($logo_path)) {
-					$file_size = @filesize($logo_path);
-					if ($file_size > 0 && $file_size <= 300000) {
-						$logo_data = @file_get_contents($logo_path);
-						if ($logo_data !== false) {
-							$image_info = @getimagesize($logo_path);
-							$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
-							return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
-						}
+				$logo_rel = ltrim($logo_row->logo, '/');
+			}
+			if (empty($vendor_domain) && !empty($logo_row) && !empty($logo_row->domain)) {
+				$vendor_domain = trim($logo_row->domain);
+			}
+		}
+		if (empty($logo_rel) && !empty($this->current_vendor['logo'])) {
+			$logo_rel = ltrim($this->current_vendor['logo'], '/');
+		}
+		if (empty($logo_rel) && $this->db->table_exists('vendor_site_settings')) {
+			$v_row = $this->db->select('logo_path')->from('vendor_site_settings')->limit(1)->get()->row();
+			if (!empty($v_row) && !empty($v_row->logo_path)) {
+				$logo_rel = ltrim($v_row->logo_path, '/');
+			}
+		}
+
+		if (empty($logo_rel)) {
+			return '';
+		}
+
+		// 1. Check local filesystem paths (relative to FCPATH)
+		$local_paths = array(
+			FCPATH . $logo_rel,
+			dirname(FCPATH) . '/' . $logo_rel,
+			dirname(FCPATH) . '/frontend/' . $logo_rel,
+			dirname(FCPATH) . '/public_html/' . $logo_rel,
+		);
+		if (!empty($vendor_domain)) {
+			$local_paths[] = dirname(FCPATH) . '/' . $vendor_domain . '/' . $logo_rel;
+			$local_paths[] = dirname(FCPATH) . '/' . $vendor_domain . '-front/' . $logo_rel;
+		}
+
+		foreach ($local_paths as $p) {
+			if (!empty($p) && is_file($p)) {
+				$file_size = @filesize($p);
+				if ($file_size > 0 && $file_size <= 500000) {
+					$logo_data = @file_get_contents($p);
+					if ($logo_data !== false && strlen($logo_data) > 0) {
+						$image_info = @getimagesize($p);
+						$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+						return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
 					}
 				}
 			}
 		}
-		// Fallback: current_vendor logo
-		$logo_path = !empty($this->current_vendor['logo']) ? trim($this->current_vendor['logo']) : '';
-		if (empty($logo_path))
-			return '';
-		$full_path = FCPATH . ltrim($logo_path, '/');
-		if (file_exists($full_path)) {
-			$file_size = @filesize($full_path);
-			if ($file_size > 0 && $file_size <= 200000) {
-				$logo_data = file_get_contents($full_path);
-				if ($logo_data !== false) {
-					$image_info = @getimagesize($full_path);
-					$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
-					return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+
+		// 2. Fetch from live server HTTPS URL if local file is absent (e.g. separate vhost on live server)
+		if (!empty($vendor_domain)) {
+			$remote_urls = array(
+				'https://' . rtrim($vendor_domain, '/') . '/' . $logo_rel,
+			);
+
+			foreach ($remote_urls as $url) {
+				$img = false;
+				if (function_exists('curl_init')) {
+					$ch = curl_init($url);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+					curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+					curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+					curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+					$res = curl_exec($ch);
+					$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					curl_close($ch);
+					if ($code == 200 && $res !== false && strlen($res) > 0) {
+						$img = $res;
+					}
+				}
+				if ($img === false && ini_get('allow_url_fopen')) {
+					$ctx = stream_context_create(array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false)));
+					$img = @file_get_contents($url, false, $ctx);
+				}
+				if ($img !== false && strlen($img) > 0) {
+					// Cache locally on live server
+					$target = FCPATH . $logo_rel;
+					@mkdir(dirname($target), 0775, true);
+					@file_put_contents($target, $img);
+
+					$mime = 'image/png';
+					if (substr($img, 0, 3) === "\xFF\xD8\xFF") {
+						$mime = 'image/jpeg';
+					}
+					return 'data:' . $mime . ';base64,' . base64_encode($img);
 				}
 			}
+
+			return 'https://' . rtrim($vendor_domain, '/') . '/' . $logo_rel;
 		}
-		if (preg_match('/shivambook/i', !empty($this->current_vendor['domain']) ? $this->current_vendor['domain'] : '')) {
-			$alt_path = FCPATH . 'shivam_book_frontend/' . ltrim($logo_path, '/');
-			if (file_exists($alt_path) && @filesize($alt_path) <= 200000) {
-				$logo_data = @file_get_contents($alt_path);
-				if ($logo_data !== false) {
-					$image_info = @getimagesize($alt_path);
-					$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
-					return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
-				}
-			}
-		}
-		$alt_path = FCPATH . 'book_erp_frontend/' . ltrim($logo_path, '/');
-		if (file_exists($alt_path) && @filesize($alt_path) <= 200000) {
-			$logo_data = @file_get_contents($alt_path);
-			if ($logo_data !== false) {
-				$image_info = @getimagesize($alt_path);
-				$mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
-				return 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
-			}
-		}
+
 		return '';
 	}
 
@@ -5027,6 +5068,7 @@ class Orders extends Vendor_base
 
 		try {
 			$this->pdf->set_option('isHtml5ParserEnabled', TRUE);
+			$this->pdf->set_option('isRemoteEnabled', TRUE);
 			$this->pdf->load_html($html_content);
 			$this->pdf->render();
 			$pdf_output = $this->pdf->output();
@@ -5205,6 +5247,7 @@ class Orders extends Vendor_base
 		error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 		try {
 			$this->pdf->set_option('isHtml5ParserEnabled', TRUE);
+			$this->pdf->set_option('isRemoteEnabled', TRUE);
 			$this->pdf->load_html($html_content);
 			$this->pdf->render();
 			$pdfname = 'invoice_test_' . $order->order_unique_id . '.pdf';

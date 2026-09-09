@@ -34,10 +34,83 @@ $is_igst = (stripos($place_of_supply, 'Maharashtra') === false) ? 1 : 0;
 
 $currency = isset($d['currency_code']) ? $d['currency_code'] : '₹';
 $logo_src = isset($d['logo_src']) ? $d['logo_src'] : '';
-$company_name = isset($d['company_name']) ? $d['company_name'] : '-';
+if (!empty($logo_src) && strpos($logo_src, 'data:') !== 0 && strpos($logo_src, 'http') !== 0) {
+  $logo_path = $logo_src;
+  $rel_path = ltrim(parse_url($logo_path, PHP_URL_PATH) ?: $logo_path, '/');
+  $vendor_domain = !empty($d['vendor_domain']) ? $d['vendor_domain'] : '';
+
+  $resolved = false;
+  // 1. Check local filesystem relative to FCPATH
+  if (defined('FCPATH')) {
+    $candidate_files = array(
+      FCPATH . $rel_path,
+      dirname(FCPATH) . '/' . $rel_path,
+      dirname(FCPATH) . '/frontend/' . $rel_path,
+      dirname(FCPATH) . '/public_html/' . $rel_path,
+    );
+    if (!empty($vendor_domain)) {
+      $candidate_files[] = dirname(FCPATH) . '/' . $vendor_domain . '/' . $rel_path;
+      $candidate_files[] = dirname(FCPATH) . '/' . $vendor_domain . '-front/' . $rel_path;
+    }
+    foreach ($candidate_files as $f) {
+      if (!empty($f) && is_file($f)) {
+        $cd = @file_get_contents($f);
+        if ($cd !== false && strlen($cd) > 0) {
+          $info = @getimagesize($f);
+          $mime = ($info && isset($info['mime'])) ? $info['mime'] : 'image/png';
+          $logo_src = 'data:' . $mime . ';base64,' . base64_encode($cd);
+          $resolved = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. If not found locally on disk, fetch via HTTPS from vendor domain
+  if (!$resolved && !empty($vendor_domain)) {
+    $remote_url = 'https://' . rtrim($vendor_domain, '/') . '/' . $rel_path;
+    $img = false;
+    if (function_exists('curl_init')) {
+      $ch = curl_init($remote_url);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+      curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+      curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+      $res = curl_exec($ch);
+      $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+      curl_close($ch);
+      if ($code == 200 && $res !== false && strlen($res) > 0) {
+        $img = $res;
+      }
+    }
+    if ($img === false && ini_get('allow_url_fopen')) {
+      $ctx = stream_context_create(array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false)));
+      $img = @file_get_contents($remote_url, false, $ctx);
+    }
+    if ($img !== false && strlen($img) > 0) {
+      $mime = 'image/png';
+      if (substr($img, 0, 3) === "\xFF\xD8\xFF") {
+        $mime = 'image/jpeg';
+      }
+      $logo_src = 'data:' . $mime . ';base64,' . base64_encode($img);
+      if (defined('FCPATH')) {
+        $target = FCPATH . $rel_path;
+        @mkdir(dirname($target), 0775, true);
+        @file_put_contents($target, $img);
+      }
+      $resolved = true;
+    }
+    if (!$resolved) {
+      $logo_src = $remote_url;
+    }
+  }
+}
+
+$company_name = !empty($d['company_name']) ? $d['company_name'] : '-';
 $company_address = isset($d['company_address']) ? $d['company_address'] : '';
-$company_gstin = isset($d['company_gstin']) ? $d['company_gstin'] : '-';
-$company_pan = isset($d['company_pan']) ? $d['company_pan'] : '-';
+$company_gstin = !empty($d['company_gstin']) ? $d['company_gstin'] : '-';
+$company_pan = !empty($d['company_pan']) ? $d['company_pan'] : '-';
 $company_phone = isset($d['company_phone']) ? $d['company_phone'] : '';
 
 // Total invoice value for calculations

@@ -191,7 +191,7 @@ class Shipping extends CI_Controller {
 
 		$order_details['logo_src'] = $this->_shipping_get_logo_base64();
 		$company = $this->_shipping_get_company();
-		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : 'Kirti Book';
+		$order_details['company_name'] = !empty($company['name']) ? $company['name'] : '-';
 		$order_details['company_address'] = !empty($company['address']) ? $company['address'] : '';
 		if (!empty($company['pincode'])) $order_details['company_address'] = trim($order_details['company_address'] . ', ' . $company['pincode']);
 		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : '-';
@@ -225,6 +225,7 @@ class Shipping extends CI_Controller {
 		$this->pdf->set_paper('A4', 'portrait');
 		error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 		$this->pdf->set_option('isHtml5ParserEnabled', TRUE);
+		$this->pdf->set_option('isRemoteEnabled', TRUE);
 		$this->pdf->load_html($html_content);
 		$this->pdf->render();
 		$this->pdf->stream('invoice_' . $order->order_unique_id . '.pdf', array('Attachment' => 1));
@@ -259,13 +260,48 @@ class Shipping extends CI_Controller {
 
 	private function _shipping_get_logo_base64()
 	{
+		$logo_rel = '';
+		$vendor_domain = '';
+
 		if ($this->db->table_exists('erp_clients')) {
-			$r = $this->db->select('logo')->from('erp_clients')->limit(1)->get()->row();
+			$r = $this->db->select('logo, domain')->from('erp_clients')->limit(1)->get()->row();
 			if (!empty($r->logo)) {
-				$p = FCPATH . ltrim($r->logo, '/');
-				if (file_exists($p) && @filesize($p) <= 300000) {
+				$logo_rel = ltrim($r->logo, '/');
+			}
+			if (!empty($r->domain)) {
+				$vendor_domain = trim($r->domain);
+			}
+		}
+
+		if (empty($logo_rel) && $this->db->table_exists('vendor_site_settings')) {
+			$v = $this->db->select('logo_path')->from('vendor_site_settings')->limit(1)->get()->row();
+			if (!empty($v->logo_path)) {
+				$logo_rel = ltrim($v->logo_path, '/');
+			}
+		}
+
+		if (empty($logo_rel)) {
+			return '';
+		}
+
+		// 1. Check local filesystem paths (relative to FCPATH)
+		$local_paths = array(
+			FCPATH . $logo_rel,
+			dirname(FCPATH) . '/' . $logo_rel,
+			dirname(FCPATH) . '/frontend/' . $logo_rel,
+			dirname(FCPATH) . '/public_html/' . $logo_rel,
+		);
+		if (!empty($vendor_domain)) {
+			$local_paths[] = dirname(FCPATH) . '/' . $vendor_domain . '/' . $logo_rel;
+			$local_paths[] = dirname(FCPATH) . '/' . $vendor_domain . '-front/' . $logo_rel;
+		}
+
+		foreach ($local_paths as $p) {
+			if (!empty($p) && is_file($p)) {
+				$size = @filesize($p);
+				if ($size > 0 && $size <= 500000) {
 					$d = @file_get_contents($p);
-					if ($d !== false) {
+					if ($d !== false && strlen($d) > 0) {
 						$info = @getimagesize($p);
 						$mime = ($info && isset($info['mime'])) ? $info['mime'] : 'image/png';
 						return 'data:' . $mime . ';base64,' . base64_encode($d);
@@ -273,6 +309,50 @@ class Shipping extends CI_Controller {
 				}
 			}
 		}
+
+		// 2. Fetch from live server HTTPS URL if local file is absent (e.g. separate vhost on live server)
+		if (!empty($vendor_domain)) {
+			$remote_urls = array(
+				'https://' . rtrim($vendor_domain, '/') . '/' . $logo_rel,
+			);
+
+			foreach ($remote_urls as $url) {
+				$img = false;
+				if (function_exists('curl_init')) {
+					$ch = curl_init($url);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+					curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+					curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+					curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+					$res = curl_exec($ch);
+					$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					curl_close($ch);
+					if ($code == 200 && $res !== false && strlen($res) > 0) {
+						$img = $res;
+					}
+				}
+				if ($img === false && ini_get('allow_url_fopen')) {
+					$ctx = stream_context_create(array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false)));
+					$img = @file_get_contents($url, false, $ctx);
+				}
+				if ($img !== false && strlen($img) > 0) {
+					// Cache locally on live server
+					$target = FCPATH . $logo_rel;
+					@mkdir(dirname($target), 0775, true);
+					@file_put_contents($target, $img);
+
+					$mime = 'image/png';
+					if (substr($img, 0, 3) === "\xFF\xD8\xFF") {
+						$mime = 'image/jpeg';
+					}
+					return 'data:' . $mime . ';base64,' . base64_encode($img);
+				}
+			}
+
+			return 'https://' . rtrim($vendor_domain, '/') . '/' . $logo_rel;
+		}
+
 		return '';
 	}
 
