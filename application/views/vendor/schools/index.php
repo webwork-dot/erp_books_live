@@ -62,6 +62,7 @@
 						<th>National Delivery Block?</th>
 						<th>Payment Required?</th>
 						<th>Deliver at School?</th>
+						<th>Private Bookset</th>
 						<th>Status</th>
 						<th>Created</th>
 						<th class="text-end">Actions</th>
@@ -133,6 +134,14 @@
 								</td>
 								<td>
 									<div class="form-check form-switch">
+										<input class="form-check-input private-bookset-toggle border-primary" type="checkbox"
+											data-school-id="<?php echo $school['id']; ?>"
+											<?php echo (!empty($school['is_private_bookset'])) ? 'checked' : ''; ?>
+											title="Hide from public listings; unique URL still works">
+									</div>
+								</td>
+								<td>
+									<div class="form-check form-switch">
 										<input class="form-check-input status-toggle border-primary" type="checkbox" 
 											data-school-id="<?php echo $school['id']; ?>"
 											<?php echo ($school['status'] == 'active') ? 'checked' : ''; ?>>
@@ -140,6 +149,12 @@
 								</td>
 								<td><?php echo date('d M Y', strtotime($school['created_at'])); ?></td>
 								<td class="text-end">
+									<button type="button" class="btn btn-sm btn-outline-success share-unique-url-btn"
+										data-url="<?php echo htmlspecialchars(isset($school['unique_url']) ? $school['unique_url'] : ''); ?>"
+										data-school-name="<?php echo htmlspecialchars($school['school_name']); ?>"
+										data-bs-toggle="tooltip" title="Share Unique URL">
+										<i class="isax isax-share"></i>
+									</button>
 									<button type="button" class="btn btn-sm btn-outline-warning qr-school-btn" data-school-id="<?php echo $school['id']; ?>" data-bs-toggle="tooltip" title="Download QR Codes">
 										<i class="isax isax-scan-barcode"></i>
 									</button>
@@ -157,7 +172,7 @@
 						<?php endforeach; ?>
 					<?php else: ?>
 						<tr>
-							<td colspan="10" class="text-center text-muted py-4">
+							<td colspan="12" class="text-center text-muted py-4">
 								<i class="isax isax-school fs-48 mb-2"></i>
 								<p>No schools found. <a href="<?php echo base_url('schools/add'); ?>">Add your first school</a></p>
 							</td>
@@ -208,6 +223,32 @@
 				<?php endif; ?>
 			</div>
 		<?php endif; ?>
+	</div>
+</div>
+
+<!-- Unique URL Share Modal -->
+<div class="modal fade" id="uniqueUrlShareModal" tabindex="-1" aria-labelledby="uniqueUrlShareModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-sm">
+		<div class="modal-content">
+			<div class="modal-header py-2">
+				<h6 class="modal-title mb-0" id="uniqueUrlShareModalLabel">Share Unique URL</h6>
+				<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body py-3">
+				<p class="small text-muted mb-2" id="uniqueUrlSchoolName"></p>
+				<div class="input-group input-group-sm mb-3">
+					<input type="text" class="form-control" id="uniqueUrlInput" readonly>
+				</div>
+				<div class="d-grid gap-2">
+					<button type="button" class="btn btn-outline-primary btn-sm" id="uniqueUrlCopyBtn">
+						<i class="isax isax-copy me-1"></i>Copy URL
+					</button>
+					<a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm" id="uniqueUrlWhatsAppBtn">
+						<i class="isax isax-send-2 me-1"></i>Share on WhatsApp
+					</a>
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -441,6 +482,106 @@ document.addEventListener('DOMContentLoaded', function() {
 			});
 		});
 	});
+
+	// Private Bookset Toggle
+	document.querySelectorAll('.private-bookset-toggle').forEach(function(toggle) {
+		toggle.addEventListener('change', function() {
+			const schoolId = this.getAttribute('data-school-id');
+			const isPrivate = this.checked ? 1 : 0;
+
+			fetch('<?php echo base_url('schools/toggle_private_bookset'); ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'school_id=' + schoolId + '&status=' + isPrivate
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.status === 'success') {
+					console.log(data.message);
+				} else {
+					this.checked = !this.checked;
+					alert(data.message || 'Failed to update private bookset status');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				this.checked = !this.checked;
+				alert('An error occurred. Please try again.');
+			});
+		});
+	});
+
+	// Share Unique URL (single button → popup with Copy + WhatsApp)
+	const uniqueUrlShareModalEl = document.getElementById('uniqueUrlShareModal');
+	const uniqueUrlShareModal = uniqueUrlShareModalEl ? new bootstrap.Modal(uniqueUrlShareModalEl) : null;
+	const uniqueUrlInput = document.getElementById('uniqueUrlInput');
+	const uniqueUrlSchoolName = document.getElementById('uniqueUrlSchoolName');
+	const uniqueUrlCopyBtn = document.getElementById('uniqueUrlCopyBtn');
+	const uniqueUrlWhatsAppBtn = document.getElementById('uniqueUrlWhatsAppBtn');
+
+	document.querySelectorAll('.share-unique-url-btn').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			const url = this.getAttribute('data-url') || '';
+			const schoolName = this.getAttribute('data-school-name') || 'School';
+			if (!url) {
+				alert('Unique URL is not available.');
+				return;
+			}
+			if (uniqueUrlSchoolName) {
+				uniqueUrlSchoolName.textContent = schoolName;
+			}
+			if (uniqueUrlInput) {
+				uniqueUrlInput.value = url;
+			}
+			if (uniqueUrlWhatsAppBtn) {
+				uniqueUrlWhatsAppBtn.href = 'https://wa.me/?text=' + encodeURIComponent('View bookset: ' + url);
+			}
+			if (uniqueUrlShareModal) {
+				uniqueUrlShareModal.show();
+			}
+		});
+	});
+
+	if (uniqueUrlCopyBtn) {
+		uniqueUrlCopyBtn.addEventListener('click', function() {
+			const url = uniqueUrlInput ? uniqueUrlInput.value : '';
+			if (!url) {
+				alert('Unique URL is not available.');
+				return;
+			}
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(url).then(function() {
+					uniqueUrlCopyBtn.innerHTML = '<i class="isax isax-tick-circle me-1"></i>Copied!';
+					setTimeout(function() {
+						uniqueUrlCopyBtn.innerHTML = '<i class="isax isax-copy me-1"></i>Copy URL';
+					}, 1500);
+				}).catch(function() {
+					fallbackCopyText(url);
+				});
+			} else {
+				fallbackCopyText(url);
+			}
+		});
+	}
+
+	function fallbackCopyText(text) {
+		const input = document.createElement('textarea');
+		input.value = text;
+		input.setAttribute('readonly', '');
+		input.style.position = 'absolute';
+		input.style.left = '-9999px';
+		document.body.appendChild(input);
+		input.select();
+		try {
+			document.execCommand('copy');
+			alert('Unique URL copied to clipboard.');
+		} catch (e) {
+			prompt('Copy this Unique URL:', text);
+		}
+		document.body.removeChild(input);
+	}
 
 	// Status Toggle
 	document.querySelectorAll('.status-toggle').forEach(function(toggle) {

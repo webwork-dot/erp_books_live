@@ -90,6 +90,21 @@ class Schools extends Vendor_base
 				}
 				$school['thumbnail'] = $school_image ? $school_image['image_path'] : NULL;
 			}
+
+			$school['unique_url'] = $this->get_storefront_base_url() . 'school-bookset/' . $school['id'];
+			if (!empty($school['is_private_bookset'])) {
+				$token = !empty($school['private_bookset_token']) ? $school['private_bookset_token'] : '';
+				if ($token === '') {
+					try {
+						$token = bin2hex(random_bytes(16));
+					} catch (Exception $e) {
+						$token = md5(uniqid((string) $school['id'], true));
+					}
+					$this->School_model->updateSchool($school['id'], array('private_bookset_token' => $token));
+					$school['private_bookset_token'] = $token;
+				}
+				$school['unique_url'] .= '/' . $token;
+			}
 		}
 		unset($school); // Break reference
 
@@ -98,6 +113,7 @@ class Schools extends Vendor_base
 		$data['per_page'] = $per_page;
 		$data['current_page'] = $page;
 		$data['total_pages'] = ceil($total_schools / $per_page);
+		$data['storefront_base_url'] = $this->get_storefront_base_url();
 
 		$data['title'] = 'Manage Schools';
 		$data['current_vendor'] = $this->current_vendor;
@@ -234,8 +250,17 @@ class Schools extends Vendor_base
 					'admin_phone' => $this->input->post('admin_phone'),
 					'admin_email' => $this->input->post('admin_email'),
 					'admin_password' => $this->input->post('admin_password'),
-					'status' => 'active'
+					'status' => 'active',
+					'is_private_bookset' => $this->input->post('is_private_bookset') ? 1 : 0
 				);
+
+				if (!empty($school_data['is_private_bookset'])) {
+					try {
+						$school_data['private_bookset_token'] = bin2hex(random_bytes(16));
+					} catch (Exception $e) {
+						$school_data['private_bookset_token'] = md5(uniqid('school', true));
+					}
+				}
 
 				$school_id = $this->School_model->createSchool($school_data);
 
@@ -357,8 +382,20 @@ class Schools extends Vendor_base
 				'admin_name' => $this->input->post('admin_name'),
 				'admin_phone' => $this->input->post('admin_phone'),
 				'admin_email' => $this->input->post('admin_email'),
-				'status' => $this->input->post('status')
+				'status' => $this->input->post('status'),
+				'is_private_bookset' => $this->input->post('is_private_bookset') ? 1 : 0
 			);
+
+			if (!empty($school_data['is_private_bookset'])) {
+				$existing_token = !empty($school['private_bookset_token']) ? $school['private_bookset_token'] : '';
+				if ($existing_token === '') {
+					try {
+						$school_data['private_bookset_token'] = bin2hex(random_bytes(16));
+					} catch (Exception $e) {
+						$school_data['private_bookset_token'] = md5(uniqid((string) $school_id, true));
+					}
+				}
+			}
 
 			// Update password only if provided
 			if ($this->input->post('admin_password')) {
@@ -1015,6 +1052,68 @@ class Schools extends Vendor_base
 					$response = array(
 						'status' => 'error',
 						'message' => 'Failed to update national delivery block status.'
+					);
+				}
+			}
+		}
+
+		header('Content-Type: application/json');
+		echo json_encode($response);
+	}
+
+	/**
+	 * Toggle private bookset status (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function toggle_private_bookset()
+	{
+		$school_id = $this->input->post('school_id');
+		$status = $this->input->post('status'); // 1 for private, 0 for public
+
+		if (empty($school_id)) {
+			$response = array(
+				'status' => 'error',
+				'message' => 'School ID is required.'
+			);
+		} else {
+			$school = $this->School_model->getSchoolById($school_id, $this->current_vendor['id']);
+
+			if (!$school) {
+				$response = array(
+					'status' => 'error',
+					'message' => 'School not found or you do not have permission to edit it.'
+				);
+			} else {
+				$update_data = array(
+					'is_private_bookset' => (int) $status
+				);
+
+				// Ensure a share token exists whenever private is enabled
+				if ((int) $status === 1) {
+					$token = !empty($school['private_bookset_token']) ? $school['private_bookset_token'] : '';
+					if ($token === '') {
+						try {
+							$token = bin2hex(random_bytes(16));
+						} catch (Exception $e) {
+							$token = md5(uniqid((string) $school_id, true));
+						}
+						$update_data['private_bookset_token'] = $token;
+					}
+				}
+
+				if ($this->School_model->updateSchool($school_id, $update_data)) {
+					$message = $status == 1
+						? 'School is now a Private Bookset (view-only in listings; share the unique URL).'
+						: 'School is now publicly accessible from listings.';
+					$response = array(
+						'status' => 'success',
+						'message' => $message
+					);
+				} else {
+					$response = array(
+						'status' => 'error',
+						'message' => 'Failed to update private bookset status.'
 					);
 				}
 			}

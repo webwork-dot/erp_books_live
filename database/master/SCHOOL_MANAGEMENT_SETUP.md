@@ -91,6 +91,35 @@ Set permissions to 755 or 777 (depending on your server configuration).
 4. Create uploads/schools/ directory
 5. Test the school management functionality
 
+## Private Bookset Column
+
+Hide a school from public clickable discovery while keeping a tokenized unique storefront URL accessible.
+
+**Apply to master template DB first** (new client DBs are built from `erp_master` / `erp_master.sql`):
+
+```sql
+-- See also: add_private_bookset_column.sql
+USE erp_master;
+ALTER TABLE erp_schools
+  ADD COLUMN is_private_bookset TINYINT(1) NOT NULL DEFAULT 0
+  COMMENT 'Private Bookset: view-only in public listings (1=yes, 0=no)'
+  AFTER status;
+
+ALTER TABLE erp_schools
+  ADD COLUMN private_bookset_token VARCHAR(64) NULL DEFAULT NULL
+  COMMENT 'Secret token for private unique school-bookset URL'
+  AFTER is_private_bookset;
+```
+
+Then apply the same `ALTER`s on each existing tenant DB.
+
+When `is_private_bookset = 1`:
+- School still appears on Our Schools / school-bookset listing for **viewing only** (card is not clickable)
+- Plain `/school-bookset/{id}` and cold `/bookset/{slug}` return 404
+- Unique share URL is `/school-bookset/{id}/{token}` (Copy / WhatsApp in admin)
+- Opening the unique URL unlocks bookset details for that browser session
+- School is excluded from search suggestions (prevents click-through)
+
 ## Features Implemented
 
 ✅ Add School with all required fields
@@ -101,4 +130,5 @@ Set permissions to 755 or 777 (depending on your server configuration).
 ✅ Admin Login Details Management
 ✅ School Status Management
 ✅ Search and Filter Schools
+✅ Private Bookset toggle + unique URL copy/WhatsApp share
 

@@ -78,6 +78,15 @@
 						</select>
 						<?php echo form_error('status', '<div class="text-danger fs-12 mt-1">', '</div>'); ?>
 					</div>
+
+					<div class="col-xl-3 col-lg-4 col-md-6 mb-2 d-flex align-items-end">
+						<div class="form-check form-switch mb-2">
+							<input class="form-check-input border-primary" type="checkbox" name="is_private_bookset" id="is_private_bookset" value="1"
+								<?php echo set_checkbox('is_private_bookset', '1', !empty($school['is_private_bookset'])); ?>>
+							<label class="form-check-label fs-13" for="is_private_bookset">Private Bookset</label>
+							<small class="d-block text-muted">Hide from public listings; unique URL still works</small>
+						</div>
+					</div>
 					
 					<div class="col-md-12 mb-2">
 						<label class="form-label fs-13 mb-1">School Description</label>

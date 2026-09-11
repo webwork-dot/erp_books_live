@@ -2392,7 +2392,7 @@ class Crud_model extends CI_Model{
         $erp_db = $this->load->database('default', TRUE);
 
         // Get all active schools with their images and boards (no limit - show all schools)
-        $schools_query = $erp_db->query("SELECT s.id, s.slug, s.school_name, s.address, s.school_description, si.image_path, GROUP_CONCAT(DISTINCT sb.board_name ORDER BY sb.board_name SEPARATOR ', ') as boards FROM erp_schools s LEFT JOIN erp_school_images si ON s.id = si.school_id AND si.is_primary = 1 LEFT JOIN erp_school_boards_mapping sbm ON s.id = sbm.school_id LEFT JOIN erp_school_boards sb ON sbm.board_id = sb.id AND sb.status = 'active' WHERE s.status = 'active' GROUP BY s.id ORDER BY s.created_at DESC");
+        $schools_query = $erp_db->query("SELECT s.id, s.slug, s.school_name, s.address, s.school_description, si.image_path, GROUP_CONCAT(DISTINCT sb.board_name ORDER BY sb.board_name SEPARATOR ', ') as boards FROM erp_schools s LEFT JOIN erp_school_images si ON s.id = si.school_id AND si.is_primary = 1 LEFT JOIN erp_school_boards_mapping sbm ON s.id = sbm.school_id LEFT JOIN erp_school_boards sb ON sbm.board_id = sb.id AND sb.status = 'active' WHERE s.status = 'active' AND COALESCE(s.is_private_bookset, 0) = 0 GROUP BY s.id ORDER BY s.created_at DESC");
 
         if (!empty($schools_query)) {
             foreach($schools_query->result_array() as $item){

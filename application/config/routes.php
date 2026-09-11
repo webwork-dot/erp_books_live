@@ -141,6 +141,7 @@ $route['schools/toggle_payment_block'] = 'Vendor/schools/toggle_payment_block';
 $route['schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block';
 $route['schools/toggle_payment_required'] = 'Vendor/schools/toggle_payment_required';
 $route['schools/toggle_deliver_at_school'] = 'Vendor/schools/toggle_deliver_at_school';
+$route['schools/toggle_private_bookset'] = 'Vendor/schools/toggle_private_bookset';
 $route['schools/toggle_status'] = 'Vendor/schools/toggle_status';
 $route['branches'] = 'Vendor/branches/index';
 $route['branches/add'] = 'Vendor/branches/add';

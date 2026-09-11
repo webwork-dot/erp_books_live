@@ -6757,6 +6757,7 @@ CREATE TABLE `erp_schools` (
   `admin_email` varchar(255) NOT NULL COMMENT 'Admin Email',
   `admin_password` varchar(255) NOT NULL COMMENT 'Admin Password (SHA1 hash)',
   `status` enum('active','inactive','suspended') NOT NULL DEFAULT 'active',
+  `is_private_bookset` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Private Bookset: hide from public listings (1=yes, 0=no)',
   `is_branch` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Is this school a branch? (1=yes, 0=no)',
   `parent_school_id` int(11) DEFAULT NULL COMMENT 'Parent school ID if this is a branch',
   `is_block_payment` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Payment Block Status (0=Active, 1=Blocked)',
