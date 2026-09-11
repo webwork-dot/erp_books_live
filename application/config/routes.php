@@ -48,6 +48,16 @@ $route['erp_admin/product_migration/run_all'] = 'Erp_admin/Product_migration/run
 $route['erp_admin/product_migration/sync_images'] = 'Erp_admin/Product_migration/sync_images';
 $route['Erp_admin/Product_migration/run'] = 'Erp_admin/Product_migration/run';
 $route['Erp_admin/Product_migration/run_all'] = 'Erp_admin/Product_migration/run_all';
+
+// Schema migrations (Laravel-style multi-tenant DDL)
+$route['erp-admin/schema-migrations'] = 'Erp_admin/Schema_migrations/status';
+$route['erp-admin/schema-migrations/status'] = 'Erp_admin/Schema_migrations/status';
+$route['erp-admin/schema-migrations/run'] = 'Erp_admin/Schema_migrations/run';
+$route['erp-admin/schema-migrations/run/(:any)'] = 'Erp_admin/Schema_migrations/run/$1';
+$route['Erp_admin/Schema_migrations/status'] = 'Erp_admin/Schema_migrations/status';
+$route['Erp_admin/Schema_migrations/run'] = 'Erp_admin/Schema_migrations/run';
+$route['Erp_admin/Schema_migrations/run/(:any)'] = 'Erp_admin/Schema_migrations/run/$1';
+
 $route['Erp_admin/Product_migration/sync_images'] = 'Erp_admin/Product_migration/sync_images';
 
 // Client Admin Routes
@@ -142,6 +152,7 @@ $route['schools/toggle_national_block'] = 'Vendor/schools/toggle_national_block'
 $route['schools/toggle_payment_required'] = 'Vendor/schools/toggle_payment_required';
 $route['schools/toggle_deliver_at_school'] = 'Vendor/schools/toggle_deliver_at_school';
 $route['schools/toggle_private_bookset'] = 'Vendor/schools/toggle_private_bookset';
+$route['schools/regenerate_short_code'] = 'Vendor/schools/regenerate_short_code';
 $route['schools/toggle_status'] = 'Vendor/schools/toggle_status';
 $route['branches'] = 'Vendor/branches/index';
 $route['branches/add'] = 'Vendor/branches/add';

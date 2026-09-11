@@ -116,9 +116,29 @@ Then apply the same `ALTER`s on each existing tenant DB.
 When `is_private_bookset = 1`:
 - School still appears on Our Schools / school-bookset listing for **viewing only** (card is not clickable)
 - Plain `/school-bookset/{id}` and cold `/bookset/{slug}` return 404
-- Unique share URL is `/school-bookset/{id}/{token}` (Copy / WhatsApp in admin)
+- Unique share URL is the short link `/s/{short_code}` (Copy / WhatsApp / Regenerate in admin); it unlocks the session then redirects to `/school-bookset/{id}` (token stays server-side)
 - Opening the unique URL unlocks bookset details for that browser session
 - School is excluded from search suggestions (prevents click-through)
+
+## Short Share URL Column
+
+SMS-friendly unique storefront link per school: `/s/{short_code}`.
+
+**Preferred (live / all tenants):** run schema migrations:
+
+- Status: `/erp-admin/schema-migrations`
+- Run all: `/erp-admin/schema-migrations/run`
+- CLI: `php index.php Erp_admin/Schema_migrations/run`
+
+Migrations:
+- `database/migrations/2026_09_11_191500_add_school_short_code.php`
+- `database/migrations/2026_09_11_191600_create_sys_activity_log.php`
+
+Registry: `erp_master.sys_schema_migrations` (per migration × database, status `done` when finished).
+
+Manual SQL (single DB) remains in `add_school_short_code.sql` if needed.
+
+Admin Share modal shows only `{storefront}/s/{short_code}`. Storefront unlocks private access in-session (when needed) and 302-redirects to `school-bookset/{id}` **without** putting `private_bookset_token` in the browser URL. Inactive schools do not resolve. Short-link protection is IP-based and bot-oriented (failed guesses / many distinct codes), not a per-user traffic cap — so thousands of normal SMS opens are fine. Admin can regenerate the short code to revoke a leaked SMS link. School actions are written to `sys_activity_log`.
 
 ## Features Implemented
 
@@ -130,5 +150,6 @@ When `is_private_bookset = 1`:
 ✅ Admin Login Details Management
 ✅ School Status Management
 ✅ Search and Filter Schools
-✅ Private Bookset toggle + unique URL copy/WhatsApp share
+✅ Private Bookset toggle + unique short URL copy/WhatsApp share
+✅ Short unique `/s/{code}` share URLs for SMS
 

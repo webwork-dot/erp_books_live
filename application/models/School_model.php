@@ -541,5 +541,171 @@ class School_model extends CI_Model
 			);
 		}
 	}
+
+	/**
+	 * Generate a unique short_code for school share URLs.
+	 *
+	 * @param	int	$length	Code length (default 8)
+	 * @return	string
+	 */
+	public function generateUniqueShortCode($length = 8)
+	{
+		if (!$this->db->field_exists('short_code', 'erp_schools'))
+		{
+			throw new RuntimeException('Column short_code does not exist on erp_schools. Run schema migrations.');
+		}
+
+		$alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+		$alphabet_len = strlen($alphabet);
+		$max_attempts = 40;
+
+		for ($attempt = 0; $attempt < $max_attempts; $attempt++)
+		{
+			$code = '';
+			try
+			{
+				$bytes = random_bytes($length);
+				for ($i = 0; $i < $length; $i++)
+				{
+					$code .= $alphabet[ord($bytes[$i]) % $alphabet_len];
+				}
+			}
+			catch (Exception $e)
+			{
+				for ($i = 0; $i < $length; $i++)
+				{
+					$code .= $alphabet[mt_rand(0, $alphabet_len - 1)];
+				}
+			}
+
+			$this->db->where('short_code', $code);
+			$exists = $this->db->count_all_results('erp_schools') > 0;
+			if (!$exists)
+			{
+				return $code;
+			}
+		}
+
+		throw new RuntimeException('Unable to generate a unique school short_code');
+	}
+
+	/**
+	 * Ensure school has a short_code; create and persist if missing.
+	 *
+	 * @param	int		$school_id		School ID
+	 * @param	string|null	$existing_code	Existing code if already loaded
+	 * @return	string|null	Short code or NULL on failure
+	 */
+	public function ensureShortCode($school_id, $existing_code = NULL)
+	{
+		$school_id = (int) $school_id;
+		if ($school_id <= 0)
+		{
+			return NULL;
+		}
+
+		if (!$this->db->field_exists('short_code', 'erp_schools'))
+		{
+			return NULL;
+		}
+
+		if ($existing_code !== NULL && $existing_code !== '')
+		{
+			return (string) $existing_code;
+		}
+
+		$row = $this->db->select('short_code')->where('id', $school_id)->get('erp_schools')->row_array();
+		if (!empty($row['short_code']))
+		{
+			return (string) $row['short_code'];
+		}
+
+		try
+		{
+			$code = $this->generateUniqueShortCode(8);
+		}
+		catch (Exception $e)
+		{
+			log_message('error', 'ensureShortCode generate failed: ' . $e->getMessage());
+			return NULL;
+		}
+
+		if (!$this->updateSchool($school_id, array('short_code' => $code)))
+		{
+			return NULL;
+		}
+
+		return $code;
+	}
+
+	/**
+	 * Force a new unique short_code for a school (revokes previous share link).
+	 *
+	 * @param	int	$school_id
+	 * @param	int|null	$vendor_id
+	 * @return	string|null	New short code or NULL on failure
+	 */
+	public function regenerateShortCode($school_id, $vendor_id = NULL)
+	{
+		if (!$this->db->field_exists('short_code', 'erp_schools'))
+		{
+			return NULL;
+		}
+
+		$school = $this->getSchoolById($school_id, $vendor_id);
+		if (!$school)
+		{
+			return NULL;
+		}
+
+		try
+		{
+			$code = $this->generateUniqueShortCode(8);
+		}
+		catch (Exception $e)
+		{
+			log_message('error', 'regenerateShortCode generate failed: ' . $e->getMessage());
+			return NULL;
+		}
+
+		if (!$this->updateSchool($school_id, array('short_code' => $code)))
+		{
+			return NULL;
+		}
+
+		return $code;
+	}
+
+	/**
+	 * Get school by short share code
+	 *
+	 * @param	string	$short_code
+	 * @return	array|NULL
+	 */
+	public function getSchoolByShortCode($short_code)
+	{
+		if (!$this->db->field_exists('short_code', 'erp_schools'))
+		{
+			return NULL;
+		}
+
+		$short_code = trim((string) $short_code);
+		if ($short_code === '')
+		{
+			return NULL;
+		}
+
+		$this->db->from('erp_schools');
+		$this->db->where('short_code', $short_code);
+		$this->db->limit(1);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0)
+		{
+			return $query->row_array();
+		}
+
+		return NULL;
+	}
 }
 

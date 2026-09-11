@@ -29,6 +29,7 @@ class Schools extends Vendor_base
 		$this->load->model('Location_model');
 		$this->load->model('School_board_model');
 		$this->load->model('Branch_model');
+		$this->load->model('Activity_log_model');
 		$this->load->library('form_validation');
 		$this->load->helper('file');
 	}
@@ -91,7 +92,7 @@ class Schools extends Vendor_base
 				$school['thumbnail'] = $school_image ? $school_image['image_path'] : NULL;
 			}
 
-			$school['unique_url'] = $this->get_storefront_base_url() . 'school-bookset/' . $school['id'];
+			// Keep private token available for storefront redirect target
 			if (!empty($school['is_private_bookset'])) {
 				$token = !empty($school['private_bookset_token']) ? $school['private_bookset_token'] : '';
 				if ($token === '') {
@@ -103,8 +104,19 @@ class Schools extends Vendor_base
 					$this->School_model->updateSchool($school['id'], array('private_bookset_token' => $token));
 					$school['private_bookset_token'] = $token;
 				}
-				$school['unique_url'] .= '/' . $token;
 			}
+
+			$short_code = NULL;
+			if ($this->db->field_exists('short_code', 'erp_schools')) {
+				$short_code = $this->School_model->ensureShortCode(
+					$school['id'],
+					isset($school['short_code']) ? $school['short_code'] : NULL
+				);
+			}
+			$school['short_code'] = $short_code;
+			$school['unique_url'] = $short_code
+				? $this->get_storefront_base_url() . 's/' . $short_code
+				: '';
 		}
 		unset($school); // Break reference
 
@@ -262,6 +274,17 @@ class Schools extends Vendor_base
 					}
 				}
 
+				try {
+					if ($this->db->field_exists('short_code', 'erp_schools')) {
+						$school_data['short_code'] = $this->School_model->generateUniqueShortCode(8);
+					}
+				} catch (Exception $e) {
+					$this->session->set_flashdata('error', 'Failed to generate short URL for school.');
+					$this->load->helper('common');
+					redirect(base_url('schools/add'));
+					return;
+				}
+
 				$school_id = $this->School_model->createSchool($school_data);
 
 				if ($school_id) {
@@ -277,6 +300,11 @@ class Schools extends Vendor_base
 
 					// Handle image uploads
 					$this->handleImageUploads($school_id);
+
+					$this->log_school_activity('school.create', 'Created school', $school_id, $this->input->post('school_name'), array(
+						'short_code' => isset($school_data['short_code']) ? $school_data['short_code'] : NULL,
+						'is_private_bookset' => !empty($school_data['is_private_bookset']) ? 1 : 0,
+					));
 
 					$this->session->set_flashdata('success', 'School created successfully.');
 					$this->load->helper('common');
@@ -416,6 +444,9 @@ class Schools extends Vendor_base
 			// 2. Boards were updated successfully
 			// The main update might return FALSE if no rows were affected (data unchanged), but that's OK
 			if ($update_result || $boards_updated) {
+				$this->log_school_activity('school.update', 'Updated school', $school_id, $school_data['school_name'], array(
+					'is_private_bookset' => !empty($school_data['is_private_bookset']) ? 1 : 0,
+				));
 				$this->session->set_flashdata('success', 'School updated successfully.');
 				$this->load->helper('common');
 				redirect(base_url('schools'));
@@ -430,6 +461,7 @@ class Schools extends Vendor_base
 					// If we get here, it means update returned FALSE but no error
 					// This can happen if data hasn't changed, but boards were updated
 					// So we should still show success
+					$this->log_school_activity('school.update', 'Updated school', $school_id, $school_data['school_name']);
 					$this->session->set_flashdata('success', 'School updated successfully.');
 					$this->load->helper('common');
 					redirect(base_url('schools'));
@@ -572,6 +604,7 @@ class Schools extends Vendor_base
 		}
 
 		if ($this->School_model->deleteSchool($school_id, $this->current_vendor['id'])) {
+			$this->log_school_activity('school.delete', 'Deleted school', $school_id, isset($school['school_name']) ? $school['school_name'] : NULL);
 			$this->session->set_flashdata('success', 'School deleted successfully.');
 		} else {
 			$this->session->set_flashdata('error', 'Failed to delete school.');
@@ -1106,6 +1139,13 @@ class Schools extends Vendor_base
 					$message = $status == 1
 						? 'School is now a Private Bookset (view-only in listings; share the unique URL).'
 						: 'School is now publicly accessible from listings.';
+					$this->log_school_activity(
+						'school.toggle_private_bookset',
+						$status == 1 ? 'Enabled private bookset' : 'Disabled private bookset',
+						$school_id,
+						isset($school['school_name']) ? $school['school_name'] : NULL,
+						array('is_private_bookset' => (int) $status)
+					);
 					$response = array(
 						'status' => 'success',
 						'message' => $message
@@ -1114,6 +1154,65 @@ class Schools extends Vendor_base
 					$response = array(
 						'status' => 'error',
 						'message' => 'Failed to update private bookset status.'
+					);
+				}
+			}
+		}
+
+		header('Content-Type: application/json');
+		echo json_encode($response);
+	}
+
+	/**
+	 * Regenerate school short share URL (AJAX)
+	 *
+	 * @return	void
+	 */
+	public function regenerate_short_code()
+	{
+		$school_id = (int) $this->input->post('school_id');
+
+		if ($school_id <= 0) {
+			$response = array(
+				'status' => 'error',
+				'message' => 'School ID is required.'
+			);
+		} else {
+			$school = $this->School_model->getSchoolById($school_id, $this->current_vendor['id']);
+
+			if (!$school) {
+				$response = array(
+					'status' => 'error',
+					'message' => 'School not found or you do not have permission to edit it.'
+				);
+			} else {
+				$old_short_code = !empty($school['short_code']) ? $school['short_code'] : NULL;
+				$short_code = $this->School_model->regenerateShortCode($school_id, $this->current_vendor['id']);
+				if ($short_code) {
+					$unique_url = $this->get_storefront_base_url() . 's/' . $short_code;
+					$this->log_school_activity(
+						'school.short_url_regenerate',
+						'Regenerated short URL',
+						$school_id,
+						isset($school['school_name']) ? $school['school_name'] : NULL,
+						array(
+							'old_short_code' => $old_short_code,
+							'new_short_code' => $short_code,
+							'unique_url' => $unique_url,
+						)
+					);
+					$response = array(
+						'status' => 'success',
+						'message' => 'Short URL regenerated. Previous link no longer works.',
+						'data' => array(
+							'short_code' => $short_code,
+							'unique_url' => $unique_url
+						)
+					);
+				} else {
+					$response = array(
+						'status' => 'error',
+						'message' => 'Failed to regenerate short URL.'
 					);
 				}
 			}
@@ -1160,6 +1259,13 @@ class Schools extends Vendor_base
 
 				if ($this->School_model->updateSchool($school_id, $update_data)) {
 					$message = 'Status updated to ' . ucfirst($status) . '.';
+					$this->log_school_activity(
+						'school.toggle_status',
+						'Changed school status to ' . $status,
+						$school_id,
+						isset($school['school_name']) ? $school['school_name'] : NULL,
+						array('status' => $status)
+					);
 					$response = array(
 						'status' => 'success',
 						'message' => $message
@@ -1246,6 +1352,40 @@ class Schools extends Vendor_base
 	 *
 	 * @return	string
 	 */
+	/**
+	 * Write a schools module row to sys_activity_log (no-op if table missing).
+	 *
+	 * @param string $action
+	 * @param string $action_label
+	 * @param int|null $reference_id
+	 * @param string|null $reference_label
+	 * @param array|null $meta
+	 * @return void
+	 */
+	private function log_school_activity($action, $action_label, $reference_id = NULL, $reference_label = NULL, $meta = NULL)
+	{
+		$actor_name = '';
+		if (!empty($this->current_vendor['name'])) {
+			$actor_name = $this->current_vendor['name'];
+		} elseif ($this->session->userdata('vendor_name')) {
+			$actor_name = $this->session->userdata('vendor_name');
+		}
+
+		$this->Activity_log_model->log(array(
+			'module' => 'schools',
+			'action' => $action,
+			'action_label' => $action_label,
+			'actor_id' => isset($this->current_vendor['id']) ? (int) $this->current_vendor['id'] : NULL,
+			'actor_name' => $actor_name,
+			'actor_role' => 'vendor',
+			'reference_type' => 'school',
+			'reference_id' => $reference_id,
+			'reference_label' => $reference_label,
+			'meta' => $meta,
+			'ip_address' => $this->input->ip_address(),
+		));
+	}
+
 	private function get_storefront_base_url()
 	{
 		$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';

@@ -150,9 +150,10 @@
 								<td><?php echo date('d M Y', strtotime($school['created_at'])); ?></td>
 								<td class="text-end">
 									<button type="button" class="btn btn-sm btn-outline-success share-unique-url-btn"
+										data-school-id="<?php echo (int) $school['id']; ?>"
 										data-url="<?php echo htmlspecialchars(isset($school['unique_url']) ? $school['unique_url'] : ''); ?>"
 										data-school-name="<?php echo htmlspecialchars($school['school_name']); ?>"
-										data-bs-toggle="tooltip" title="Share Unique URL">
+										data-bs-toggle="tooltip" title="Share Short URL">
 										<i class="isax isax-share"></i>
 									</button>
 									<button type="button" class="btn btn-sm btn-outline-warning qr-school-btn" data-school-id="<?php echo $school['id']; ?>" data-bs-toggle="tooltip" title="Download QR Codes">
@@ -231,11 +232,12 @@
 	<div class="modal-dialog modal-dialog-centered modal-sm">
 		<div class="modal-content">
 			<div class="modal-header py-2">
-				<h6 class="modal-title mb-0" id="uniqueUrlShareModalLabel">Share Unique URL</h6>
+				<h6 class="modal-title mb-0" id="uniqueUrlShareModalLabel">Share Short URL</h6>
 				<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body py-3">
 				<p class="small text-muted mb-2" id="uniqueUrlSchoolName"></p>
+				<p class="small text-muted mb-2">Short URL (for SMS)</p>
 				<div class="input-group input-group-sm mb-3">
 					<input type="text" class="form-control" id="uniqueUrlInput" readonly>
 				</div>
@@ -246,6 +248,9 @@
 					<a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm" id="uniqueUrlWhatsAppBtn">
 						<i class="isax isax-send-2 me-1"></i>Share on WhatsApp
 					</a>
+					<button type="button" class="btn btn-outline-secondary btn-sm" id="uniqueUrlRegenerateBtn">
+						<i class="isax isax-refresh me-1"></i>Regenerate Short URL
+					</button>
 				</div>
 			</div>
 		</div>
@@ -513,31 +518,45 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	});
 
-	// Share Unique URL (single button → popup with Copy + WhatsApp)
+	// Share Short URL (Copy + WhatsApp + Regenerate)
 	const uniqueUrlShareModalEl = document.getElementById('uniqueUrlShareModal');
 	const uniqueUrlShareModal = uniqueUrlShareModalEl ? new bootstrap.Modal(uniqueUrlShareModalEl) : null;
 	const uniqueUrlInput = document.getElementById('uniqueUrlInput');
 	const uniqueUrlSchoolName = document.getElementById('uniqueUrlSchoolName');
 	const uniqueUrlCopyBtn = document.getElementById('uniqueUrlCopyBtn');
 	const uniqueUrlWhatsAppBtn = document.getElementById('uniqueUrlWhatsAppBtn');
+	const uniqueUrlRegenerateBtn = document.getElementById('uniqueUrlRegenerateBtn');
+	let activeShareSchoolId = '';
+	let activeShareBtn = null;
+
+	function setShareModalUrl(url) {
+		if (uniqueUrlInput) {
+			uniqueUrlInput.value = url || '';
+		}
+		if (uniqueUrlWhatsAppBtn) {
+			uniqueUrlWhatsAppBtn.href = url
+				? ('https://wa.me/?text=' + encodeURIComponent('View bookset: ' + url))
+				: '#';
+		}
+		if (activeShareBtn && url) {
+			activeShareBtn.setAttribute('data-url', url);
+		}
+	}
 
 	document.querySelectorAll('.share-unique-url-btn').forEach(function(btn) {
 		btn.addEventListener('click', function() {
 			const url = this.getAttribute('data-url') || '';
 			const schoolName = this.getAttribute('data-school-name') || 'School';
+			activeShareSchoolId = this.getAttribute('data-school-id') || '';
+			activeShareBtn = this;
 			if (!url) {
-				alert('Unique URL is not available.');
+				alert('Short URL is not available.');
 				return;
 			}
 			if (uniqueUrlSchoolName) {
 				uniqueUrlSchoolName.textContent = schoolName;
 			}
-			if (uniqueUrlInput) {
-				uniqueUrlInput.value = url;
-			}
-			if (uniqueUrlWhatsAppBtn) {
-				uniqueUrlWhatsAppBtn.href = 'https://wa.me/?text=' + encodeURIComponent('View bookset: ' + url);
-			}
+			setShareModalUrl(url);
 			if (uniqueUrlShareModal) {
 				uniqueUrlShareModal.show();
 			}
@@ -548,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		uniqueUrlCopyBtn.addEventListener('click', function() {
 			const url = uniqueUrlInput ? uniqueUrlInput.value : '';
 			if (!url) {
-				alert('Unique URL is not available.');
+				alert('Short URL is not available.');
 				return;
 			}
 			if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -566,6 +585,41 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	}
 
+	if (uniqueUrlRegenerateBtn) {
+		uniqueUrlRegenerateBtn.addEventListener('click', function() {
+			if (!activeShareSchoolId) {
+				alert('School not selected.');
+				return;
+			}
+			if (!confirm('Regenerate short URL? The previous link will stop working.')) {
+				return;
+			}
+			uniqueUrlRegenerateBtn.disabled = true;
+			fetch('<?php echo base_url('schools/regenerate_short_code'); ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'school_id=' + encodeURIComponent(activeShareSchoolId)
+			})
+			.then(function(response) { return response.json(); })
+			.then(function(data) {
+				if (data.status === 'success' && data.data && data.data.unique_url) {
+					setShareModalUrl(data.data.unique_url);
+					alert(data.message || 'Short URL regenerated.');
+				} else {
+					alert((data && data.message) ? data.message : 'Failed to regenerate short URL.');
+				}
+			})
+			.catch(function() {
+				alert('Failed to regenerate short URL.');
+			})
+			.finally(function() {
+				uniqueUrlRegenerateBtn.disabled = false;
+			});
+		});
+	}
+
 	function fallbackCopyText(text) {
 		const input = document.createElement('textarea');
 		input.value = text;
@@ -576,9 +630,9 @@ document.addEventListener('DOMContentLoaded', function() {
 		input.select();
 		try {
 			document.execCommand('copy');
-			alert('Unique URL copied to clipboard.');
+			alert('Short URL copied to clipboard.');
 		} catch (e) {
-			prompt('Copy this Unique URL:', text);
+			prompt('Copy this Short URL:', text);
 		}
 		document.body.removeChild(input);
 	}
