@@ -1185,6 +1185,12 @@ if (!empty($additional_status)) {
                       </button>
                     </div>
                   </div>
+                  <div class="text-center mt-2">
+                    <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id . '?regenerate=1'); ?>"
+                      class="text-muted small text-decoration-none" target="_blank" title="Regenerate Label">
+                      <i class="fa fa-sync-alt me-1"></i> Regenerate Label
+                    </a>
+                  </div>
                   <?php
                 endif; ?>
                 <?php
@@ -1236,8 +1242,25 @@ if (!empty($additional_status)) {
                       </a>
                     </div>
                   </div>
-                  <?php
-                endif; ?>
+                  <div class="text-center mt-2">
+                    <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id . '?regenerate=1'); ?>"
+                      class="text-muted small text-decoration-none" target="_blank" title="Regenerate Label">
+                      <i class="fa fa-sync-alt me-1"></i> Regenerate Label
+                    </a>
+                  </div>
+                <?php else: ?>
+                  <div class="d-grid mb-2">
+                    <a href="<?php echo base_url('orders/generate_shipping_label/' . $order_data[0]->order_unique_id); ?>"
+                      class="btn btn-primary btn-lg" id="generateLabelBtn" onclick="showGenerateLoading(this); return true;">
+                      <span id="generateLabelText">
+                        <i class="fa fa-file-pdf me-2"></i> Generate Shipping Label
+                      </span>
+                      <span id="generateLabelSpinner" style="display: none;">
+                        <i class="fa fa-spinner fa-spin me-2"></i> Generating...
+                      </span>
+                    </a>
+                  </div>
+                <?php endif; ?>
                 <?php
               endif; ?>
               <?php
@@ -1259,6 +1282,12 @@ if (!empty($additional_status)) {
                       <i class="fa fa-download"></i> Download Label
                     </a>
                   </div>
+                </div>
+                <div class="text-center mt-2">
+                  <a href="<?php echo base_url('orders/download_shipping_label/' . $order_data[0]->order_unique_id . '?regenerate=1'); ?>"
+                    class="text-muted small text-decoration-none" target="_blank" title="Regenerate Label">
+                    <i class="fa fa-sync-alt me-1"></i> Regenerate Label
+                  </a>
                 </div>
                 <?php
               else: ?>
@@ -2019,22 +2048,22 @@ if (!empty($additional_status)) {
           <div class="row g-2">
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Length (cm)</label>
-              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_length_cm) ? (float)$order_data[0]->pkg_length_cm : '' ?>">
+              <input type="number" id="pkgLength" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_length_cm) && (float)$order_data[0]->pkg_length_cm > 0 ? (float)$order_data[0]->pkg_length_cm : 42 ?>">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Breadth (cm)</label>
-              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_breadth_cm) ? (float)$order_data[0]->pkg_breadth_cm : '' ?>">
+              <input type="number" id="pkgBreadth" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_breadth_cm) && (float)$order_data[0]->pkg_breadth_cm > 0 ? (float)$order_data[0]->pkg_breadth_cm : 30 ?>">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Height (cm)</label>
-              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_height_cm) ? (float)$order_data[0]->pkg_height_cm : '' ?>">
+              <input type="number" id="pkgHeight" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_height_cm) && (float)$order_data[0]->pkg_height_cm > 0 ? (float)$order_data[0]->pkg_height_cm : 17 ?>">
             </div>
 
             <div class="col-6 col-md-3">
               <label class="form-label small text-muted">Weight (kg)</label>
-              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_weight_kg) ? (float)$order_data[0]->pkg_weight_kg : '' ?>">
+              <input type="number" id="pkgWeight" class="form-control" min="0" step="0.01" placeholder="0" value="<?= !empty($order_data[0]->pkg_weight_kg) && (float)$order_data[0]->pkg_weight_kg > 0 ? (float)$order_data[0]->pkg_weight_kg : (!empty($order_data[0]->total_weight_gm) && (float)$order_data[0]->total_weight_gm > 0 ? round((float)$order_data[0]->total_weight_gm / 1000, 2) : 5) ?>">
             </div>
           </div>
         </div>
@@ -2572,6 +2601,24 @@ if (!empty($additional_status)) {
     $('#saveBtnText').show();
     $('#saveBtnLoader').hide();
     $('#thirdPartyProvidersContainer').html('<span class="text-muted">Loading providers...</span>');
+
+    var defaultLength = '<?= !empty($order_data[0]->pkg_length_cm) && (float)$order_data[0]->pkg_length_cm > 0 ? (float)$order_data[0]->pkg_length_cm : 42 ?>';
+    var defaultBreadth = '<?= !empty($order_data[0]->pkg_breadth_cm) && (float)$order_data[0]->pkg_breadth_cm > 0 ? (float)$order_data[0]->pkg_breadth_cm : 30 ?>';
+    var defaultHeight = '<?= !empty($order_data[0]->pkg_height_cm) && (float)$order_data[0]->pkg_height_cm > 0 ? (float)$order_data[0]->pkg_height_cm : 17 ?>';
+    var defaultWeight = '<?= !empty($order_data[0]->pkg_weight_kg) && (float)$order_data[0]->pkg_weight_kg > 0 ? (float)$order_data[0]->pkg_weight_kg : (!empty($order_data[0]->total_weight_gm) && (float)$order_data[0]->total_weight_gm > 0 ? round((float)$order_data[0]->total_weight_gm / 1000, 2) : 5) ?>';
+
+    if (!$('#pkgLength').val() || parseFloat($('#pkgLength').val()) <= 0) {
+      $('#pkgLength').val(defaultLength);
+    }
+    if (!$('#pkgBreadth').val() || parseFloat($('#pkgBreadth').val()) <= 0) {
+      $('#pkgBreadth').val(defaultBreadth);
+    }
+    if (!$('#pkgHeight').val() || parseFloat($('#pkgHeight').val()) <= 0) {
+      $('#pkgHeight').val(defaultHeight);
+    }
+    if (!$('#pkgWeight').val() || parseFloat($('#pkgWeight').val()) <= 0) {
+      $('#pkgWeight').val(defaultWeight);
+    }
 
     $.get('<?php echo base_url("vendor/orders/get_active_shipping_providers"); ?>', function (res) {
 

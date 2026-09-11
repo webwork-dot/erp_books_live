@@ -280,22 +280,50 @@ class Pdf_model extends CI_Model
         // Determine courier type from order
         $is_third_party = false;
 
-        if (!empty($order->courier) && $order->courier == '3rd_party') {
+        if ($type === '3rd_party' || (!empty($order->courier) && in_array($order->courier, ['3rd_party', 'velocity', 'bigship', 'shiprocket'])) || !empty($order->third_party_provider) || !empty($order->awb_no)) {
             $is_third_party = true;
+        }
+
+        // If third_party_provider / awb_no / weight_kg not set, query tbl_order_third_party_shipping
+        $weight_kg = null;
+        if (!empty($order->id) && $this->db->table_exists('tbl_order_third_party_shipping')) {
+            $tp = $this->db->select('third_party_provider, awb_no, weight_kg, length_cm, breadth_cm, height_cm')
+                ->where('order_id', $order->id)
+                ->limit(1)
+                ->get('tbl_order_third_party_shipping')
+                ->row();
+            if ($tp) {
+                $is_third_party = true;
+                if (empty($order->third_party_provider) && !empty($tp->third_party_provider)) {
+                    $order->third_party_provider = $tp->third_party_provider;
+                }
+                if (empty($order->awb_no) && !empty($tp->awb_no)) {
+                    $order->awb_no = $tp->awb_no;
+                }
+                if (!empty($tp->weight_kg)) {
+                    $weight_kg = $tp->weight_kg;
+                }
+            }
         }
 
         // Generate codes on-the-fly - use shipping number (ship_order_id) when available, not order number
         $shipping_number_for_code = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $shipping_no);
 
         // For 3rd party shipping, use AWB number if available
-        if (!empty($order->courier) && $order->courier == '3rd_party' && !empty($shipping_label) && !empty($shipping_label->awb_number)) {
-            $code_no = $shipping_label->awb_number;
+        if ($is_third_party) {
+            if (!empty($shipping_label) && !empty($shipping_label->awb_number)) {
+                $code_no = $shipping_label->awb_number;
+            } elseif (!empty($order->awb_no)) {
+                $code_no = $order->awb_no;
+            } else {
+                $code_no = $shipping_number_for_code;
+            }
         } else {
             $code_no = $shipping_number_for_code;
         }
 
         // Generate barcode for 3rd party, QR code for manual shipping
-        if (!empty($order->courier) && $order->courier == '3rd_party') {
+        if ($is_third_party) {
             // 3rd party courier → BARCODE
             $barcode = $this->generate_barcode_base64($code_no);
             $qr_code = null;
@@ -319,27 +347,47 @@ class Pdf_model extends CI_Model
                     <div class="box no-pad" >
                     <table id="invoice" class="">';
 
-            // Logo - Get directly from erp_clients table (old way)
+            // Logo - Use passed $logo_url if already base64, otherwise load and convert to base64
             $logo_src = '';
-            $logo_row = $this->db->select('logo')
-                ->from('erp_clients')
-                ->limit(1)
-                ->get()
-                ->row();
-            if (!empty($logo_row) && !empty($logo_row->logo)) {
-                $logo_path = FCPATH . ltrim($logo_row->logo, '/');
-                // Check if file exists and convert to base64 for PDF compatibility
-                if (file_exists($logo_path)) {
-                    $logo_data = file_get_contents($logo_path);
-                    if ($logo_data !== false) {
-                        $image_info = @getimagesize($logo_path);
-                        $mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
-                        $logo_src = 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
-                    } else {
-                        $logo_src = base_url($logo_row->logo);
+            if (!empty($logo_url) && strpos($logo_url, 'data:image') === 0) {
+                $logo_src = $logo_url;
+            }
+
+            if (empty($logo_src)) {
+                $logo_row = $this->db->select('logo')
+                    ->from('erp_clients')
+                    ->limit(1)
+                    ->get()
+                    ->row();
+
+                if (!empty($logo_row) && !empty($logo_row->logo)) {
+                    $raw_logo = ltrim(str_replace('\\', '/', $logo_row->logo), '/');
+                    $logo_file_path = FCPATH . $raw_logo;
+                    if (!file_exists($logo_file_path)) {
+                        $logo_file_path = FCPATH . 'uploads/' . $raw_logo;
                     }
-                } else {
-                    $logo_src = base_url($logo_row->logo);
+
+                    if (file_exists($logo_file_path)) {
+                        $logo_data = @file_get_contents($logo_file_path);
+                        if ($logo_data !== false && strlen($logo_data) > 0) {
+                            $image_info = @getimagesize($logo_file_path);
+                            $mime_type = ($image_info !== false && isset($image_info['mime'])) ? $image_info['mime'] : 'image/png';
+                            $logo_src = 'data:' . $mime_type . ';base64,' . base64_encode($logo_data);
+                        }
+                    }
+
+                    // Fallback to logo_url if local files were not found
+                    if (empty($logo_src) && !empty($logo_url)) {
+                        if (strpos($logo_url, 'data:image') === 0) {
+                            $logo_src = $logo_url;
+                        } elseif (preg_match('#^https?://#i', $logo_url)) {
+                            $ctx = stream_context_create(array('http' => array('timeout' => 3)));
+                            $remote_data = @file_get_contents($logo_url, false, $ctx);
+                            if ($remote_data !== false && strlen($remote_data) > 0) {
+                                $logo_src = 'data:image/png;base64,' . base64_encode($remote_data);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -468,11 +516,11 @@ class Pdf_model extends CI_Model
                     </table>
                     </div>
 
-                    <!-- Top Section: Shipping ID on left, Pincode on right -->
+                    <!-- Top Section: Shipping ID / AWB on left, Pincode on right -->
                     <table style="width:100%; margin-top:10px;">
                     <tr>
                     <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
-                        <b style="font-size:20px;">' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>
+                        ' . ($is_third_party ? ('<div style="font-size:12px; font-weight:bold; color:#444;">' . htmlspecialchars(!empty($order->third_party_provider) ? ucfirst($order->third_party_provider) : '3rd Party') . '</div><b style="font-size:18px;">AWB: ' . htmlspecialchars($code_no) . '</b>' . (!empty($weight_kg) ? ('<div style="font-size:11px; color:#555; margin-top:2px;">Wt: ' . htmlspecialchars($weight_kg) . ' kg</div>') : '')) : ('<b style="font-size:20px;">' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>')) . '
                     </td>
                     <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
                         <b style="font-size:20px;">Pincode: ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '') . '</b>
@@ -510,9 +558,11 @@ class Pdf_model extends CI_Model
 
             // Display barcode or qr_code based on what's available
             if (!empty($barcode)) {
-                $output .= '<img src="' . htmlspecialchars($barcode) . '" style="width:170px; height:170px;">';
+                $output .= '<img src="' . htmlspecialchars($barcode) . '" style="max-width:200px; height:auto;"><br>';
+                $output .= '<div style="font-size:13px; font-weight:bold; letter-spacing:1px; margin-top:4px;">AWB: ' . htmlspecialchars($code_no) . '</div>';
             } elseif (!empty($qr_code)) {
-                $output .= '<img src="' . htmlspecialchars($qr_code) . '" style="width:170px; height:170px;">';
+                $output .= '<img src="' . htmlspecialchars($qr_code) . '" style="width:170px; height:170px;"><br>';
+                $output .= '<div style="font-size:13px; font-weight:bold; letter-spacing:1px; margin-top:4px;">' . htmlspecialchars($code_no) . '</div>';
             }
 
             $output .= '
@@ -893,7 +943,7 @@ class Pdf_model extends CI_Model
             $output .= '<table style="width:100%; margin-top:10px;">
                     <tr>
                     <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
-                        <b style="font-size:20px;">' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>
+                        ' . ($is_third_party ? ('<div style="font-size:12px; font-weight:bold; color:#444;">' . htmlspecialchars(!empty($order->third_party_provider) ? ucfirst($order->third_party_provider) : '3rd Party') . '</div><b style="font-size:18px;">AWB: ' . htmlspecialchars($code_no) . '</b>' . (!empty($weight_kg) ? ('<div style="font-size:11px; color:#555; margin-top:2px;">Wt: ' . htmlspecialchars($weight_kg) . ' kg</div>') : '')) : ('<b style="font-size:20px;">' . htmlspecialchars(!empty($ship_order_id) ? $ship_order_id : $shipping_no) . '</b>')) . '
                     </td>
                     <td style="width:50%; border:2px solid #000; padding:10px; text-align:center;">
                         <b style="font-size:20px;">Pincode: ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '') . '</b>
@@ -935,9 +985,11 @@ class Pdf_model extends CI_Model
 
             // Display barcode or qr_code based on what's available
             if (!empty($barcode)) {
-                $output .= '<img src="' . htmlspecialchars($barcode) . '" style="width:180px;">';
+                $output .= '<img src="' . htmlspecialchars($barcode) . '" style="width:180px;"><br>';
+                $output .= '<div style="font-size:12px; font-weight:bold; letter-spacing:1px; margin-top:4px;">AWB: ' . htmlspecialchars($code_no) . '</div>';
             } elseif (!empty($qr_code)) {
-                $output .= '<img src="' . htmlspecialchars($qr_code) . '" style="width:180px;">';
+                $output .= '<img src="' . htmlspecialchars($qr_code) . '" style="width:180px;"><br>';
+                $output .= '<div style="font-size:12px; font-weight:bold; letter-spacing:1px; margin-top:4px;">' . htmlspecialchars($code_no) . '</div>';
             }
 
             $output .= '</td>

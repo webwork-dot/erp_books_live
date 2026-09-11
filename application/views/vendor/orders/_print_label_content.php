@@ -28,23 +28,29 @@ $date = isset($order['date']) ? $order['date'] : '';
     </table>
     <table class="info-box">
         <tr>
-            <td class="box" style="width: 33%; text-align: center;">
+            <td class="box" style="width: 25%; text-align: center;">
                 <b><?php echo htmlspecialchars($order['order_unique_id'] ?? ''); ?></b>
             </td>
-            <td class="box" style="width: 33%; text-align: center;">
+            <td class="box" style="width: 25%; text-align: center;">
                 <b>QTY: <?php echo htmlspecialchars($order['total_qty'] ?? '0'); ?></b>
             </td>
-            <td class="box" style="width: 34%; text-align: center;">
+            <td class="box" style="width: 25%; text-align: center;">
 				<b>
 					<?php
 					if(isset($order['payment_method']) && strtolower($order['payment_method']) == 'cod'){
-						echo "CASH ON DELIVERY";
+						echo "COD";
 					}else{
 						echo "PREPAID";
 					}
 					?>
 				</b>
 			</td>
+            <td class="box" style="width: 25%; text-align: center;">
+                <b><?php echo htmlspecialchars(!empty($order['courier_name']) ? $order['courier_name'] : 'Self Delivery'); ?></b>
+                <?php if (!empty($order['weight_kg'])): ?>
+                    <br><span style="font-size: 10px; font-weight: normal;"><?php echo htmlspecialchars($order['weight_kg']); ?> kg</span>
+                <?php endif; ?>
+            </td>
         </tr>
     </table>
     <div class="info-box">
@@ -139,7 +145,12 @@ $date = isset($order['date']) ? $order['date'] : '';
             <img src="<?php echo htmlspecialchars($order['qr_code']); ?>" alt="QR Code">
         <?php endif; ?>
         <?php if (!empty($order['shipping_code'])): ?>
-        <div class="shipping-code-text"><?php echo htmlspecialchars($order['shipping_code']); ?></div>
+        <div class="shipping-code-text">
+            <?php 
+            $is_tp_code = (!empty($order['courier_type']) && in_array($order['courier_type'], array('3rd_party', 'velocity', 'shiprocket', 'bigship'))) || !empty($order['awb_no']);
+            echo ($is_tp_code ? 'AWB: ' : '') . htmlspecialchars($order['shipping_code']); 
+            ?>
+        </div>
         <?php endif; ?>
     </div>
 </div>

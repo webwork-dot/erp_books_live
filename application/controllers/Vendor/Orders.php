@@ -3070,6 +3070,13 @@ class Orders extends Vendor_base
 
 				$this->db->trans_commit();
 				$success_count++;
+
+				// Auto-generate shipping label immediately with the newly booked 3rd-party provider & AWB
+				try {
+					$this->generate_shipping_label($order_unique_id, 'bulk');
+				} catch (Exception $label_ex) {
+					log_message('error', 'Auto-generate label failed for order ' . $order_unique_id . ': ' . $label_ex->getMessage());
+				}
 			} catch (Exception $e) {
 				$failed_orders[$order_unique_id] = $e->getMessage();
 			}
@@ -3164,6 +3171,14 @@ class Orders extends Vendor_base
 				'status_desc' => 'Courier selected: ' . $courier_name . (!empty($awb_no) ? ' (AWB: ' . $awb_no . ')' : ''),
 				'created_at' => date('Y-m-d H:i:s')
 			));
+
+			// Auto-generate shipping label with the newly selected courier and AWB
+			try {
+				$this->generate_shipping_label($order_unique_id, 'bulk');
+			} catch (Exception $label_ex) {
+				log_message('error', 'Auto-generate label failed for order ' . $order_unique_id . ': ' . $label_ex->getMessage());
+			}
+
 			echo json_encode(array('status' => '200', 'message' => 'Courier saved successfully.'));
 		} else {
 			echo json_encode(array('status' => '400', 'message' => 'Failed to save.'));
@@ -5451,8 +5466,10 @@ class Orders extends Vendor_base
 				}
 			}
 		}
+		$is_tp_order = (!empty($order->courier) && in_array($order->courier, array('3rd_party', 'velocity', 'bigship', 'shiprocket'))) || !empty($order->third_party_provider) || !empty($order->awb_no);
+		$label_type = $is_tp_order ? '3rd_party' : 'self';
 		// Call fetch_shipping_label to enrich $order (school_name, grade_name, board_name, etc.)
-		$this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self', $ship_order_id);
+		$this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, $label_type, $ship_order_id);
 
 		// Extract student name and roll number - same logic as fetch_shipping_label
 		$student_name = '';
@@ -5619,22 +5636,58 @@ class Orders extends Vendor_base
 			}
 		}
 
+		// Check 3rd party shipping details and package weight
+		$is_tp_order = (!empty($order->courier) && in_array($order->courier, array('3rd_party', 'velocity', 'bigship', 'shiprocket')))
+			|| !empty($order->third_party_provider)
+			|| !empty($order->awb_no);
+
+		$weight_kg = null;
+		if (!empty($order->id) && $this->db->table_exists('tbl_order_third_party_shipping')) {
+			$tp = $this->db->select('third_party_provider, awb_no, weight_kg, length_cm, breadth_cm, height_cm')
+				->where('order_id', $order->id)
+				->limit(1)
+				->get('tbl_order_third_party_shipping')
+				->row();
+			if ($tp) {
+				$is_tp_order = true;
+				if (empty($order->third_party_provider) && !empty($tp->third_party_provider)) {
+					$order->third_party_provider = $tp->third_party_provider;
+				}
+				if (empty($order->awb_no) && !empty($tp->awb_no)) {
+					$order->awb_no = $tp->awb_no;
+				}
+				if (!empty($tp->weight_kg)) {
+					$weight_kg = $tp->weight_kg;
+				}
+			}
+		}
+
+		$courier_name = 'Self Delivery';
+		if ($is_tp_order) {
+			$courier_name = !empty($order->third_party_provider) ? ucfirst($order->third_party_provider) : '3rd Party';
+		} elseif (!empty($order->erp_courier_id) && $this->db->table_exists('erp_master_courier')) {
+			$c_row = $this->db->select('courier_name')->where('id', (int)$order->erp_courier_id)->limit(1)->get('erp_master_courier')->row();
+			if ($c_row && !empty($c_row->courier_name)) {
+				$courier_name = ucfirst($c_row->courier_name);
+			}
+		}
+
 		// Generate barcode/QR - same as fetch_shipping_label (3rd_party=barcode, manual=QR)
 		$shipping_number_for_code = !empty($ship_order_id) ? $ship_order_id : (isset($order->ship_order_id) && !empty($order->ship_order_id) ? $order->ship_order_id : $order_no);
 		$shipping_label_row = $this->Pdf_model->get_shipping_label($order_no)->row();
-		if (!empty($order->courier) && $order->courier == '3rd_party') {
-			$code_no = (!empty($shipping_label_row) && !empty($shipping_label_row->awb_number))
-				? $shipping_label_row->awb_number
-				: (isset($order->awb_no) && $order->awb_no !== '' ? $order->awb_no : '');
+		if ($is_tp_order) {
+			$code_no = (!empty($order->awb_no) && $order->awb_no !== '')
+				? $order->awb_no
+				: ((!empty($shipping_label_row) && !empty($shipping_label_row->awb_number))
+					? $shipping_label_row->awb_number
+					: $shipping_number_for_code);
 		} else {
 			$code_no = $shipping_number_for_code;
 		}
 		$barcode = null;
 		$qr_code = null;
-		if (!empty($order->courier) && $order->courier == '3rd_party') {
+		if ($is_tp_order) {
 			$barcode = $this->Pdf_model->generate_barcode_base64($code_no);
-		} elseif (!empty($order->courier) && $order->courier == 'manual') {
-			$qr_code = $this->Pdf_model->generate_qr_base64($code_no);
 		} else {
 			$qr_code = $this->Pdf_model->generate_qr_base64($code_no);
 		}
@@ -5716,7 +5769,11 @@ class Orders extends Vendor_base
 				'barcode' => $barcode,
 				'qr_code' => $qr_code,
 				'shipping_code' => $code_no,
-				'courier_type' => isset($order->courier) ? $order->courier : '',
+				'courier_type' => $is_tp_order ? '3rd_party' : (isset($order->courier) ? $order->courier : 'manual'),
+				'courier_name' => $courier_name,
+				'third_party_provider' => isset($order->third_party_provider) ? $order->third_party_provider : '',
+				'awb_no' => isset($order->awb_no) ? $order->awb_no : '',
+				'weight_kg' => $weight_kg,
 				'logo_src' => $logo_src,
 				'seller_name' => $seller_name,
 				'seller_address' => $seller_address,
@@ -5808,22 +5865,55 @@ class Orders extends Vendor_base
 		$order = $order_data[0];
 		$order_id = $order->id;
 
-		// Verify order is in processing status
-		if ($order->order_status != '2' && $order->order_status != 2) {
+		// Verify order is in processing or ready for shipment status
+		if (!in_array($order->order_status, ['2', 2, '6', 6])) {
 			if ($mode === 'bulk') {
 				return false;
 			}
-			$this->session->set_flashdata('error', 'Shipping label can only be generated for orders in processing status.');
+			$this->session->set_flashdata('error', 'Shipping label can only be generated for orders in processing or ready for shipment status.');
 			redirect(base_url('orders/view/' . $order_no));
 			return;
 		}
 
-		// Verify courier is self-delivery (manual)
-		if (!isset($order->courier) || $order->courier !== 'manual') {
+		// Verify courier is selected (either self-delivery 'manual' or 3rd party with AWB)
+		$is_manual = (isset($order->courier) && $order->courier === 'manual');
+		$is_3rd_party = (isset($order->courier) && in_array($order->courier, ['3rd_party', 'velocity', 'bigship', 'shiprocket']));
+
+		// Fallback check from tbl_order_third_party_shipping if courier not explicitly set or awb missing
+		if ((!$is_manual && !$is_3rd_party) || ($is_3rd_party && empty($order->awb_no))) {
+			if ($this->db->table_exists('tbl_order_third_party_shipping')) {
+				$tp = $this->db->select('third_party_provider, awb_no')
+					->where('order_id', $order->id)
+					->limit(1)
+					->get('tbl_order_third_party_shipping')
+					->row();
+				if ($tp && !empty($tp->awb_no)) {
+					$is_3rd_party = true;
+					$order->awb_no = $tp->awb_no;
+					if (empty($order->third_party_provider) && !empty($tp->third_party_provider)) {
+						$order->third_party_provider = $tp->third_party_provider;
+					}
+					if (empty($order->courier)) {
+						$order->courier = '3rd_party';
+					}
+				}
+			}
+		}
+
+		if (!$is_manual && !$is_3rd_party) {
 			if ($mode === 'bulk') {
 				return false;
 			}
-			$this->session->set_flashdata('error', 'Shipping label can only be generated for self-delivery orders (courier: manual).');
+			$this->session->set_flashdata('error', 'Please assign a shipping method before generating shipping label.');
+			redirect(base_url('orders/view/' . $order_no));
+			return;
+		}
+
+		if ($is_3rd_party && empty($order->awb_no)) {
+			if ($mode === 'bulk') {
+				return false;
+			}
+			$this->session->set_flashdata('error', '3rd party order must have an AWB number before generating shipping label.');
 			redirect(base_url('orders/view/' . $order_no));
 			return;
 		}
@@ -5831,108 +5921,139 @@ class Orders extends Vendor_base
 		// Generate shipping number (tracking ID) - use order_unique_id as slot_no for compatibility
 		$shipping_number = $order_no; // Use order_unique_id as shipping number
 
-		// Generate unique ship_order_id - 8 characters only (alphanumeric)
-		// First 2 letters are constant: "SH"
-		$prefix = 'SH'; // Constant prefix
-		$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-		do {
-			$unique_ship_order_id = $prefix; // Start with constant prefix
-			// Generate remaining 6 random characters
-			for ($i = 0; $i < 6; $i++) {
-				$unique_ship_order_id .= $chars[mt_rand(0, strlen($chars) - 1)];
-			}
-			$check_unique = $this->db->where('ship_order_id', $unique_ship_order_id)
-				->get('tbl_order_details')
-				->num_rows();
-		} while ($check_unique > 0);
+		// Preserve existing ship_order_id or generate unique 8-character ID
+		if (!empty($order->ship_order_id)) {
+			$unique_ship_order_id = $order->ship_order_id;
+		} else {
+			$prefix = 'SH'; // Constant prefix
+			$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+			do {
+				$unique_ship_order_id = $prefix; // Start with constant prefix
+				for ($i = 0; $i < 6; $i++) {
+					$unique_ship_order_id .= $chars[mt_rand(0, strlen($chars) - 1)];
+				}
+				$check_unique = $this->db->where('ship_order_id', $unique_ship_order_id)
+					->get('tbl_order_details')
+					->num_rows();
+			} while ($check_unique > 0);
+		}
 
-		// Check if shipping label already exists in vendor_shipping_label table
-		$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
 		$label_id = null;
 		$barcode_url = '';
 
-		if ($shipping_label->num_rows() > 0) {
-			$label_row = $shipping_label->row();
-			$label_id = $label_row->id;
-			// Generate barcode using ship_order_id (not shipping_number)
-			if (empty($label_row->barcode_url)) {
-				$this->Pdf_model->get_picqer_barcode($unique_ship_order_id, $label_id, 'barcode_url');
-				// Get updated barcode URL
-				$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
-				$barcode_url = !empty($updated_label->barcode_url) ? base_url($updated_label->barcode_url) : '';
-			} else {
-				$barcode_url = base_url($label_row->barcode_url);
+		if ($is_3rd_party && !empty($order->awb_no)) {
+			// Generate Code 128 barcode image for 3rd party AWB
+			try {
+				if (file_exists(APPPATH . 'vendor/autoload.php')) {
+					require_once APPPATH . 'vendor/autoload.php';
+				}
+				$generator = new \Picqer\Barcode\BarcodeGeneratorPNG();
+				$barcode_data = $generator->getBarcode($order->awb_no, $generator::TYPE_CODE_128);
+
+				$date_folder = date('Y_m_d');
+				$relative_dir = 'uploads/vendor_picqer_barcode/';
+				$upload_path = FCPATH . trim($relative_dir, '/') . '/' . $date_folder . '/';
+
+				if (!is_dir($upload_path)) {
+					@mkdir($upload_path, 0775, true);
+				}
+
+				$file_name = preg_replace('/[^A-Za-z0-9_\-]/', '_', $order->awb_no) . ".png";
+				$pngAbsoluteFilePath = $upload_path . $file_name;
+				$relative_path = trim($relative_dir, '/') . '/' . $date_folder . '/' . $file_name;
+
+				@file_put_contents($pngAbsoluteFilePath, $barcode_data);
+				$barcode_url = base_url($relative_path);
+			} catch (Exception $e) {
+				$barcode_url = '';
 			}
 		} else {
-			// Create new shipping label entry in vendor_shipping_label table
-			// Use current vendor_id from order
-			$vendor_id = isset($order->vendor_id) ? $order->vendor_id : (isset($this->current_vendor['id']) ? $this->current_vendor['id'] : null);
+			// Check if shipping label already exists in vendor_shipping_label table
+			$shipping_label = $this->Pdf_model->get_shipping_label($shipping_number);
 
-			// Check if vendor_shipping_label table exists before inserting
-			if ($this->db->table_exists('vendor_shipping_label')) {
-				$label_id = $this->Pdf_model->add_shipping_label($shipping_number, $vendor_id, $shipping_number);
-
-				if ($label_id) {
-					// Generate barcode using ship_order_id (not shipping_number)
+			if ($shipping_label->num_rows() > 0) {
+				$label_row = $shipping_label->row();
+				$label_id = $label_row->id;
+				// Generate barcode using ship_order_id (not shipping_number)
+				if (empty($label_row->barcode_url)) {
 					$this->Pdf_model->get_picqer_barcode($unique_ship_order_id, $label_id, 'barcode_url');
-					// Get barcode URL
+					// Get updated barcode URL
 					$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
 					$barcode_url = !empty($updated_label->barcode_url) ? base_url($updated_label->barcode_url) : '';
+				} else {
+					$barcode_url = base_url($label_row->barcode_url);
 				}
 			} else {
-				// Table doesn't exist, generate QR code and save directly to order
-				// Generate QR code using ship_order_id
-				try {
-					require_once APPPATH . 'vendor/autoload.php';
+				// Create new shipping label entry in vendor_shipping_label table
+				// Use current vendor_id from order
+				$vendor_id = isset($order->vendor_id) ? $order->vendor_id : (isset($this->current_vendor['id']) ? $this->current_vendor['id'] : null);
 
-					$qrCode = \Endroid\QrCode\QrCode::create($unique_ship_order_id)
-						->setSize(300)
-						->setMargin(10);
+				// Check if vendor_shipping_label table exists before inserting
+				if ($this->db->table_exists('vendor_shipping_label')) {
+					$label_id = $this->Pdf_model->add_shipping_label($shipping_number, $vendor_id, $shipping_number);
 
-					$writer = new \Endroid\QrCode\Writer\PngWriter();
-					$result = $writer->write($qrCode);
-					$barcode_data = $result->getString();
+					if ($label_id) {
+						// Generate barcode using ship_order_id (not shipping_number)
+						$this->Pdf_model->get_picqer_barcode($unique_ship_order_id, $label_id, 'barcode_url');
+						// Get barcode URL
+						$updated_label = $this->Pdf_model->get_shipping_label($shipping_number)->row();
+						$barcode_url = !empty($updated_label->barcode_url) ? base_url($updated_label->barcode_url) : '';
+					}
+				} else {
+					// Table doesn't exist, generate QR code and save directly to order
+					// Generate QR code using ship_order_id
+					try {
+						require_once APPPATH . 'vendor/autoload.php';
 
-					// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
-					$date_folder = date('Y_m_d');
-					$relative_dir = 'uploads/vendor_picqer_barcode/';
+						$qrCode = \Endroid\QrCode\QrCode::create($unique_ship_order_id)
+							->setSize(300)
+							->setMargin(10);
 
-					$upload_path = FCPATH . trim($relative_dir, '/') . '/'
-						. $date_folder . '/';
+						$writer = new \Endroid\QrCode\Writer\PngWriter();
+						$result = $writer->write($qrCode);
+						$barcode_data = $result->getString();
 
-					// Create directory structure step by step
-					if (!is_dir($upload_path)) {
-						// Try to create the full path
-						if (!@mkdir($upload_path, 0775, true)) {
-							// If that fails, try creating directories one by one
-							$dirs_to_create = array();
-							$current_path = $upload_path;
-							while (!is_dir($current_path) && $current_path !== FCPATH && $current_path !== '/') {
-								$dirs_to_create[] = $current_path;
-								$current_path = dirname($current_path);
-							}
-							$dirs_to_create = array_reverse($dirs_to_create);
+						// Save to main folder (not vendor-specific): /uploads/vendor_picqer_barcode/{date_folder}/
+						$date_folder = date('Y_m_d');
+						$relative_dir = 'uploads/vendor_picqer_barcode/';
 
-							foreach ($dirs_to_create as $dir) {
-								if (!is_dir($dir)) {
-									@mkdir($dir, 0775, true);
+						$upload_path = FCPATH . trim($relative_dir, '/') . '/'
+							. $date_folder . '/';
+
+						// Create directory structure step by step
+						if (!is_dir($upload_path)) {
+							// Try to create the full path
+							if (!@mkdir($upload_path, 0775, true)) {
+								// If that fails, try creating directories one by one
+								$dirs_to_create = array();
+								$current_path = $upload_path;
+								while (!is_dir($current_path) && $current_path !== FCPATH && $current_path !== '/') {
+									$dirs_to_create[] = $current_path;
+									$current_path = dirname($current_path);
+								}
+								$dirs_to_create = array_reverse($dirs_to_create);
+
+								foreach ($dirs_to_create as $dir) {
+									if (!is_dir($dir)) {
+										@mkdir($dir, 0775, true);
+									}
 								}
 							}
 						}
+
+						$file_name = $unique_ship_order_id . ".png";
+						$pngAbsoluteFilePath = $upload_path . $file_name;
+						$relative_path = trim($relative_dir, '/') . '/'
+							. $date_folder . '/'
+							. $file_name;
+
+						@file_put_contents($pngAbsoluteFilePath, $barcode_data);
+						$barcode_url = base_url($relative_path);
+						$label_id = null;
+					} catch (Exception $e) {
+						$barcode_url = '';
+						$label_id = null;
 					}
-
-					$file_name = $unique_ship_order_id . ".png";
-					$pngAbsoluteFilePath = $upload_path . $file_name;
-					$relative_path = trim($relative_dir, '/') . '/'
-						. $date_folder . '/'
-						. $file_name;
-
-					@file_put_contents($pngAbsoluteFilePath, $barcode_data);
-					$barcode_url = base_url($relative_path);
-					$label_id = null;
-				} catch (Exception $e) {
-					$barcode_url = '';
-					$label_id = null;
 				}
 			}
 		}
@@ -6223,6 +6344,7 @@ class Orders extends Vendor_base
 		if ($mode === 'bulk') {
 			$this->pdf = new Pdf();
 		}
+		$this->pdf->set_option('isRemoteEnabled', TRUE);
 
 		// Suppress deprecation warnings from dompdf HTML5 parser
 		$old_error_reporting = error_reporting();
@@ -6243,7 +6365,10 @@ class Orders extends Vendor_base
 		}
 		$html .= '</style></head><body>';
 
-		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self', $unique_ship_order_id);
+		$label_type = $is_3rd_party ? '3rd_party' : 'self';
+		$logo_to_pass = !empty($logo_base64) ? $logo_base64 : (!empty($logo_file_path) ? $logo_file_path : $logo_url);
+		$barcode_to_pass = !empty($barcode_base64) ? $barcode_base64 : (!empty($barcode_file_path) ? $barcode_file_path : $barcode_url);
+		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_to_pass, $barcode_to_pass, $label_type, $unique_ship_order_id);
 
 		$html .= '</body></html>';
 
@@ -6268,14 +6393,22 @@ class Orders extends Vendor_base
 
 		// Create directory if it doesn't exist (with proper permissions)
 		if (!is_dir($upload_path)) {
-			mkdir($upload_path, 0775, true);
+			@mkdir($upload_path, 0775, true);
+		}
+
+		// Fallback to FCPATH if upload_path cannot be created
+		if (!is_dir($upload_path)) {
+			$upload_path = FCPATH . trim($uploadCfg['relative_dir'], '/') . '/' . $date_folder . '/';
+			if (!is_dir($upload_path)) {
+				@mkdir($upload_path, 0775, true);
+			}
 		}
 
 		// Delete old shipping labels for this order if they exist
 		if (!empty($order->shipping_label)) {
 			// Get old file path
 			$old_relative_path = $order->shipping_label;
-			$old_path_parts = explode('/', $old_relative_path);
+			$old_path_parts = explode('/', str_replace('\\', '/', $old_relative_path));
 			$old_date_folder = isset($old_path_parts[2]) ? $old_path_parts[2] : date('Y_m_d');
 			$old_filename = end($old_path_parts);
 
@@ -6343,14 +6476,21 @@ class Orders extends Vendor_base
 			if (!empty($label_row->barcode_url)) {
 				$barcode_relative_path = $label_row->barcode_url; // Already a relative path
 			}
+		} elseif (!empty($barcode_url)) {
+			$barcode_relative_path = str_replace(base_url(), '', $barcode_url);
+			$barcode_relative_path = ltrim($barcode_relative_path, '/');
 		}
 
 		// Update order with shipping label, unique shipping ID, and barcode path
 		$order_update_data = array(
 			'shipping_label' => $relative_path,
 			'ship_order_id' => $unique_ship_order_id,
-			'courier' => 'manual' // 'manual' means self delivery (enum only allows 'shiprocket', 'manual', '')
 		);
+
+		// Only set courier to manual if not already set (preserve 3rd party!)
+		if (empty($order->courier)) {
+			$order_update_data['courier'] = 'manual';
+		}
 
 		// Add barcode_path if we have it
 		if (!empty($barcode_relative_path)) {
@@ -6409,21 +6549,76 @@ class Orders extends Vendor_base
 
 		$order = $order_data[0];
 
+		$force_regenerate = $this->input->get('regenerate') || $this->input->get('force');
+		$needs_regenerate = $force_regenerate || empty($order->shipping_label);
+
+		$this->load->helper('common');
+		$this->config->load('upload');
+		$uploadCfg = $this->config->item('shipping_label_upload');
+		$vendor_folder = get_vendor_domain_folder();
+
+		// Check if existing label file is missing or stale
+		if (!$needs_regenerate && !empty($order->shipping_label)) {
+			$relative_path = $order->shipping_label;
+			$path_parts = explode('/', str_replace('\\', '/', $relative_path));
+			$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
+			$filename = end($path_parts);
+
+			$check_file = rtrim($uploadCfg['base_root'], '/') . '/'
+				. $vendor_folder . '/'
+				. trim($uploadCfg['relative_dir'], '/') . '/'
+				. $date_folder . '/'
+				. $filename;
+
+			if (!file_exists($check_file)) {
+				$check_file = FCPATH . ltrim(str_replace('\\', '/', $relative_path), '/');
+			}
+
+			if (!file_exists($check_file)) {
+				$needs_regenerate = true;
+			} else {
+				// If order has an AWB assigned, verify the existing PDF contains this AWB
+				if (!empty($order->awb_no)) {
+					$pdf_raw = @file_get_contents($check_file);
+					if ($pdf_raw !== false) {
+						$has_awb = (stripos($pdf_raw, $order->awb_no) !== false);
+						if (!$has_awb) {
+							if (preg_match_all('/stream[\r\n]+(.*?)[\r\n]+endstream/s', $pdf_raw, $matches)) {
+								foreach ($matches[1] as $st) {
+									$uncompressed = @gzuncompress($st);
+									if ($uncompressed !== false && stripos($uncompressed, $order->awb_no) !== false) {
+										$has_awb = true;
+										break;
+									}
+								}
+							}
+						}
+						if (!$has_awb) {
+							$needs_regenerate = true;
+						}
+					}
+				}
+			}
+		}
+
+		// If shipping label not yet generated or is stale, regenerate it on-the-fly
+		if ($needs_regenerate) {
+			$generated_path = $this->generate_shipping_label($order_no, 'bulk');
+			if ($generated_path) {
+				$order_data = $this->Order_model->get_order($order_no);
+				$order = $order_data[0];
+			}
+		}
+
 		if (empty($order->shipping_label)) {
 			$this->session->set_flashdata('error', 'Shipping label not found. Please generate it first.');
 			redirect(base_url('orders/view/' . $order_no));
 			return;
 		}
 
-		// Use the same path pattern as images (construct full path from relative path)
-		$this->load->helper('common');
-		$this->config->load('upload');
-		$uploadCfg = $this->config->item('shipping_label_upload');
-		$vendor_folder = get_vendor_domain_folder();
-
 		// Extract date folder from relative path (format: uploads/shipping_labels/2026_02_13/filename.pdf)
 		$relative_path = $order->shipping_label;
-		$path_parts = explode('/', $relative_path);
+		$path_parts = explode('/', str_replace('\\', '/', $relative_path));
 		$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
 		$filename = end($path_parts);
 
@@ -6436,7 +6631,7 @@ class Orders extends Vendor_base
 
 		// Fallback to FCPATH if the above path doesn't exist (for backward compatibility)
 		if (!file_exists($file_path)) {
-			$file_path = FCPATH . $relative_path;
+			$file_path = FCPATH . ltrim(str_replace('\\', '/', $relative_path), '/');
 		}
 
 		if (!file_exists($file_path)) {
@@ -6445,9 +6640,10 @@ class Orders extends Vendor_base
 			return;
 		}
 
-		// Output PDF using readfile (no deprecation issues)
+		// Output PDF - inline display allows instant browser viewing and printing
+		$disposition = ($this->input->get('download') == '1') ? 'attachment' : 'inline';
 		header('Content-Type: application/pdf');
-		header('Content-Disposition: attachment; filename="shipping_label_' . $order_no . '.pdf"');
+		header('Content-Disposition: ' . $disposition . '; filename="shipping_label_' . $order_no . '.pdf"');
 		header('Content-Length: ' . filesize($file_path));
 		readfile($file_path);
 		exit;
@@ -6487,7 +6683,7 @@ class Orders extends Vendor_base
 		// Fetch orders ensuring they belong to current vendor
 		$vendor_id = isset($this->current_vendor['id']) ? (int) $this->current_vendor['id'] : 0;
 
-		$orders = $this->db->select('td.id, td.order_unique_id, td.shipping_label, td.order_status, td.courier')
+		$orders = $this->db->select('td.id, td.order_unique_id, td.shipping_label, td.order_status, td.courier, td.awb_no, td.third_party_provider, td.ship_order_id')
 			->from('tbl_order_details td')
 			->where_in('td.id', $order_ids)
 			->get()
@@ -6532,15 +6728,10 @@ class Orders extends Vendor_base
 		$added_files = 0;
 
 		foreach ($orders as $order) {
-			// Only allow processing status orders
-			if ($order->order_status != '2' && $order->order_status != 2) {
+			// Allow processing and ready for shipment status orders
+			if (!in_array($order->order_status, ['2', 2, '6', 6])) {
 				continue;
 			}
-
-			// Only handle self-delivery (manual) orders for bulk label generation
-			/*if (!isset($order->courier) || $order->courier !== 'manual') {
-				continue;
-			}*/
 
 			// If no label yet, try to generate it first
 			if (empty($order->shipping_label)) {
@@ -6564,7 +6755,7 @@ class Orders extends Vendor_base
 
 			// Build full file path exactly like download_shipping_label() - with FCPATH fallback
 			$relative_path = $order->shipping_label; // uploads/shipping_labels/2026_02_13/filename.pdf
-			$path_parts = explode('/', $relative_path);
+			$path_parts = explode('/', str_replace('\\', '/', $relative_path));
 			$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
 			$filename = end($path_parts);
 
@@ -6576,7 +6767,7 @@ class Orders extends Vendor_base
 
 			// Fallback to FCPATH if the above path doesn't exist (same as single download)
 			if (!file_exists($file_path)) {
-				$file_path = FCPATH . $relative_path;
+				$file_path = FCPATH . ltrim(str_replace('\\', '/', $relative_path), '/');
 			}
 
 			if (file_exists($file_path)) {
@@ -6759,7 +6950,10 @@ class Orders extends Vendor_base
 		// For HTML preview, use external CSS links
 		$html = '<link rel="stylesheet" href="' . base_url() . 'assets/pdf/bootstrap.min.css">';
 		$html .= '<link rel="stylesheet" href="' . base_url() . 'assets/pdf/cutsom-a5.css">';
-		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, 'self');
+		$is_tp_test = (!empty($order->courier) && in_array($order->courier, array('3rd_party', 'velocity', 'bigship', 'shiprocket'))) || !empty($order->third_party_provider) || !empty($order->awb_no);
+		$label_type_test = $is_tp_test ? '3rd_party' : 'self';
+		$ship_id_test = !empty($order->ship_order_id) ? $order->ship_order_id : null;
+		$html .= $this->Pdf_model->fetch_shipping_label($shipping_number, $order, $items_arr, $address_obj, $order_type_label, $logo_url, $barcode_url, $label_type_test, $ship_id_test);
 
 		echo $html;
 	}
