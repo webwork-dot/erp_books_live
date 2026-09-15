@@ -234,10 +234,8 @@ class Erp_vendor_notification_model extends CI_Model
 		// Re-index in case UI posted sparse keys (0,2,5…)
 		$templates = array_values($templates);
 
-		$this->db->trans_start();
-		$this->db->where('vendor_id', $vendor_id)->delete('erp_vendor_sms_templates');
-
-		$inserted = 0;
+		// Normalize + collapse by template_key (last card wins) so index collisions can't wipe siblings incorrectly mid-loop
+		$by_key = [];
 		foreach ($templates as $t) {
 			if (!is_array($t)) {
 				continue;
@@ -245,13 +243,20 @@ class Erp_vendor_notification_model extends CI_Model
 			$template_key = isset($t['template_key']) ? trim((string)$t['template_key']) : '';
 			$event_key = isset($t['event_key']) ? trim((string)$t['event_key']) : '';
 			$message_template = isset($t['message_template']) ? (string)$t['message_template'] : '';
-			// Keep intentional trailing newlines for DLT; only trim outer spaces/tabs
 			$message_template = preg_replace("/^[ \\t]+|[ \\t]+$/u", '', $message_template);
+
+			if ($template_key !== '') {
+				$template_key = strtolower(preg_replace('/\s+/', '_', $template_key));
+			}
+			if ($event_key !== '') {
+				$event_key = strtolower(preg_replace('/\s+/', '_', $event_key));
+			}
+			if ($template_key === '' && $event_key !== '') {
+				$template_key = $event_key;
+			}
 			if ($template_key === '' || trim($message_template) === '') {
 				continue;
 			}
-
-			// If event left as "-- Select Type --", fall back to template_key when it matches an event.
 			if ($event_key === '' && $template_key !== '') {
 				$ev = $this->getNotificationEventByKey($template_key);
 				if (!empty($ev['event_key'])) {
@@ -259,6 +264,19 @@ class Erp_vendor_notification_model extends CI_Model
 				}
 			}
 
+			$t['_norm_key'] = $template_key;
+			$t['_norm_event'] = $event_key;
+			$t['_norm_message'] = $message_template;
+			$by_key[$template_key] = $t;
+		}
+
+		$this->db->trans_start();
+		$this->db->where('vendor_id', $vendor_id)->delete('erp_vendor_sms_templates');
+
+		$inserted = 0;
+		foreach ($by_key as $template_key => $t) {
+			$event_key = (string)($t['_norm_event'] ?? '');
+			$message_template = (string)($t['_norm_message'] ?? '');
 			$var_map = $this->normalizeSmsVarMap($t['var_map_json'] ?? ($t['var_map'] ?? NULL), $message_template);
 
 			$ok = $this->db->insert('erp_vendor_sms_templates', [
@@ -281,7 +299,12 @@ class Erp_vendor_notification_model extends CI_Model
 
 		$this->db->trans_complete();
 		$status = $this->db->trans_status();
-		log_message('info', 'replaceSmsTemplates vendor_id=' . $vendor_id . ' posted=' . count($templates) . ' inserted=' . $inserted . ' ok=' . ($status ? '1' : '0'));
+		log_message('info', 'replaceSmsTemplates vendor_id=' . $vendor_id
+			. ' posted=' . count($templates)
+			. ' unique=' . count($by_key)
+			. ' inserted=' . $inserted
+			. ' keys=' . implode(',', array_keys($by_key))
+			. ' ok=' . ($status ? '1' : '0'));
 		return $status;
 	}
 

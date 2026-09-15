@@ -2581,13 +2581,29 @@ document.addEventListener('DOMContentLoaded', function() {
   var smsRows = document.getElementById('smsTemplateRows');
   function smsNextIndex() {
     if (!smsRows) return 0;
-    var inputs = smsRows.querySelectorAll('input[name^=\"sms_templates[\"]');
     var max = -1;
-    inputs.forEach(function(i) {
-      var m = i.name.match(/^sms_templates\\[(\\d+)\\]/);
-      if (m && m[1]) max = Math.max(max, parseInt(m[1], 10));
+    smsRows.querySelectorAll('.sms-tpl-row').forEach(function(row) {
+      var attr = row.getAttribute('data-row-index');
+      if (attr !== null && attr !== '') {
+        var n = parseInt(attr, 10);
+        if (!isNaN(n)) max = Math.max(max, n);
+      }
+      row.querySelectorAll('[name]').forEach(function(el) {
+        var m = String(el.name || '').match(/^sms_templates\[(\d+)\]/);
+        if (m && m[1]) max = Math.max(max, parseInt(m[1], 10));
+      });
     });
     return max + 1;
+  }
+  function smsReindexNames() {
+    if (!smsRows) return;
+    smsRows.querySelectorAll('.sms-tpl-row').forEach(function(card, i) {
+      card.setAttribute('data-row-index', String(i));
+      card.querySelectorAll('input, select, textarea').forEach(function(el) {
+        if (!el.name) return;
+        el.name = el.name.replace(/sms_templates\[\d+\]/, 'sms_templates[' + i + ']');
+      });
+    });
   }
   function smsRenumberCards() {
     if (!smsRows) return;
@@ -2604,6 +2620,7 @@ document.addEventListener('DOMContentLoaded', function() {
       btn.onclick = function() {
         var card = this.closest('.sms-tpl-row');
         if (card) card.remove();
+        smsReindexNames();
         smsRenumberCards();
       };
     });
@@ -2698,7 +2715,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   smsBindVarMaps();
 
-  // Keep Event in sync when Key matches a known event_key (helps preselect + save)
+  // Keep Event ↔ Key in sync (cron looks up by event_key; key should match)
   function smsSyncEventFromKey(row) {
     if (!row) return;
     var keyInput = row.querySelector('input[name*=\"[template_key]\"]');
@@ -2706,20 +2723,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!keyInput || !eventSel) return;
     var key = String(keyInput.value || '').trim();
     if (!key) return;
-    var matched = false;
     Array.prototype.forEach.call(eventSel.options, function(opt) {
       if (opt.value && opt.value.toLowerCase() === key.toLowerCase()) {
         eventSel.value = opt.value;
-        matched = true;
       }
     });
-    return matched;
+  }
+  function smsSyncKeyFromEvent(row) {
+    if (!row) return;
+    var keyInput = row.querySelector('input[name*=\"[template_key]\"]');
+    var eventSel = row.querySelector('select.sms-event-key, select[name*=\"[event_key]\"]');
+    if (!keyInput || !eventSel) return;
+    var ev = String(eventSel.value || '').trim();
+    if (!ev) return;
+    // Always align Key with Event so each card saves a distinct template_key
+    keyInput.value = ev;
   }
   if (smsRows) {
     smsRows.addEventListener('change', function(e) {
       var t = e.target;
-      if (t && t.matches && t.matches('input[name*=\"[template_key]\"]')) {
-        smsSyncEventFromKey(t.closest('.sms-tpl-row'));
+      if (!t || !t.matches) return;
+      var row = t.closest('.sms-tpl-row');
+      if (t.matches('input[name*=\"[template_key]\"]')) {
+        smsSyncEventFromKey(row);
+      }
+      if (t.matches('select.sms-event-key, select[name*=\"[event_key]\"]')) {
+        smsSyncKeyFromEvent(row);
       }
     });
     smsRows.addEventListener('blur', function(e) {
@@ -2730,24 +2759,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }, true);
   }
 
-  // Before save: reindex sms_templates[n] sequentially so PHP always receives a dense array
-  var vendorForm = document.querySelector('form');
+  // Before save: reindex on the vendor edit form (NOT the header search form)
+  var vendorForm = smsRows ? smsRows.closest('form') : null;
+  if (!vendorForm) {
+    vendorForm = document.querySelector('form[action*=\"vendors/edit\"]') || document.querySelector('form[enctype*=\"multipart\"]');
+  }
   if (vendorForm) {
     vendorForm.addEventListener('submit', function() {
       if (!smsRows) return;
-      var cards = smsRows.querySelectorAll('.sms-tpl-row');
-      cards.forEach(function(card, i) {
+      smsRows.querySelectorAll('.sms-tpl-row').forEach(function(card) {
+        smsSyncKeyFromEvent(card);
         smsSyncEventFromKey(card);
-        card.querySelectorAll('input, select, textarea').forEach(function(el) {
-          if (!el.name) return;
-          el.name = el.name.replace(/sms_templates\[\d+\]/, 'sms_templates[' + i + ']');
-        });
       });
+      smsReindexNames();
     });
   }
 
   if (smsAddRowBtn && smsRows) {
     smsAddRowBtn.addEventListener('click', function() {
+      smsReindexNames();
       var idx = smsNextIndex();
       var card = document.createElement('div');
       card.className = 'sms-tpl-card sms-tpl-row';
@@ -2772,10 +2802,6 @@ document.addEventListener('DOMContentLoaded', function() {
       smsBindRemove();
       smsBindVarMaps();
       smsRenumberCards();
-      var keyEl = card.querySelector('input[name*=\"[template_key]\"]');
-      if (keyEl) {
-        keyEl.addEventListener('change', function() { smsSyncEventFromKey(card); });
-      }
     });
   }
 
