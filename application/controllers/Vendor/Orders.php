@@ -310,6 +310,19 @@ class Orders extends Vendor_base
 		if ($vendor_id <= 0) return;
 
 		$event_key = trim((string)$event_key);
+		$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
+		$order_ids = array_filter($order_ids, function ($v) {
+			return $v > 0;
+		});
+		if (empty($order_ids)) return;
+
+		// Out for Delivery / Delivered: same path as tracking cron (SMS template gate + sendEvent)
+		if ($event_key === 'out_for_delivery' || $event_key === 'order_delivered') {
+			$this->load->model('cron_model');
+			$this->cron_model->notifyTrackingOrders($vendor_id, $order_ids, $event_key, $this->db);
+			return;
+		}
+
 		$sentCodeByEvent = [
 			'order_processed' => 2,
 			'order_shipped' => 6,
@@ -317,12 +330,6 @@ class Orders extends Vendor_base
 			'order_delivered' => 4,
 		];
 		$mailSentCode = isset($sentCodeByEvent[$event_key]) ? (int)$sentCodeByEvent[$event_key] : 0;
-
-		$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
-		$order_ids = array_filter($order_ids, function ($v) {
-			return $v > 0;
-		});
-		if (empty($order_ids)) return;
 
 		$hasIsMailSent = $this->db->field_exists('is_mail_sent', 'tbl_order_details');
 		$hasIsMailDate = $this->db->field_exists('is_mail_date', 'tbl_order_details');
@@ -355,7 +362,9 @@ class Orders extends Vendor_base
 			$res = $this->notification_sender->sendEvent($vendor_id, $event_key, $vars);
 
 			$emailOk = !empty($res['results']['email']['success']);
-			if ($emailOk && $mailSentCode > 0 && $hasIsMailSent) {
+			$smsOk = !empty($res['results']['sms']['success']);
+			$waOk = !empty($res['results']['whatsapp']['success']);
+			if (($emailOk || $smsOk || $waOk) && $mailSentCode > 0 && $hasIsMailSent) {
 				$update = ['is_mail_sent' => $mailSentCode];
 				if ($hasIsMailDate) {
 					$update['is_mail_date'] = date('Y-m-d H:i:s');

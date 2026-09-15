@@ -53,6 +53,139 @@ class Cron_model extends CI_Model {
 	}
 
 	/**
+	 * Send tracking status notifications (SMS via vendor erp_vendor_sms_templates).
+	 * Used after first OFD (3) or Delivered (4) transition — cron or manual vendor actions.
+	 * Requires an active SMS template for the event_key on that vendor; otherwise skips.
+	 * Failures are logged only — never rolls back status updates.
+	 *
+	 * @param object $client_db Vendor DB
+	 * @param int    $vendor_id
+	 * @param int    $order_id
+	 * @param string $event_key out_for_delivery | order_delivered
+	 * @return array|null sendEvent result or null if skipped
+	 */
+	public function notifyTrackingStatusChange($client_db, $vendor_id, $order_id, $event_key)
+	{
+		$vendor_id = (int)$vendor_id;
+		$order_id = (int)$order_id;
+		$event_key = trim((string)$event_key);
+
+		$sentCodeByEvent = [
+			'out_for_delivery' => 3,
+			'order_delivered' => 4,
+		];
+		if ($vendor_id <= 0 || $order_id <= 0 || !isset($sentCodeByEvent[$event_key])) {
+			return null;
+		}
+		$mailSentCode = (int)$sentCodeByEvent[$event_key];
+
+		try {
+			// Gate: vendor must have an active SMS template for this event_key
+			$this->load->model('Erp_vendor_notification_vendor_model');
+			$settings = $this->Erp_vendor_notification_vendor_model->getSettings($vendor_id);
+			if (empty($settings) || empty($settings['sms_enabled'])) {
+				log_message('info', "notifyTrackingStatusChange: SMS disabled/missing settings vendor={$vendor_id} event={$event_key}");
+				return null;
+			}
+
+			$smsTpl = null;
+			foreach ($this->Erp_vendor_notification_vendor_model->getSmsTemplates($vendor_id) as $t) {
+				if (!empty($t['is_active']) && isset($t['event_key']) && (string)$t['event_key'] === $event_key) {
+					$smsTpl = $t;
+					break;
+				}
+			}
+			if (!$smsTpl) {
+				log_message('info', "notifyTrackingStatusChange: no active SMS template vendor={$vendor_id} event={$event_key}");
+				return null;
+			}
+
+			$hasIsMailSent = $client_db->field_exists('is_mail_sent', 'tbl_order_details');
+			$hasIsMailDate = $client_db->field_exists('is_mail_date', 'tbl_order_details');
+
+			$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, invoice_url';
+			if ($hasIsMailSent) {
+				$select .= ', is_mail_sent';
+			}
+
+			$row = $client_db->select($select, false)
+				->from('tbl_order_details')
+				->where('id', $order_id)
+				->limit(1)
+				->get()
+				->row_array();
+
+			if (empty($row)) {
+				log_message('error', "notifyTrackingStatusChange: order {$order_id} not found vendor={$vendor_id}");
+				return null;
+			}
+
+			if ($hasIsMailSent && (int)($row['is_mail_sent'] ?? 0) === $mailSentCode) {
+				return null;
+			}
+
+			$this->load->library('Notification_sender');
+			$vars = $this->buildOrderVarsFromRow($row, $order_id);
+			$vars = $this->enrichOrderVars($client_db, $vendor_id, $order_id, $row, $vars);
+
+			$res = $this->notification_sender->sendEvent($vendor_id, $event_key, $vars);
+
+			$emailOk = !empty($res['results']['email']['success'])
+				|| !empty($res['results']['email_user']['success'])
+				|| !empty($res['results']['email_vendor']['success']);
+			$smsOk = !empty($res['results']['sms']['success']);
+			$waOk = !empty($res['results']['whatsapp']['success']);
+
+			if (($emailOk || $smsOk || $waOk) && $hasIsMailSent) {
+				$update = ['is_mail_sent' => $mailSentCode];
+				if ($hasIsMailDate) {
+					$update['is_mail_date'] = date('Y-m-d H:i:s');
+				}
+				$client_db->where('id', $order_id);
+				$client_db->update('tbl_order_details', $update);
+			}
+
+			if (empty($res['success']) && !$smsOk && !$emailOk && !$waOk) {
+				log_message('error', 'notifyTrackingStatusChange failed vendor=' . $vendor_id
+					. ' order=' . $order_id . ' event=' . $event_key
+					. ' msg=' . ($res['message'] ?? 'unknown'));
+			}
+
+			return $res;
+		} catch (Exception $e) {
+			log_message('error', 'notifyTrackingStatusChange exception: ' . $e->getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Notify multiple orders for a tracking event (manual bulk/single moves).
+	 *
+	 * @param int    $vendor_id
+	 * @param array  $order_ids
+	 * @param string $event_key
+	 * @param object|null $client_db Vendor DB (optional; loaded from vendor_id if null)
+	 * @return void
+	 */
+	public function notifyTrackingOrders($vendor_id, array $order_ids, $event_key, $client_db = null)
+	{
+		$vendor_id = (int)$vendor_id;
+		if ($vendor_id <= 0) return;
+
+		if (!$client_db) {
+			$client_db = $this->getVendorDB($vendor_id);
+		}
+		if (!$client_db) return;
+
+		$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
+		foreach ($order_ids as $order_id) {
+			if ($order_id > 0) {
+				$this->notifyTrackingStatusChange($client_db, $vendor_id, $order_id, $event_key);
+			}
+		}
+	}
+
+	/**
 	 * Enrich vars with shipping + items + school/board/grade + child/student details.
 	 * Uses vendor DB connection.
 	 */
@@ -1531,14 +1664,18 @@ class Cron_model extends CI_Model {
 						'shipment_date' => $ofd_date
 					]);
 
-					$client_db->insert('tbl_order_status', [
-						'order_id' => $order_id,
-						'user_id' => $user_id,
-						'product_id' => 0,
-						'status_title' => '3',
-						'status_desc' => 'Order Out For Delivery',
-						'created_at' => $ofd_date
-					]);
+					$exists = $client_db->query("SELECT id FROM tbl_order_status WHERE order_id = '{$order_id}' AND status_title = '3' LIMIT 1")->num_rows();
+					if ($exists == 0) {
+						$client_db->insert('tbl_order_status', [
+							'order_id' => $order_id,
+							'user_id' => $user_id,
+							'product_id' => 0,
+							'status_title' => '3',
+							'status_desc' => 'Order Out For Delivery',
+							'created_at' => $ofd_date
+						]);
+						$this->notifyTrackingStatusChange($client_db, $vendor_id, $order_id, 'out_for_delivery');
+					}
 
 					$function_name = 'order_out_for_delivery';
 					$remark = '1';
@@ -1552,14 +1689,18 @@ class Cron_model extends CI_Model {
 						'delivery_date' => $delivery_date
 					]);
 
-					$client_db->insert('tbl_order_status', [
-						'order_id' => $order_id,
-						'user_id' => $user_id,
-						'product_id' => 0,
-						'status_title' => '4',
-						'status_desc' => 'Order Delivered',
-						'created_at' => $delivery_date
-					]);
+					$exists = $client_db->query("SELECT id FROM tbl_order_status WHERE order_id = '{$order_id}' AND status_title = '4' LIMIT 1")->num_rows();
+					if ($exists == 0) {
+						$client_db->insert('tbl_order_status', [
+							'order_id' => $order_id,
+							'user_id' => $user_id,
+							'product_id' => 0,
+							'status_title' => '4',
+							'status_desc' => 'Order Delivered',
+							'created_at' => $delivery_date
+						]);
+						$this->notifyTrackingStatusChange($client_db, $vendor_id, $order_id, 'order_delivered');
+					}
 
 					$function_name = 'order_delivered';
 					$remark = '1';
@@ -1716,6 +1857,7 @@ class Cron_model extends CI_Model {
 									'status_desc' => 'Order Out For Delivery',
 									'created_at'  => $tracking_time
 								]);
+								$this->notifyTrackingStatusChange($client_db, $vendor_id, $order_id, 'out_for_delivery');
 							}
 
 							$function_name = 'order_out_for_delivery';
@@ -1749,6 +1891,7 @@ class Cron_model extends CI_Model {
 									'status_desc' => 'Order Delivered',
 									'created_at'  => $tracking_time
 								]);
+								$this->notifyTrackingStatusChange($client_db, $vendor_id, $order_id, 'order_delivered');
 							}
 
 							$function_name = 'order_delivered';
@@ -1924,6 +2067,7 @@ class Cron_model extends CI_Model {
 								'status_desc' => 'Order Out For Delivery',
 								'created_at' => $ofd_date
 							]);
+							$this->notifyTrackingStatusChange($client_db, $vendor_id, $order_id, 'out_for_delivery');
 						}
 
 						$function_name = 'order_out_for_delivery_shiprocket';
@@ -1947,6 +2091,7 @@ class Cron_model extends CI_Model {
 								'status_desc' => 'Order Delivered',
 								'created_at' => $delivery_date
 							]);
+							$this->notifyTrackingStatusChange($client_db, $vendor_id, $order_id, 'order_delivered');
 						}
 
 						$function_name = 'order_delivered_shiprocket';

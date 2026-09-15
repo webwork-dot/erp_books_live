@@ -156,7 +156,10 @@ class Notification_sender
 		if ($smsTpl) {
 			$mobile = trim((string)($vars['mobile'] ?? ''));
 			if ($mobile !== '') {
-				$message = $this->replaceTokensInString((string)($smsTpl['message_template'] ?? ''), $vars);
+				$message = (string)($smsTpl['message_template'] ?? '');
+				$message = $this->applyDltVarPlaceholders($message, $smsTpl['var_map_json'] ?? NULL, $vars);
+				$message = $this->replaceTokensInString($message, $vars);
+				$message = $this->normalizeSmsMessageNewlines($message);
 				$res = $this->sendSms($vendor_id, $mobile, $message, $vars);
 				$out['results']['sms'] = $res;
 				if (empty($res['success'])) $out['success'] = false;
@@ -389,7 +392,10 @@ class Notification_sender
 		}
 
 		$vars = is_array($variables) ? $variables : [];
-		$message = $this->replaceTokensInString((string)$template['message_template'], $vars);
+		$message = (string)($template['message_template'] ?? '');
+		$message = $this->applyDltVarPlaceholders($message, $template['var_map_json'] ?? NULL, $vars);
+		$message = $this->replaceTokensInString($message, $vars);
+		$message = $this->normalizeSmsMessageNewlines($message);
 		if (trim($message) === '') {
 			return ['success' => false, 'message' => 'SMS message template produced empty text.'];
 		}
@@ -532,6 +538,61 @@ class Notification_sender
 			$key = !empty($m[1]) ? $m[1] : (!empty($m[2]) ? $m[2] : '');
 			return array_key_exists($key, $vars) && $vars[$key] !== NULL ? (string)$vars[$key] : '';
 		}, (string)$text);
+	}
+
+	/**
+	 * Replace DLT {#var#} slots left-to-right using var_map_json field keys.
+	 * Defaults: 1st customer_name, 2nd order_unique_id.
+	 */
+	private function applyDltVarPlaceholders($text, $var_map, array $vars)
+	{
+		$text = (string)$text;
+		if (!preg_match('/\{#\s*var\s*#\}/i', $text)) {
+			return $text;
+		}
+
+		$map = [];
+		if (is_string($var_map) && trim($var_map) !== '') {
+			$decoded = json_decode($var_map, true);
+			if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+				$var_map = $decoded;
+			}
+		}
+		if (is_array($var_map)) {
+			foreach (array_values($var_map) as $v) {
+				$key = trim((string)$v);
+				if ($key !== '') $map[] = $key;
+			}
+		}
+
+		$defaults = ['customer_name', 'order_unique_id', 'awb_no', 'invoice_no', 'mobile', 'payable_amt'];
+		$i = 0;
+		return preg_replace_callback('/\{#\s*var\s*#\}/i', function () use (&$i, $map, $defaults, $vars) {
+			$key = isset($map[$i]) ? $map[$i] : ($defaults[$i] ?? 'customer_name');
+			$i++;
+			if ($key === 'user_phone' && (!isset($vars[$key]) || $vars[$key] === '') && isset($vars['mobile'])) {
+				$key = 'mobile';
+			}
+			if ($key === 'user_name' && (!isset($vars[$key]) || $vars[$key] === '') && isset($vars['customer_name'])) {
+				$key = 'customer_name';
+			}
+			return array_key_exists($key, $vars) && $vars[$key] !== NULL ? (string)$vars[$key] : '';
+		}, $text);
+	}
+
+	/**
+	 * DLT SMS bodies often need real line breaks. Admin may paste literal \n sequences;
+	 * convert those (and keep real newlines) so BhashSMS text matches approved templates.
+	 */
+	private function normalizeSmsMessageNewlines($text)
+	{
+		$text = (string)$text;
+		// Literal backslash sequences typed in the template textarea
+		$text = str_replace(['\\r\\n', '\\n', '\\r'], ["\r\n", "\n", "\r"], $text);
+		// Normalize to CRLF (common for SMS gateways / DLT matching)
+		$text = str_replace(["\r\n", "\r"], "\n", $text);
+		$text = str_replace("\n", "\r\n", $text);
+		return $text;
 	}
 }
 

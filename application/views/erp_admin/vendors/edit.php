@@ -264,6 +264,162 @@
 .notif-panel.active {
   display: block;
 }
+.sms-mini-hint {
+  font-size: 0.78rem;
+  color: #6c757d;
+  margin: 0 0 0.75rem;
+  line-height: 1.35;
+}
+.sms-mini-hint code {
+  font-size: 0.72rem;
+  background: #f3f4f8;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.25rem;
+}
+.sms-section-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #343a40;
+  margin-bottom: 0.5rem;
+}
+.sms-params-box .kv-table {
+  border-style: solid;
+  border-color: #e9ecef;
+  background: #fff;
+  padding: 0.65rem;
+}
+.sms-params-box .kv-actions {
+  margin-bottom: 0.35rem !important;
+}
+.sms-advanced summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6c757d;
+  list-style: none;
+  user-select: none;
+}
+.sms-advanced summary::-webkit-details-marker {
+  display: none;
+}
+.sms-advanced summary::before {
+  content: '+';
+  display: inline-block;
+  width: 1rem;
+  color: #3550dc;
+  font-weight: 700;
+}
+.sms-advanced[open] summary::before {
+  content: '–';
+}
+.sms-advanced .sms-advanced-body {
+  margin-top: 0.65rem;
+}
+.sms-test-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+@media (max-width: 767.98px) {
+  .sms-test-bar {
+    grid-template-columns: 1fr;
+  }
+}
+.sms-var-map {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  background: #f8f9fc;
+  border: 1px solid #e8ecf5;
+  border-radius: 0.5rem;
+}
+.sms-var-map-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #495057;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.15rem;
+}
+.sms-var-map-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 0.45rem;
+  align-items: center;
+}
+.sms-var-map-row label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #495057;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.sms-var-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #3550dc;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.sms-var-map-empty {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+.sms-tpl-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.sms-tpl-card {
+  border: 1px solid #e8ecf5;
+  border-radius: 0.65rem;
+  background: #fff;
+  padding: 0.75rem 0.85rem;
+}
+.sms-tpl-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+.sms-tpl-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #212529;
+}
+.sms-tpl-num .sms-var-badge {
+  background: #212529;
+}
+.sms-tpl-meta {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto auto;
+  gap: 0.5rem;
+  align-items: end;
+  margin-bottom: 0.55rem;
+}
+@media (max-width: 767.98px) {
+  .sms-tpl-meta {
+    grid-template-columns: 1fr;
+  }
+  .sms-var-map-row {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
 
 <div class="vendor-edit-tabs-wrapper">
@@ -1713,7 +1869,7 @@ document.addEventListener('DOMContentLoaded', function () {
                   <div class="notif-panel-head mb-2">
                     <div>
                       <h6 class="mb-0">SMS</h6>
-                      <small class="text-muted">Configure SMS gateway endpoint and parameters.</small>
+                      <small class="text-muted">Gateway + tracking templates (OFD / Delivered).</small>
                     </div>
                     <div class="notif-switch">
                     <div class="form-check form-switch mb-0">
@@ -1726,157 +1882,209 @@ document.addEventListener('DOMContentLoaded', function () {
 
                   <div class="border-top pt-3 mt-2 notif-section" data-toggle-id="sms_enabled"
                     style="display: <?php echo $sms_enabled ? 'block' : 'none'; ?>;">
-                    <div class="row gx-3">
-                      <div class="col-12">
-                        <div class="alert alert-light border mb-3">
-                          <div class="fw-semibold mb-1">Add params (easy)</div>
-                          <small class="text-muted">Add your provider params like <code>user</code>, <code>pass</code>, <code>sender</code>, <code>phone</code>, <code>text</code>. You can use <code>{{mobile}}</code> and <code>{{message}}</code>.</small>
-                        </div>
+
+                    <p class="sms-mini-hint">
+                      BhashSMS example: endpoint <code>https://bhashsms.com/api/sendmsg.php</code>,
+                      params <code>user</code> <code>pass</code> <code>sender</code>
+                      <code>phone={{mobile}}</code> <code>text={{message}}</code>
+                      <code>priority</code> <code>stype</code>.
+                    </p>
+
+                    <div class="row g-2 mb-3">
+                      <div class="col-md-4">
+                        <label class="form-label">Provider</label>
+                        <input type="text" class="form-control form-control-sm" name="notif[sms_provider_name]"
+                          value="<?php echo set_value('notif[sms_provider_name]', $notif['sms_provider_name'] ?? ''); ?>"
+                          placeholder="bhashsms">
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label">Method</label>
+                        <?php $sms_method = strtoupper((string)set_value('notif[sms_http_method]', $notif['sms_http_method'] ?? 'GET')); ?>
+                        <select class="form-select form-select-sm" name="notif[sms_http_method]">
+                          <option value="GET" <?php echo ($sms_method === 'GET' ? 'selected' : ''); ?>>GET</option>
+                          <option value="POST" <?php echo ($sms_method === 'POST' ? 'selected' : ''); ?>>POST</option>
+                        </select>
                       </div>
                       <div class="col-md-6">
-                        <div class="mb-3">
-                          <label class="form-label">Provider Name</label>
-                          <input type="text" class="form-control" name="notif[sms_provider_name]"
-                            value="<?php echo set_value('notif[sms_provider_name]', $notif['sms_provider_name'] ?? ''); ?>">
+                        <label class="form-label">Endpoint <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm notif-required-sms" name="notif[sms_endpoint_url]"
+                          value="<?php echo set_value('notif[sms_endpoint_url]', $notif['sms_endpoint_url'] ?? ''); ?>"
+                          placeholder="https://bhashsms.com/api/sendmsg.php">
+                      </div>
+                    </div>
+
+                    <div class="sms-params-box mb-3">
+                      <div class="sms-section-label">Default params</div>
+                      <?php
+                        if (isset($_POST['notif']) && is_array($_POST['notif']) && array_key_exists('sms_default_params_json', $_POST['notif'])) {
+                          $sms_defaults_json = (string)$_POST['notif']['sms_default_params_json'];
+                        } else {
+                          $sms_defaults_json = isset($notif['sms_default_params_json']) ? json_encode($notif['sms_default_params_json']) : '';
+                        }
+                      ?>
+                      <input type="hidden" name="notif[sms_default_params_json]" id="sms_default_params_json" value="<?php echo htmlspecialchars($sms_defaults_json); ?>">
+                      <div class="kv-table" id="smsDefaultParams" data-json="<?php echo htmlspecialchars($sms_defaults_json); ?>">
+                        <div class="kv-actions mb-2">
+                          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" data-kv-add="smsDefaultParams">Add</button>
+                        </div>
+                        <div class="kv-rows"></div>
+                      </div>
+                    </div>
+
+                    <details class="sms-advanced mb-3">
+                      <summary>Advanced (headers)</summary>
+                      <div class="sms-advanced-body">
+                        <label class="form-label">Headers JSON</label>
+                        <textarea class="form-control form-control-sm" rows="3" name="notif[sms_headers_json]"
+                          placeholder='{"Authorization":"Bearer ..."}'><?php echo set_value('notif[sms_headers_json]', isset($notif['sms_headers_json']) ? json_encode($notif['sms_headers_json']) : ''); ?></textarea>
+                      </div>
+                    </details>
+
+                    <div class="mb-3">
+                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                        <div>
+                          <div class="sms-section-label mb-0">Templates</div>
+                          <p class="sms-mini-hint mb-0">
+                            Paste approved DLT text with <code>{#var#}</code>. Map <strong>Var 1</strong>, <strong>Var 2</strong>… to order fields.
+                            Use Enter for line breaks (or <code>\n</code>).
+                          </p>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="smsAddRow">Add template</button>
+                      </div>
+
+                      <?php
+                        $sms_field_options = [
+                          'customer_name' => 'Customer name',
+                          'order_unique_id' => 'Order number',
+                          'awb_no' => 'AWB / tracking',
+                          'invoice_no' => 'Invoice no',
+                          'mobile' => 'Mobile',
+                          'payable_amt' => 'Amount',
+                          'shipping_name' => 'Shipping name',
+                          'shipping_phone' => 'Shipping phone',
+                          'user_name' => 'User name',
+                          'parent_name' => 'Parent name',
+                        ];
+                        $sms_default_var_map = ['customer_name', 'order_unique_id'];
+                        $sms_rows = isset($sms_templates) && is_array($sms_templates) && !empty($sms_templates) ? $sms_templates : [[]];
+                      ?>
+                      <div class="sms-tpl-cards" id="smsTemplateRows">
+                        <?php foreach ($sms_rows as $idx => $t): ?>
+                        <?php
+                          $sel = isset($_POST['sms_templates'][$idx]['event_key'])
+                            ? (string)$_POST['sms_templates'][$idx]['event_key']
+                            : (string)($t['event_key'] ?? '');
+                          $msg_val = isset($_POST['sms_templates'][$idx]['message_template'])
+                            ? (string)$_POST['sms_templates'][$idx]['message_template']
+                            : (string)($t['message_template'] ?? '');
+                          $var_map = [];
+                          if (isset($_POST['sms_templates'][$idx]['var_map_json'])) {
+                            $decoded = json_decode((string)$_POST['sms_templates'][$idx]['var_map_json'], true);
+                            if (is_array($decoded)) $var_map = $decoded;
+                          } elseif (!empty($t['var_map_json']) && is_array($t['var_map_json'])) {
+                            $var_map = $t['var_map_json'];
+                          }
+                          preg_match_all('/\{#\s*var\s*#\}/i', $msg_val, $sms_var_matches);
+                          $sms_var_count = count($sms_var_matches[0] ?? []);
+                          if (empty($var_map)) $var_map = $sms_default_var_map;
+                          while (count($var_map) < $sms_var_count) {
+                            $vi = count($var_map);
+                            $var_map[] = $sms_default_var_map[$vi] ?? 'customer_name';
+                          }
+                          if ($sms_var_count > 0) {
+                            $var_map = array_slice(array_values($var_map), 0, $sms_var_count);
+                          }
+                          $var_map_json = htmlspecialchars(json_encode(array_values($var_map)));
+                          $tpl_num = (int)$idx + 1;
+                        ?>
+                        <div class="sms-tpl-card sms-tpl-row" data-row-index="<?php echo (int)$idx; ?>">
+                          <div class="sms-tpl-card-head">
+                            <div class="sms-tpl-num"><span class="sms-var-badge"><?php echo $tpl_num; ?></span> Template #<?php echo $tpl_num; ?></div>
+                            <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none sms-remove-row px-1">Remove</button>
+                          </div>
+                          <div class="sms-tpl-meta">
+                            <div>
+                              <label class="form-label mb-1">Event</label>
+                              <select class="form-select form-select-sm" name="sms_templates[<?php echo $idx; ?>][event_key]">
+                                <?php foreach ($event_options as $opt): ?>
+                                  <option value="<?php echo htmlspecialchars($opt['value']); ?>" <?php echo ($sel !== '' && $sel === $opt['value']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($opt['label']); ?>
+                                  </option>
+                                <?php endforeach; ?>
+                              </select>
+                            </div>
+                            <div>
+                              <label class="form-label mb-1">Key</label>
+                              <input type="text" class="form-control form-control-sm" name="sms_templates[<?php echo $idx; ?>][template_key]"
+                                value="<?php echo set_value('sms_templates['.$idx.'][template_key]', $t['template_key'] ?? ''); ?>" placeholder="order_delivered">
+                            </div>
+                            <div>
+                              <label class="form-label mb-1">Active</label>
+                              <div class="form-check form-switch mt-1">
+                                <?php $active = isset($t['is_active']) ? (int)$t['is_active'] : 1; ?>
+                                <input type="checkbox" class="form-check-input" name="sms_templates[<?php echo $idx; ?>][is_active]" value="1"
+                                  <?php echo set_checkbox('sms_templates['.$idx.'][is_active]', '1', $active === 1); ?>>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <label class="form-label mb-1">DLT message</label>
+                            <textarea class="form-control form-control-sm font-monospace sms-message-tpl" rows="4" name="sms_templates[<?php echo $idx; ?>][message_template]"
+                              placeholder="Hi {#var#}, Your Order No {#var#} at ganeshbookstore.com has been delivered.&#10;&#10;Ganesh Book Stores"><?php echo htmlspecialchars($msg_val); ?></textarea>
+                            <input type="hidden" class="sms-var-map-json" name="sms_templates[<?php echo $idx; ?>][var_map_json]" value="<?php echo $var_map_json; ?>">
+                            <div class="sms-var-map" data-defaults="<?php echo htmlspecialchars(json_encode($sms_default_var_map)); ?>">
+                              <?php if ($sms_var_count <= 0): ?>
+                                <div class="sms-var-map-empty">No <code>{#var#}</code> in message — paste DLT text to map fields.</div>
+                              <?php else: ?>
+                                <div class="sms-var-map-title">Map DLT variables (<?php echo (int)$sms_var_count; ?>)</div>
+                                <?php for ($vi = 0; $vi < $sms_var_count; $vi++): ?>
+                                  <?php $selected = $var_map[$vi] ?? ($sms_default_var_map[$vi] ?? 'customer_name'); ?>
+                                  <div class="sms-var-map-row">
+                                    <label><span class="sms-var-badge"><?php echo $vi + 1; ?></span> Var <?php echo $vi + 1; ?></label>
+                                    <select class="form-select form-select-sm sms-var-field" data-idx="<?php echo $vi; ?>">
+                                      <?php foreach ($sms_field_options as $fkey => $flabel): ?>
+                                        <option value="<?php echo htmlspecialchars($fkey); ?>" <?php echo ($selected === $fkey) ? 'selected' : ''; ?>>
+                                          <?php echo htmlspecialchars($flabel); ?> (<?php echo htmlspecialchars($fkey); ?>)
+                                        </option>
+                                      <?php endforeach; ?>
+                                    </select>
+                                  </div>
+                                <?php endfor; ?>
+                              <?php endif; ?>
+                            </div>
+                          </div>
+                        </div>
+                        <?php endforeach; ?>
+                      </div>
+                    </div>
+
+                    <div class="border-top pt-3">
+                      <div class="sms-section-label">Test</div>
+                      <div class="sms-test-bar mb-2">
+                        <div>
+                          <label class="form-label mb-1">Mobile</label>
+                          <input type="text" class="form-control form-control-sm" name="notif_test[sms_mobile]" value="" placeholder="9999999999">
+                        </div>
+                        <div>
+                          <label class="form-label mb-1">Template key</label>
+                          <input type="text" class="form-control form-control-sm" name="notif_test[sms_template_key]" value="" placeholder="order_delivered">
+                        </div>
+                        <div>
+                          <button type="button" class="btn btn-primary btn-sm w-100 notif-test-btn" data-test="sms">Send test</button>
                         </div>
                       </div>
-                      <div class="col-md-6">
-                        <div class="mb-3">
-                          <label class="form-label">HTTP Method</label>
-                          <?php $sms_method = strtoupper((string)set_value('notif[sms_http_method]', $notif['sms_http_method'] ?? 'GET')); ?>
-                          <select class="form-select" name="notif[sms_http_method]">
-                            <option value="GET" <?php echo ($sms_method === 'GET' ? 'selected' : ''); ?>>GET</option>
-                            <option value="POST" <?php echo ($sms_method === 'POST' ? 'selected' : ''); ?>>POST</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div class="col-md-12">
-                        <div class="mb-3">
-                          <label class="form-label">Endpoint URL <span class="text-danger">*</span></label>
-                          <input type="text" class="form-control notif-required-sms" name="notif[sms_endpoint_url]"
-                            value="<?php echo set_value('notif[sms_endpoint_url]', $notif['sms_endpoint_url'] ?? ''); ?>"
-                            placeholder="https://sms.provider.com/api/send">
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="mb-3">
-                          <label class="form-label">Headers JSON (optional)</label>
-                          <textarea class="form-control" rows="5" name="notif[sms_headers_json]"
-                            placeholder='{\"Authorization\":\"Bearer ...\"}'><?php echo set_value('notif[sms_headers_json]', isset($notif['sms_headers_json']) ? json_encode($notif['sms_headers_json']) : ''); ?></textarea>
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="mb-3">
-                          <label class="form-label">Default Params (optional)</label>
-                          <?php
-                            // set_value() is unreliable for array field names like notif[...]
-                            if (isset($_POST['notif']) && is_array($_POST['notif']) && array_key_exists('sms_default_params_json', $_POST['notif'])) {
-                              $sms_defaults_json = (string)$_POST['notif']['sms_default_params_json'];
-                            } else {
-                              $sms_defaults_json = isset($notif['sms_default_params_json']) ? json_encode($notif['sms_default_params_json']) : '';
-                            }
-                          ?>
-                          <input type="hidden" name="notif[sms_default_params_json]" id="sms_default_params_json" value="<?php echo htmlspecialchars($sms_defaults_json); ?>">
-                          <div class="kv-table" id="smsDefaultParams" data-json="<?php echo htmlspecialchars($sms_defaults_json); ?>">
-                            <div class="kv-hint mb-2">Add parameters like <code>phone</code>, <code>text</code>, <code>sender</code>. You can use tokens like <code>{{mobile}}</code> and <code>{{message}}</code>.</div>
+                      <details class="sms-advanced">
+                        <summary>Test variables</summary>
+                        <div class="sms-advanced-body">
+                          <input type="hidden" name="notif_test[sms_vars_json]" id="sms_test_vars_json" value="">
+                          <div class="kv-table" id="smsTestVars" data-json="">
                             <div class="kv-actions mb-2">
-                              <button type="button" class="btn btn-sm btn-outline-secondary" data-kv-add="smsDefaultParams">Add Param</button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" data-kv-add="smsTestVars">Add</button>
                             </div>
                             <div class="kv-rows"></div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    <div class="border-top pt-3 mt-2">
-                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                        <h6 class="mb-0">SMS Templates</h6>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="smsAddRow">Add Template</button>
-                      </div>
-
-                      <?php $sms_rows = isset($sms_templates) && is_array($sms_templates) && !empty($sms_templates) ? $sms_templates : [[]]; ?>
-                      <div class="notif-table">
-                        <div class="table-responsive">
-                          <table class="table table-sm align-middle">
-                            <thead>
-                              <tr>
-                                <th style="min-width: 170px;">Type (Event)</th>
-                                <th style="min-width: 160px;">Template Key</th>
-                                <th style="min-width: 420px;">Message Template</th>
-                                <th style="width: 80px;">Active</th>
-                                <th style="width: 80px;"></th>
-                              </tr>
-                            </thead>
-                            <tbody id="smsTemplateRows">
-                              <?php foreach ($sms_rows as $idx => $t): ?>
-                              <tr>
-                                <td>
-                                  <?php
-                                    $sel = isset($_POST['sms_templates'][$idx]['event_key'])
-                                      ? (string)$_POST['sms_templates'][$idx]['event_key']
-                                      : (string)($t['event_key'] ?? '');
-                                  ?>
-                                  <select class="form-select form-select-sm" name="sms_templates[<?php echo $idx; ?>][event_key]">
-                                    <?php foreach ($event_options as $opt): ?>
-                                      <option value="<?php echo htmlspecialchars($opt['value']); ?>" <?php echo ($sel !== '' && $sel === $opt['value']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($opt['label']); ?>
-                                      </option>
-                                    <?php endforeach; ?>
-                                  </select>
-                                </td>
-                                <td>
-                                  <input type="text" class="form-control form-control-sm" name="sms_templates[<?php echo $idx; ?>][template_key]"
-                                    value="<?php echo set_value('sms_templates['.$idx.'][template_key]', $t['template_key'] ?? ''); ?>" placeholder="otp_login">
-                                </td>
-                                <td>
-                                  <textarea class="form-control form-control-sm" rows="2" name="sms_templates[<?php echo $idx; ?>][message_template]"
-                                    placeholder="Your OTP is {{otp}} VARITTY"><?php echo set_value('sms_templates['.$idx.'][message_template]', $t['message_template'] ?? ''); ?></textarea>
-                                  <small class="text-muted">Use tokens like <code>{{otp}}</code>, <code>{{order_id}}</code>.</small>
-                                </td>
-                                <td class="text-center">
-                                  <?php $active = isset($t['is_active']) ? (int)$t['is_active'] : 1; ?>
-                                  <input type="checkbox" class="form-check-input" name="sms_templates[<?php echo $idx; ?>][is_active]" value="1"
-                                    <?php echo set_checkbox('sms_templates['.$idx.'][is_active]', '1', $active === 1); ?>>
-                                </td>
-                                <td class="text-end">
-                                  <button type="button" class="btn btn-sm btn-outline-danger sms-remove-row">Remove</button>
-                                </td>
-                              </tr>
-                              <?php endforeach; ?>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="border-top pt-3 mt-2">
-                      <div class="row gx-3 align-items-end">
-                        <div class="col-md-4">
-                          <label class="form-label">Test Mobile</label>
-                          <input type="text" class="form-control" name="notif_test[sms_mobile]" value="" placeholder="9999999999">
-                        </div>
-                        <div class="col-md-5">
-                          <label class="form-label">Template Key</label>
-                          <input type="text" class="form-control" name="notif_test[sms_template_key]" value="" placeholder="otp_login">
-                        </div>
-                        <div class="col-md-3">
-                          <button type="button" class="btn btn-primary w-100 notif-test-btn" data-test="sms">
-                            Send Test SMS
-                          </button>
-                        </div>
-                      </div>
-                      <div class="mt-3">
-                        <label class="form-label">Variables (optional)</label>
-                        <input type="hidden" name="notif_test[sms_vars_json]" id="sms_test_vars_json" value="">
-                        <div class="kv-table" id="smsTestVars" data-json="">
-                          <div class="kv-hint mb-2">Add variables like <code>otp</code> = <code>123456</code>. They will replace tokens in the template.</div>
-                          <div class="kv-actions mb-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-kv-add="smsTestVars">Add Var</button>
-                          </div>
-                          <div class="kv-rows"></div>
-                        </div>
-                      </div>
-                      <small class="text-muted d-block mt-2">Test sending uses saved settings for this vendor.</small>
+                      </details>
                     </div>
                   </div>
                   </div>
@@ -2314,28 +2522,141 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     return max + 1;
   }
+  function smsRenumberCards() {
+    if (!smsRows) return;
+    smsRows.querySelectorAll('.sms-tpl-row').forEach(function(row, i) {
+      var num = row.querySelector('.sms-tpl-num');
+      if (num) {
+        num.innerHTML = '<span class=\"sms-var-badge\">' + (i + 1) + '</span> Template #' + (i + 1);
+      }
+    });
+  }
   function smsBindRemove() {
     if (!smsRows) return;
     smsRows.querySelectorAll('.sms-remove-row').forEach(function(btn) {
       btn.onclick = function() {
-        var tr = this.closest('tr');
-        if (tr) tr.remove();
+        var card = this.closest('.sms-tpl-row');
+        if (card) card.remove();
+        smsRenumberCards();
       };
     });
   }
   smsBindRemove();
+  var smsFieldOptions = <?php echo json_encode($sms_field_options ?? [
+    'customer_name' => 'Customer name',
+    'order_unique_id' => 'Order number',
+    'awb_no' => 'AWB / tracking',
+    'invoice_no' => 'Invoice no',
+    'mobile' => 'Mobile',
+    'payable_amt' => 'Amount',
+    'shipping_name' => 'Shipping name',
+    'shipping_phone' => 'Shipping phone',
+  ], JSON_UNESCAPED_UNICODE); ?>;
+  var smsDefaultVarMap = <?php echo json_encode($sms_default_var_map ?? ['customer_name', 'order_unique_id']); ?>;
+
+  function smsCountDltVars(text) {
+    var m = String(text || '').match(/\{#\s*var\s*#\}/gi);
+    return m ? m.length : 0;
+  }
+  function smsRenderVarMap(row) {
+    if (!row) return;
+    var ta = row.querySelector('.sms-message-tpl');
+    var hidden = row.querySelector('.sms-var-map-json');
+    var box = row.querySelector('.sms-var-map');
+    if (!ta || !hidden || !box) return;
+
+    var count = smsCountDltVars(ta.value);
+    var current = [];
+    try { current = JSON.parse(hidden.value || '[]'); } catch (e) { current = []; }
+    if (!Array.isArray(current)) current = [];
+
+    while (current.length < count) {
+      current.push(smsDefaultVarMap[current.length] || 'customer_name');
+    }
+    current = current.slice(0, Math.max(count, 0));
+    hidden.value = JSON.stringify(current);
+
+    if (count === 0) {
+      box.innerHTML = '<div class=\"sms-var-map-empty\">No <code>{#var#}</code> in message — paste DLT text to map fields.</div>';
+      return;
+    }
+
+    var html = '<div class=\"sms-var-map-title\">Map DLT variables (' + count + ')</div>';
+    for (var i = 0; i < count; i++) {
+      var selected = current[i] || (smsDefaultVarMap[i] || 'customer_name');
+      html += '<div class=\"sms-var-map-row\">'
+        + '<label><span class=\"sms-var-badge\">' + (i + 1) + '</span> Var ' + (i + 1) + '</label>'
+        + '<select class=\"form-select form-select-sm sms-var-field\" data-idx=\"' + i + '\">';
+      Object.keys(smsFieldOptions).forEach(function(key) {
+        html += '<option value=\"' + key + '\"' + (selected === key ? ' selected' : '') + '>' + smsFieldOptions[key] + ' (' + key + ')</option>';
+      });
+      html += '</select></div>';
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('.sms-var-field').forEach(function(sel) {
+      sel.addEventListener('change', function() {
+        var idx = parseInt(this.getAttribute('data-idx'), 10) || 0;
+        var map = [];
+        try { map = JSON.parse(hidden.value || '[]'); } catch (e2) { map = []; }
+        if (!Array.isArray(map)) map = [];
+        map[idx] = this.value;
+        hidden.value = JSON.stringify(map);
+      });
+    });
+  }
+  function smsBindVarMaps() {
+    if (!smsRows) return;
+    smsRows.querySelectorAll('.sms-tpl-row').forEach(function(row) {
+      var ta = row.querySelector('.sms-message-tpl');
+      if (ta && !ta._smsVarBound) {
+        ta._smsVarBound = true;
+        ta.addEventListener('input', function() { smsRenderVarMap(row); });
+      }
+      // Bind existing PHP-rendered selects
+      row.querySelectorAll('.sms-var-field').forEach(function(sel) {
+        if (sel._smsVarBound) return;
+        sel._smsVarBound = true;
+        sel.addEventListener('change', function() {
+          var hidden = row.querySelector('.sms-var-map-json');
+          if (!hidden) return;
+          var idx = parseInt(this.getAttribute('data-idx'), 10) || 0;
+          var map = [];
+          try { map = JSON.parse(hidden.value || '[]'); } catch (e2) { map = []; }
+          if (!Array.isArray(map)) map = [];
+          map[idx] = this.value;
+          hidden.value = JSON.stringify(map);
+        });
+      });
+    });
+  }
+  smsBindVarMaps();
+
   if (smsAddRowBtn && smsRows) {
     smsAddRowBtn.addEventListener('click', function() {
       var idx = smsNextIndex();
-      var tr = document.createElement('tr');
-      tr.innerHTML = ''
-        + '<td><?php echo str_replace("\n", "", addslashes("<select class=\"form-select form-select-sm\" name=\"sms_templates[__IDX__][event_key]\">".implode("", array_map(function($o){ return "<option value=\\\"".htmlspecialchars($o["value"], ENT_QUOTES)."\\\">".htmlspecialchars($o["label"], ENT_QUOTES)."</option>"; }, $event_options))."</select>")); ?>'.replace('__IDX__', idx) + '</td>'
-        + '<td><input type=\"text\" class=\"form-control form-control-sm\" name=\"sms_templates[' + idx + '][template_key]\" placeholder=\"otp_login\"></td>'
-        + '<td><textarea class=\"form-control form-control-sm\" rows=\"2\" name=\"sms_templates[' + idx + '][message_template]\" placeholder=\"Your OTP is {{otp}} VARITTY\"></textarea><small class=\"text-muted\">Use tokens like <code>{{otp}}</code>.</small></td>'
-        + '<td class=\"text-center\"><input type=\"checkbox\" class=\"form-check-input\" name=\"sms_templates[' + idx + '][is_active]\" value=\"1\" checked></td>'
-        + '<td class=\"text-end\"><button type=\"button\" class=\"btn btn-sm btn-outline-danger sms-remove-row\">Remove</button></td>';
-      smsRows.appendChild(tr);
+      var card = document.createElement('div');
+      card.className = 'sms-tpl-card sms-tpl-row';
+      card.setAttribute('data-row-index', String(idx));
+      card.innerHTML = ''
+        + '<div class=\"sms-tpl-card-head\">'
+        +   '<div class=\"sms-tpl-num\"><span class=\"sms-var-badge\">' + (smsRows.querySelectorAll('.sms-tpl-row').length + 1) + '</span> Template #' + (smsRows.querySelectorAll('.sms-tpl-row').length + 1) + '</div>'
+        +   '<button type=\"button\" class=\"btn btn-sm btn-link text-danger text-decoration-none sms-remove-row px-1\">Remove</button>'
+        + '</div>'
+        + '<div class=\"sms-tpl-meta\">'
+        +   '<div><label class=\"form-label mb-1\">Event</label><?php echo str_replace("\n", "", addslashes("<select class=\"form-select form-select-sm\" name=\"sms_templates[__IDX__][event_key]\">".implode("", array_map(function($o){ return "<option value=\\\"".htmlspecialchars($o["value"], ENT_QUOTES)."\\\">".htmlspecialchars($o["label"], ENT_QUOTES)."</option>"; }, $event_options))."</select>")); ?>'.replace('__IDX__', idx) + '</div>'
+        +   '<div><label class=\"form-label mb-1\">Key</label><input type=\"text\" class=\"form-control form-control-sm\" name=\"sms_templates[' + idx + '][template_key]\" placeholder=\"order_delivered\"></div>'
+        +   '<div><label class=\"form-label mb-1\">Active</label><div class=\"form-check form-switch mt-1\"><input type=\"checkbox\" class=\"form-check-input\" name=\"sms_templates[' + idx + '][is_active]\" value=\"1\" checked></div></div>'
+        + '</div>'
+        + '<div>'
+        +   '<label class=\"form-label mb-1\">DLT message</label>'
+        +   '<textarea class=\"form-control form-control-sm font-monospace sms-message-tpl\" rows=\"4\" name=\"sms_templates[' + idx + '][message_template]\" placeholder=\"Hi {#var#}, Your Order No {#var#} at ganeshbookstore.com has been delivered.\"></textarea>'
+        +   '<input type=\"hidden\" class=\"sms-var-map-json\" name=\"sms_templates[' + idx + '][var_map_json]\" value=\"[\\\"customer_name\\\",\\\"order_unique_id\\\"]\">'
+        +   '<div class=\"sms-var-map\"><div class=\"sms-var-map-empty\">No <code>{#var#}</code> in message — paste DLT text to map fields.</div></div>'
+        + '</div>';
+      smsRows.appendChild(card);
       smsBindRemove();
+      smsBindVarMaps();
+      smsRenumberCards();
     });
   }
 

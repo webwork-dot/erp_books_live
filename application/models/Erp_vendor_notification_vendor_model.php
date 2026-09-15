@@ -116,7 +116,10 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		foreach ($required as $t) {
 			if (!$db->table_exists($t)) $missing[] = $t;
 		}
-		if (empty($missing)) return TRUE;
+		if (empty($missing)) {
+			$this->ensureSmsTemplateColumns($db);
+			return TRUE;
+		}
 
 		$sql_path = APPPATH . '../database/tenant/create_vendor_notifications_tables.sql';
 		if (!file_exists($sql_path)) {
@@ -208,7 +211,16 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		$db = $this->getVendorDb($vendor_id);
 		if (!$db) return [];
 		$this->ensureTables($vendor_id);
-		return $db->where('vendor_id', (int)$vendor_id)->order_by('id', 'asc')->get('erp_vendor_sms_templates')->result_array();
+		$this->ensureSmsTemplateColumns($db);
+		$rows = $db->where('vendor_id', (int)$vendor_id)->order_by('id', 'asc')->get('erp_vendor_sms_templates')->result_array();
+		foreach ($rows as &$row) {
+			$row['var_map_json'] = $this->decodeJson($row['var_map_json'] ?? NULL);
+			if (!is_array($row['var_map_json'])) {
+				$row['var_map_json'] = NULL;
+			}
+		}
+		unset($row);
+		return $rows;
 	}
 
 	public function getNotificationEvents($vendor_id, $include_inactive = false)
@@ -344,6 +356,7 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 			log_message('error', 'Erp_vendor_notification_vendor_model: vendor table missing vendor_id=' . $vendor_id . ' table=erp_vendor_sms_templates');
 			return FALSE;
 		}
+		$this->ensureSmsTemplateColumns($db);
 		$ok = $db->where('vendor_id', $vendor_id)->delete('erp_vendor_sms_templates');
 		if ($ok === FALSE) {
 			$err = $db->error();
@@ -353,6 +366,9 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		}
 		foreach ((array)$this->Erp_vendor_notification_model->getSmsTemplates($vendor_id) as $t) {
 			unset($t['id']);
+			if (isset($t['var_map_json']) && is_array($t['var_map_json'])) {
+				$t['var_map_json'] = json_encode($t['var_map_json'], JSON_UNESCAPED_UNICODE);
+			}
 			$ok = $db->insert('erp_vendor_sms_templates', $t);
 			if (empty($ok)) {
 				$err = $db->error();
@@ -409,6 +425,16 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		if (is_array($value)) return $value;
 		$decoded = json_decode((string)$value, TRUE);
 		return (json_last_error() === JSON_ERROR_NONE) ? $decoded : NULL;
+	}
+
+	private function ensureSmsTemplateColumns($db)
+	{
+		if (!$db || !method_exists($db, 'table_exists') || !$db->table_exists('erp_vendor_sms_templates')) {
+			return;
+		}
+		if (!$db->field_exists('var_map_json', 'erp_vendor_sms_templates')) {
+			$db->query('ALTER TABLE `erp_vendor_sms_templates` ADD COLUMN `var_map_json` TEXT NULL AFTER `message_template`');
+		}
 	}
 }
 

@@ -206,16 +206,26 @@ class Erp_vendor_notification_model extends CI_Model
 	public function getSmsTemplates($vendor_id)
 	{
 		$vendor_id = (int)$vendor_id;
-		return $this->db
+		$this->ensureSmsTemplateColumns();
+		$rows = $this->db
 			->where('vendor_id', $vendor_id)
 			->order_by('id', 'asc')
 			->get('erp_vendor_sms_templates')
 			->result_array();
+		foreach ($rows as &$row) {
+			$row['var_map_json'] = $this->decodeJson($row['var_map_json'] ?? NULL);
+			if (!is_array($row['var_map_json'])) {
+				$row['var_map_json'] = NULL;
+			}
+		}
+		unset($row);
+		return $rows;
 	}
 
 	public function replaceSmsTemplates($vendor_id, array $templates)
 	{
 		$vendor_id = (int)$vendor_id;
+		$this->ensureSmsTemplateColumns();
 
 		$this->db->trans_start();
 		$this->db->where('vendor_id', $vendor_id)->delete('erp_vendor_sms_templates');
@@ -223,22 +233,78 @@ class Erp_vendor_notification_model extends CI_Model
 		foreach ($templates as $t) {
 			$template_key = isset($t['template_key']) ? trim((string)$t['template_key']) : '';
 			$event_key = isset($t['event_key']) ? trim((string)$t['event_key']) : '';
-			$message_template = isset($t['message_template']) ? trim((string)$t['message_template']) : '';
-			if ($template_key === '' || $message_template === '') {
+			$message_template = isset($t['message_template']) ? (string)$t['message_template'] : '';
+			// Keep intentional trailing newlines for DLT; only trim outer whitespace on sides
+			$message_template = preg_replace("/^[ \\t]+|[ \\t]+$/u", '', $message_template);
+			if ($template_key === '' || trim($message_template) === '') {
 				continue;
 			}
+
+			$var_map = $this->normalizeSmsVarMap($t['var_map_json'] ?? ($t['var_map'] ?? NULL), $message_template);
 
 			$this->db->insert('erp_vendor_sms_templates', [
 				'vendor_id' => $vendor_id,
 				'template_key' => $template_key,
 				'event_key' => $event_key !== '' ? $event_key : null,
 				'message_template' => $message_template,
+				'var_map_json' => $this->encodeJson($var_map),
 				'is_active' => isset($t['is_active']) ? (int)(!!$t['is_active']) : 1,
 			]);
 		}
 
 		$this->db->trans_complete();
 		return $this->db->trans_status();
+	}
+
+	/**
+	 * Ensure SMS templates can store DLT {#var#} → field mapping.
+	 */
+	public function ensureSmsTemplateColumns()
+	{
+		if (!$this->db->table_exists('erp_vendor_sms_templates')) {
+			return;
+		}
+		if (!$this->db->field_exists('var_map_json', 'erp_vendor_sms_templates')) {
+			$this->db->query('ALTER TABLE `erp_vendor_sms_templates` ADD COLUMN `var_map_json` TEXT NULL AFTER `message_template`');
+		}
+	}
+
+	/**
+	 * Build ordered field keys for each {#var#} in the DLT body.
+	 * Defaults: 1st=customer_name, 2nd=order_unique_id.
+	 */
+	private function normalizeSmsVarMap($raw, $message_template)
+	{
+		$count = preg_match_all('/\{#\s*var\s*#\}/i', (string)$message_template, $m);
+		$count = (int)$count;
+		$defaults = ['customer_name', 'order_unique_id', 'awb_no', 'invoice_no', 'mobile', 'payable_amt'];
+		$allowed = ['customer_name', 'user_name', 'order_unique_id', 'awb_no', 'invoice_no', 'mobile', 'user_phone', 'payable_amt', 'shipping_name', 'shipping_phone', 'parent_name'];
+
+		$map = [];
+		if (is_string($raw) && trim($raw) !== '') {
+			$decoded = json_decode($raw, true);
+			if (json_last_error() === JSON_ERROR_NONE) {
+				$raw = $decoded;
+			}
+		}
+		if (is_array($raw)) {
+			foreach (array_values($raw) as $v) {
+				$key = trim((string)$v);
+				if ($key !== '' && in_array($key, $allowed, true)) {
+					$map[] = $key;
+				}
+			}
+		}
+
+		if ($count <= 0) {
+			return !empty($map) ? $map : NULL;
+		}
+
+		while (count($map) < $count) {
+			$idx = count($map);
+			$map[] = $defaults[$idx] ?? 'customer_name';
+		}
+		return array_slice($map, 0, $count);
 	}
 
 	/**
