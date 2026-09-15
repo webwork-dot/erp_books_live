@@ -245,12 +245,9 @@ class Erp_vendor_notification_model extends CI_Model
 			$message_template = isset($t['message_template']) ? (string)$t['message_template'] : '';
 			$message_template = preg_replace("/^[ \\t]+|[ \\t]+$/u", '', $message_template);
 
-			if ($template_key !== '') {
-				$template_key = strtolower(preg_replace('/\s+/', '_', $template_key));
-			}
-			if ($event_key !== '') {
-				$event_key = strtolower(preg_replace('/\s+/', '_', $event_key));
-			}
+			// Strip accidental quotes from over-escaped UI values: \"order_delivered\" → order_delivered
+			$template_key = $this->normalizeSmsTemplateKey($template_key);
+			$event_key = $this->normalizeSmsTemplateKey($event_key);
 			if ($template_key === '' && $event_key !== '') {
 				$template_key = $event_key;
 			}
@@ -356,6 +353,30 @@ class Erp_vendor_notification_model extends CI_Model
 		$q = $db->query($sql);
 		$db->db_debug = $prev_debug;
 		return ($q && $q->num_rows() > 0);
+	}
+
+	/**
+	 * Clean template/event keys from UI (spaces, escaped quotes).
+	 * e.g. "out for delivery", \"order_delivered\" → out_for_delivery / order_delivered
+	 */
+	private function normalizeSmsTemplateKey($key)
+	{
+		$key = trim((string)$key);
+		if ($key === '') {
+			return '';
+		}
+		// Peel off layers of quotes / backslash-quotes from over-escaped JS option values
+		for ($i = 0; $i < 4; $i++) {
+			$prev = $key;
+			$key = stripslashes($key);
+			$key = trim($key, " \t\"'");
+			if ($key === $prev) {
+				break;
+			}
+		}
+		$key = strtolower(preg_replace('/\s+/', '_', $key));
+		$key = preg_replace('/[^a-z0-9_\-]/', '', $key);
+		return (string)$key;
 	}
 
 	/**

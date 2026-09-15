@@ -2775,29 +2775,84 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  var smsEventOptions = <?php echo json_encode(array_values($event_options ?? []), JSON_UNESCAPED_UNICODE); ?>;
+
+  function smsBuildEventSelect(idx) {
+    var sel = document.createElement('select');
+    sel.className = 'form-select form-select-sm sms-event-key';
+    sel.name = 'sms_templates[' + idx + '][event_key]';
+    (smsEventOptions || []).forEach(function(opt) {
+      var o = document.createElement('option');
+      o.value = String((opt && opt.value) != null ? opt.value : '');
+      o.textContent = String((opt && opt.label) != null ? opt.label : o.value);
+      sel.appendChild(o);
+    });
+    return sel;
+  }
+
   if (smsAddRowBtn && smsRows) {
     smsAddRowBtn.addEventListener('click', function() {
       smsReindexNames();
       var idx = smsNextIndex();
+      var n = smsRows.querySelectorAll('.sms-tpl-row').length + 1;
       var card = document.createElement('div');
       card.className = 'sms-tpl-card sms-tpl-row';
       card.setAttribute('data-row-index', String(idx));
-      card.innerHTML = ''
-        + '<div class=\"sms-tpl-card-head\">'
-        +   '<div class=\"sms-tpl-num\"><span class=\"sms-var-badge\">' + (smsRows.querySelectorAll('.sms-tpl-row').length + 1) + '</span> Template #' + (smsRows.querySelectorAll('.sms-tpl-row').length + 1) + '</div>'
-        +   '<button type=\"button\" class=\"btn btn-sm btn-link text-danger text-decoration-none sms-remove-row px-1\">Remove</button>'
-        + '</div>'
-        + '<div class=\"sms-tpl-meta\">'
-        +   '<div><label class=\"form-label mb-1\">Event</label><?php echo str_replace("\n", "", addslashes("<select class=\"form-select form-select-sm sms-event-key\" name=\"sms_templates[__IDX__][event_key]\">".implode("", array_map(function($o){ return "<option value=\\\"".htmlspecialchars($o["value"], ENT_QUOTES)."\\\">".htmlspecialchars($o["label"], ENT_QUOTES)."</option>"; }, $event_options))."</select>")); ?>'.replace('__IDX__', idx) + '</div>'
-        +   '<div><label class=\"form-label mb-1\">Key</label><input type=\"text\" class=\"form-control form-control-sm\" name=\"sms_templates[' + idx + '][template_key]\" placeholder=\"order_delivered\"></div>'
-        +   '<div><label class=\"form-label mb-1\">Active</label><div class=\"form-check form-switch mt-1\"><input type=\"checkbox\" class=\"form-check-input\" name=\"sms_templates[' + idx + '][is_active]\" value=\"1\" checked></div></div>'
-        + '</div>'
-        + '<div>'
-        +   '<label class=\"form-label mb-1\">DLT message</label>'
-        +   '<textarea class=\"form-control form-control-sm font-monospace sms-message-tpl\" rows=\"4\" name=\"sms_templates[' + idx + '][message_template]\" placeholder=\"Hi {#var#}, Your Order No {#var#} at ganeshbookstore.com has been delivered.\"></textarea>'
-        +   '<input type=\"hidden\" class=\"sms-var-map-json\" name=\"sms_templates[' + idx + '][var_map_json]\" value=\"[\\\"customer_name\\\",\\\"order_unique_id\\\"]\">'
-        +   '<div class=\"sms-var-map\"><div class=\"sms-var-map-empty\">No <code>{#var#}</code> in message — paste DLT text to map fields.</div></div>'
-        + '</div>';
+
+      var head = document.createElement('div');
+      head.className = 'sms-tpl-card-head';
+      head.innerHTML = '<div class="sms-tpl-num"><span class="sms-var-badge">' + n + '</span> Template #' + n + '</div>'
+        + '<button type="button" class="btn btn-sm btn-link text-danger text-decoration-none sms-remove-row px-1">Remove</button>';
+
+      var meta = document.createElement('div');
+      meta.className = 'sms-tpl-meta';
+
+      var eventWrap = document.createElement('div');
+      eventWrap.innerHTML = '<label class="form-label mb-1">Event</label>';
+      eventWrap.appendChild(smsBuildEventSelect(idx));
+
+      var keyWrap = document.createElement('div');
+      keyWrap.innerHTML = '<label class="form-label mb-1">Key</label>';
+      var keyInput = document.createElement('input');
+      keyInput.type = 'text';
+      keyInput.className = 'form-control form-control-sm';
+      keyInput.name = 'sms_templates[' + idx + '][template_key]';
+      keyInput.placeholder = 'order_delivered';
+      keyWrap.appendChild(keyInput);
+
+      var activeWrap = document.createElement('div');
+      activeWrap.innerHTML = '<label class="form-label mb-1">Active</label>'
+        + '<div class="form-check form-switch mt-1"><input type="checkbox" class="form-check-input" name="sms_templates[' + idx + '][is_active]" value="1" checked></div>';
+
+      meta.appendChild(eventWrap);
+      meta.appendChild(keyWrap);
+      meta.appendChild(activeWrap);
+
+      var body = document.createElement('div');
+      var msgLabel = document.createElement('label');
+      msgLabel.className = 'form-label mb-1';
+      msgLabel.textContent = 'DLT message';
+      var ta = document.createElement('textarea');
+      ta.className = 'form-control form-control-sm font-monospace sms-message-tpl';
+      ta.rows = 4;
+      ta.name = 'sms_templates[' + idx + '][message_template]';
+      ta.placeholder = 'Hi {#var#}, Your Order No {#var#} at ganeshbookstore.com has been delivered.';
+      var hiddenMap = document.createElement('input');
+      hiddenMap.type = 'hidden';
+      hiddenMap.className = 'sms-var-map-json';
+      hiddenMap.name = 'sms_templates[' + idx + '][var_map_json]';
+      hiddenMap.value = JSON.stringify(['customer_name', 'order_unique_id']);
+      var varMap = document.createElement('div');
+      varMap.className = 'sms-var-map';
+      varMap.innerHTML = '<div class="sms-var-map-empty">No <code>{#var#}</code> in message — paste DLT text to map fields.</div>';
+      body.appendChild(msgLabel);
+      body.appendChild(ta);
+      body.appendChild(hiddenMap);
+      body.appendChild(varMap);
+
+      card.appendChild(head);
+      card.appendChild(meta);
+      card.appendChild(body);
       smsRows.appendChild(card);
       smsBindRemove();
       smsBindVarMaps();
