@@ -306,72 +306,77 @@ class Orders extends Vendor_base
 
 	private function sendOrderEventNotifications($event_key, array $order_ids)
 	{
-		$vendor_id = (int)($this->current_vendor['id'] ?? 0);
-		if ($vendor_id <= 0) return;
+		try {
+			$vendor_id = (int)($this->current_vendor['id'] ?? 0);
+			if ($vendor_id <= 0) return;
 
-		$event_key = trim((string)$event_key);
-		$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
-		$order_ids = array_filter($order_ids, function ($v) {
-			return $v > 0;
-		});
-		if (empty($order_ids)) return;
+			$event_key = trim((string)$event_key);
+			$order_ids = array_values(array_unique(array_map('intval', $order_ids)));
+			$order_ids = array_filter($order_ids, function ($v) {
+				return $v > 0;
+			});
+			if (empty($order_ids)) return;
 
-		// Out for Delivery / Delivered: same path as tracking cron (SMS template gate + sendEvent)
-		if ($event_key === 'out_for_delivery' || $event_key === 'order_delivered') {
-			$this->load->model('cron_model');
-			$this->cron_model->notifyTrackingOrders($vendor_id, $order_ids, $event_key, $this->db);
-			return;
-		}
-
-		$sentCodeByEvent = [
-			'order_processed' => 2,
-			'order_shipped' => 6,
-			'out_for_delivery' => 3,
-			'order_delivered' => 4,
-		];
-		$mailSentCode = isset($sentCodeByEvent[$event_key]) ? (int)$sentCodeByEvent[$event_key] : 0;
-
-		$hasIsMailSent = $this->db->field_exists('is_mail_sent', 'tbl_order_details');
-		$hasIsMailDate = $this->db->field_exists('is_mail_date', 'tbl_order_details');
-
-		$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, delivery_charge, discount_amt, currency_code, currency, children_data';
-		if ($hasIsMailSent) {
-			$select .= ', is_mail_sent';
-		}
-
-		$rows = $this->db
-			->select($select, false)
-			->from('tbl_order_details')
-			->where_in('id', $order_ids)
-			->get()
-			->result_array();
-
-		if (empty($rows)) return;
-
-		$this->load->library('Notification_sender');
-		foreach ($rows as $r) {
-			$order_id = (int)($r['id'] ?? 0);
-			if ($order_id <= 0) continue;
-
-			// If we already sent mail for this status, skip.
-			if ($mailSentCode > 0 && $hasIsMailSent && (int)($r['is_mail_sent'] ?? 0) === $mailSentCode) {
-				continue;
+			// Out for Delivery / Delivered: same path as tracking cron (SMS template gate + sendEvent)
+			if ($event_key === 'out_for_delivery' || $event_key === 'order_delivered') {
+				$this->load->model('cron_model');
+				$this->cron_model->notifyTrackingOrders($vendor_id, $order_ids, $event_key, $this->db);
+				return;
 			}
 
-			$vars = $this->buildOrderVarsFromRow($r, $order_id);
-			$res = $this->notification_sender->sendEvent($vendor_id, $event_key, $vars);
+			$sentCodeByEvent = [
+				'order_processed' => 2,
+				'order_shipped' => 6,
+				'out_for_delivery' => 3,
+				'order_delivered' => 4,
+			];
+			$mailSentCode = isset($sentCodeByEvent[$event_key]) ? (int)$sentCodeByEvent[$event_key] : 0;
 
-			$emailOk = !empty($res['results']['email']['success']);
-			$smsOk = !empty($res['results']['sms']['success']);
-			$waOk = !empty($res['results']['whatsapp']['success']);
-			if (($emailOk || $smsOk || $waOk) && $mailSentCode > 0 && $hasIsMailSent) {
-				$update = ['is_mail_sent' => $mailSentCode];
-				if ($hasIsMailDate) {
-					$update['is_mail_date'] = date('Y-m-d H:i:s');
+			$hasIsMailSent = $this->db->field_exists('is_mail_sent', 'tbl_order_details');
+			$hasIsMailDate = $this->db->field_exists('is_mail_date', 'tbl_order_details');
+
+			$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, delivery_charge, discount_amt, currency_code, currency, children_data';
+			if ($hasIsMailSent) {
+				$select .= ', is_mail_sent';
+			}
+
+			$rows = $this->db
+				->select($select, false)
+				->from('tbl_order_details')
+				->where_in('id', $order_ids)
+				->get()
+				->result_array();
+
+			if (empty($rows)) return;
+
+			$this->load->library('Notification_sender');
+			foreach ($rows as $r) {
+				$order_id = (int)($r['id'] ?? 0);
+				if ($order_id <= 0) continue;
+
+				// If we already sent mail for this status, skip.
+				if ($mailSentCode > 0 && $hasIsMailSent && (int)($r['is_mail_sent'] ?? 0) === $mailSentCode) {
+					continue;
 				}
-				$this->db->where('id', $order_id);
-				$this->db->update('tbl_order_details', $update);
+
+				$vars = $this->buildOrderVarsFromRow($r, $order_id);
+				$res = $this->notification_sender->sendEvent($vendor_id, $event_key, $vars);
+
+				$emailOk = !empty($res['results']['email']['success']);
+				$smsOk = !empty($res['results']['sms']['success']);
+				$waOk = !empty($res['results']['whatsapp']['success']);
+				if (($emailOk || $smsOk || $waOk) && $mailSentCode > 0 && $hasIsMailSent) {
+					$update = ['is_mail_sent' => $mailSentCode];
+					if ($hasIsMailDate) {
+						$update['is_mail_date'] = date('Y-m-d H:i:s');
+					}
+					$this->db->where('id', $order_id);
+					$this->db->update('tbl_order_details', $update);
+				}
 			}
+		} catch (Throwable $e) {
+			// Never break bulk order actions (self delivery / ready shipment) with HTML error pages.
+			log_message('error', 'sendOrderEventNotifications failed event=' . $event_key . ' err=' . $e->getMessage());
 		}
 	}
 

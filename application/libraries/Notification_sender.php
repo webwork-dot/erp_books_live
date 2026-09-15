@@ -543,6 +543,7 @@ class Notification_sender
 	/**
 	 * Replace DLT {#var#} slots left-to-right using var_map_json field keys.
 	 * Defaults: 1st customer_name, 2nd order_unique_id.
+	 * Overrides (in order): vars[mapKey], vars['var1'|'var_1'], positional list vars['__dlt__'].
 	 */
 	private function applyDltVarPlaceholders($text, $var_map, array $vars)
 	{
@@ -565,16 +566,41 @@ class Notification_sender
 			}
 		}
 
+		$positional = [];
+		if (isset($vars['__dlt__']) && is_array($vars['__dlt__'])) {
+			$positional = array_values($vars['__dlt__']);
+		} elseif (isset($vars['dlt_vars']) && is_array($vars['dlt_vars'])) {
+			$positional = array_values($vars['dlt_vars']);
+		}
+
 		$defaults = ['customer_name', 'order_unique_id', 'awb_no', 'invoice_no', 'mobile', 'payable_amt'];
 		$i = 0;
-		return preg_replace_callback('/\{#\s*var\s*#\}/i', function () use (&$i, $map, $defaults, $vars) {
-			$key = isset($map[$i]) ? $map[$i] : ($defaults[$i] ?? 'customer_name');
+		return preg_replace_callback('/\{#\s*var\s*#\}/i', function () use (&$i, $map, $defaults, $vars, $positional) {
+			$slot = $i;
+			$key = isset($map[$slot]) ? $map[$slot] : ($defaults[$slot] ?? 'customer_name');
 			$i++;
+
 			if ($key === 'user_phone' && (!isset($vars[$key]) || $vars[$key] === '') && isset($vars['mobile'])) {
 				$key = 'mobile';
 			}
 			if ($key === 'user_name' && (!isset($vars[$key]) || $vars[$key] === '') && isset($vars['customer_name'])) {
 				$key = 'customer_name';
+			}
+
+			// Prefer explicit field, then var1/var_1, then positional list
+			if (array_key_exists($key, $vars) && $vars[$key] !== NULL && $vars[$key] !== '') {
+				return (string)$vars[$key];
+			}
+			$alt1 = 'var' . ($slot + 1);
+			$alt2 = 'var_' . ($slot + 1);
+			if (array_key_exists($alt1, $vars) && $vars[$alt1] !== NULL && $vars[$alt1] !== '') {
+				return (string)$vars[$alt1];
+			}
+			if (array_key_exists($alt2, $vars) && $vars[$alt2] !== NULL && $vars[$alt2] !== '') {
+				return (string)$vars[$alt2];
+			}
+			if (array_key_exists($slot, $positional) && $positional[$slot] !== NULL && $positional[$slot] !== '') {
+				return (string)$positional[$slot];
 			}
 			return array_key_exists($key, $vars) && $vars[$key] !== NULL ? (string)$vars[$key] : '';
 		}, $text);

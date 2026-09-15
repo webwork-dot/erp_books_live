@@ -1970,33 +1970,44 @@ document.addEventListener('DOMContentLoaded', function () {
                       ?>
                       <div class="sms-tpl-cards" id="smsTemplateRows">
                         <?php foreach ($sms_rows as $idx => $t): ?>
-                        <?php
-                          $sel = isset($_POST['sms_templates'][$idx]['event_key'])
-                            ? (string)$_POST['sms_templates'][$idx]['event_key']
-                            : (string)($t['event_key'] ?? '');
-                          $msg_val = isset($_POST['sms_templates'][$idx]['message_template'])
-                            ? (string)$_POST['sms_templates'][$idx]['message_template']
-                            : (string)($t['message_template'] ?? '');
-                          $var_map = [];
-                          if (isset($_POST['sms_templates'][$idx]['var_map_json'])) {
-                            $decoded = json_decode((string)$_POST['sms_templates'][$idx]['var_map_json'], true);
-                            if (is_array($decoded)) $var_map = $decoded;
-                          } elseif (!empty($t['var_map_json']) && is_array($t['var_map_json'])) {
-                            $var_map = $t['var_map_json'];
-                          }
-                          preg_match_all('/\{#\s*var\s*#\}/i', $msg_val, $sms_var_matches);
-                          $sms_var_count = count($sms_var_matches[0] ?? []);
-                          if (empty($var_map)) $var_map = $sms_default_var_map;
-                          while (count($var_map) < $sms_var_count) {
-                            $vi = count($var_map);
-                            $var_map[] = $sms_default_var_map[$vi] ?? 'customer_name';
-                          }
-                          if ($sms_var_count > 0) {
-                            $var_map = array_slice(array_values($var_map), 0, $sms_var_count);
-                          }
-                          $var_map_json = htmlspecialchars(json_encode(array_values($var_map)));
-                          $tpl_num = (int)$idx + 1;
-                        ?>
+                              <?php
+                                $sel = isset($_POST['sms_templates'][$idx]['event_key'])
+                                  ? (string)$_POST['sms_templates'][$idx]['event_key']
+                                  : (string)($t['event_key'] ?? '');
+                                $sel = trim($sel);
+                                // Fallback: if event_key empty, try template_key (common when user only set Key)
+                                if ($sel === '') {
+                                  $sel = isset($_POST['sms_templates'][$idx]['template_key'])
+                                    ? trim((string)$_POST['sms_templates'][$idx]['template_key'])
+                                    : trim((string)($t['template_key'] ?? ''));
+                                }
+                                $msg_val = isset($_POST['sms_templates'][$idx]['message_template'])
+                                  ? (string)$_POST['sms_templates'][$idx]['message_template']
+                                  : (string)($t['message_template'] ?? '');
+                                $var_map = [];
+                                if (isset($_POST['sms_templates'][$idx]['var_map_json'])) {
+                                  $decoded = json_decode((string)$_POST['sms_templates'][$idx]['var_map_json'], true);
+                                  if (is_array($decoded)) $var_map = $decoded;
+                                } elseif (!empty($t['var_map_json']) && is_array($t['var_map_json'])) {
+                                  $var_map = $t['var_map_json'];
+                                }
+                                preg_match_all('/\{#\s*var\s*#\}/i', $msg_val, $sms_var_matches);
+                                $sms_var_count = count($sms_var_matches[0] ?? []);
+                                if (empty($var_map)) $var_map = $sms_default_var_map;
+                                while (count($var_map) < $sms_var_count) {
+                                  $vi = count($var_map);
+                                  $var_map[] = $sms_default_var_map[$vi] ?? 'customer_name';
+                                }
+                                if ($sms_var_count > 0) {
+                                  $var_map = array_slice(array_values($var_map), 0, $sms_var_count);
+                                }
+                                $var_map_json = htmlspecialchars(json_encode(array_values($var_map)));
+                                $tpl_num = (int)$idx + 1;
+                                $event_keys_flat = [];
+                                foreach ($event_options as $eo) {
+                                  if (!empty($eo['value'])) $event_keys_flat[] = (string)$eo['value'];
+                                }
+                              ?>
                         <div class="sms-tpl-card sms-tpl-row" data-row-index="<?php echo (int)$idx; ?>">
                           <div class="sms-tpl-card-head">
                             <div class="sms-tpl-num"><span class="sms-var-badge"><?php echo $tpl_num; ?></span> Template #<?php echo $tpl_num; ?></div>
@@ -2005,9 +2016,13 @@ document.addEventListener('DOMContentLoaded', function () {
                           <div class="sms-tpl-meta">
                             <div>
                               <label class="form-label mb-1">Event</label>
-                              <select class="form-select form-select-sm" name="sms_templates[<?php echo $idx; ?>][event_key]">
+                              <select class="form-select form-select-sm sms-event-key" name="sms_templates[<?php echo $idx; ?>][event_key]">
                                 <?php foreach ($event_options as $opt): ?>
-                                  <option value="<?php echo htmlspecialchars($opt['value']); ?>" <?php echo ($sel !== '' && $sel === $opt['value']) ? 'selected' : ''; ?>>
+                                  <?php
+                                    $ov = (string)($opt['value'] ?? '');
+                                    $is_sel = ($sel !== '' && $ov !== '' && strcasecmp($sel, $ov) === 0);
+                                  ?>
+                                  <option value="<?php echo htmlspecialchars($ov); ?>" <?php echo $is_sel ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($opt['label']); ?>
                                   </option>
                                 <?php endforeach; ?>
@@ -2073,9 +2088,17 @@ document.addEventListener('DOMContentLoaded', function () {
                           <button type="button" class="btn btn-primary btn-sm w-100 notif-test-btn" data-test="sms">Send test</button>
                         </div>
                       </div>
-                      <details class="sms-advanced">
+                      <details class="sms-advanced" open>
                         <summary>Test variables</summary>
                         <div class="sms-advanced-body">
+                          <p class="sms-mini-hint mb-2">
+                            Use <strong>mapped field names</strong> (not <code>{#var#}</code>):
+                            e.g. <code>customer_name</code>=Deepak, <code>order_unique_id</code>=ORD007.
+                            Or use <code>var1</code>, <code>var2</code> for slot order. Leave empty to auto-fill samples.
+                          </p>
+                          <div class="d-flex gap-2 mb-2 flex-wrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="smsTestPrefillBtn">Prefill from template map</button>
+                          </div>
                           <input type="hidden" name="notif_test[sms_vars_json]" id="sms_test_vars_json" value="">
                           <div class="kv-table" id="smsTestVars" data-json="">
                             <div class="kv-actions mb-2">
@@ -2396,6 +2419,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (res.otp) {
               msg += (msg ? ' | ' : '') + 'OTP: ' + res.otp;
             }
+            if (res.var_map) {
+              msg += (msg ? ' | ' : '') + 'Map: ' + (Array.isArray(res.var_map) ? res.var_map.join(', ') : res.var_map);
+            }
             if (res.response) {
               msg += (msg ? ' | ' : '') + 'Gateway: ' + String(res.response).trim();
             }
@@ -2466,9 +2492,18 @@ document.addEventListener('DOMContentLoaded', function() {
   function syncKvToHidden(rowsWrap, hiddenInput, container) {
     if (!hiddenInput) return;
     var obj = {};
+    var isSmsTest = container && container.id === 'smsTestVars';
+    var slot = 1;
     rowsWrap.querySelectorAll('.kv-row').forEach(function(r) {
       var key = (r.querySelector('.kv-key')?.value || '').trim();
       var val = (r.querySelector('.kv-val')?.value || '').trim();
+      if (isSmsTest) {
+        // Duplicate {#var#} keys cannot live in JSON objects — convert to var1/var2.
+        if (key === '' || /^\{#\s*var\s*#\}$/i.test(key)) {
+          key = 'var' + slot;
+        }
+        slot++;
+      }
       if (key !== '') obj[key] = val;
     });
     var json = Object.keys(obj).length ? JSON.stringify(obj) : '';
@@ -2508,6 +2543,38 @@ document.addEventListener('DOMContentLoaded', function() {
   bindKvTable('waDefaultParams', 'wa_default_params_json');
   bindKvTable('smsDefaultParams', 'sms_default_params_json');
   bindKvTable('smsTestVars', 'sms_test_vars_json');
+
+  // Prefill test vars from the template card matching Test "Template key"
+  var smsTestPrefillBtn = document.getElementById('smsTestPrefillBtn');
+  if (smsTestPrefillBtn) {
+    smsTestPrefillBtn.addEventListener('click', function() {
+      var key = (document.querySelector('input[name=\"notif_test[sms_template_key]\"]')?.value || '').trim();
+      var map = ['customer_name', 'order_unique_id'];
+      var samples = { customer_name: 'Deepak', order_unique_id: 'ORD007', awb_no: 'AWB123', mobile: '9999999999' };
+      if (key && smsRows) {
+        smsRows.querySelectorAll('.sms-tpl-row').forEach(function(card) {
+          var kEl = card.querySelector('input[name*=\"[template_key]\"]');
+          var hiddenMap = card.querySelector('.sms-var-map-json');
+          if (kEl && String(kEl.value || '').trim() === key && hiddenMap) {
+            try {
+              var parsed = JSON.parse(hiddenMap.value || '[]');
+              if (Array.isArray(parsed) && parsed.length) map = parsed;
+            } catch (e) {}
+          }
+        });
+      }
+      var container = document.getElementById('smsTestVars');
+      var hidden = document.getElementById('sms_test_vars_json');
+      if (!container || !hidden) return;
+      var rowsWrap = container.querySelector('.kv-rows');
+      if (!rowsWrap) return;
+      rowsWrap.innerHTML = '';
+      map.forEach(function(field) {
+        addKvRow(rowsWrap, field, samples[field] || '');
+      });
+      syncKvToHidden(rowsWrap, hidden, container);
+    });
+  }
 
   // SMS templates add/remove
   var smsAddRowBtn = document.getElementById('smsAddRow');
@@ -2631,6 +2698,54 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   smsBindVarMaps();
 
+  // Keep Event in sync when Key matches a known event_key (helps preselect + save)
+  function smsSyncEventFromKey(row) {
+    if (!row) return;
+    var keyInput = row.querySelector('input[name*=\"[template_key]\"]');
+    var eventSel = row.querySelector('select.sms-event-key, select[name*=\"[event_key]\"]');
+    if (!keyInput || !eventSel) return;
+    var key = String(keyInput.value || '').trim();
+    if (!key) return;
+    var matched = false;
+    Array.prototype.forEach.call(eventSel.options, function(opt) {
+      if (opt.value && opt.value.toLowerCase() === key.toLowerCase()) {
+        eventSel.value = opt.value;
+        matched = true;
+      }
+    });
+    return matched;
+  }
+  if (smsRows) {
+    smsRows.addEventListener('change', function(e) {
+      var t = e.target;
+      if (t && t.matches && t.matches('input[name*=\"[template_key]\"]')) {
+        smsSyncEventFromKey(t.closest('.sms-tpl-row'));
+      }
+    });
+    smsRows.addEventListener('blur', function(e) {
+      var t = e.target;
+      if (t && t.matches && t.matches('input[name*=\"[template_key]\"]')) {
+        smsSyncEventFromKey(t.closest('.sms-tpl-row'));
+      }
+    }, true);
+  }
+
+  // Before save: reindex sms_templates[n] sequentially so PHP always receives a dense array
+  var vendorForm = document.querySelector('form');
+  if (vendorForm) {
+    vendorForm.addEventListener('submit', function() {
+      if (!smsRows) return;
+      var cards = smsRows.querySelectorAll('.sms-tpl-row');
+      cards.forEach(function(card, i) {
+        smsSyncEventFromKey(card);
+        card.querySelectorAll('input, select, textarea').forEach(function(el) {
+          if (!el.name) return;
+          el.name = el.name.replace(/sms_templates\[\d+\]/, 'sms_templates[' + i + ']');
+        });
+      });
+    });
+  }
+
   if (smsAddRowBtn && smsRows) {
     smsAddRowBtn.addEventListener('click', function() {
       var idx = smsNextIndex();
@@ -2643,7 +2758,7 @@ document.addEventListener('DOMContentLoaded', function() {
         +   '<button type=\"button\" class=\"btn btn-sm btn-link text-danger text-decoration-none sms-remove-row px-1\">Remove</button>'
         + '</div>'
         + '<div class=\"sms-tpl-meta\">'
-        +   '<div><label class=\"form-label mb-1\">Event</label><?php echo str_replace("\n", "", addslashes("<select class=\"form-select form-select-sm\" name=\"sms_templates[__IDX__][event_key]\">".implode("", array_map(function($o){ return "<option value=\\\"".htmlspecialchars($o["value"], ENT_QUOTES)."\\\">".htmlspecialchars($o["label"], ENT_QUOTES)."</option>"; }, $event_options))."</select>")); ?>'.replace('__IDX__', idx) + '</div>'
+        +   '<div><label class=\"form-label mb-1\">Event</label><?php echo str_replace("\n", "", addslashes("<select class=\"form-select form-select-sm sms-event-key\" name=\"sms_templates[__IDX__][event_key]\">".implode("", array_map(function($o){ return "<option value=\\\"".htmlspecialchars($o["value"], ENT_QUOTES)."\\\">".htmlspecialchars($o["label"], ENT_QUOTES)."</option>"; }, $event_options))."</select>")); ?>'.replace('__IDX__', idx) + '</div>'
         +   '<div><label class=\"form-label mb-1\">Key</label><input type=\"text\" class=\"form-control form-control-sm\" name=\"sms_templates[' + idx + '][template_key]\" placeholder=\"order_delivered\"></div>'
         +   '<div><label class=\"form-label mb-1\">Active</label><div class=\"form-check form-switch mt-1\"><input type=\"checkbox\" class=\"form-check-input\" name=\"sms_templates[' + idx + '][is_active]\" value=\"1\" checked></div></div>'
         + '</div>'
@@ -2657,6 +2772,10 @@ document.addEventListener('DOMContentLoaded', function() {
       smsBindRemove();
       smsBindVarMaps();
       smsRenumberCards();
+      var keyEl = card.querySelector('input[name*=\"[template_key]\"]');
+      if (keyEl) {
+        keyEl.addEventListener('change', function() { smsSyncEventFromKey(card); });
+      }
     });
   }
 

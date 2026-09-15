@@ -211,11 +211,15 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		$db = $this->getVendorDb($vendor_id);
 		if (!$db) return [];
 		$this->ensureTables($vendor_id);
-		$this->ensureSmsTemplateColumns($db);
+		// Do NOT ALTER TABLE on read/send path — that can fatally break AJAX (bulk shipper, etc.).
 		$rows = $db->where('vendor_id', (int)$vendor_id)->order_by('id', 'asc')->get('erp_vendor_sms_templates')->result_array();
 		foreach ($rows as &$row) {
-			$row['var_map_json'] = $this->decodeJson($row['var_map_json'] ?? NULL);
-			if (!is_array($row['var_map_json'])) {
+			if (array_key_exists('var_map_json', $row)) {
+				$row['var_map_json'] = $this->decodeJson($row['var_map_json'] ?? NULL);
+				if (!is_array($row['var_map_json'])) {
+					$row['var_map_json'] = NULL;
+				}
+			} else {
 				$row['var_map_json'] = NULL;
 			}
 		}
@@ -432,9 +436,42 @@ class Erp_vendor_notification_vendor_model extends CI_Model
 		if (!$db || !method_exists($db, 'table_exists') || !$db->table_exists('erp_vendor_sms_templates')) {
 			return;
 		}
-		if (!$db->field_exists('var_map_json', 'erp_vendor_sms_templates')) {
-			$db->query('ALTER TABLE `erp_vendor_sms_templates` ADD COLUMN `var_map_json` TEXT NULL AFTER `message_template`');
+		if ($this->smsVarMapColumnExists($db)) {
+			return;
 		}
+		$prev_debug = isset($db->db_debug) ? $db->db_debug : TRUE;
+		$db->db_debug = FALSE;
+		try {
+			$db->query('ALTER TABLE `erp_vendor_sms_templates` ADD COLUMN `var_map_json` TEXT NULL AFTER `message_template`');
+			$err = $db->error();
+			if (!empty($err['message']) && stripos($err['message'], 'Duplicate column') === false) {
+				log_message('error', 'ensureSmsTemplateColumns(vendor): ' . $err['message']);
+			}
+		} catch (Throwable $e) {
+			if (stripos($e->getMessage(), 'Duplicate column') === false) {
+				log_message('error', 'ensureSmsTemplateColumns(vendor) exception: ' . $e->getMessage());
+			}
+		}
+		$db->db_debug = $prev_debug;
+	}
+
+	private function smsVarMapColumnExists($db)
+	{
+		if (!$db) return false;
+		$db_name = isset($db->database) ? (string)$db->database : '';
+		if ($db_name === '') {
+			return (bool)$db->field_exists('var_map_json', 'erp_vendor_sms_templates');
+		}
+		$prev_debug = isset($db->db_debug) ? $db->db_debug : TRUE;
+		$db->db_debug = FALSE;
+		$sql = "SELECT 1 AS ok FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA = " . $db->escape($db_name) . "
+			AND TABLE_NAME = 'erp_vendor_sms_templates'
+			AND COLUMN_NAME = 'var_map_json'
+			LIMIT 1";
+		$q = $db->query($sql);
+		$db->db_debug = $prev_debug;
+		return ($q && $q->num_rows() > 0);
 	}
 }
 

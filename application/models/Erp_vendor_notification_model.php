@@ -206,15 +206,19 @@ class Erp_vendor_notification_model extends CI_Model
 	public function getSmsTemplates($vendor_id)
 	{
 		$vendor_id = (int)$vendor_id;
-		$this->ensureSmsTemplateColumns();
+		// Read-only: never ALTER on get (avoids breaking vendor order AJAX flows).
 		$rows = $this->db
 			->where('vendor_id', $vendor_id)
 			->order_by('id', 'asc')
 			->get('erp_vendor_sms_templates')
 			->result_array();
 		foreach ($rows as &$row) {
-			$row['var_map_json'] = $this->decodeJson($row['var_map_json'] ?? NULL);
-			if (!is_array($row['var_map_json'])) {
+			if (array_key_exists('var_map_json', $row)) {
+				$row['var_map_json'] = $this->decodeJson($row['var_map_json'] ?? NULL);
+				if (!is_array($row['var_map_json'])) {
+					$row['var_map_json'] = NULL;
+				}
+			} else {
 				$row['var_map_json'] = NULL;
 			}
 		}
@@ -227,22 +231,37 @@ class Erp_vendor_notification_model extends CI_Model
 		$vendor_id = (int)$vendor_id;
 		$this->ensureSmsTemplateColumns();
 
+		// Re-index in case UI posted sparse keys (0,2,5…)
+		$templates = array_values($templates);
+
 		$this->db->trans_start();
 		$this->db->where('vendor_id', $vendor_id)->delete('erp_vendor_sms_templates');
 
+		$inserted = 0;
 		foreach ($templates as $t) {
+			if (!is_array($t)) {
+				continue;
+			}
 			$template_key = isset($t['template_key']) ? trim((string)$t['template_key']) : '';
 			$event_key = isset($t['event_key']) ? trim((string)$t['event_key']) : '';
 			$message_template = isset($t['message_template']) ? (string)$t['message_template'] : '';
-			// Keep intentional trailing newlines for DLT; only trim outer whitespace on sides
+			// Keep intentional trailing newlines for DLT; only trim outer spaces/tabs
 			$message_template = preg_replace("/^[ \\t]+|[ \\t]+$/u", '', $message_template);
 			if ($template_key === '' || trim($message_template) === '') {
 				continue;
 			}
 
+			// If event left as "-- Select Type --", fall back to template_key when it matches an event.
+			if ($event_key === '' && $template_key !== '') {
+				$ev = $this->getNotificationEventByKey($template_key);
+				if (!empty($ev['event_key'])) {
+					$event_key = (string)$ev['event_key'];
+				}
+			}
+
 			$var_map = $this->normalizeSmsVarMap($t['var_map_json'] ?? ($t['var_map'] ?? NULL), $message_template);
 
-			$this->db->insert('erp_vendor_sms_templates', [
+			$ok = $this->db->insert('erp_vendor_sms_templates', [
 				'vendor_id' => $vendor_id,
 				'template_key' => $template_key,
 				'event_key' => $event_key !== '' ? $event_key : null,
@@ -250,10 +269,20 @@ class Erp_vendor_notification_model extends CI_Model
 				'var_map_json' => $this->encodeJson($var_map),
 				'is_active' => isset($t['is_active']) ? (int)(!!$t['is_active']) : 1,
 			]);
+			if ($ok) {
+				$inserted++;
+			} else {
+				$err = $this->db->error();
+				log_message('error', 'replaceSmsTemplates insert failed vendor_id=' . $vendor_id
+					. ' key=' . $template_key
+					. ' msg=' . ($err['message'] ?? 'unknown'));
+			}
 		}
 
 		$this->db->trans_complete();
-		return $this->db->trans_status();
+		$status = $this->db->trans_status();
+		log_message('info', 'replaceSmsTemplates vendor_id=' . $vendor_id . ' posted=' . count($templates) . ' inserted=' . $inserted . ' ok=' . ($status ? '1' : '0'));
+		return $status;
 	}
 
 	/**
@@ -264,9 +293,46 @@ class Erp_vendor_notification_model extends CI_Model
 		if (!$this->db->table_exists('erp_vendor_sms_templates')) {
 			return;
 		}
-		if (!$this->db->field_exists('var_map_json', 'erp_vendor_sms_templates')) {
-			$this->db->query('ALTER TABLE `erp_vendor_sms_templates` ADD COLUMN `var_map_json` TEXT NULL AFTER `message_template`');
+		if ($this->smsVarMapColumnExists($this->db)) {
+			return;
 		}
+		$prev_debug = isset($this->db->db_debug) ? $this->db->db_debug : TRUE;
+		$this->db->db_debug = FALSE;
+		try {
+			$this->db->query('ALTER TABLE `erp_vendor_sms_templates` ADD COLUMN `var_map_json` TEXT NULL AFTER `message_template`');
+			$err = $this->db->error();
+			if (!empty($err['message']) && stripos($err['message'], 'Duplicate column') === false) {
+				log_message('error', 'ensureSmsTemplateColumns(master): ' . $err['message']);
+			}
+		} catch (Throwable $e) {
+			if (stripos($e->getMessage(), 'Duplicate column') === false) {
+				log_message('error', 'ensureSmsTemplateColumns(master) exception: ' . $e->getMessage());
+			}
+		}
+		$this->db->db_debug = $prev_debug;
+	}
+
+	private function smsVarMapColumnExists($db)
+	{
+		if (!$db) return false;
+		// Prefer information_schema — CI field_exists can be stale/cached and miss existing columns.
+		$db_name = '';
+		if (isset($db->database)) {
+			$db_name = (string)$db->database;
+		}
+		if ($db_name === '') {
+			return (bool)$db->field_exists('var_map_json', 'erp_vendor_sms_templates');
+		}
+		$prev_debug = isset($db->db_debug) ? $db->db_debug : TRUE;
+		$db->db_debug = FALSE;
+		$sql = "SELECT 1 AS ok FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA = " . $db->escape($db_name) . "
+			AND TABLE_NAME = 'erp_vendor_sms_templates'
+			AND COLUMN_NAME = 'var_map_json'
+			LIMIT 1";
+		$q = $db->query($sql);
+		$db->db_debug = $prev_debug;
+		return ($q && $q->num_rows() > 0);
 	}
 
 	/**

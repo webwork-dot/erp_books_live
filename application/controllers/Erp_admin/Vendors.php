@@ -830,11 +830,15 @@ class Vendors extends Erp_base
 			}
 			$save_tpl_ok = $this->Erp_vendor_notification_model->replaceWhatsappTemplates($vendor_id, $templates_post);
 
-			$sms_templates_post = $this->input->post('sms_templates');
+			// SMS templates contain DLT {#var#} placeholders — disable XSS cleaning (global_xss would corrupt them).
+			$sms_templates_post = $this->input->post('sms_templates', FALSE);
 			if (!is_array($sms_templates_post)) {
 				$sms_templates_post = [];
 			}
 			$save_sms_tpl_ok = $this->Erp_vendor_notification_model->replaceSmsTemplates($vendor_id, $sms_templates_post);
+			if (!$save_sms_tpl_ok) {
+				log_message('error', 'Failed to save SMS templates for vendor_id=' . $vendor_id);
+			}
 
 			// Email templates contain HTML; disable XSS cleaning for this input.
 			$email_templates_post = $this->input->post('email_templates', FALSE);
@@ -2444,7 +2448,7 @@ class Vendors extends Erp_base
 
 		$mobile = preg_replace('/\s+/', '', (string)$this->input->post('mobile'));
 		$template_key = trim((string)$this->input->post('template_key'));
-		$vars_json = trim((string)$this->input->post('vars_json'));
+		$vars_json = trim((string)$this->input->post('vars_json', FALSE));
 
 		if ($mobile === '' || !preg_match('/^[0-9]{10,15}$/', $mobile)) {
 			return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Valid mobile is required.']));
@@ -2455,25 +2459,84 @@ class Vendors extends Erp_base
 
 		$vars = [];
 		if ($vars_json !== '') {
-			$vars = json_decode($vars_json, TRUE);
-			if (json_last_error() !== JSON_ERROR_NONE || !is_array($vars)) {
+			$decoded = json_decode($vars_json, TRUE);
+			if (json_last_error() !== JSON_ERROR_NONE) {
 				return $this->output->set_output(json_encode(['status' => 'error', 'message' => 'Vars must be valid JSON.']));
+			}
+			if (is_array($decoded)) {
+				// JSON list ["Deepak","ORD007"] → positional DLT values
+				if ($decoded !== [] && array_keys($decoded) === range(0, count($decoded) - 1)) {
+					$vars = ['__dlt__' => array_values($decoded)];
+				} else {
+					$vars = $decoded;
+				}
+			}
+		}
+
+		// Prefer master templates (source of truth), then sync so vendor runtime matches.
+		$template = null;
+		$templates = $this->Erp_vendor_notification_model->getSmsTemplates($vendor_id);
+		foreach ($templates as $t) {
+			if (!empty($t['is_active']) && isset($t['template_key']) && (string)$t['template_key'] === (string)$template_key) {
+				$template = $t;
+				break;
+			}
+		}
+		if (!$template) {
+			return $this->output->set_output(json_encode([
+				'status' => 'error',
+				'message' => 'SMS template key not found (save templates first). Key: ' . $template_key,
+			]));
+		}
+
+		$var_map = [];
+		if (!empty($template['var_map_json']) && is_array($template['var_map_json'])) {
+			$var_map = array_values($template['var_map_json']);
+		}
+		if (empty($var_map)) {
+			$var_map = ['customer_name', 'order_unique_id'];
+		}
+
+		// Normalize mistaken test keys like "{#var#}" into var1/var2 (duplicate keys collapse in JSON objects).
+		if (isset($vars['{#var#}'])) {
+			$vars['var1'] = $vars['{#var#}'];
+			unset($vars['{#var#}']);
+		}
+
+		// Fill sample values for mapped fields when missing (so test works out of the box).
+		$sample = [
+			'customer_name' => 'Test Customer',
+			'user_name' => 'Test Customer',
+			'parent_name' => 'Test Customer',
+			'order_unique_id' => 'ORDTEST001',
+			'awb_no' => 'AWB123456',
+			'invoice_no' => 'INV001',
+			'mobile' => $mobile,
+			'user_phone' => $mobile,
+			'payable_amt' => '100',
+			'shipping_name' => 'Test Customer',
+			'shipping_phone' => $mobile,
+		];
+		foreach ($var_map as $idx => $field) {
+			$field = trim((string)$field);
+			if ($field === '') continue;
+			$hasField = array_key_exists($field, $vars) && $vars[$field] !== '' && $vars[$field] !== NULL;
+			$hasVarN = array_key_exists('var' . ($idx + 1), $vars) && $vars['var' . ($idx + 1)] !== '';
+			$hasPos = isset($vars['__dlt__'][$idx]) && $vars['__dlt__'][$idx] !== '';
+			if (!$hasField && !$hasVarN && !$hasPos) {
+				$vars[$field] = $sample[$field] ?? ('VAL' . ($idx + 1));
 			}
 		}
 
 		// Convenience: if template uses {{otp}} and otp not provided, generate one for test
-		if (!isset($vars['otp'])) {
-			$templates = $this->Erp_vendor_notification_model->getSmsTemplates($vendor_id);
-			foreach ($templates as $t) {
-				if (!empty($t['is_active']) && isset($t['template_key']) && (string)$t['template_key'] === (string)$template_key) {
-					$msgTpl = (string)($t['message_template'] ?? '');
-					if (strpos($msgTpl, '{{otp}}') !== false || strpos($msgTpl, '{{ otp }}') !== false) {
-						$vars['otp'] = (string)rand(100000, 999999);
-					}
-					break;
-				}
-			}
+		$msgTpl = (string)($template['message_template'] ?? '');
+		if (!isset($vars['otp']) && (strpos($msgTpl, '{{otp}}') !== false || strpos($msgTpl, '{{ otp }}') !== false)) {
+			$vars['otp'] = (string)rand(100000, 999999);
 		}
+
+		// Sync templates/settings to vendor DB so sendSmsTemplate + gateway settings resolve.
+		$this->load->model('Erp_vendor_notification_vendor_model');
+		$this->Erp_vendor_notification_vendor_model->syncFromMaster((int)$vendor_id, true);
 
 		$this->load->library('Notification_sender');
 		$res = $this->notification_sender->sendSmsTemplate($vendor_id, $mobile, $template_key, $vars);
@@ -2482,7 +2545,11 @@ class Vendors extends Erp_base
 			'status' => !empty($res['success']) ? 'success' : 'error',
 			'message' => $res['message'] ?? 'Unknown response',
 			'otp' => isset($vars['otp']) ? $vars['otp'] : NULL,
-			'response' => $res['response'] ?? NULL
+			'vars_used' => $vars,
+			'var_map' => $var_map,
+			'response' => $res['response'] ?? NULL,
+			'http_code' => $res['http_code'] ?? NULL,
+			'effective_url' => $res['effective_url'] ?? NULL,
 		]));
 	}
 
