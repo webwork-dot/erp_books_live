@@ -334,8 +334,12 @@ class Orders extends Vendor_base
 
 			$hasIsMailSent = $this->db->field_exists('is_mail_sent', 'tbl_order_details');
 			$hasIsMailDate = $this->db->field_exists('is_mail_date', 'tbl_order_details');
+			$hasChildrenData = $this->db->field_exists('children_data', 'tbl_order_details');
 
-			$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, delivery_charge, discount_amt, currency_code, currency, children_data';
+			$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, delivery_charge, discount_amt, currency_code, currency';
+			if ($hasChildrenData) {
+				$select .= ', children_data';
+			}
 			if ($hasIsMailSent) {
 				$select .= ', is_mail_sent';
 			}

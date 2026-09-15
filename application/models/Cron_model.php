@@ -102,8 +102,12 @@ class Cron_model extends CI_Model {
 
 			$hasIsMailSent = $client_db->field_exists('is_mail_sent', 'tbl_order_details');
 			$hasIsMailDate = $client_db->field_exists('is_mail_date', 'tbl_order_details');
+			$hasInvoiceUrl = $client_db->field_exists('invoice_url', 'tbl_order_details');
 
-			$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier, invoice_url';
+			$select = 'id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status, payable_amt, total_amt, invoice_no, awb_no, courier';
+			if ($hasInvoiceUrl) {
+				$select .= ', invoice_url';
+			}
 			if ($hasIsMailSent) {
 				$select .= ', is_mail_sent';
 			}
@@ -466,11 +470,17 @@ class Cron_model extends CI_Model {
 			return ['status' => 'error', 'message' => 'Vendor DB not available', 'processed' => 0];
 		}
 
+		$hasChildrenData = $client_db->field_exists('children_data', 'tbl_order_details');
+		$hasInvoiceUrl = $client_db->field_exists('invoice_url', 'tbl_order_details');
+		$extraCols = '';
+		if ($hasChildrenData) $extraCols .= ', children_data';
+		if ($hasInvoiceUrl) $extraCols .= ', invoice_url';
+
 		// Pull orders eligible for confirmation (match existing Crud_model conditions)
 		$rows = $client_db->query(
 			"SELECT id, user_name, user_email, user_phone, order_unique_id, order_date, payment_method, payment_status,
 			        payable_amt, total_amt, invoice_no, awb_no, courier, is_mail_sent, user_id,
-			        delivery_charge, discount_amt, currency_code, currency, children_data, invoice_url
+			        delivery_charge, discount_amt, currency_code, currency{$extraCols}
 			 FROM tbl_order_details
 			 WHERE is_mail_sent = 0
 			   AND (payment_status='success' OR payment_status='cod' OR payment_status='payment_at_school' OR payment_method='payment_at_school')
