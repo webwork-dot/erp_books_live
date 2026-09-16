@@ -189,14 +189,24 @@ class Shipping_model extends CI_Model {
 				];
 			}
 
-			// check from client DB
-			$serviceable = $this->db->select('id')->from('velocity_pincode')->where('pincode', $drop_pincode)->where('ecommerce', 'Y')->limit(1)->get()->row_array();
+			// Check from client DB
+			$serviceable = $this->db
+				->select('id')
+				->from('velocity_pincode')
+				->where('pincode', $drop_pincode)
+				->where('parcel', 'Y')
+				->where('oda', 'N')
+				->limit(1)
+				->get()
+				->row_array();
+
 			if (!$serviceable) {
 				return [
 					'status'  => 'error',
 					'message' => 'Velocity does not service this pincode in ' . $drop_pincode
 				];
 			}
+			// Pincode is serviceable: parcel = Y and ODA = N
 			
 			$description_items = [];
 			$counter = 1;
