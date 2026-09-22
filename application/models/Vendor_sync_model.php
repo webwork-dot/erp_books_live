@@ -72,6 +72,7 @@ class Vendor_sync_model extends CI_Model
 			'db_username' => isset($vendor['db_username']) ? $vendor['db_username'] : NULL,
 			'db_password' => isset($vendor['db_password']) ? $vendor['db_password'] : NULL,
 			'status' => isset($vendor['status']) ? $vendor['status'] : 'active',
+			'shop_2_address' => isset($vendor['shop_2_address']) ? $vendor['shop_2_address'] : NULL,
 			'logo' => isset($vendor['logo']) ? $vendor['logo'] : NULL,
 			'favicon' => isset($vendor['favicon']) ? $vendor['favicon'] : NULL,
 			'site_title' => isset($vendor['site_title']) ? $vendor['site_title'] : NULL,
@@ -296,6 +297,7 @@ class Vendor_sync_model extends CI_Model
 	{
 		// List of columns that should exist in erp_clients table
 		$columns = array(
+			'shop_2_address' => "ALTER TABLE erp_clients ADD COLUMN shop_2_address TEXT NULL AFTER address",
 			'logo' => "ALTER TABLE erp_clients ADD COLUMN logo VARCHAR(255) NULL AFTER status",
 			'sidebar_color' => "ALTER TABLE erp_clients ADD COLUMN sidebar_color VARCHAR(50) NULL AFTER logo",
 			'payment_gateway' => "ALTER TABLE erp_clients ADD COLUMN payment_gateway VARCHAR(50) NULL AFTER sidebar_color",

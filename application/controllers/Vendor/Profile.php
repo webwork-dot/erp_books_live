@@ -37,8 +37,13 @@ class Profile extends Vendor_base
 	{
 		header('Content-Type: application/json');
 
+		$cols = array('id', 'name', 'address', 'pincode', 'pan', 'gstin');
+		if ($this->db->field_exists('shop_2_address', 'erp_clients')) {
+			$cols[] = 'shop_2_address';
+		}
+
 		// Use vendor database (already switched by Vendor_base)
-		$query = $this->db->select('id, name, address, pincode, pan, gstin')
+		$query = $this->db->select(implode(', ', $cols))
 						  ->from('erp_clients')
 						  ->limit(1)
 						  ->get();
@@ -50,6 +55,7 @@ class Profile extends Vendor_base
 				'data' => array(
 					'name' => isset($client['name']) ? $client['name'] : '',
 					'address' => isset($client['address']) ? $client['address'] : '',
+					'shop_2_address' => isset($client['shop_2_address']) ? $client['shop_2_address'] : '',
 					'pincode' => isset($client['pincode']) ? $client['pincode'] : '',
 					'pan' => isset($client['pan']) ? $client['pan'] : '',
 					'gstin' => isset($client['gstin']) ? $client['gstin'] : ''
@@ -77,6 +83,10 @@ class Profile extends Vendor_base
 			'gstin' => $this->input->post('gstin') ? strtoupper(trim($this->input->post('gstin'))) : ''
 		);
 
+		if ($this->db->field_exists('shop_2_address', 'erp_clients')) {
+			$update_data['shop_2_address'] = $this->input->post('shop_2_address') ? trim($this->input->post('shop_2_address')) : '';
+		}
+
 		// Use vendor database (already switched by Vendor_base)
 		// First get the first client's ID
 		$first = $this->db->select('id')->from('erp_clients')->limit(1)->get()->row();
@@ -86,7 +96,10 @@ class Profile extends Vendor_base
 
 		// Also update master database
 		$master_db = $this->load->database('default', TRUE);
-		if ($this->current_vendor && isset($this->current_vendor['id'])) {
+		if ($master_db && $this->current_vendor && isset($this->current_vendor['id'])) {
+			if (!$master_db->field_exists('shop_2_address', 'erp_clients')) {
+				@$master_db->query("ALTER TABLE `erp_clients` ADD COLUMN `shop_2_address` TEXT NULL AFTER `address`");
+			}
 			$master_db->where('id', $this->current_vendor['id'])->update('erp_clients', $update_data);
 		}
 

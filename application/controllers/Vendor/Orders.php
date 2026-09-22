@@ -4463,6 +4463,9 @@ class Orders extends Vendor_base
 		if ($this->db->field_exists('contact_number', 'erp_clients')) {
 			$cols[] = 'contact_number';
 		}
+		if ($this->db->field_exists('shop_2_address', 'erp_clients')) {
+			$cols[] = 'shop_2_address';
+		}
 		$row = $this->db->select(implode(', ', $cols))
 			->from('erp_clients')
 			->limit(1)
@@ -5052,6 +5055,7 @@ class Orders extends Vendor_base
 		$order_details['company_gstin'] = !empty($company['gstin']) ? $company['gstin'] : (!empty($this->current_vendor['gstin']) ? $this->current_vendor['gstin'] : '-');
 		$order_details['company_pan'] = !empty($company['pan']) ? $company['pan'] : (!empty($this->current_vendor['pan']) ? $this->current_vendor['pan'] : '-');
 		$order_details['company_phone'] = isset($company['contact_number']) ? $company['contact_number'] : '';
+		$order_details['shop_2_address'] = isset($company['shop_2_address']) ? trim($company['shop_2_address']) : '';
 
 		// Fetch order_type, items_arr, bookset_products for product display (like shipping label)
 		$order_details['order_type_label'] = $this->_get_order_type_label($order_id, $order_row);

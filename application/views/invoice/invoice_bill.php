@@ -112,6 +112,7 @@ $company_address = isset($d['company_address']) ? $d['company_address'] : '';
 $company_gstin = !empty($d['company_gstin']) ? $d['company_gstin'] : '-';
 $company_pan = !empty($d['company_pan']) ? $d['company_pan'] : '-';
 $company_phone = isset($d['company_phone']) ? $d['company_phone'] : '';
+$shop_2_address = isset($d['shop_2_address']) ? trim($d['shop_2_address']) : '';
 
 // Total invoice value for calculations
 $total_invoice_value = isset($d['payable_amt']) ? floatval($d['payable_amt']) : 0;
@@ -728,6 +729,9 @@ if (!empty($order->razorpay_order_id)) {
           <p><b>Declaration:</b> <small>The goods sold are intended for end user consumption and not for resale. Please
               note that this invoice is not a demand for payment.</small></p>
           <p><small>E.&O.E. | Whether tax is payable on reverse charge basis - No</small></p>
+          <?php if (!empty($shop_2_address)): ?>
+            <p style="margin-top: 6px;"><b>Shop No 2:</b> <small><?= nl2br(htmlspecialchars($shop_2_address)) ?></small></p>
+          <?php endif; ?>
         </td>
         <td class="text-right" style="padding: 8px; width: 35%;">
           <p><b>For <?= htmlspecialchars($company_name) ?></b></p>

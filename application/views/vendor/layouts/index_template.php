@@ -426,6 +426,14 @@ if (!isset($data['total_products_count']) && isset($current_vendor['database_nam
 							placeholder="29ABCDE1234F1Z5">
 						<div class="invalid-feedback"></div>
 					</div>
+					<div class="mb-3">
+						<label for="profile_shop_2_address" class="form-label">Shop No 2 Address <span class="badge bg-light text-secondary ms-1">Optional</span></label>
+						<textarea class="form-control" id="profile_shop_2_address" name="shop_2_address" rows="3" placeholder="Enter Shop No 2 address (optional)"></textarea>
+						<small class="text-muted d-block mt-1" style="font-size: 12px;">
+							<i class="isax isax-info-circle me-1"></i>Appears on invoice below Declaration.
+						</small>
+						<div class="invalid-feedback"></div>
+					</div>
 				</form>
 			</div>
 			<div class="modal-footer">
@@ -453,6 +461,7 @@ if (!isset($data['total_products_count']) && isset($current_vendor['database_nam
 					if (response.success && response.data) {
 						$('#profile_name').val(response.data.name || '');
 						$('#profile_address').val(response.data.address || '');
+						$('#profile_shop_2_address').val(response.data.shop_2_address || '');
 						$('#profile_pincode').val(response.data.pincode || '');
 						$('#profile_pan').val(response.data.pan || '');
 						$('#profile_gstin').val(response.data.gstin || '');
@@ -487,6 +496,7 @@ if (!isset($data['total_products_count']) && isset($current_vendor['database_nam
 			var formData = {
 				name: $('#profile_name').val(),
 				address: $('#profile_address').val(),
+				shop_2_address: $('#profile_shop_2_address').val(),
 				pincode: $('#profile_pincode').val(),
 				pan: $('#profile_pan').val(),
 				gstin: $('#profile_gstin').val()

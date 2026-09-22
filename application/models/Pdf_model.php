@@ -1341,13 +1341,18 @@ class Pdf_model extends CI_Model
         $student_name = $order_student->f_name . ' ' . $order_student->m_name . ' ' . $order_student->s_name;
 
         // Fetch seller details from erp_clients (master profile — same DB as shipping label)
-        $_seller_row = $this->db->select('name, address, pincode, pan, gstin, state')->from('erp_clients')->limit(1)->get()->row();
+        $_seller_cols = array('name', 'address', 'pincode', 'pan', 'gstin', 'state');
+        if ($this->db->field_exists('shop_2_address', 'erp_clients')) {
+            $_seller_cols[] = 'shop_2_address';
+        }
+        $_seller_row = $this->db->select(implode(', ', $_seller_cols))->from('erp_clients')->limit(1)->get()->row();
         $seller_name    = !empty($_seller_row) && !empty($_seller_row->name)    ? htmlspecialchars($_seller_row->name)    : htmlspecialchars($vendor['company_name'] ?? '');
         $seller_address = !empty($_seller_row) && !empty($_seller_row->address) ? htmlspecialchars($_seller_row->address) : htmlspecialchars($vendor['address'] ?? '');
         $seller_pincode = !empty($_seller_row) && !empty($_seller_row->pincode) ? ', ' . htmlspecialchars($_seller_row->pincode) : '';
         $seller_pan     = !empty($_seller_row) && !empty($_seller_row->pan)     ? htmlspecialchars($_seller_row->pan)     : htmlspecialchars($vendor_billing['pan'] ?? '');
         $seller_gstin   = !empty($_seller_row) && !empty($_seller_row->gstin)   ? htmlspecialchars($_seller_row->gstin)   : htmlspecialchars($vendor_billing['gst'] ?? '');
         $seller_state   = !empty($_seller_row) && !empty($_seller_row->state)   ? htmlspecialchars($_seller_row->state)   : htmlspecialchars($vendor_billing['state'] ?? '');
+        $seller_shop_2_address = !empty($_seller_row) && !empty($_seller_row->shop_2_address) ? htmlspecialchars($_seller_row->shop_2_address) : '';
         if ($vendor_billing['state'] == $shipping['shipping_state']):
             $is_igst = 0;
         else:
@@ -1509,6 +1514,7 @@ class Pdf_model extends CI_Model
                     <p  class="text-left text-gray">Whether tax is payable on reverse charge basis - "No" <span class="pull-right"> E.&O.E.</span> </p>
 
                     <p  class="text-left"><b>Declaration:</b> <small>The goods sold are intended for end user consumption and not for resale. Please note that this invoice is not a demand for payment </small> </p>
+' . (!empty($seller_shop_2_address) ? '                    <p  class="text-left"><b>Shop No 2:</b> <small>' . $seller_shop_2_address . '</small> </p>' : '') . '
                     <p  class="text-left"><b>Note:</b> <small>Out of Stock items(if any) will be handed over in the school/classroom. </small> </p>
                     <p  class="text-left"><b>Note:</b> <small>Goods sold once will not be returned.</small> </p>
                     </td>
@@ -1658,6 +1664,7 @@ class Pdf_model extends CI_Model
                     <p  class="text-left text-gray">Whether tax is payable on reverse charge basis - "No" <span class="pull-right"> E.&O.E.</span> </p>
 
                     <p  class="text-left"><b>Declaration:</b> <small>The goods sold are intended for end user consumption and not for resale. Please note that this invoice is not a demand for payment </small> </p>
+' . (!empty($seller_shop_2_address) ? '                    <p  class="text-left"><b>Shop No 2:</b> <small>' . $seller_shop_2_address . '</small> </p>' : '') . '
                     <p  class="text-left"><b>Note:</b> <small>Out of Stock items(if any) will be handed over in the school/classroom. </small> </p>
                     </td>
                     <td class="right" colspan="3">
