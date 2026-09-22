@@ -1769,7 +1769,7 @@ class Cron_model extends CI_Model {
 			WHERE courier='3rd_party'
 			AND awb_no IS NOT NULL
 			AND third_party_provider='velocity'
-			AND order_status IN ('3','6')
+			AND order_status IN ('2','3','6')
 			AND (track_date IS NULL OR track_date < DATE_SUB(NOW(), INTERVAL 2 HOUR))
 			ORDER BY id ASC
 			LIMIT 10");
