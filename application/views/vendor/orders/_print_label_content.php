@@ -54,7 +54,7 @@ $date = isset($order['date']) ? $order['date'] : '';
         </tr>
     </table>
     <div class="info-box">
-        <p><b>Shipping To:</b> <?php echo htmlspecialchars(isset($order['shipping_name']) ? $order['shipping_name'] : ''); ?> <b>Phone: </b> <?php echo htmlspecialchars(isset($order['phone']) ? $order['phone'] : ''); ?></p>
+        <p><b>Shipping To:</b> <?php echo htmlspecialchars(clean_recipient_name(isset($order['shipping_name']) ? $order['shipping_name'] : '', isset($order['user_name']) ? $order['user_name'] : '')); ?> <b>Phone: </b> <?php echo htmlspecialchars(isset($order['phone']) ? $order['phone'] : ''); ?></p>
         <?php if (!empty($order['student_name']) || !empty($order['roll_number'])): ?>
             <p><b>Student:</b> <?php echo htmlspecialchars($order['student_name'] ?? ''); ?><?php if (!empty($order['roll_number'])): ?> <b>Roll No:</b> <?php echo htmlspecialchars($order['roll_number']); ?><?php endif; ?></p>
         <?php endif; ?>

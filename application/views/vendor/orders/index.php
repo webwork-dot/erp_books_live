@@ -302,14 +302,27 @@
    </div>
 
    <div class="row">
-	   <?php if ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): ?>
+	   <?php if ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery'): 
+         $count_3rd_party = 0;
+         $count_self_delivery = 0;
+         if (!empty($order_list)) {
+            foreach ($order_list as $item_cnt) {
+               $c_type = isset($item_cnt['courier']) ? strtolower($item_cnt['courier']) : '';
+               if (!empty($c_type) && $c_type !== 'manual') {
+                  $count_3rd_party++;
+               } else {
+                  $count_self_delivery++;
+               }
+            }
+         }
+      ?>
 		  <div class="card-body py-2 px-3 pb-0">
 			 <ul class="nav nav-tabs brbm0" id="courierFilterTabs" role="tablist">
 				 <li class="nav-item" role="presentation">
-				   <button class="nav-link tab-navigation active" id="tab-third-party" type="button" role="tab" data-courier-filter="third_party">3rd Party</button>
+				   <button class="nav-link tab-navigation active" id="tab-third-party" type="button" role="tab" data-courier-filter="third_party">3rd Party (<span id="count_third_party"><?php echo $count_3rd_party; ?></span>)</button>
 				</li>					 
 				<li class="nav-item" role="presentation">
-				   <button class="nav-link tab-navigation " id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">Self Delivery</button>
+				   <button class="nav-link tab-navigation " id="tab-self-delivery" type="button" role="tab" data-courier-filter="manual">Self Delivery (<span id="count_self_delivery"><?php echo $count_self_delivery; ?></span>)</button>
 				</li>                    
 			 </ul>
 		  </div>
@@ -354,7 +367,8 @@
                               } else {
                                  echo ucfirst($order_status);
                               }
-                              ?> Orders (<?= $total_count; ?>)
+                              $initial_header_count = ($order_status == 'processing' || $order_status == 'ready_for_shipment' || $order_status == 'out_for_delivery') ? (isset($count_3rd_party) ? $count_3rd_party : $total_count) : $total_count;
+                              ?> Orders (<span id="page_total_count"><?= $initial_header_count; ?></span>)
                            </div>
                         </div>
 
@@ -1022,7 +1036,8 @@
       // Move to Ready Shipment button click
       $("#btn_process").click(function(e) {
          e.preventDefault();
-         var selectedCount = $('input[name="order_id[]"]:checked').length;
+         $('tr.item_holder:hidden input[name="order_id[]"]').prop('checked', false);
+         var selectedCount = $('tr.item_holder:visible input[name="order_id[]"]:checked').length;
          var $btn = $(this);
 
          // Don't proceed if button is disabled or no orders selected
@@ -1055,7 +1070,8 @@
       // Move to Out for Delivery button click
       $("#btn_out_for_delivery").click(function(e) {
          e.preventDefault();
-         var selectedCount = $('input[name="order_id[]"]:checked').length;
+         $('tr.item_holder:hidden input[name="order_id[]"]').prop('checked', false);
+         var selectedCount = $('tr.item_holder:visible input[name="order_id[]"]:checked').length;
          var $btn = $(this);
 
          // Don't proceed if button is disabled or no orders selected
@@ -1088,7 +1104,8 @@
       // Move to Delivered button click
       $("#btn_delivered").click(function(e) {
          e.preventDefault();
-         var selectedCount = $('input[name="order_id[]"]:checked').length;
+         $('tr.item_holder:hidden input[name="order_id[]"]').prop('checked', false);
+         var selectedCount = $('tr.item_holder:visible input[name="order_id[]"]:checked').length;
          var $btn = $(this);
 
          // Don't proceed if button is disabled or no orders selected
@@ -1120,29 +1137,10 @@
    });
 
    function getCount() {
-      var selectedCount = $('input[name="order_id[]"]:checked').length;
-      $(".total_orders").html(selectedCount);
-      
-      // Enable/disable button based on selection
-      if (selectedCount > 0) {
-         $("#btn_process").prop('disabled', false);
-         $("#btn_out_for_delivery").prop('disabled', false);
-         $("#btn_delivered").prop('disabled', false);
-         $("#btn_bulk_download_labels").prop('disabled', false);
-         $("#btn_bulk_print_labels").prop('disabled', false);
-      } else {
-         $("#btn_process").prop('disabled', true);
-         $("#btn_out_for_delivery").prop('disabled', true);
-         $("#btn_delivered").prop('disabled', true);
-         $("#btn_bulk_download_labels").prop('disabled', true);
-         $("#btn_bulk_print_labels").prop('disabled', true);
+      if (typeof updateSelectedCount === 'function') {
+         updateSelectedCount();
       }
    }
-
-   $("#checkAll_order").change(function() {
-      $("input[name='order_id[]']").prop("checked", $(this).prop("checked"));
-      getCount();
-   });
 
 
 	 $('.add-ajax-redirect-form').submit(function(e) {
@@ -1233,7 +1231,9 @@ $(document).ready(function(){
     ========================================= */
 
     $("#checkAll_order").on('change', function(){
-        $("input[name='order_id[]']").prop("checked", $(this).prop("checked"));
+        var isChecked = $(this).prop("checked");
+        $("tr.item_holder:visible input[name='order_id[]']").prop("checked", isChecked);
+        $("tr.item_holder:hidden input[name='order_id[]']").prop("checked", false);
         updateSelectedCount();
     });
 
@@ -1242,18 +1242,25 @@ $(document).ready(function(){
     });
 
     function updateSelectedCount(){
-        var count = $('input[name="order_id[]"]:checked').length;
+        var count = $('tr.item_holder:visible input[name="order_id[]"]:checked').length;
+        var totalVisible = $('tr.item_holder:visible input[name="order_id[]"]').length;
         $(".total_orders").html(count);
 
         var enable = count > 0;
 
-      $("#btn_process").prop('disabled', !enable);
+        $("#btn_process").prop('disabled', !enable);
         $("#btn_bulk_self_delivery").prop('disabled', !enable);
         $("#btn_bulk_3rd_party").prop('disabled', !enable);
         $("#btn_out_for_delivery").prop('disabled', !enable);
         $("#btn_delivered").prop('disabled', !enable);
         $("#btn_bulk_download_labels").prop('disabled', !enable);
         $("#btn_bulk_print_labels").prop('disabled', !enable);
+
+        if (totalVisible > 0 && count === totalVisible) {
+            $("#checkAll_order").prop('checked', true);
+        } else {
+            $("#checkAll_order").prop('checked', false);
+        }
     }
 
     /* =========================================
@@ -1652,7 +1659,7 @@ $(document).ready(function(){
 
     function getSelectedOrders(){
         var ids = [];
-        $('input[name="order_id[]"]:checked').each(function(){
+        $('tr.item_holder:visible input[name="order_id[]"]:checked').each(function(){
             ids.push($(this).val());
         });
         return ids;
@@ -1672,25 +1679,70 @@ $(document).ready(function(){
 
 // Apply courier filter (Self Delivery vs 3rd Party) – used on load and tab click
 function applyCourierFilter(courierFilter) {
+    var count3rd = 0;
+    var countSelf = 0;
+    var visibleCount = 0;
+
     $('tr.item_holder').each(function(){
         var rowCourier = ($(this).data('courier') || '').toString().toLowerCase();
+        var is3rdParty = (rowCourier && rowCourier !== 'manual');
+
+        if (is3rdParty) {
+            count3rd++;
+        } else {
+            countSelf++;
+        }
 
         if (courierFilter === 'manual') {
-            if (rowCourier === 'manual' || rowCourier === '') {
+            if (!is3rdParty) {
                 $(this).show();
+                visibleCount++;
             } else {
                 $(this).hide();
             }
         } else if (courierFilter === 'third_party') {
-            if (rowCourier && rowCourier !== 'manual') {
+            if (is3rdParty) {
                 $(this).show();
+                visibleCount++;
             } else {
                 $(this).hide();
             }
         } else {
             $(this).show();
+            visibleCount++;
         }
     });
+
+    // Update tab badges
+    $('#count_third_party').text(count3rd);
+    $('#count_self_delivery').text(countSelf);
+
+    // Update page title total
+    if ($('#courierFilterTabs').length) {
+        $('#page_total_count').text(visibleCount);
+    }
+
+    // Handle divider rows (Awaiting Label)
+    $('tr.table-light').each(function(){
+        var hasVisibleAfter = $(this).nextAll('tr.item_holder:visible').length > 0;
+        var hasVisibleBefore = $(this).prevAll('tr.item_holder:visible').length > 0;
+        if (hasVisibleAfter && hasVisibleBefore) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+
+    // Clear selections and uncheck hidden checkboxes
+    $('tr.item_holder:hidden input[name="order_id[]"]').prop('checked', false);
+    $("#checkAll_order").prop('checked', false);
+    $("input[name='order_id[]']").prop('checked', false);
+    if (typeof updateSelectedCount === 'function') {
+        updateSelectedCount();
+    } else {
+        $(".total_orders").html(0);
+        $("#btn_process, #btn_bulk_self_delivery, #btn_bulk_3rd_party, #btn_out_for_delivery, #btn_delivered, #btn_bulk_download_labels, #btn_bulk_print_labels").prop('disabled', true);
+    }
 }
 
 // On page load: apply filter for whichever courier tab is active (prevents mixed rows initially)
@@ -1698,7 +1750,7 @@ $(document).ready(function(){
     if (!$('#courierFilterTabs').length) return;
 
     var $activeTab = $('#courierFilterTabs button[data-courier-filter].active').first();
-    var courierFilter = $activeTab.data('courier-filter');
+    var courierFilter = $activeTab.length ? $activeTab.data('courier-filter') : 'third_party';
 
     if (courierFilter) {
         applyCourierFilter(courierFilter);
@@ -1716,18 +1768,12 @@ $(document).on('click', '#courierFilterTabs button[data-courier-filter]', functi
 
     // Show bulk shipping label buttons for both Self Delivery and 3rd Party tabs
     $('#btn_bulk_download_labels, #btn_bulk_print_labels').show();
-
-    // Clear selections after filter change
-    $("#checkAll_order").prop('checked', false);
-    $("input[name='order_id[]']").prop('checked', false);
-    $(".total_orders").html(0);
-    $("#btn_bulk_self_delivery, #btn_bulk_3rd_party, #btn_out_for_delivery, #btn_delivered, #btn_bulk_download_labels, #btn_bulk_print_labels").prop('disabled', true);
 });
 
 // Bulk print shipping labels - open single page with all labels (one print = all pages)
 $(document).on('click', '#btn_bulk_print_labels', function(){
     var orderUniqueIds = [];
-    $('input[name="order_id[]"]:checked').each(function(){
+    $('tr.item_holder:visible input[name="order_id[]"]:checked').each(function(){
         var $row = $(this).closest('tr.item_holder');
         var uid = $row.data('order-unique-id');
         if (uid) orderUniqueIds.push(uid);
@@ -1752,7 +1798,7 @@ $(document).on('click', '#btn_bulk_download_labels', function(){
 
     var orderIds = [];
 
-    $('input[name="order_id[]"]:checked').each(function(){
+    $('tr.item_holder:visible input[name="order_id[]"]:checked').each(function(){
         orderIds.push($(this).val());
     });
 

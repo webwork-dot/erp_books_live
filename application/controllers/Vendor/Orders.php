@@ -5543,7 +5543,8 @@ class Orders extends Vendor_base
 		$pincode = !empty($address_obj) && !empty($address_obj->pincode) ? $address_obj->pincode : '';
 
 		// Shipping name, phone, address - from address_obj with order fallback (same as fetch_shipping_label)
-		$shipping_name = !empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : (!empty($order->user_name) ? $order->user_name : '');
+		$raw_shipping_name = !empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : '';
+		$shipping_name = clean_recipient_name($raw_shipping_name, !empty($order->user_name) ? $order->user_name : '');
 		$phone = !empty($address_obj) && !empty($address_obj->mobile_no) ? $address_obj->mobile_no : (!empty($order->user_phone) ? $order->user_phone : '');
 		$address = '';
 		$address_line1 = '';
@@ -6599,9 +6600,12 @@ class Orders extends Vendor_base
 			if (!file_exists($check_file)) {
 				$needs_regenerate = true;
 			} else {
-				// If order has an AWB assigned, verify the existing PDF contains this AWB
-				if (!empty($order->awb_no)) {
-					$pdf_raw = @file_get_contents($check_file);
+				// If existing PDF has corrupted '????', regenerate it to clean name
+				$pdf_raw = @file_get_contents($check_file);
+				if ($pdf_raw !== false && strpos($pdf_raw, '????') !== false) {
+					$needs_regenerate = true;
+				} elseif (!empty($order->awb_no)) {
+					// If order has an AWB assigned, verify the existing PDF contains this AWB
 					if ($pdf_raw !== false) {
 						$has_awb = (stripos($pdf_raw, $order->awb_no) !== false);
 						if (!$has_awb) {
@@ -6755,46 +6759,66 @@ class Orders extends Vendor_base
 				continue;
 			}
 
-			// If no label yet, try to generate it first
-			if (empty($order->shipping_label)) {
-				// generate_shipping_label() expects order_unique_id
-				$relative_path = $this->generate_shipping_label($order->order_unique_id, 'bulk');
+			$file_path = '';
+			$needs_generate = empty($order->shipping_label);
 
-				if ($relative_path) {
-					$order->shipping_label = $relative_path;
+			if (!$needs_generate) {
+				// Build full file path exactly like download_shipping_label() - with FCPATH fallback
+				$relative_path = $order->shipping_label; // uploads/shipping_labels/2026_02_13/filename.pdf
+				$path_parts = explode('/', str_replace('\\', '/', $relative_path));
+				$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
+				$filename = end($path_parts);
+
+				$file_path = rtrim($uploadCfg['base_root'], '/') . '/'
+					. $vendor_folder . '/'
+					. trim($uploadCfg['relative_dir'], '/') . '/'
+					. $date_folder . '/'
+					. $filename;
+
+				// Fallback to FCPATH if the above path doesn't exist
+				if (!file_exists($file_path)) {
+					$file_path = FCPATH . ltrim(str_replace('\\', '/', $relative_path), '/');
+				}
+
+				// If file is missing on disk or has '????', regenerate it
+				if (!file_exists($file_path)) {
+					$needs_generate = true;
 				} else {
-					// As fallback, re-fetch fresh row for this order
-					$refetched = $this->Order_model->get_order($order->order_unique_id);
-					if ($refetched && !empty($refetched[0]->shipping_label)) {
-						$order->shipping_label = $refetched[0]->shipping_label;
+					$content = @file_get_contents($file_path);
+					if ($content !== false && strpos($content, '????') !== false) {
+						$needs_generate = true;
 					}
 				}
 			}
 
-			if (empty($order->shipping_label)) {
-				continue;
+			// If file is missing on disk or needs generating/regenerating
+			if ($needs_generate) {
+				$new_rel = $this->generate_shipping_label($order->order_unique_id, 'bulk');
+				if ($new_rel) {
+					$order->shipping_label = $new_rel;
+					$path_parts = explode('/', str_replace('\\', '/', $new_rel));
+					$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
+					$filename = end($path_parts);
+
+					$file_path = rtrim($uploadCfg['base_root'], '/') . '/'
+						. $vendor_folder . '/'
+						. trim($uploadCfg['relative_dir'], '/') . '/'
+						. $date_folder . '/'
+						. $filename;
+
+					if (!file_exists($file_path)) {
+						$file_path = FCPATH . ltrim(str_replace('\\', '/', $new_rel), '/');
+					}
+				} else {
+					// Fallback: re-fetch fresh row for this order
+					$refetched = $this->Order_model->get_order($order->order_unique_id);
+					if ($refetched && !empty($refetched[0]->shipping_label)) {
+						$file_path = FCPATH . ltrim(str_replace('\\', '/', $refetched[0]->shipping_label), '/');
+					}
+				}
 			}
 
-			// Build full file path exactly like download_shipping_label() - with FCPATH fallback
-			$relative_path = $order->shipping_label; // uploads/shipping_labels/2026_02_13/filename.pdf
-			$path_parts = explode('/', str_replace('\\', '/', $relative_path));
-			$date_folder = isset($path_parts[2]) ? $path_parts[2] : date('Y_m_d');
-			$filename = end($path_parts);
-
-			$file_path = rtrim($uploadCfg['base_root'], '/') . '/'
-				. $vendor_folder . '/'
-				. trim($uploadCfg['relative_dir'], '/') . '/'
-				. $date_folder . '/'
-				. $filename;
-
-			// Fallback to FCPATH if the above path doesn't exist (same as single download)
-			if (!file_exists($file_path)) {
-				$file_path = FCPATH . ltrim(str_replace('\\', '/', $relative_path), '/');
-			}
-
-			if (file_exists($file_path)) {
-				// Use addFromString (not addFile) so content is embedded directly - avoids corruption
-				// and path resolution issues across different environments
+			if (!empty($file_path) && file_exists($file_path)) {
 				$content = @file_get_contents($file_path);
 				if ($content !== false) {
 					$zip_name_in_archive = 'shipping_label_' . $order->order_unique_id . '.pdf';

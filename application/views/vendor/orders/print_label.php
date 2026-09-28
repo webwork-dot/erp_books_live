@@ -171,7 +171,7 @@ $date = isset($order['date']) ? $order['date'] : '';
         
         <!-- Shipping Address -->
         <div class="info-box">
-            <p><b>Shipping To:</b> <?php echo htmlspecialchars(isset($order['shipping_name']) ? $order['shipping_name'] : ''); ?> <b>Phone: </b> <?php echo htmlspecialchars(isset($order['phone']) ? $order['phone'] : ''); ?></p> 
+            <p><b>Shipping To:</b> <?php echo htmlspecialchars(clean_recipient_name(isset($order['shipping_name']) ? $order['shipping_name'] : '', isset($order['user_name']) ? $order['user_name'] : '')); ?> <b>Phone: </b> <?php echo htmlspecialchars(isset($order['phone']) ? $order['phone'] : ''); ?></p> 
            
             
             <?php if (!empty($order['student_name']) || !empty($order['roll_number'])): ?>

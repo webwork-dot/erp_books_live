@@ -1877,7 +1877,46 @@ if (!function_exists('calculate_bookset_gst')) {
         ];
     }
 }
+
+if (!function_exists('clean_recipient_name')) {
+    /**
+     * Clean recipient/shipping name by removing corrupted question marks '?'
+     * caused by emoji/charset encoding issues, and trimming extra dots/spaces.
+     * If name becomes empty or was corrupted, fall back to $fallback_name if available.
+     *
+     * @param string|null $name
+     * @param string|null $fallback_name
+     * @return string
+     */
+    function clean_recipient_name($name, $fallback_name = '') {
+        $clean = !empty($name) ? (string)$name : '';
+        // Replace ? with empty string
+        $clean = str_replace('?', '', $clean);
+        // Replace multiple spaces with a single space
+        $clean = preg_replace('/\s+/', ' ', $clean);
+        // Trim trailing/leading spaces, dots, dashes, underscores
+        $clean = trim($clean, " \t\n\r\0\x0B.-_");
+
+        $fallback_clean = !empty($fallback_name) ? (string)$fallback_name : '';
+        $fallback_clean = str_replace('?', '', $fallback_clean);
+        $fallback_clean = preg_replace('/\s+/', ' ', $fallback_clean);
+        $fallback_clean = trim($fallback_clean, " \t\n\r\0\x0B.-_");
+
+        // If clean name is empty, use fallback
+        if ($clean === '' && !empty($fallback_clean)) {
+            return $fallback_clean;
+        }
+
+        // If clean name matches fallback with dots replaced by spaces (e.g. Krishna.Deshmukh vs Krishna Deshmukh)
+        if (!empty($fallback_clean) && strcasecmp(str_replace('.', ' ', $clean), $fallback_clean) === 0) {
+            return $fallback_clean;
+        }
+
+        return $clean;
+    }
+}
 	
 // ------------------------------------------------------------------------
 /* End of file common_helper.php */
 /* Location: ./system/helpers/common.php */
+

@@ -1664,7 +1664,7 @@ if (!empty($additional_status)) {
             $addr = $address_arr[0];
             $use_school_address = (isset($is_deliver_at_school) && $is_deliver_at_school && !empty($uniform_info) && !empty($uniform_info->display_name));
             ?>
-            <div><b><?= htmlspecialchars($addr->name) ?></b></div>
+            <div><b><?= htmlspecialchars(clean_recipient_name($addr->name ?? '', $order_data[0]->user_name ?? '')) ?></b></div>
             <div class="text-muted"><?= htmlspecialchars($addr->mobile_no) ?></div>
             <div class="mt-2">
               <?php

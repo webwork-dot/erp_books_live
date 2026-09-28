@@ -532,7 +532,7 @@ class Pdf_model extends CI_Model
                     <table style="width:100%; margin-top:10px;">
                     <tr>
                     <td style="width:65%; vertical-align:top; padding:10px; font-size:14px; line-height:20px; text-align:left;">
-                        <div><b>Name:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : (!empty($order->user_name) ? $order->user_name : '')) . '</div>
+                        <div><b>Name:</b> ' . htmlspecialchars(clean_recipient_name(!empty($address_obj) && !empty($address_obj->name) ? $address_obj->name : '', !empty($order->user_name) ? $order->user_name : '')) . '</div>
                         <div><b>Contact No:</b> ' . htmlspecialchars(!empty($address_obj) && !empty($address_obj->mobile_no) ? $address_obj->mobile_no : (!empty($order->user_phone) ? $order->user_phone : '')) . '</div>';
 
             // Display student name if available
