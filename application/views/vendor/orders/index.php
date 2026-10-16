@@ -398,6 +398,9 @@
                            <button type="button" id="btn_bulk_3rd_party" class="btn btn-outline-info waves-effect waves-light btn-md mb-0" disabled>
                               <i class="fa fa-shipping-fast me-1"></i> 3rd Party (<span class="total_orders">0</span>)
                            </button>
+                           <button type="button" id="btn_bulk_cancel" class="btn btn-outline-danger waves-effect waves-light btn-md mb-0" disabled>
+                              <i class="fa fa-times me-1"></i> Cancel Orders (<span class="total_orders">0</span>)
+                           </button>
                         <?php elseif ($order_status == 'processing'): ?>
                            <button type="button" id="btn_process" class="btn btn-primary waves-effect waves-light btn-md mb-0" disabled>
                               Move to Ready Shipment (<span class="total_orders">0</span>)
@@ -1251,6 +1254,7 @@ $(document).ready(function(){
         $("#btn_process").prop('disabled', !enable);
         $("#btn_bulk_self_delivery").prop('disabled', !enable);
         $("#btn_bulk_3rd_party").prop('disabled', !enable);
+        $("#btn_bulk_cancel").prop('disabled', !enable);
         $("#btn_out_for_delivery").prop('disabled', !enable);
         $("#btn_delivered").prop('disabled', !enable);
         $("#btn_bulk_download_labels").prop('disabled', !enable);
@@ -1385,6 +1389,78 @@ $(document).ready(function(){
 
         });
 
+    });
+
+    /* =========================================
+       BULK CANCEL ORDERS (PENDING)
+    ========================================= */
+    $("#btn_bulk_cancel").on('click', function(){
+        var orderIds = getSelectedOrders();
+        if(orderIds.length === 0) return;
+
+        Swal.fire({
+            title: 'Cancel ' + orderIds.length + ' Order(s)?',
+            text: 'Please provide a cancellation remark / reason for these orders:',
+            input: 'textarea',
+            inputPlaceholder: 'Enter cancellation remark...',
+            inputAttributes: {
+                'aria-label': 'Type your cancellation remark here',
+                'rows': 3
+            },
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Cancel ' + orderIds.length + ' Order(s)',
+            cancelButtonText: 'Keep Orders',
+            inputValidator: function(value) {
+                if (!value || !value.trim()) {
+                    return 'Cancellation remark is required!';
+                }
+            }
+        }).then(function(result){
+            if(!result.isConfirmed) return;
+            var remark = (result.value || '').trim();
+            if(!remark) return;
+
+            var $btn = $("#btn_bulk_cancel");
+            var originalHtml = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Cancelling...');
+
+            $.ajax({
+                url: '<?php echo site_url("orders/bulk_cancel_orders"); ?>',
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    order_ids: orderIds,
+                    remark: remark
+                }
+            }).done(function(res){
+                if(res.status === '200' || res.status === 200){
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: res.message || 'Orders have been cancelled successfully.',
+                        icon: 'success'
+                    }).then(function(){
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: res.message || 'Failed to cancel orders.',
+                        icon: 'error'
+                    });
+                    $btn.prop('disabled', false).html(originalHtml);
+                }
+            }).fail(function(){
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Request failed. Please try again.',
+                    icon: 'error'
+                });
+                $btn.prop('disabled', false).html(originalHtml);
+            });
+        });
     });
 
 
@@ -1741,7 +1817,7 @@ function applyCourierFilter(courierFilter) {
         updateSelectedCount();
     } else {
         $(".total_orders").html(0);
-        $("#btn_process, #btn_bulk_self_delivery, #btn_bulk_3rd_party, #btn_out_for_delivery, #btn_delivered, #btn_bulk_download_labels, #btn_bulk_print_labels").prop('disabled', true);
+        $("#btn_process, #btn_bulk_self_delivery, #btn_bulk_3rd_party, #btn_bulk_cancel, #btn_out_for_delivery, #btn_delivered, #btn_bulk_download_labels, #btn_bulk_print_labels").prop('disabled', true);
     }
 }
 

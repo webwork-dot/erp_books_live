@@ -311,6 +311,9 @@ if (!empty($additional_status)) {
     }
   }
 }
+if (empty($cancellation_reason) && !empty($order_data[0]->remark)) {
+  $cancellation_reason = trim($order_data[0]->remark);
+}
 ?>
 
 <div class="container-fluid order-page" style="padding: 20px;">
@@ -324,14 +327,13 @@ if (!empty($additional_status)) {
         data-bs-target="#orderTimelineModal">
         <i class="fa fa-history"></i> Order Timeline
       </button>
-      <?php $os = $order_data[0]->order_status; ?>
-      <?php if ($order_data[0]->payment_status == 'success' && $os != '4' && $os != 4 && $os != '5' && $os != 5): ?>
+      <?php $os = (string) $order_data[0]->order_status; ?>
+      <?php if ($os === '1'): ?>
         <button type="button" class="btn btn-outline-danger btn-sm"
           onclick="cancelOrder('<?= $order_data[0]->order_unique_id ?>', this)">
           <i class="fa fa-times me-1"></i> Cancel Order
         </button>
-        <?php
-      endif; ?>
+      <?php endif; ?>
     </div>
     <div class="d-flex gap-2">
       <?php if ($order_data[0]->payment_status == 'success'): ?>
@@ -2556,21 +2558,40 @@ if (!empty($additional_status)) {
   function cancelOrder(orderUniqueId, btnElement) {
     Swal.fire({
       title: 'Cancel Order?',
-      text: 'Are you sure you want to cancel this order? This action cannot be undone.',
+      text: 'Please provide a reason / remark for cancelling this order:',
+      input: 'textarea',
+      inputPlaceholder: 'Enter cancellation remark...',
+      inputAttributes: {
+        'aria-label': 'Type your cancellation remark here',
+        'rows': 3
+      },
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, Cancel Order'
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, Cancel Order',
+      cancelButtonText: 'Keep Order',
+      inputValidator: function (value) {
+        if (!value || !value.trim()) {
+          return 'Cancellation remark is required!';
+        }
+      }
     }).then(function (result) {
       if (!result.isConfirmed) return;
+      var remark = (result.value || '').trim();
+      if (!remark) return;
+
       var $btn = $(btnElement);
       var originalText = $btn.html();
       $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Cancelling...');
       $.ajax({
-        url: '<?php echo base_url("orders/cancel_order_single"); ?>',
+        url: '<?php echo base_url("orders/bulk_cancel_orders"); ?>',
         type: 'POST',
-        data: { order_unique_id: orderUniqueId },
+        data: { 
+          order_ids: [<?= (int)$order_data[0]->id ?>],
+          order_unique_id: orderUniqueId,
+          remark: remark
+        },
         dataType: 'json',
         success: function (response) {
           if (response.status == '200') {

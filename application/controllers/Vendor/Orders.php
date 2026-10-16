@@ -3849,64 +3849,201 @@ class Orders extends Vendor_base
 		}
 	}
 	/**
-	 * Cancel a single order
+	 * Cancel order (delegates to bulk_cancel_orders)
 	 *
 	 * @return	void
 	 */
 	public function cancel_order_single()
 	{
-		$order_unique_id = $this->input->post('order_unique_id');
+		return $this->bulk_cancel_orders();
+	}
 
-		if (empty($order_unique_id)) {
-			echo json_encode(['status' => '400', 'message' => 'Order ID is required.']);
+	/**
+	 * Cancel orders (supports both single order from details page and bulk cancellation)
+	 *
+	 * @return	void
+	 */
+	public function bulk_cancel_orders()
+	{
+		header('Content-Type: application/json');
+
+		$order_ids = $this->input->post('order_ids');
+		$order_unique_id = trim((string)$this->input->post('order_unique_id'));
+		$remark = trim((string)$this->input->post('remark'));
+
+		if (empty($remark)) {
+			echo json_encode(['status' => '400', 'message' => 'Cancellation remark is required.']);
 			return;
 		}
 
-		$order = $this->Order_model->get_order($order_unique_id);
-		if (empty($order)) {
-			echo json_encode(['status' => '400', 'message' => 'Order not found.']);
+		// Normalize order_ids if provided
+		if (!empty($order_ids)) {
+			if (!is_array($order_ids)) {
+				$order_ids = array($order_ids);
+			}
+			$order_ids = array_values(array_unique(array_filter(array_map('intval', $order_ids), function($id) {
+				return $id > 0;
+			})));
+		} else {
+			$order_ids = array();
+		}
+
+		// Fallback: resolve by order_unique_id if order_ids not provided
+		if (empty($order_ids) && !empty($order_unique_id)) {
+			$single_order = $this->db->select('id')
+				->from('tbl_order_details')
+				->where('order_unique_id', $order_unique_id)
+				->get()
+				->row();
+
+			if ($single_order) {
+				$order_ids = array((int)$single_order->id);
+			}
+		}
+
+		if (empty($order_ids)) {
+			echo json_encode(['status' => '400', 'message' => 'Please select at least one order to cancel.']);
 			return;
 		}
 
-		$order_data = $order[0];
-		$order_id = $order_data->id;
+		// Fetch orders and verify status
+		$orders = $this->db->select('id, order_unique_id, order_status, user_id, user_name, user_email, user_phone, payable_amt, total_amt')
+			->from('tbl_order_details')
+			->where_in('id', $order_ids)
+			->get()
+			->result();
 
-		// Don't allow cancellation if already delivered (status 4) or already cancelled (status 5)
-		if ($order_data->order_status == '4' || $order_data->order_status == 4) {
-			echo json_encode(['status' => '400', 'message' => 'Cannot cancel an order that has already been delivered.']);
+		if (empty($orders)) {
+			echo json_encode(['status' => '400', 'message' => 'Selected order(s) not found.']);
 			return;
 		}
-		if ($order_data->order_status == '5' || $order_data->order_status == 5) {
-			echo json_encode(['status' => '400', 'message' => 'Order is already cancelled.']);
-			return;
+
+		// Enforce cancellation only in before processing status (status 1 = New Order / Pending)
+		$status_labels = [
+			'2' => 'Processing',
+			'6' => 'Ready for Shipment',
+			'3' => 'Out for Delivery',
+			'4' => 'Delivered',
+			'5' => 'Already Cancelled',
+			'7' => 'Return'
+		];
+
+		foreach ($orders as $order) {
+			if ((string)$order->order_status !== '1' && (int)$order->order_status !== 1) {
+				$curr_status_key = (string)$order->order_status;
+				$curr_label = isset($status_labels[$curr_status_key]) ? $status_labels[$curr_status_key] : ('Status ' . $curr_status_key);
+				echo json_encode([
+					'status' => '400',
+					'message' => "Order #{$order->order_unique_id} cannot be cancelled because it is in {$curr_label} status. Orders can only be cancelled before processing (in New Order status)."
+				]);
+				return;
+			}
 		}
+
+		$now = date("Y-m-d H:i:s");
+
+		// Resolve actor details for tracking who cancelled
+		$actor_id = $this->session->userdata('vendor_id') 
+			?: ($this->session->userdata('user_id') 
+			?: ($this->session->userdata('admin_id') 
+			?: (isset($this->current_vendor['id']) ? (int)$this->current_vendor['id'] : NULL)));
+
+		$actor_name = $this->session->userdata('vendor_username') 
+			?: ($this->session->userdata('vendor_name') 
+			?: ($this->session->userdata('username') 
+			?: ($this->session->userdata('name') 
+			?: (!empty($this->current_vendor['name']) ? $this->current_vendor['name'] : 'Vendor'))));
+
+		$actor_role = $this->session->userdata('user_type') 
+			?: ($this->session->userdata('role') 
+			?: 'vendor');
 
 		$cancel_data = array(
 			'order_status' => '5',
-			'cancelled_date' => date("Y-m-d H:i:s")
+			'cancelled_date' => $now
 		);
 
-		$this->db->where('id', $order_id);
-		$this->db->update('tbl_order_details', $cancel_data);
+		if ($this->db->field_exists('remark', 'tbl_order_details')) {
+			$cancel_data['remark'] = $remark;
+		}
+		if ($this->db->field_exists('cancelled_by', 'tbl_order_details')) {
+			$cancel_data['cancelled_by'] = ($actor_role === 'user' ? 'user' : 'admin');
+		}
+		if ($this->db->field_exists('cancelled_by_id', 'tbl_order_details') && $actor_id) {
+			$cancel_data['cancelled_by_id'] = (int)$actor_id;
+		}
 
-		if ($this->db->affected_rows() > 0) {
-			// Update order items status to cancelled
-			$this->db->where('order_id', $order_id);
+		// Update order details with concurrency guard (only where order_status is '1')
+		$this->db->where_in('id', $order_ids);
+		$this->db->where('order_status', '1');
+		$this->db->update('tbl_order_details', $cancel_data);
+		$affected = $this->db->affected_rows();
+
+		if ($affected > 0) {
+			// Update items status
+			$this->db->where_in('order_id', $order_ids);
 			$this->db->update('tbl_order_items', array('pro_order_status' => '5'));
 
-			// Add status history entry for cancellation
-			$this->db->insert('tbl_order_status', array(
-				'order_id' => $order_id,
-				'user_id' => $order_data->user_id,
-				'product_id' => 0,
-				'status_title' => '5',
-				'status_desc' => 'Order has been cancelled',
-				'created_at' => date("Y-m-d H:i:s")
-			));
+			// Load activity log model
+			$this->load->model('Activity_log_model');
+			$status_desc = 'Order has been cancelled. Reason: ' . $remark;
+			$is_bulk = (count($orders) > 1);
 
-			echo json_encode(['status' => '200', 'message' => 'Order has been cancelled successfully.']);
+			foreach ($orders as $order) {
+				// Insert status history
+				$this->db->insert('tbl_order_status', array(
+					'order_id' => (int)$order->id,
+					'user_id' => $order->user_id,
+					'product_id' => 0,
+					'status_title' => '5',
+					'status_desc' => $status_desc,
+					'created_at' => $now
+				));
+
+				// Log to sys_activity_log
+				$action_label = 'Cancelled Order #' . $order->order_unique_id . ($is_bulk ? ' (Bulk)' : '');
+				$this->Activity_log_model->log(array(
+					'module' => 'orders',
+					'action' => 'cancel_order',
+					'action_label' => $action_label,
+					'actor_id' => $actor_id ? (int)$actor_id : NULL,
+					'actor_name' => $actor_name,
+					'actor_role' => $actor_role,
+					'reference_type' => 'order',
+					'reference_id' => (int)$order->id,
+					'reference_label' => $order->order_unique_id,
+					'meta' => array(
+						'remark' => $remark,
+						'cancelled_by' => $actor_name,
+						'actor_role' => $actor_role,
+						'actor_id' => $actor_id,
+						'bulk' => $is_bulk,
+						'total_cancelled' => count($orders),
+						'previous_status' => '1',
+						'previous_status_label' => 'New Order (Pending)',
+						'order_unique_id' => $order->order_unique_id,
+						'customer_name' => $order->user_name ?? '',
+						'customer_email' => $order->user_email ?? '',
+						'customer_phone' => $order->user_phone ?? '',
+						'order_amount' => isset($order->payable_amt) ? $order->payable_amt : ($order->total_amt ?? 0)
+					),
+					'ip_address' => $this->input->ip_address(),
+				));
+			}
+
+			$success_message = (count($orders) === 1) 
+				? 'Order has been cancelled successfully.' 
+				: (count($orders) . ' order(s) cancelled successfully.');
+
+			echo json_encode([
+				'status' => '200',
+				'message' => $success_message
+			]);
 		} else {
-			echo json_encode(['status' => '400', 'message' => 'Failed to cancel order.']);
+			echo json_encode([
+				'status' => '400',
+				'message' => 'No orders were updated. Please ensure orders are in pending status.'
+			]);
 		}
 	}
 
