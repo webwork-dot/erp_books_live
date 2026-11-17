@@ -254,18 +254,15 @@ class Vendor_base extends CI_Controller
 			$http_host = substr($http_host, 0, strpos($http_host, ':'));
 		}
 		
-		// If HTTP_HOST is a subdomain (like master.varitty.in), return empty string
-		// This means URLs should not include domain in path
-		if (!empty($http_host) && 
-			strpos($http_host, 'localhost') === false && 
+		// Path-based URLs (…/webwork.co.in/products/…) are only for local/admin hosts.
+		// On live/demo hosts (e.g. masterdemo.webwork.co.in), never inject the vendor
+		// domain into the path — that produces broken URLs like:
+		//   https://masterdemo.webwork.co.in/webwork.co.in/products/notebooks
+		if (!empty($http_host) &&
+			strpos($http_host, 'localhost') === false &&
 			strpos($http_host, '127.0.0.1') === false &&
 			strpos($http_host, 'erp-admin') === false) {
-			// Check if HTTP_HOST matches vendor domain (subdomain routing)
-			$vendor = $this->Erp_client_model->getClientByDomain($http_host);
-			if ($vendor) {
-				// Using subdomain routing - don't include domain in URLs
-				return '';
-			}
+			return '';
 		}
 		
 		// Using path-based routing - return base domain for URLs

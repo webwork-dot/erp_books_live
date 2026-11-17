@@ -72,7 +72,8 @@ class CI_Exceptions {
 		E_USER_ERROR		=>	'User Error',
 		E_USER_WARNING		=>	'User Warning',
 		E_USER_NOTICE		=>	'User Notice',
-		E_STRICT		=>	'Runtime Notice'
+		// E_STRICT removed in PHP 8.4 — keep numeric 2048 for older runtimes only
+		2048			=>	'Runtime Notice'
 	);
 
 	/**

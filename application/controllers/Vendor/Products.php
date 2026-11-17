@@ -4940,8 +4940,7 @@ class Products extends Vendor_base
 			$this->session->set_flashdata('success', 'Textbook product deleted successfully.');
 		}
 		
-		$vendor_domain = $this->getVendorDomainForUrl();
-		redirect(vendor_base_url('products/textbook', $vendor_domain));
+		redirect(base_url('products/textbook'));
 	}
 	
 	
@@ -6473,13 +6472,19 @@ class Products extends Vendor_base
 									// Add multiple products to package
 									foreach ($pkg['products'] as $product)
 									{
+										$ptype = isset($product['product_type']) ? $product['product_type'] : $pkg['category'];
+										if (!in_array($ptype, array('textbook', 'notebook', 'stationery'), TRUE))
+										{
+											$ptype = 'textbook';
+										}
 										$product_data = array(
 											'package_id' => $package_id,
-											'product_type' => isset($product['product_type']) ? $product['product_type'] : $pkg['category'],
+											'product_type' => $ptype,
 											'product_id' => isset($product['product_id']) ? $product['product_id'] : 0,
 											'display_name' => isset($product['display_name']) && !empty($product['display_name']) ? $product['display_name'] : (isset($product['product_name']) ? $product['product_name'] : $pkg['package_name']),
 											'quantity' => isset($product['quantity']) && $product['quantity'] > 0 ? $product['quantity'] : 1,
 											'discounted_mrp' => isset($product['discounted_mrp']) ? $product['discounted_mrp'] : 0,
+											'is_it' => isset($pkg['is_it']) ? $pkg['is_it'] : 'mandatory',
 											'weight' => isset($product['packaging_weight']) ? $product['packaging_weight'] : 0,
 											'note' => isset($pkg['note']) && !empty($pkg['note']) ? $pkg['note'] : NULL,
 											'status' => 'active',
@@ -6488,6 +6493,15 @@ class Products extends Vendor_base
 										);
 										
 										$this->db->insert('erp_bookset_package_products', $product_data);
+										if ($this->db->affected_rows() < 1)
+										{
+											$err = $this->db->error();
+											log_message('error', 'bookset package product insert failed: ' . json_encode($err) . ' data=' . json_encode($product_data));
+											$this->session->set_flashdata('error', 'Failed to add package product: ' . (isset($err['message']) ? $err['message'] : 'DB error'));
+											$this->db->trans_rollback();
+											redirect(base_url('products/bookset/package/add_with_products'));
+											return;
+										}
 									}
 								}
 							}
@@ -7549,9 +7563,7 @@ class Products extends Vendor_base
 					}
 					
 					$this->session->set_flashdata('success', 'Notebook created successfully.');
-					$this->load->helper('common');
-					$vendor_domain = $this->getVendorDomainForUrl();
-					redirect(vendor_base_url('products/notebooks', $vendor_domain));
+					redirect(base_url('products/notebooks'));
 				}
 				else
 				{
@@ -7708,9 +7720,7 @@ class Products extends Vendor_base
 				$this->handleNotebookImageUpdates($id);
 				
 				$this->session->set_flashdata('success', 'Notebook updated successfully.');
-				$this->load->helper('common');
-				$vendor_domain = $this->getVendorDomainForUrl();
-				redirect(vendor_base_url('products/notebooks', $vendor_domain));
+				redirect(base_url('products/notebooks'));
 			}
 		}
 		
@@ -7824,8 +7834,7 @@ class Products extends Vendor_base
 			$this->session->set_flashdata('success', 'Notebook deleted successfully.');
 		}
 		
-		$vendor_domain = $this->getVendorDomainForUrl();
-		redirect(vendor_base_url('products/notebooks', $vendor_domain));
+		redirect(base_url('products/notebooks'));
 	}
 	
 	
