@@ -25,6 +25,82 @@ class Product_model extends CI_Model
 		parent::__construct();
 		// Uses tenant database (switched by Tenant library)
 	}
+
+	/**
+	 * Ensure cost_price exists on product tables (idempotent).
+	 */
+	public function ensure_cost_price_columns()
+	{
+		static $done = FALSE;
+		if ($done) {
+			return;
+		}
+		$tables = array(
+			'erp_products' => 'product_mrp',
+			'erp_textbooks' => 'selling_price',
+			'erp_notebooks' => 'selling_price',
+			'erp_stationery' => 'selling_price',
+			'erp_individual_products' => 'selling_price'
+		);
+		foreach ($tables as $table => $after_col) {
+			if (!$this->db->table_exists($table)) {
+				continue;
+			}
+			if ($this->db->field_exists('cost_price', $table)) {
+				continue;
+			}
+			$after = $this->db->field_exists($after_col, $table) ? " AFTER `{$after_col}`" : '';
+			$this->db->query("ALTER TABLE `{$table}` ADD COLUMN `cost_price` DECIMAL(14,2) NOT NULL DEFAULT 0.00{$after}");
+		}
+		$done = TRUE;
+	}
+
+	/**
+	 * If product has no cost price, set it from PO rate. Also mirrors to legacy row.
+	 *
+	 * @param	int	$product_id	erp_products.id
+	 * @param	float	$rate		PO line rate
+	 * @return	bool
+	 */
+	public function fill_cost_price_if_empty($product_id, $rate)
+	{
+		$this->ensure_cost_price_columns();
+		$product_id = (int)$product_id;
+		$rate = round((float)$rate, 2);
+		if ($product_id <= 0 || $rate <= 0) {
+			return FALSE;
+		}
+		if (!$this->db->table_exists('erp_products') || !$this->db->field_exists('cost_price', 'erp_products')) {
+			return FALSE;
+		}
+		$row = $this->db
+			->select('id, cost_price, legacy_table, legacy_id')
+			->from('erp_products')
+			->where('id', $product_id)
+			->where('is_deleted', 0)
+			->limit(1)
+			->get()
+			->row_array();
+		if (!$row) {
+			return FALSE;
+		}
+		if ((float)$row['cost_price'] > 0) {
+			return FALSE;
+		}
+		$this->db->where('id', $product_id)->update('erp_products', array(
+			'cost_price' => $rate,
+			'updated_at' => date('Y-m-d H:i:s')
+		));
+		$legacy_table = isset($row['legacy_table']) ? (string)$row['legacy_table'] : '';
+		$legacy_id = isset($row['legacy_id']) ? (int)$row['legacy_id'] : 0;
+		$allowed = array('erp_textbooks', 'erp_notebooks', 'erp_stationery', 'erp_individual_products');
+		if ($legacy_id > 0 && in_array($legacy_table, $allowed, TRUE)
+			&& $this->db->table_exists($legacy_table)
+			&& $this->db->field_exists('cost_price', $legacy_table)) {
+			$this->db->where('id', $legacy_id)->update($legacy_table, array('cost_price' => $rate));
+		}
+		return TRUE;
+	}
 	
 	/**
 	 * Create product
@@ -34,6 +110,7 @@ class Product_model extends CI_Model
 	 */
 	public function create_product(array $data)
 	{
+		$this->ensure_cost_price_columns();
 		if (!isset($data['created_at']))
 		{
 			$data['created_at'] = date('Y-m-d H:i:s');
@@ -65,6 +142,7 @@ class Product_model extends CI_Model
 	 */
 	public function update_product($product_id, array $data)
 	{
+		$this->ensure_cost_price_columns();
 		if (!isset($data['updated_at']))
 		{
 			$data['updated_at'] = date('Y-m-d H:i:s');

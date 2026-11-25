@@ -223,7 +223,14 @@ class Purchase_in_model extends CI_Model
 		}
 
 		$this->ensureReceiptExtraColumns();
+		$this->ensureProductCostPriceColumns();
 		return TRUE;
+	}
+
+	protected function ensureProductCostPriceColumns()
+	{
+		$this->load->model('Product_model');
+		$this->Product_model->ensure_cost_price_columns();
 	}
 
 	protected function ensureReceiptExtraColumns()
@@ -649,10 +656,14 @@ class Purchase_in_model extends CI_Model
 			return 0;
 		}
 		$line = 1;
+		$this->load->model('Product_model');
 		foreach ($items as $item) {
 			$item['po_id'] = $po_id;
 			$item['line_no'] = $line++;
 			$this->db->insert('erp_purchase_order_items', $item);
+			if (!empty($item['product_id']) && isset($item['rate']) && (float)$item['rate'] > 0) {
+				$this->Product_model->fill_cost_price_if_empty((int)$item['product_id'], (float)$item['rate']);
+			}
 		}
 		if ($this->db->trans_status() === FALSE) {
 			$this->db->trans_rollback();
@@ -662,34 +673,196 @@ class Purchase_in_model extends CI_Model
 		return $po_id;
 	}
 
-	public function search_products($owner_vendor_id, $q, $limit = 25)
+	public function get_product_filter_options($owner_vendor_id)
 	{
+		$vid = (int)$owner_vendor_id;
+		$out = array(
+			'publishers' => array(),
+			'boards' => array(),
+			'grades' => array(),
+			'ages' => array(),
+			'stationery_categories' => array(),
+			'stationery_brands' => array(),
+			'stationery_colours' => array()
+		);
+		if ($this->db->table_exists('erp_textbook_publishers')) {
+			$out['publishers'] = $this->db->select('id,name')->from('erp_textbook_publishers')
+				->where('vendor_id', $vid)->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($this->db->table_exists('erp_school_boards')) {
+			$out['boards'] = $this->db->select('id,board_name')->from('erp_school_boards')
+				->order_by('board_name', 'ASC')->get()->result_array();
+		}
+		if ($this->db->table_exists('erp_textbook_grades')) {
+			$out['grades'] = $this->db->select('id,name')->from('erp_textbook_grades')
+				->where('vendor_id', $vid)->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($this->db->table_exists('erp_textbook_ages')) {
+			$out['ages'] = $this->db->select('id,name')->from('erp_textbook_ages')
+				->where('vendor_id', $vid)->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($this->db->table_exists('erp_stationery_categories')) {
+			$out['stationery_categories'] = $this->db->select('id,name')->from('erp_stationery_categories')
+				->where('vendor_id', $vid)->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($this->db->table_exists('erp_stationery_brands')) {
+			$out['stationery_brands'] = $this->db->select('id,name')->from('erp_stationery_brands')
+				->where('vendor_id', $vid)->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($this->db->table_exists('erp_stationery_colours')) {
+			$out['stationery_colours'] = $this->db->select('id,name')->from('erp_stationery_colours')
+				->where('vendor_id', $vid)->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		return $out;
+	}
+
+	public function search_products($owner_vendor_id, $q, $limit = 25, $type = '', $filters = array())
+	{
+		$this->ensureProductCostPriceColumns();
 		$q = trim((string)$q);
-		$limit = max(1, min(50, (int)$limit));
+		$type = strtolower(trim((string)$type));
+		if (!is_array($filters)) {
+			$filters = array();
+		}
+		$publisher_id = isset($filters['publisher_id']) ? (int)$filters['publisher_id'] : 0;
+		$board_id = isset($filters['board_id']) ? (int)$filters['board_id'] : 0;
+		$grade_age_type = isset($filters['grade_age_type']) ? trim((string)$filters['grade_age_type']) : '';
+		$grade_id = isset($filters['grade_id']) ? (int)$filters['grade_id'] : 0;
+		$age_id = isset($filters['age_id']) ? (int)$filters['age_id'] : 0;
+		$category_id = isset($filters['category_id']) ? (int)$filters['category_id'] : 0;
+		$brand_id = isset($filters['brand_id']) ? (int)$filters['brand_id'] : 0;
+		$colour_id = isset($filters['colour_id']) ? (int)$filters['colour_id'] : 0;
+		$notebook_brand_id = isset($filters['notebook_brand_id']) ? (int)$filters['notebook_brand_id'] : 0;
+
+		$limit = max(1, min(100, (int)$limit));
 		$results = array();
 
 		if (!$this->db->table_exists('erp_products')) {
 			return $results;
 		}
 
-		$this->db->select('id, product_name, type, hsn, gst, selling_price, product_mrp, sku');
-		$this->db->from('erp_products');
-		$this->db->where('vendor_id', (int)$owner_vendor_id);
-		$this->db->where('is_deleted', 0);
-		$this->db->where('status', 1);
+		$has_cp = $this->db->field_exists('cost_price', 'erp_products');
+		$has_code = $this->db->field_exists('product_code', 'erp_products');
+		$has_isbn = $this->db->field_exists('isbn', 'erp_products');
+		$select = 'p.id, p.product_name, p.type, p.hsn, p.gst, p.selling_price, p.product_mrp, p.sku';
+		if ($has_cp) {
+			$select .= ', p.cost_price';
+		}
+		if ($has_code) {
+			$select .= ', p.product_code';
+		}
+		if ($has_isbn) {
+			$select .= ', p.isbn';
+		}
+
+		$tokens = array();
 		if ($q !== '') {
-			$this->db->group_start();
-			$this->db->like('product_name', $q);
-			$this->db->or_like('sku', $q);
-			if (is_numeric($q)) {
-				$this->db->or_where('hsn', (int)$q);
-			} else {
-				$this->db->or_like('hsn', $q);
+			$parts = preg_split('/\s+/', $q);
+			foreach ($parts as $part) {
+				$part = trim($part);
+				if ($part !== '') {
+					$tokens[] = $part;
+				}
 			}
-			$this->db->or_like('type', $q);
+			$tokens = array_slice($tokens, 0, 6);
+		}
+
+		$need_textbook = ($type === 'textbook')
+			|| $publisher_id > 0 || $board_id > 0 || $grade_id > 0 || $age_id > 0
+			|| $grade_age_type === 'grade' || $grade_age_type === 'age';
+		$need_notebook = ($type === 'notebook') || $notebook_brand_id > 0;
+		$need_stationery = ($type === 'stationery') || $category_id > 0 || $brand_id > 0 || $colour_id > 0;
+
+		$this->db->select($select, FALSE);
+		$this->db->from('erp_products p');
+		$this->db->where('p.vendor_id', (int)$owner_vendor_id);
+		$this->db->where('p.is_deleted', 0);
+		$this->db->where('p.status', 1);
+		if ($type !== '' && $type !== 'all') {
+			$this->db->where('p.type', $type);
+		}
+
+		if ($need_textbook && $this->db->table_exists('erp_textbooks')) {
+			$this->db->join(
+				'erp_textbooks tb',
+				"tb.id = p.legacy_id AND p.legacy_table = 'erp_textbooks' AND p.type = 'textbook'",
+				($type === 'textbook' || $publisher_id || $board_id || $grade_id || $age_id) ? 'inner' : 'left'
+			);
+			if ($publisher_id > 0) {
+				$this->db->where('tb.publisher_id', $publisher_id);
+			}
+			if ($board_id > 0) {
+				$this->db->where('tb.board_id', $board_id);
+			}
+			if ($grade_age_type === 'grade' || $grade_age_type === 'age') {
+				$this->db->where('tb.grade_age_type', $grade_age_type);
+			}
+			if ($grade_id > 0 && $this->db->table_exists('erp_textbook_grade_mapping')) {
+				$this->db->join('erp_textbook_grade_mapping tgm', 'tgm.textbook_id = tb.id AND tgm.grade_id = ' . (int)$grade_id, 'inner');
+			}
+			if ($age_id > 0 && $this->db->table_exists('erp_textbook_age_mapping')) {
+				$this->db->join('erp_textbook_age_mapping tam', 'tam.textbook_id = tb.id AND tam.age_id = ' . (int)$age_id, 'inner');
+			}
+		}
+
+		if ($need_notebook && $this->db->table_exists('erp_notebooks')) {
+			$this->db->join(
+				'erp_notebooks nb',
+				"nb.id = p.legacy_id AND p.legacy_table = 'erp_notebooks' AND p.type = 'notebook'",
+				($type === 'notebook' || $notebook_brand_id > 0) ? 'inner' : 'left'
+			);
+			if ($notebook_brand_id > 0) {
+				$this->db->where('nb.brand_id', $notebook_brand_id);
+			}
+		}
+
+		if ($need_stationery && $this->db->table_exists('erp_stationery')) {
+			$this->db->join(
+				'erp_stationery st',
+				"st.id = p.legacy_id AND p.legacy_table = 'erp_stationery' AND p.type = 'stationery'",
+				($type === 'stationery' || $category_id || $brand_id || $colour_id) ? 'inner' : 'left'
+			);
+			if ($category_id > 0) {
+				$this->db->where('st.category_id', $category_id);
+			}
+			if ($brand_id > 0) {
+				$this->db->where('st.brand_id', $brand_id);
+			}
+			if ($colour_id > 0) {
+				$this->db->where('st.colour_id', $colour_id);
+			}
+		}
+
+		foreach ($tokens as $token) {
+			$this->db->group_start();
+			$this->db->like('p.product_name', $token);
+			$this->db->or_like('p.sku', $token);
+			$this->db->or_like('p.type', $token);
+			if ($has_code) {
+				$this->db->or_like('p.product_code', $token);
+			}
+			if ($has_isbn) {
+				$this->db->or_like('p.isbn', $token);
+			}
+			if (is_numeric($token)) {
+				$this->db->or_where('p.hsn', (int)$token);
+			} else {
+				$this->db->or_like('p.hsn', $token);
+			}
 			$this->db->group_end();
 		}
-		$this->db->order_by('product_name', 'ASC');
+
+		if ($q !== '') {
+			$esc = $this->db->escape_like_str($q);
+			$this->db->order_by("CASE
+				WHEN p.product_name = ".$this->db->escape($q)." THEN 0
+				WHEN p.product_name LIKE ".$this->db->escape($esc.'%')." THEN 1
+				WHEN p.sku = ".$this->db->escape($q)." THEN 2
+				WHEN p.sku LIKE ".$this->db->escape($esc.'%')." THEN 3
+				ELSE 4 END", '', FALSE);
+		}
+		$this->db->group_by('p.id');
+		$this->db->order_by('p.product_name', 'ASC');
 		$this->db->limit($limit);
 		$rows = $this->db->get()->result_array();
 
@@ -711,16 +884,17 @@ class Purchase_in_model extends CI_Model
 
 		foreach ($rows as $r) {
 			$pid = (int)$r['id'];
+			$cost = ($has_cp && isset($r['cost_price'])) ? (float)$r['cost_price'] : 0;
 			$results[] = array(
 				'id' => $pid,
 				'product_name' => (string)$r['product_name'],
 				'product_type' => (string)$r['type'],
 				'hsn' => isset($r['hsn']) ? (string)$r['hsn'] : '',
 				'gst_percent' => isset($r['gst']) ? (float)$r['gst'] : 0,
-				'rate' => isset($r['product_mrp']) && (float)$r['product_mrp'] > 0
-					? (float)$r['product_mrp']
-					: (float)$r['selling_price'],
+				'rate' => 0,
+				'cost_price' => $cost,
 				'sku' => isset($r['sku']) ? (string)$r['sku'] : '',
+				'product_code' => isset($r['product_code']) ? (string)$r['product_code'] : '',
 				'stock' => isset($stock_map[$pid]) ? $stock_map[$pid] : 0,
 				'category' => ucfirst((string)$r['type'])
 			);

@@ -268,14 +268,22 @@
 			<div class="card-body">
 				<h2 class=" border-bottom pb-3 mb-3">Price</h2>
 				<div class="row gx-3">
-					<div class="col-lg-6 col-md-6">
+					<div class="col-lg-4 col-md-4">
+						<div class="mb-3">
+							<label class="form-label">Cost Price</label>
+							<input type="number" name="cost_price" id="cost_price" class="form-control" form="individual-product-form" value="<?php echo set_value('cost_price'); ?>" step="0.01" min="0">
+							<small class="text-muted fs-12">Optional. Auto-filled from PO rate if left blank</small>
+							<?php echo form_error('cost_price', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
+						</div>
+					</div>
+					<div class="col-lg-4 col-md-4">
 						<div class="mb-3">
 							<label class="form-label">MRP <span class="text-danger">*</span></label>
 							<input type="number" name="mrp" id="mrp" class="form-control" form="individual-product-form" value="<?php echo set_value('mrp'); ?>" step="0.01" min="0" required>
 							<?php echo form_error('mrp', '<div class="text-danger fs-13 mt-1">', '</div>'); ?>
 						</div>
 					</div>
-					<div class="col-lg-6 col-md-6">
+					<div class="col-lg-4 col-md-4">
 						<div class="mb-3">
 							<label class="form-label">Selling Price <span class="text-danger">*</span></label>
 							<input type="number" name="selling_price" id="selling_price" class="form-control" form="individual-product-form" value="<?php echo set_value('selling_price'); ?>" step="0.01" min="0" required>

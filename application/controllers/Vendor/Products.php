@@ -2364,6 +2364,7 @@ class Products extends Vendor_base
 			'hsn' => $this->input->post('hsn'),
 			'mrp' => $has_variations ? 0.00 : $this->input->post('mrp'),
 			'selling_price' => $has_variations ? 0.00 : $this->input->post('selling_price'),
+			'cost_price' => $has_variations ? 0.00 : $this->parseCostPricePost(),
 			'meta_title' => $this->input->post('meta_title'),
 			'meta_keywords' => $this->input->post('meta_keywords'),
 			'meta_description' => $this->input->post('meta_description'),
@@ -2372,6 +2373,7 @@ class Products extends Vendor_base
 		);
 		
 		// Create product
+		$this->Product_model->ensure_cost_price_columns();
 		$product_id = $this->Individual_product_model->createProduct($product_data);
 		
 		if ($product_id)
@@ -2385,6 +2387,7 @@ class Products extends Vendor_base
 				'status'           => $this->Product_model->normalize_product_status($product_data['status']),
 				'selling_price'    => $product_data['selling_price'],
 				'product_mrp'      => $product_data['mrp'],
+				'cost_price'       => $product_data['cost_price'],
 				'gst'              => isset($product_data['gst_percentage']) ? $product_data['gst_percentage'] : NULL,
 				'isbn'             => isset($product_data['isbn']) ? $product_data['isbn'] : NULL,
 				'hsn'              => isset($product_data['hsn']) ? $product_data['hsn'] : NULL,
@@ -2784,6 +2787,7 @@ class Products extends Vendor_base
 			'hsn' => $this->input->post('hsn'),
 			'mrp' => $has_variations ? 0.00 : $this->input->post('mrp'),
 			'selling_price' => $has_variations ? 0.00 : $this->input->post('selling_price'),
+			'cost_price' => $has_variations ? 0.00 : $this->parseCostPricePost(),
 			'meta_title' => $this->input->post('meta_title'),
 			'meta_keywords' => $this->input->post('meta_keywords'),
 			'meta_description' => $this->input->post('meta_description'),
@@ -2792,6 +2796,7 @@ class Products extends Vendor_base
 		);
 		
 		// Update product
+		$this->Product_model->ensure_cost_price_columns();
 		$updated = $this->Individual_product_model->updateProduct($id, $product_data);
 		
 		if ($updated)
@@ -2806,6 +2811,7 @@ class Products extends Vendor_base
 					'status'           => $this->Product_model->normalize_product_status(isset($fresh_individual['status']) ? $fresh_individual['status'] : 'active'),
 					'selling_price'    => $product_data['selling_price'],
 					'product_mrp'      => $product_data['mrp'],
+					'cost_price'       => $product_data['cost_price'],
 					'gst'              => $product_data['gst_percentage'],
 					'isbn'             => $product_data['isbn'],
 					'hsn'              => $product_data['hsn'],
@@ -4067,6 +4073,7 @@ class Products extends Vendor_base
 			{
 				$stationery_data = $this->stationeryDataFromPost($this->current_vendor['id'], TRUE);
 				
+				$this->Product_model->ensure_cost_price_columns();
 				$this->db->insert('erp_stationery', $stationery_data);
 				$stationery_id = (int) $this->db->insert_id();
 				
@@ -4149,6 +4156,7 @@ class Products extends Vendor_base
 			{
 				$stationery_data = $this->stationeryDataFromPost($this->current_vendor['id'], FALSE);
 				
+				$this->Product_model->ensure_cost_price_columns();
 				$this->db->where('id', $id);
 				$this->db->where('vendor_id', $this->current_vendor['id']);
 				$this->db->update('erp_stationery', $stationery_data);
@@ -4727,6 +4735,7 @@ class Products extends Vendor_base
 					'sku' => $this->input->post('sku') ? $this->input->post('sku') : NULL,
 					'mrp' => $this->input->post('mrp'),
 					'selling_price' => $this->input->post('selling_price'),
+					'cost_price' => $this->parseCostPricePost(),
 					'meta_title' => $this->input->post('meta_title') ? $this->input->post('meta_title') : NULL,
 					'meta_keywords' => $this->input->post('meta_keywords') ? $this->input->post('meta_keywords') : NULL,
 					'meta_description' => $this->input->post('meta_description') ? $this->input->post('meta_description') : NULL,
@@ -4738,6 +4747,7 @@ class Products extends Vendor_base
 				);
 				
 				// Insert textbook into legacy table
+				$this->Product_model->ensure_cost_price_columns();
 				$this->db->insert('erp_textbooks', $textbook_data);
 				$textbook_id = $this->db->insert_id();
 				
@@ -4760,6 +4770,7 @@ class Products extends Vendor_base
 						'discount_amount'=> 0,
 						'selling_price'  => $textbook_data['selling_price'],
 						'product_mrp'    => $textbook_data['mrp'],
+						'cost_price'     => $textbook_data['cost_price'],
 						'gst'            => $textbook_data['gst_percentage'],
 						'isbn'           => $textbook_data['isbn'],
 					'hsn'            => $textbook_data['hsn'],
@@ -5117,6 +5128,7 @@ class Products extends Vendor_base
 					'sku' => $this->input->post('sku') ? $this->input->post('sku') : NULL,
 					'mrp' => $this->input->post('mrp'),
 					'selling_price' => $this->input->post('selling_price'),
+					'cost_price' => $this->parseCostPricePost(),
 					'meta_title' => $this->input->post('meta_title') ? $this->input->post('meta_title') : NULL,
 					'meta_keywords' => $this->input->post('meta_keywords') ? $this->input->post('meta_keywords') : NULL,
 					'meta_description' => $this->input->post('meta_description') ? $this->input->post('meta_description') : NULL,
@@ -5126,6 +5138,7 @@ class Products extends Vendor_base
 				);
 				
 				// Update textbook
+				$this->Product_model->ensure_cost_price_columns();
 				$this->db->where('id', $id);
 				$this->db->where('vendor_id', $this->current_vendor['id']);
 				$this->db->update('erp_textbooks', $textbook_data);
@@ -5143,6 +5156,7 @@ class Products extends Vendor_base
 						'board_id'        => $textbook_data['board_id'],
 						'selling_price'   => $textbook_data['selling_price'],
 						'product_mrp'     => $textbook_data['mrp'],
+						'cost_price'      => $textbook_data['cost_price'],
 						'gst'             => $textbook_data['gst_percentage'],
 						'isbn'            => $textbook_data['isbn'],
 						'hsn'             => $textbook_data['hsn'],
@@ -8083,6 +8097,7 @@ class Products extends Vendor_base
 					'sku' => $this->input->post('sku') ? $this->input->post('sku') : NULL,
 					'mrp' => $this->input->post('mrp'),
 					'selling_price' => $this->input->post('selling_price'),
+					'cost_price' => $this->parseCostPricePost(),
 					'meta_title' => $this->input->post('meta_title') ? $this->input->post('meta_title') : NULL,
 					'meta_keywords' => $this->input->post('meta_keywords') ? $this->input->post('meta_keywords') : NULL,
 					'meta_description' => $this->input->post('meta_description') ? $this->input->post('meta_description') : NULL,
@@ -8094,6 +8109,7 @@ class Products extends Vendor_base
 				);
 				
 				// Insert notebook into legacy table
+				$this->Product_model->ensure_cost_price_columns();
 				$this->db->insert('erp_notebooks', $notebook_data);
 				$notebook_id = $this->db->insert_id();
 				
@@ -8116,6 +8132,7 @@ class Products extends Vendor_base
 						'discount_amount'=> 0,
 						'selling_price'  => $notebook_data['selling_price'],
 						'product_mrp'    => $notebook_data['mrp'],
+						'cost_price'     => $notebook_data['cost_price'],
 						'gst'            => $notebook_data['gst_percentage'],
 						'isbn'           => $notebook_data['isbn'],
 						'hsn'            => $notebook_data['hsn'],
@@ -8264,6 +8281,7 @@ class Products extends Vendor_base
 					'sku' => $this->input->post('sku') ? $this->input->post('sku') : NULL,
 					'mrp' => $this->input->post('mrp'),
 					'selling_price' => $this->input->post('selling_price'),
+					'cost_price' => $this->parseCostPricePost(),
 					'meta_title' => $this->input->post('meta_title') ? $this->input->post('meta_title') : NULL,
 					'meta_keywords' => $this->input->post('meta_keywords') ? $this->input->post('meta_keywords') : NULL,
 					'meta_description' => $this->input->post('meta_description') ? $this->input->post('meta_description') : NULL,
@@ -8274,6 +8292,7 @@ class Products extends Vendor_base
 				);
 				
 				// Update notebook in legacy table
+				$this->Product_model->ensure_cost_price_columns();
 				$this->db->where('id', $id);
 				$this->db->where('vendor_id', $this->current_vendor['id']);
 				$this->db->update('erp_notebooks', $notebook_data);
@@ -8289,6 +8308,7 @@ class Products extends Vendor_base
 						'brand_id'        => $notebook_data['brand_id'],
 						'selling_price'   => $notebook_data['selling_price'],
 						'product_mrp'     => $notebook_data['mrp'],
+						'cost_price'      => $notebook_data['cost_price'],
 						'gst'             => $notebook_data['gst_percentage'],
 						'isbn'            => $notebook_data['isbn'],
 					'hsn'             => $notebook_data['hsn'],
@@ -8743,6 +8763,7 @@ class Products extends Vendor_base
 			'hsn' => $this->input->post('hsn') ? $this->input->post('hsn') : NULL,
 			'mrp' => $this->input->post('mrp'),
 			'selling_price' => $this->input->post('selling_price'),
+			'cost_price' => $this->parseCostPricePost(),
 			'meta_title' => $this->input->post('meta_title') ? $this->input->post('meta_title') : NULL,
 			'meta_keywords' => $this->input->post('meta_keywords') ? $this->input->post('meta_keywords') : NULL,
 			'meta_description' => $this->input->post('meta_description') ? $this->input->post('meta_description') : NULL,
@@ -8759,6 +8780,15 @@ class Products extends Vendor_base
 		}
 		
 		return $data;
+	}
+
+	protected function parseCostPricePost()
+	{
+		$raw = $this->input->post('cost_price');
+		if ($raw === NULL || $raw === '') {
+			return 0.00;
+		}
+		return round((float)$raw, 2);
 	}
 
 	public function validate_stationery_selling_price($selling_price)
@@ -8787,6 +8817,7 @@ class Products extends Vendor_base
 			'discount_amount' => 0,
 			'selling_price' => $stationery_data['selling_price'],
 			'product_mrp' => $stationery_data['mrp'],
+			'cost_price' => isset($stationery_data['cost_price']) ? $stationery_data['cost_price'] : 0,
 			'gst' => $stationery_data['gst_percentage'],
 			'isbn' => $stationery_data['isbn'],
 			'hsn' => $stationery_data['hsn'],

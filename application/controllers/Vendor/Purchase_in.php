@@ -423,6 +423,7 @@ class Purchase_in extends Vendor_base
 		$data['suppliers'] = $this->Purchase_in_model->get_vendors($this->ownerId());
 		$suggested = $this->Purchase_in_model->suggest_po_no($this->ownerId());
 		$data['suggested_po'] = $suggested;
+		$data['product_filters'] = $this->Purchase_in_model->get_product_filter_options($this->ownerId());
 		$data['breadcrumb'] = array(
 			array('label' => 'Purchase In', 'url' => '#'),
 			array('label' => 'Purchase Order', 'url' => base_url('purchase-in/orders')),
@@ -709,8 +710,30 @@ class Purchase_in extends Vendor_base
 	{
 		header('Content-Type: application/json');
 		$q = trim((string)$this->input->get('q'));
-		$rows = $this->Purchase_in_model->search_products($this->ownerId(), $q, 25);
-		echo json_encode(array('status' => 'success', 'products' => $rows));
+		$type = trim((string)$this->input->get('type'));
+		$limit = (int)$this->input->get('limit');
+		if ($limit <= 0) {
+			$limit = 60;
+		}
+		$filters = array(
+			'publisher_id' => (int)$this->input->get('publisher_id'),
+			'board_id' => (int)$this->input->get('board_id'),
+			'grade_age_type' => trim((string)$this->input->get('grade_age_type')),
+			'grade_id' => (int)$this->input->get('grade_id'),
+			'age_id' => (int)$this->input->get('age_id'),
+			'category_id' => (int)$this->input->get('category_id'),
+			'brand_id' => (int)$this->input->get('brand_id'),
+			'colour_id' => (int)$this->input->get('colour_id'),
+			'notebook_brand_id' => (int)$this->input->get('notebook_brand_id')
+		);
+		$rows = $this->Purchase_in_model->search_products($this->ownerId(), $q, $limit, $type, $filters);
+		echo json_encode(array(
+			'status' => 'success',
+			'products' => $rows,
+			'count' => count($rows),
+			'q' => $q,
+			'type' => $type
+		));
 	}
 
 	public function product_history()
