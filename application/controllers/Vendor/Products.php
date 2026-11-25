@@ -138,6 +138,38 @@ class Products extends Vendor_base
 		$data['boards'] = $this->db->table_exists('erp_school_boards') ? $this->db->select('id,board_name')->from('erp_school_boards')->where('vendor_id', (int)$this->current_vendor['id'])->order_by('board_name','ASC')->get()->result_array() : array();
 		$data['grades'] = $this->db->table_exists('erp_classes') ? $this->db->select('id,class_name')->from('erp_classes')->where('vendor_id', (int)$this->current_vendor['id'])->order_by('class_name','ASC')->get()->result_array() : array();
 
+		$data['has_textbook_feature'] = (bool)$this->checkFeatureAccess('textbook');
+		$data['has_notebook_feature'] = (bool)$this->checkFeatureAccess('notebooks');
+		$data['has_stationery_feature'] = (bool)$this->checkFeatureAccess('stationery');
+		$data['show_book_stock_filters'] = ($data['has_textbook_feature'] || $data['has_notebook_feature']);
+		$data['show_stationery_stock_filters'] = $data['has_stationery_feature'];
+
+		$data['textbook_publishers'] = array();
+		$data['textbook_grades'] = array();
+		$data['textbook_ages'] = array();
+		$data['stationery_categories'] = array();
+		$data['stationery_brands'] = array();
+		$data['stationery_colours'] = array();
+
+		if ($data['show_book_stock_filters'] && $this->db->table_exists('erp_textbook_publishers')) {
+			$data['textbook_publishers'] = $this->db->select('id,name')->from('erp_textbook_publishers')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_book_stock_filters'] && $this->db->table_exists('erp_textbook_grades')) {
+			$data['textbook_grades'] = $this->db->select('id,name')->from('erp_textbook_grades')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_book_stock_filters'] && $this->db->table_exists('erp_textbook_ages')) {
+			$data['textbook_ages'] = $this->db->select('id,name')->from('erp_textbook_ages')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_stationery_stock_filters'] && $this->db->table_exists('erp_stationery_categories')) {
+			$data['stationery_categories'] = $this->db->select('id,name')->from('erp_stationery_categories')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_stationery_stock_filters'] && $this->db->table_exists('erp_stationery_brands')) {
+			$data['stationery_brands'] = $this->db->select('id,name')->from('erp_stationery_brands')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_stationery_stock_filters'] && $this->db->table_exists('erp_stationery_colours')) {
+			$data['stationery_colours'] = $this->db->select('id,name')->from('erp_stationery_colours')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+
 		if ($data['tables_ready'])
 		{
 			$location_id = $this->getMainAdminStockLocationId();
@@ -231,6 +263,87 @@ class Products extends Vendor_base
 		$this->load->view('vendor/layouts/index_template', $data);
 	}
 
+	public function stock_management_update()
+	{
+		if (!$this->checkFeatureAccess('stock_management'))
+		{
+			redirect('dashboard');
+			return;
+		}
+
+		$data['title'] = 'Update Stock - ' . $this->current_vendor['name'];
+		$data['current_vendor'] = $this->current_vendor;
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
+		$data['schools'] = $this->db->table_exists('erp_schools') ? $this->db->select('id,school_name')->from('erp_schools')->where('vendor_id', (int)$this->current_vendor['id'])->order_by('school_name','ASC')->get()->result_array() : array();
+		$data['boards'] = $this->db->table_exists('erp_school_boards') ? $this->db->select('id,board_name')->from('erp_school_boards')->where('vendor_id', (int)$this->current_vendor['id'])->order_by('board_name','ASC')->get()->result_array() : array();
+
+		$data['has_textbook_feature'] = (bool)$this->checkFeatureAccess('textbook');
+		$data['has_notebook_feature'] = (bool)$this->checkFeatureAccess('notebooks');
+		$data['has_stationery_feature'] = (bool)$this->checkFeatureAccess('stationery');
+		$data['show_book_stock_filters'] = ($data['has_textbook_feature'] || $data['has_notebook_feature']);
+		$data['show_stationery_stock_filters'] = $data['has_stationery_feature'];
+
+		$data['textbook_publishers'] = array();
+		$data['textbook_grades'] = array();
+		$data['textbook_ages'] = array();
+		$data['stationery_categories'] = array();
+		$data['stationery_brands'] = array();
+		$data['stationery_colours'] = array();
+
+		if ($data['show_book_stock_filters'] && $this->db->table_exists('erp_textbook_publishers')) {
+			$data['textbook_publishers'] = $this->db->select('id,name')->from('erp_textbook_publishers')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_book_stock_filters'] && $this->db->table_exists('erp_textbook_grades')) {
+			$data['textbook_grades'] = $this->db->select('id,name')->from('erp_textbook_grades')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_book_stock_filters'] && $this->db->table_exists('erp_textbook_ages')) {
+			$data['textbook_ages'] = $this->db->select('id,name')->from('erp_textbook_ages')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_stationery_stock_filters'] && $this->db->table_exists('erp_stationery_categories')) {
+			$data['stationery_categories'] = $this->db->select('id,name')->from('erp_stationery_categories')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_stationery_stock_filters'] && $this->db->table_exists('erp_stationery_brands')) {
+			$data['stationery_brands'] = $this->db->select('id,name')->from('erp_stationery_brands')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+		if ($data['show_stationery_stock_filters'] && $this->db->table_exists('erp_stationery_colours')) {
+			$data['stationery_colours'] = $this->db->select('id,name')->from('erp_stationery_colours')->where('vendor_id', (int)$this->current_vendor['id'])->where('status', 'active')->order_by('name', 'ASC')->get()->result_array();
+		}
+
+		$prefill_item = null;
+		$item_type = trim((string)$this->input->get('item_type', TRUE));
+		$item_ref_id = (int)$this->input->get('item_ref_id', TRUE);
+		if ($item_type !== '' && $item_ref_id > 0) {
+			$prefill_item = array(
+				'item_type' => $item_type,
+				'item_ref_id' => $item_ref_id,
+				'variation_key' => trim((string)$this->input->get('variation_key', TRUE)) ?: 'default',
+				'school_id' => (int)$this->input->get('school_id', TRUE),
+				'branch_id' => (int)$this->input->get('branch_id', TRUE),
+				'product_name' => trim((string)$this->input->get('product_name', TRUE)),
+				'uniform_type_name' => trim((string)$this->input->get('uniform_type', TRUE)),
+				'school_name' => trim((string)$this->input->get('school', TRUE)),
+				'branch_name' => trim((string)$this->input->get('branch', TRUE)),
+				'board_name' => trim((string)$this->input->get('board', TRUE)),
+				'grade_name' => trim((string)$this->input->get('grade', TRUE)),
+				'qty_available' => (float)$this->input->get('current_qty', TRUE),
+				'operation' => 'add',
+				'qty' => 1,
+				'remarks' => ''
+			);
+		}
+		$data['prefill_item'] = $prefill_item;
+
+		$data['breadcrumb'] = array(
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+			array('label' => 'Products', 'url' => '#'),
+			array('label' => 'Stock Management', 'url' => base_url('products/stock_management')),
+			array('label' => 'Update Stock', 'active' => true)
+		);
+
+		$data['content'] = $this->load->view('vendor/products/stock_management_update', $data, TRUE);
+		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
 
 	public function stock_management_export()
 	{
@@ -251,7 +364,7 @@ class Products extends Vendor_base
 		header('Content-Disposition: attachment; filename=' . $filename);
 
 		$out = fopen('php://output', 'w');
-		fputcsv($out, array('Product Name', 'Uniform Type', 'Size', 'Gender', 'School', 'Board', 'Grade', 'Total Qty', 'Last Update'));
+		fputcsv($out, array('Item Type', 'Item Ref ID', 'Variation Key', 'School ID', 'Branch ID', 'Product Name', 'Uniform Type', 'Size', 'Gender', 'School', 'Board', 'Grade', 'Total Qty', 'Last Update'));
 		foreach ($rows as $row) {
 			$school_name = isset($row['school_name']) ? (string)$row['school_name'] : '-';
 			$branch_name = isset($row['branch_name']) ? (string)$row['branch_name'] : '';
@@ -261,6 +374,11 @@ class Products extends Vendor_base
 			}
 			$last_update = !empty($row['last_stock_update']) ? date('d-m-Y h:i:s A', strtotime($row['last_stock_update'])) : 'Never';
 			fputcsv($out, array(
+				isset($row['item_type']) ? $row['item_type'] : '',
+				isset($row['item_ref_id']) ? (int)$row['item_ref_id'] : 0,
+				isset($row['variation_key']) ? $row['variation_key'] : 'default',
+				isset($row['school_id']) ? (int)$row['school_id'] : 0,
+				isset($row['branch_id']) ? (int)$row['branch_id'] : 0,
 				isset($row['product_name']) ? $row['product_name'] : '',
 				isset($row['uniform_type_name']) ? $row['uniform_type_name'] : '-',
 				isset($row['variation_key']) ? $row['variation_key'] : '-',
@@ -274,6 +392,231 @@ class Products extends Vendor_base
 		}
 		fclose($out);
 		exit;
+	}
+
+	public function stock_management_import()
+	{
+		if (!$this->checkFeatureAccess('stock_management')) {
+			redirect('dashboard');
+			return;
+		}
+
+		$data['title'] = 'Import Stock - ' . $this->current_vendor['name'];
+		$data['current_vendor'] = $this->current_vendor;
+		$data['vendor_domain'] = $this->getVendorDomainForUrl();
+		$data['import_results'] = NULL;
+		$data['tables_ready'] = ($this->db->table_exists('inventory_stock_snapshot') && $this->db->table_exists('inventory_stock_movements') && $this->db->table_exists('inventory_locations'));
+		$data['breadcrumb'] = array(
+			array('label' => 'Dashboard', 'url' => base_url($this->config->item('base_url') . '/dashboard')),
+			array('label' => 'Products', 'url' => '#'),
+			array('label' => 'Stock Management', 'url' => base_url('products/stock_management')),
+			array('label' => 'Import Stock', 'active' => true)
+		);
+
+		$data['has_textbook_feature'] = (bool)$this->checkFeatureAccess('textbook');
+		$data['has_notebook_feature'] = (bool)$this->checkFeatureAccess('notebooks');
+		$data['has_stationery_feature'] = (bool)$this->checkFeatureAccess('stationery');
+
+		if ($data['tables_ready'] && strtoupper((string)$this->input->method()) === 'POST') {
+			if (empty($_FILES['import_file']['name'])) {
+				$this->session->set_flashdata('error', 'Please choose an Excel file (.xlsx) to import.');
+			} else {
+				$data['import_results'] = $this->processStockImportUpload($_FILES['import_file']);
+				$summary = $data['import_results'];
+				if (!empty($summary['error'])) {
+					$this->session->set_flashdata('error', $summary['error']);
+				} else {
+					$this->session->set_flashdata(
+						'success',
+						'Import finished. Opening: ' . (int)$summary['opening'] .
+						', Updated: ' . (int)$summary['updated'] .
+						', Skipped: ' . (int)$summary['skipped'] .
+						', Failed: ' . (int)$summary['failed']
+					);
+				}
+			}
+		}
+
+		$data['content'] = $this->load->view('vendor/products/stock_management_import', $data, TRUE);
+		$this->load->view('vendor/layouts/index_template', $data);
+	}
+
+	public function stock_management_import_template()
+	{
+		if (!$this->checkFeatureAccess('stock_management')) {
+			show_error('Forbidden', 403);
+			return;
+		}
+		if (!$this->db->table_exists('inventory_stock_snapshot') || !$this->db->table_exists('inventory_stock_movements') || !$this->db->table_exists('inventory_locations')) {
+			show_error('Stock tables are not ready.', 500);
+			return;
+		}
+
+		$this->load->model('Stock_import_model');
+		$features = array(
+			'has_textbook' => (bool)$this->checkFeatureAccess('textbook'),
+			'has_notebook' => (bool)$this->checkFeatureAccess('notebooks'),
+			'has_stationery' => (bool)$this->checkFeatureAccess('stationery')
+		);
+		try {
+			$spreadsheet = $this->Stock_import_model->buildTemplate((int)$this->current_vendor['id'], $features);
+			$this->Stock_import_model->streamSpreadsheet($spreadsheet, 'stock_import_template.xlsx');
+		} catch (Exception $e) {
+			$this->session->set_flashdata('error', 'Unable to generate template: ' . $e->getMessage());
+			redirect('products/stock_management/import');
+		}
+	}
+
+	private function processStockImportUpload($file)
+	{
+		$result = array(
+			'total' => 0,
+			'opening' => 0,
+			'updated' => 0,
+			'skipped' => 0,
+			'failed' => 0,
+			'rows' => array(),
+			'error' => ''
+		);
+
+		if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+			$result['error'] = 'Invalid upload.';
+			return $result;
+		}
+
+		$ext = strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION));
+		if ($ext !== 'xlsx') {
+			$result['error'] = 'Only Excel (.xlsx) files are supported. Download the template.';
+			return $result;
+		}
+
+		$this->load->model('Stock_import_model');
+		try {
+			$import_rows = $this->Stock_import_model->parseUpload($file['tmp_name']);
+		} catch (Exception $e) {
+			$result['error'] = $e->getMessage();
+			return $result;
+		}
+
+		$location_id = $this->getMainAdminStockLocationId();
+		$catalog_rows = $this->buildStockCatalogRows($location_id);
+		$this->db->trans_begin();
+
+		foreach ($import_rows as $import_row) {
+			$line = isset($import_row['_line']) ? (int)$import_row['_line'] : 0;
+			$result['total']++;
+			$product_name = trim((string)(isset($import_row['product_name']) ? $import_row['product_name'] : ''));
+			$qty_raw = trim((string)(isset($import_row['qty']) ? $import_row['qty'] : ''));
+
+			if ($qty_raw === '') {
+				$result['skipped']++;
+				$result['rows'][] = array('line' => $line, 'status' => 'skipped', 'message' => 'Qty blank for ' . ($product_name !== '' ? $product_name : 'row'));
+				continue;
+			}
+			if (!is_numeric($qty_raw) || (float)$qty_raw < 0) {
+				$result['failed']++;
+				$result['rows'][] = array('line' => $line, 'status' => 'failed', 'message' => 'Invalid Qty for ' . ($product_name !== '' ? $product_name : 'row'));
+				continue;
+			}
+
+			$match_error = '';
+			$matched = $this->Stock_import_model->matchCatalogRow($import_row, $catalog_rows, $match_error);
+			if (!$matched) {
+				$result['failed']++;
+				$result['rows'][] = array('line' => $line, 'status' => 'failed', 'message' => $match_error);
+				continue;
+			}
+
+			$item_type = (string)$matched['item_type'];
+			$item_ref_id = (int)$matched['item_ref_id'];
+			$variation_key = !empty($matched['variation_key']) ? (string)$matched['variation_key'] : 'default';
+			$school_id = isset($matched['school_id']) ? (int)$matched['school_id'] : 0;
+			$branch_id = isset($matched['branch_id']) ? (int)$matched['branch_id'] : 0;
+			$school_id_db = $school_id > 0 ? $school_id : NULL;
+			$branch_id_db = $branch_id > 0 ? $branch_id : NULL;
+			$qty = (float)$qty_raw;
+			$label = $product_name !== '' ? $product_name : ($item_type . '#' . $item_ref_id);
+
+			$has_history = $this->db
+				->from('inventory_stock_movements')
+				->where('location_id', (int)$location_id)
+				->where('item_type', $item_type)
+				->where('item_ref_id', $item_ref_id)
+				->where('variation_key', $variation_key)
+				->where('school_id', $school_id_db)
+				->where('branch_id', $branch_id_db)
+				->limit(1)
+				->count_all_results() > 0;
+
+			$snapshot = $this->db
+				->where('location_id', (int)$location_id)
+				->where('item_type', $item_type)
+				->where('item_ref_id', $item_ref_id)
+				->where('variation_key', $variation_key)
+				->where('school_id', $school_id_db)
+				->where('branch_id', $branch_id_db)
+				->limit(1)
+				->get('inventory_stock_snapshot')
+				->row_array();
+			$before_qty = $snapshot ? (float)$snapshot['qty_available'] : 0.0;
+			$after_qty = $qty;
+
+			if (!$has_history) {
+				$before_qty = 0.0;
+				$delta = $after_qty - $before_qty;
+				$movement_type = 'opening_stock';
+				$remarks = 'Opening stock import';
+				$status = 'opening';
+				$result['opening']++;
+			} else {
+				$delta = $after_qty - $before_qty;
+				if (abs($delta) < 0.00001) {
+					$result['skipped']++;
+					$result['rows'][] = array('line' => $line, 'status' => 'skipped', 'message' => 'No qty change for ' . $label);
+					continue;
+				}
+				$movement_type = 'import_adjust';
+				$remarks = 'Stock import adjustment';
+				$status = 'updated';
+				$result['updated']++;
+			}
+
+			$this->setSnapshotQty($location_id, $item_type, $item_ref_id, $variation_key, $school_id_db, $branch_id_db, $after_qty);
+			$this->db->insert('inventory_stock_movements', array(
+				'movement_type' => $movement_type,
+				'external_ref' => $movement_type . ':' . $item_type . ':' . $item_ref_id . ':' . $variation_key . ':' . microtime(TRUE) . ':' . $line,
+				'location_id' => $location_id,
+				'item_type' => $item_type,
+				'item_ref_id' => $item_ref_id,
+				'variation_key' => $variation_key,
+				'school_id' => $school_id_db,
+				'branch_id' => $branch_id_db,
+				'qty_delta' => $delta,
+				'qty_before' => $before_qty,
+				'qty_after' => $after_qty,
+				'actor_type' => 'vendor_admin',
+				'actor_id' => (int)$this->current_vendor['id'],
+				'remarks' => $remarks
+			));
+
+			$result['rows'][] = array(
+				'line' => $line,
+				'status' => $status,
+				'message' => $label . ' → qty ' . (int)round($after_qty) . ($status === 'opening' ? ' (opening stock)' : ' (updated)')
+			);
+		}
+
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			$result['error'] = 'Import failed while saving stock rows.';
+			$result['opening'] = 0;
+			$result['updated'] = 0;
+			$result['skipped'] = 0;
+			$result['failed'] = $result['total'];
+			return $result;
+		}
+		$this->db->trans_commit();
+		return $result;
 	}
 
 	public function stock_management_item_history()
@@ -341,7 +684,7 @@ class Products extends Vendor_base
 		$opening_qty = 0.0;
 		$current_qty = 0.0;
 		$first_row = $this->db
-			->select('qty_before')
+			->select('movement_type,qty_before,qty_after')
 			->from('inventory_stock_movements')
 			->where('location_id', (int)$location_id)
 			->where('item_type', $item_type)
@@ -365,7 +708,12 @@ class Products extends Vendor_base
 			->get()
 			->row_array();
 		if (!empty($first_row)) {
-			$opening_qty = isset($first_row['qty_before']) ? (float)$first_row['qty_before'] : 0.0;
+			$first_type = strtolower((string)(isset($first_row['movement_type']) ? $first_row['movement_type'] : ''));
+			if ($first_type === 'opening_stock') {
+				$opening_qty = isset($first_row['qty_after']) ? (float)$first_row['qty_after'] : 0.0;
+			} else {
+				$opening_qty = isset($first_row['qty_before']) ? (float)$first_row['qty_before'] : 0.0;
+			}
 		}
 		if (!empty($last_row)) {
 			$current_qty = isset($last_row['qty_after']) ? (float)$last_row['qty_after'] : 0.0;
@@ -424,7 +772,14 @@ class Products extends Vendor_base
 		}
 		$q = trim((string)$this->input->get('q', TRUE));
 		$school_id = (int)$this->input->get('school_id', TRUE);
-		$gender = trim((string)$this->input->get('gender', TRUE));
+		$publisher_id = (int)$this->input->get('publisher_id', TRUE);
+		$board_id = (int)$this->input->get('board_id', TRUE);
+		$grade_age_type = trim((string)$this->input->get('grade_age_type', TRUE));
+		$grade_id = (int)$this->input->get('grade_id', TRUE);
+		$age_id = (int)$this->input->get('age_id', TRUE);
+		$category_id = (int)$this->input->get('category_id', TRUE);
+		$brand_id = (int)$this->input->get('brand_id', TRUE);
+		$colour_id = (int)$this->input->get('colour_id', TRUE);
 		
 		$location_id = $this->getMainAdminStockLocationId();
 		$rows = $this->buildStockCatalogRows($location_id);
@@ -433,16 +788,35 @@ class Products extends Vendor_base
 			if ($school_id > 0 && (int)$row['school_id'] !== $school_id) {
 				continue;
 			}
-			if ($gender !== '') {
-				$row_gender = strtolower((string)$row['gender']);
-				$search_gender = strtolower($gender);
-				if ($search_gender === 'unisex') {
-					if (stripos($row_gender, 'unisex') === FALSE) continue;
-				} else {
-					if (stripos($row_gender, $search_gender) === FALSE && stripos($row_gender, 'unisex') === FALSE) {
-						continue;
-					}
+			if ($publisher_id > 0 && (int)(isset($row['publisher_id']) ? $row['publisher_id'] : 0) !== $publisher_id) {
+				continue;
+			}
+			if ($board_id > 0 && (int)(isset($row['board_id']) ? $row['board_id'] : 0) !== $board_id) {
+				continue;
+			}
+			if ($grade_age_type !== '' && strtolower((string)(isset($row['grade_age_type']) ? $row['grade_age_type'] : '')) !== strtolower($grade_age_type)) {
+				continue;
+			}
+			if ($grade_id > 0) {
+				$grade_ids = isset($row['textbook_grade_ids']) && is_array($row['textbook_grade_ids']) ? $row['textbook_grade_ids'] : array();
+				if (!in_array($grade_id, $grade_ids, TRUE)) {
+					continue;
 				}
+			}
+			if ($age_id > 0) {
+				$age_ids = isset($row['textbook_age_ids']) && is_array($row['textbook_age_ids']) ? $row['textbook_age_ids'] : array();
+				if (!in_array($age_id, $age_ids, TRUE)) {
+					continue;
+				}
+			}
+			if ($category_id > 0 && (int)(isset($row['category_id']) ? $row['category_id'] : 0) !== $category_id) {
+				continue;
+			}
+			if ($brand_id > 0 && (int)(isset($row['brand_id']) ? $row['brand_id'] : 0) !== $brand_id) {
+				continue;
+			}
+			if ($colour_id > 0 && (int)(isset($row['colour_id']) ? $row['colour_id'] : 0) !== $colour_id) {
+				continue;
 			}
 			if ($q !== '') {
 				$haystack = strtolower(
@@ -454,8 +828,13 @@ class Products extends Vendor_base
 					(string)$row['branch_name'] . ' ' .
 					(string)$row['board_name'] . ' ' .
 					(string)$row['grade_name'] . ' ' .
+					(string)(isset($row['publisher_name']) ? $row['publisher_name'] : '') . ' ' .
+					(string)(isset($row['category_name']) ? $row['category_name'] : '') . ' ' .
+					(string)(isset($row['brand_name']) ? $row['brand_name'] : '') . ' ' .
+					(string)(isset($row['colour_name']) ? $row['colour_name'] : '') . ' ' .
 					(string)$row['item_ref_id'] . ' ' .
-					(string)$row['item_type']
+					(string)$row['item_type'] . ' ' .
+					(string)(isset($row['product_type']) ? $row['product_type'] : '')
 				);
 				$terms = array_filter(explode(' ', strtolower($q)));
 				$matches_all = true;
@@ -561,7 +940,7 @@ class Products extends Vendor_base
 		$adjustments = $this->input->post('adjustments');
 		if (empty($adjustments) || !is_array($adjustments)) {
 			$this->session->set_flashdata('error', 'No selected items for stock update.');
-			redirect('products/stock_management');
+			redirect('products/stock_management/update');
 			return;
 		}
 
@@ -634,10 +1013,11 @@ class Products extends Vendor_base
 		if ($this->db->trans_status() === FALSE) {
 			$this->db->trans_rollback();
 			$this->session->set_flashdata('error', 'Failed to update selected stock rows.');
-		} else {
-			$this->db->trans_commit();
-			$this->session->set_flashdata('success', 'Updated stock for ' . $updated_count . ' item(s).');
+			redirect('products/stock_management/update');
+			return;
 		}
+		$this->db->trans_commit();
+		$this->session->set_flashdata('success', 'Updated stock for ' . $updated_count . ' item(s).');
 		redirect('products/stock_management');
 	}
 
@@ -694,6 +1074,12 @@ class Products extends Vendor_base
 	private function resolveMovementSource($movement_type)
 	{
 		$t = strtolower((string)$movement_type);
+		if (strpos($t, 'opening') !== FALSE) {
+			return 'opening';
+		}
+		if (strpos($t, 'import') !== FALSE) {
+			return 'import';
+		}
 		if (strpos($t, 'order') !== FALSE) {
 			return 'order';
 		}
@@ -823,6 +1209,18 @@ class Products extends Vendor_base
 					'branch_id' => $row_branch_id,
 					'board_id' => isset($u['board_id']) ? (int)$u['board_id'] : 0,
 					'grade_ids' => !empty($u['class_id']) ? array_values(array_filter(array_map('intval', explode(',', (string)$u['class_id'])))) : array(),
+					'product_type' => 'uniform',
+					'publisher_id' => 0,
+					'publisher_name' => '',
+					'grade_age_type' => '',
+					'textbook_grade_ids' => array(),
+					'textbook_age_ids' => array(),
+					'category_id' => 0,
+					'category_name' => '',
+					'brand_id' => 0,
+					'brand_name' => '',
+					'colour_id' => 0,
+					'colour_name' => '',
 					'variation_key' => $variation_key,
 					'qty_available' => isset($snapshot_map[$key]) ? (float)$snapshot_map[$key] : 0.0,
 					'last_stock_update' => isset($movement_map[$key]) ? $movement_map[$key] : NULL
@@ -832,7 +1230,7 @@ class Products extends Vendor_base
 
 		if ($this->db->table_exists('erp_products')) {
 			$product_rows = $this->db
-				->select('id,product_name,type')
+				->select('id,product_name,type,legacy_table,legacy_id,board_id,brand_id,category_id,color_id')
 				->from('erp_products')
 				->where('vendor_id', (int)$this->current_vendor['id'])
 				->where('is_deleted', 0)
@@ -842,23 +1240,222 @@ class Products extends Vendor_base
 				->get()
 				->result_array();
 
+			$textbook_meta = array();
+			$notebook_meta = array();
+			$stationery_meta = array();
+			$publisher_name_map = array();
+			$board_name_map = array();
+			$category_name_map = array();
+			$brand_name_map = array();
+			$colour_name_map = array();
+			$textbook_grade_map = array();
+			$textbook_age_map = array();
+			$textbook_grade_name_map = array();
+			$textbook_age_name_map = array();
+
+			$textbook_legacy_ids = array();
+			$notebook_legacy_ids = array();
+			$stationery_legacy_ids = array();
+			foreach ($product_rows as $p) {
+				$ptype = strtolower((string)$p['type']);
+				$legacy_table = strtolower((string)$p['legacy_table']);
+				$legacy_id = (int)$p['legacy_id'];
+				if ($legacy_id <= 0) {
+					continue;
+				}
+				if ($ptype === 'textbook' || $legacy_table === 'erp_textbooks') {
+					$textbook_legacy_ids[] = $legacy_id;
+				} elseif ($ptype === 'notebook' || $legacy_table === 'erp_notebooks') {
+					$notebook_legacy_ids[] = $legacy_id;
+				} elseif ($ptype === 'stationery' || $legacy_table === 'erp_stationery') {
+					$stationery_legacy_ids[] = $legacy_id;
+				}
+			}
+			$textbook_legacy_ids = array_values(array_unique($textbook_legacy_ids));
+			$notebook_legacy_ids = array_values(array_unique($notebook_legacy_ids));
+			$stationery_legacy_ids = array_values(array_unique($stationery_legacy_ids));
+
+			if (!empty($textbook_legacy_ids) && $this->db->table_exists('erp_textbooks')) {
+				$tb_rows = $this->db->select('id,publisher_id,board_id,grade_age_type')->from('erp_textbooks')->where_in('id', $textbook_legacy_ids)->get()->result_array();
+				foreach ($tb_rows as $tb) {
+					$textbook_meta[(int)$tb['id']] = $tb;
+				}
+				if ($this->db->table_exists('erp_textbook_grade_mapping')) {
+					$gm_rows = $this->db->select('textbook_id,grade_id')->from('erp_textbook_grade_mapping')->where_in('textbook_id', $textbook_legacy_ids)->get()->result_array();
+					foreach ($gm_rows as $gm) {
+						$tid = (int)$gm['textbook_id'];
+						if (!isset($textbook_grade_map[$tid])) {
+							$textbook_grade_map[$tid] = array();
+						}
+						$textbook_grade_map[$tid][] = (int)$gm['grade_id'];
+					}
+				}
+				if ($this->db->table_exists('erp_textbook_age_mapping')) {
+					$am_rows = $this->db->select('textbook_id,age_id')->from('erp_textbook_age_mapping')->where_in('textbook_id', $textbook_legacy_ids)->get()->result_array();
+					foreach ($am_rows as $am) {
+						$tid = (int)$am['textbook_id'];
+						if (!isset($textbook_age_map[$tid])) {
+							$textbook_age_map[$tid] = array();
+						}
+						$textbook_age_map[$tid][] = (int)$am['age_id'];
+					}
+				}
+			}
+
+			if (!empty($notebook_legacy_ids) && $this->db->table_exists('erp_notebooks')) {
+				$nb_rows = $this->db->select('id,brand_id')->from('erp_notebooks')->where_in('id', $notebook_legacy_ids)->get()->result_array();
+				foreach ($nb_rows as $nb) {
+					$notebook_meta[(int)$nb['id']] = $nb;
+				}
+			}
+
+			if (!empty($stationery_legacy_ids) && $this->db->table_exists('erp_stationery')) {
+				$st_rows = $this->db->select('id,category_id,brand_id,colour_id')->from('erp_stationery')->where_in('id', $stationery_legacy_ids)->get()->result_array();
+				foreach ($st_rows as $st) {
+					$stationery_meta[(int)$st['id']] = $st;
+				}
+			}
+
+			if ($this->db->table_exists('erp_textbook_publishers')) {
+				foreach ($this->db->select('id,name')->from('erp_textbook_publishers')->where('vendor_id', (int)$this->current_vendor['id'])->get()->result_array() as $r) {
+					$publisher_name_map[(int)$r['id']] = (string)$r['name'];
+				}
+			}
+			if ($this->db->table_exists('erp_school_boards')) {
+				foreach ($this->db->select('id,board_name')->from('erp_school_boards')->where('vendor_id', (int)$this->current_vendor['id'])->get()->result_array() as $r) {
+					$board_name_map[(int)$r['id']] = (string)$r['board_name'];
+				}
+			}
+			if ($this->db->table_exists('erp_textbook_grades')) {
+				foreach ($this->db->select('id,name')->from('erp_textbook_grades')->where('vendor_id', (int)$this->current_vendor['id'])->get()->result_array() as $r) {
+					$textbook_grade_name_map[(int)$r['id']] = (string)$r['name'];
+				}
+			}
+			if ($this->db->table_exists('erp_textbook_ages')) {
+				foreach ($this->db->select('id,name')->from('erp_textbook_ages')->where('vendor_id', (int)$this->current_vendor['id'])->get()->result_array() as $r) {
+					$textbook_age_name_map[(int)$r['id']] = (string)$r['name'];
+				}
+			}
+			if ($this->db->table_exists('erp_stationery_categories')) {
+				foreach ($this->db->select('id,name')->from('erp_stationery_categories')->where('vendor_id', (int)$this->current_vendor['id'])->get()->result_array() as $r) {
+					$category_name_map[(int)$r['id']] = (string)$r['name'];
+				}
+			}
+			if ($this->db->table_exists('erp_stationery_brands')) {
+				foreach ($this->db->select('id,name')->from('erp_stationery_brands')->where('vendor_id', (int)$this->current_vendor['id'])->get()->result_array() as $r) {
+					$brand_name_map[(int)$r['id']] = (string)$r['name'];
+				}
+			}
+			if ($this->db->table_exists('erp_stationery_colours')) {
+				foreach ($this->db->select('id,name')->from('erp_stationery_colours')->where('vendor_id', (int)$this->current_vendor['id'])->get()->result_array() as $r) {
+					$colour_name_map[(int)$r['id']] = (string)$r['name'];
+				}
+			}
+
 			foreach ($product_rows as $p) {
 				$key = 'book|' . (int)$p['id'] . '|default|0|0';
+				$ptype = strtolower((string)$p['type']);
+				$legacy_table = strtolower((string)$p['legacy_table']);
+				$legacy_id = (int)$p['legacy_id'];
+
+				$publisher_id = 0;
+				$board_id = 0;
+				$grade_age_type = '';
+				$textbook_grade_ids = array();
+				$textbook_age_ids = array();
+				$category_id = 0;
+				$brand_id = 0;
+				$colour_id = 0;
+				$board_name = '-';
+				$grade_name = '-';
+				$publisher_name = '';
+				$category_name = '';
+				$brand_name = '';
+				$colour_name = '';
+
+				if (($ptype === 'textbook' || $legacy_table === 'erp_textbooks') && $legacy_id > 0 && isset($textbook_meta[$legacy_id])) {
+					$tb = $textbook_meta[$legacy_id];
+					$publisher_id = (int)$tb['publisher_id'];
+					$board_id = (int)$tb['board_id'];
+					$grade_age_type = (string)$tb['grade_age_type'];
+					$textbook_grade_ids = isset($textbook_grade_map[$legacy_id]) ? $textbook_grade_map[$legacy_id] : array();
+					$textbook_age_ids = isset($textbook_age_map[$legacy_id]) ? $textbook_age_map[$legacy_id] : array();
+					$publisher_name = isset($publisher_name_map[$publisher_id]) ? $publisher_name_map[$publisher_id] : '';
+					$board_name = isset($board_name_map[$board_id]) ? $board_name_map[$board_id] : '-';
+					if ($grade_age_type === 'grade' && !empty($textbook_grade_ids)) {
+						$names = array();
+						foreach ($textbook_grade_ids as $gid) {
+							if (isset($textbook_grade_name_map[$gid])) {
+								$names[] = $textbook_grade_name_map[$gid];
+							}
+						}
+						$grade_name = !empty($names) ? implode(', ', $names) : '-';
+					} elseif ($grade_age_type === 'age' && !empty($textbook_age_ids)) {
+						$names = array();
+						foreach ($textbook_age_ids as $aid) {
+							if (isset($textbook_age_name_map[$aid])) {
+								$names[] = $textbook_age_name_map[$aid];
+							}
+						}
+						$grade_name = !empty($names) ? implode(', ', $names) : '-';
+					}
+				} elseif (($ptype === 'notebook' || $legacy_table === 'erp_notebooks') && $legacy_id > 0 && isset($notebook_meta[$legacy_id])) {
+					$nb = $notebook_meta[$legacy_id];
+					$publisher_id = (int)$nb['brand_id'];
+					$brand_id = (int)$nb['brand_id'];
+					$publisher_name = isset($publisher_name_map[$publisher_id]) ? $publisher_name_map[$publisher_id] : '';
+					$brand_name = $publisher_name;
+				} elseif (($ptype === 'stationery' || $legacy_table === 'erp_stationery') && $legacy_id > 0 && isset($stationery_meta[$legacy_id])) {
+					$st = $stationery_meta[$legacy_id];
+					$category_id = (int)$st['category_id'];
+					$brand_id = (int)$st['brand_id'];
+					$colour_id = (int)$st['colour_id'];
+					$category_name = isset($category_name_map[$category_id]) ? $category_name_map[$category_id] : '';
+					$brand_name = isset($brand_name_map[$brand_id]) ? $brand_name_map[$brand_id] : '';
+					$colour_name = isset($colour_name_map[$colour_id]) ? $colour_name_map[$colour_id] : '';
+				} else {
+					// Fallback to erp_products columns when legacy rows are missing
+					$board_id = (int)$p['board_id'];
+					$brand_id = (int)$p['brand_id'];
+					$category_id = (int)$p['category_id'];
+					$colour_id = (int)$p['color_id'];
+					$board_name = isset($board_name_map[$board_id]) ? $board_name_map[$board_id] : '-';
+					$category_name = isset($category_name_map[$category_id]) ? $category_name_map[$category_id] : '';
+					$brand_name = isset($brand_name_map[$brand_id]) ? $brand_name_map[$brand_id] : (isset($publisher_name_map[$brand_id]) ? $publisher_name_map[$brand_id] : '');
+					$colour_name = isset($colour_name_map[$colour_id]) ? $colour_name_map[$colour_id] : '';
+					if ($ptype === 'notebook' || $ptype === 'textbook') {
+						$publisher_id = $brand_id;
+						$publisher_name = $brand_name;
+					}
+				}
+
 				$rows[] = array(
 					'item_type' => 'book',
 					'item_ref_id' => (int)$p['id'],
 					'product_name' => (string)$p['product_name'],
 					'image_path' => isset($product_image_map[(int)$p['id']]) ? $product_image_map[(int)$p['id']] : '',
-					'uniform_type_name' => '-',
+					'uniform_type_name' => !empty($ptype) ? ucfirst($ptype) : '-',
 					'gender' => '-',
 					'school_name' => '-',
 					'branch_name' => '',
-					'board_name' => '-',
-					'grade_name' => '-',
+					'board_name' => $board_name,
+					'grade_name' => $grade_name,
 					'school_id' => 0,
 					'branch_id' => 0,
-					'board_id' => 0,
+					'board_id' => $board_id,
 					'grade_ids' => array(),
+					'product_type' => $ptype,
+					'publisher_id' => $publisher_id,
+					'publisher_name' => $publisher_name,
+					'grade_age_type' => $grade_age_type,
+					'textbook_grade_ids' => $textbook_grade_ids,
+					'textbook_age_ids' => $textbook_age_ids,
+					'category_id' => $category_id,
+					'category_name' => $category_name,
+					'brand_id' => $brand_id,
+					'brand_name' => $brand_name,
+					'colour_id' => $colour_id,
+					'colour_name' => $colour_name,
 					'variation_key' => 'default',
 					'qty_available' => isset($snapshot_map[$key]) ? (float)$snapshot_map[$key] : 0.0,
 					'last_stock_update' => isset($movement_map[$key]) ? $movement_map[$key] : NULL

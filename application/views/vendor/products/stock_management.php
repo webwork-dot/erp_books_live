@@ -5,7 +5,8 @@
 	</div>
 	<div class="d-flex gap-2">
 		<button type="button" class="btn btn-outline-info btn-sm" id="openOutOfStockMsgBtn">Out of Stock Msg</button>
-		<button type="button" class="btn btn-primary btn-sm" id="openStockAdjustModalBtn">Update Stock</button>
+		<a href="<?php echo base_url('products/stock_management/update'); ?>" class="btn btn-primary btn-sm">Update Stock</a>
+		<a href="<?php echo base_url('products/stock_management/import'); ?>" class="btn btn-outline-primary btn-sm">Import Stock</a>
 		<a href="<?php echo base_url('products/stock_management/export'); ?>" class="btn btn-outline-success btn-sm">Download Excel (CSV)</a>
 	</div>
 </div>
@@ -38,23 +39,6 @@
 }
 .stock-col-action .d-flex {
 	flex-wrap: nowrap;
-}
-.stock-adjust-modal .modal-dialog {
-	max-width: 92vw;
-}
-.stock-adjust-modal .modal-content {
-	min-height: 62vh;
-}
-.stock-adjust-modal .modal-body .table-responsive table {
-	min-width: 1200px;
-}
-.stock-adjust-modal .qty-col {
-	min-width: 70px;
-	width: 70px;
-}
-.stock-adjust-modal .qty-input {
-	min-width: 60px;
-	width: 60px;
 }
 </style>
 
@@ -175,24 +159,25 @@
 										</td>
 										<td>
 											<div class="d-flex gap-1">
-												<button
-													type="button"
-													class="btn btn-sm btn-outline-primary stock-btn"
-													data-item-type="<?php echo htmlspecialchars((string)$row['item_type']); ?>"
-													data-item-ref-id="<?php echo (int)$row['item_ref_id']; ?>"
-													data-variation-key="<?php echo htmlspecialchars((string)$row['variation_key']); ?>"
-													data-school-id="<?php echo isset($row['school_id']) ? (int)$row['school_id'] : 0; ?>"
-													data-branch-id="<?php echo isset($row['branch_id']) ? (int)$row['branch_id'] : 0; ?>"
-													data-product-name="<?php echo htmlspecialchars((string)$row['product_name']); ?>"
-													data-uniform-type="<?php echo htmlspecialchars((string)$row['uniform_type_name']); ?>"
-													data-gender="<?php echo htmlspecialchars((string)$row['gender']); ?>"
-													data-school="<?php echo htmlspecialchars((string)$row['school_name']); ?>"
-													data-branch="<?php echo htmlspecialchars((string)$row['branch_name']); ?>"
-													data-board="<?php echo htmlspecialchars((string)$row['board_name']); ?>"
-													data-grade="<?php echo htmlspecialchars((string)$row['grade_name']); ?>"
-													data-current-qty="<?php echo (int)round((float)$row['qty_available']); ?>">
+												<?php
+													$stock_update_qs = http_build_query(array(
+														'item_type' => (string)$row['item_type'],
+														'item_ref_id' => (int)$row['item_ref_id'],
+														'variation_key' => (string)$row['variation_key'],
+														'school_id' => isset($row['school_id']) ? (int)$row['school_id'] : 0,
+														'branch_id' => isset($row['branch_id']) ? (int)$row['branch_id'] : 0,
+														'product_name' => (string)$row['product_name'],
+														'uniform_type' => (string)$row['uniform_type_name'],
+														'school' => (string)$row['school_name'],
+														'branch' => (string)$row['branch_name'],
+														'board' => (string)$row['board_name'],
+														'grade' => (string)$row['grade_name'],
+														'current_qty' => (int)round((float)$row['qty_available'])
+													));
+												?>
+												<a href="<?php echo base_url('products/stock_management/update?' . $stock_update_qs); ?>" class="btn btn-sm btn-outline-primary">
 													Stock
-												</button>
+												</a>
 												<button
 													type="button"
 													class="btn btn-sm btn-outline-secondary history-btn"
@@ -253,52 +238,6 @@
 						<li class="page-item disabled"><span class="page-link">...</span></li>
 					<?php endif; ?>
 				<?php endif; ?>
-
-<div class="modal fade stock-adjust-modal" id="stockAdjustModal" tabindex="-1" aria-hidden="true">
-	<div class="modal-dialog modal-fullscreen-lg-down modal-dialog-scrollable">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title">Update Stock</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<div class="row g-2 mb-2">
-					<div class="col-md-4 position-relative">
-						<input type="text" class="form-control form-control-sm" id="adjustSearchQ" placeholder="Search product/size/school" autocomplete="off">
-						<div id="adjustSuggestions" class="list-group position-absolute w-100 shadow-sm" style="z-index:1056; display:none; max-height:220px; overflow:auto;"></div>
-					</div>
-					<div class="col-md-3">
-						<select id="adjustSearchSchool" class="form-select form-select-sm">
-							<option value="">All Schools</option>
-							<?php foreach ($schools as $s): ?>
-								<option value="<?php echo (int)$s['id']; ?>"><?php echo htmlspecialchars((string)$s['school_name']); ?></option>
-							<?php endforeach; ?>
-						</select>
-					</div>
-					<div class="col-md-3">
-						<select id="adjustSearchGender" class="form-select form-select-sm">
-							<option value="">All Genders</option>
-							<option value="Male">Male</option>
-							<option value="Female">Female</option>
-							<option value="Unisex">Unisex</option>
-						</select>
-					</div>
-					<div class="col-md-2 d-grid"><button type="button" class="btn btn-sm btn-outline-primary" id="adjustSearchBtn">Search</button></div>
-				</div>
-				<div class="table-responsive mb-3">
-					<table class="table table-sm table-bordered">
-						<thead><tr><th>Product</th><th>Uniform Type</th><th>Size</th><th>Gender</th><th>School</th><th>Board</th><th>Grade</th><th>Current</th><th>Type</th><th class="qty-col">Qty</th><th>Remark</th><th></th></tr></thead>
-						<tbody id="adjustSelectedBody"><tr><td colspan="12" class="text-center text-muted">No selected products</td></tr></tbody>
-					</table>
-				</div>
-				<form id="stockAdjustForm" method="post" action="<?php echo base_url('products/stock_management/adjust_bulk'); ?>">
-					<div id="adjustHiddenInputs"></div>
-					<div class="mt-3 text-end"><button type="submit" class="btn btn-primary btn-sm">Update Stock</button></div>
-				</form>
-			</div>
-		</div>
-	</div>
-</div>
 
 				<?php for ($p = $start_page; $p <= $end_page; $p++): ?>
 					<li class="page-item <?php echo ($p === (int)$current_page) ? 'active' : ''; ?>">
@@ -426,244 +365,6 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-	var adjustModalEl = document.getElementById('stockAdjustModal');
-	var adjustModal = adjustModalEl ? new bootstrap.Modal(adjustModalEl) : null;
-
-	var selectedAdjustItems = [];
-
-	function itemKey(item) {
-		return (item.item_type || '') + '|' + (item.item_ref_id || '') + '|' + (item.variation_key || 'default');
-	}
-
-	function renderSelectedAdjustItems() {
-		var body = document.getElementById('adjustSelectedBody');
-		var hiddenWrap = document.getElementById('adjustHiddenInputs');
-		if (!selectedAdjustItems.length) {
-			body.innerHTML = '<tr><td colspan="12" class="text-center text-muted">No selected products</td></tr>';
-			hiddenWrap.innerHTML = '';
-			return;
-		}
-		var html = '';
-		var hidden = '';
-		selectedAdjustItems.forEach(function(item, idx) {
-			var schoolText = item.school_name || '-';
-			if (item.branch_name) schoolText += ' (' + item.branch_name + ')';
-			html += '<tr>' +
-				'<td>' + (item.product_name || '-') + '</td>' +
-				'<td>' + (item.uniform_type_name || '-') + '</td>' +
-				'<td>' + (item.variation_key || '-') + '</td>' +
-				'<td>' + (item.gender || '-') + '</td>' +
-				'<td>' + schoolText + '</td>' +
-				'<td>' + (item.board_name || '-') + '</td>' +
-				'<td>' + (item.grade_name || '-') + '</td>' +
-				'<td>' + Math.round(Number(item.qty_available || 0)) + '</td>' +
-				'<td><select class="form-select form-select-sm adj-op" data-idx="' + idx + '"><option value="add"' + (item.operation === 'add' ? ' selected' : '') + '>Add</option><option value="subtract"' + (item.operation === 'subtract' ? ' selected' : '') + '>Subtract</option></select></td>' +
-				'<td class="qty-col"><input type="number" min="1" step="1" class="form-control form-control-sm adj-qty qty-input" data-idx="' + idx + '" value="' + (item.qty || 1) + '"></td>' +
-				'<td><input type="text" class="form-control form-control-sm adj-remark" data-idx="' + idx + '" value="' + (item.remarks || '') + '"></td>' +
-				'<td><button type="button" class="btn btn-sm btn-outline-danger adj-remove" data-idx="' + idx + '">X</button></td>' +
-				'</tr>';
-			hidden += '<input type="hidden" name="adjustments[' + idx + '][item_type]" value="' + (item.item_type || '') + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][item_ref_id]" value="' + (item.item_ref_id || '') + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][variation_key]" value="' + (item.variation_key || 'default') + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][school_id]" value="' + (item.school_id || 0) + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][branch_id]" value="' + (item.branch_id || 0) + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][operation]" value="' + (item.operation || 'add') + '" class="adj-op-hidden" data-idx="' + idx + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][qty]" value="' + (item.qty || 1) + '" class="adj-qty-hidden" data-idx="' + idx + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][remarks]" value="' + (item.remarks || '') + '" class="adj-remark-hidden" data-idx="' + idx + '">';
-		});
-		body.innerHTML = html;
-		hiddenWrap.innerHTML = hidden;
-
-		document.querySelectorAll('.adj-remove').forEach(function(btn) {
-			btn.addEventListener('click', function() {
-				var idx = Number(btn.getAttribute('data-idx'));
-				selectedAdjustItems.splice(idx, 1);
-				renderSelectedAdjustItems();
-			});
-		});
-		document.querySelectorAll('.adj-op').forEach(function(el) {
-			el.addEventListener('change', function() {
-				var idx = Number(el.getAttribute('data-idx'));
-				selectedAdjustItems[idx].operation = el.value;
-				renderSelectedAdjustItems();
-			});
-		});
-		document.querySelectorAll('.adj-qty').forEach(function(el) {
-			el.addEventListener('input', function() {
-				var idx = Number(el.getAttribute('data-idx'));
-				selectedAdjustItems[idx].qty = Number(el.value || 0);
-			});
-		});
-		document.querySelectorAll('.adj-remark').forEach(function(el) {
-			el.addEventListener('input', function() {
-				var idx = Number(el.getAttribute('data-idx'));
-				selectedAdjustItems[idx].remarks = el.value || '';
-			});
-		});
-	}
-
-	function renderSuggestions(items) {
-		var wrap = document.getElementById('adjustSuggestions');
-		if (!items || !items.length) {
-			wrap.style.display = 'none';
-			wrap.innerHTML = '';
-			return;
-		}
-		var html = '';
-		items.forEach(function(item) {
-			var key = itemKey(item);
-			var duplicate = selectedAdjustItems.some(function(s) { return itemKey(s) === key; });
-			if (duplicate) return;
-			var schoolText = item.school_name || '-';
-			if (item.branch_name) schoolText += ' (' + item.branch_name + ')';
-			var boardText = item.board_name || '-';
-			var genderText = item.gender || '-';
-			html += '<button type="button" class="list-group-item list-group-item-action suggestion-item" ' +
-				'data-item=\'' + JSON.stringify(item).replace(/'/g, '&#39;') + '\'>' +
-				'<strong>' + (item.product_name || '-') + '</strong> | ' + (item.variation_key || '-') +
-				' <span class="text-muted">| ' + genderText + ' | ' + schoolText + ' | ' + boardText + '</span></button>';
-		});
-		if (!html) {
-			wrap.style.display = 'none';
-			wrap.innerHTML = '';
-			return;
-		}
-		wrap.innerHTML = html;
-		wrap.style.display = 'block';
-		document.querySelectorAll('.suggestion-item').forEach(function(btn) {
-			btn.addEventListener('click', function() {
-				try {
-					var item = JSON.parse((btn.getAttribute('data-item') || '{}').replace(/&#39;/g, "'"));
-					if (!item.item_type || !item.item_ref_id) return;
-					if (selectedAdjustItems.some(function(s) { return itemKey(s) === itemKey(item); })) return;
-					item.operation = 'add';
-					item.qty = 1;
-					item.remarks = '';
-					selectedAdjustItems.push(item);
-					renderSelectedAdjustItems();
-					document.getElementById('adjustSearchQ').value = '';
-					document.getElementById('adjustSuggestions').style.display = 'none';
-				} catch (e) {}
-			});
-		});
-	}
-
-	function searchAdjustItems() {
-		var q = document.getElementById('adjustSearchQ').value || '';
-		var s = document.getElementById('adjustSearchSchool').value || '';
-		var g = document.getElementById('adjustSearchGender').value || '';
-		
-		if (q.length < 2 && s === '' && g === '') {
-			renderSuggestions([]);
-			return;
-		}
-		
-		var url = '<?php echo base_url('products/stock_management/search_items'); ?>' +
-			'?q=' + encodeURIComponent(q) + '&school_id=' + encodeURIComponent(s) + '&gender=' + encodeURIComponent(g);
-		fetch(url)
-			.then(function(r) { return r.json(); })
-			.then(function(data) {
-				if (!data || data.status !== 'success') {
-					renderSuggestions([]);
-					return;
-				}
-				renderSuggestions(data.items || []);
-			})
-			.catch(function() {
-				renderSuggestions([]);
-			});
-	}
-
-	document.getElementById('openStockAdjustModalBtn').addEventListener('click', function() {
-		if (!adjustModal) return;
-		document.getElementById('stockAdjustForm').reset();
-		selectedAdjustItems = [];
-		renderSelectedAdjustItems();
-		renderSuggestions([]);
-		adjustModal.show();
-	});
-
-	document.getElementById('adjustSearchBtn').addEventListener('click', function() {
-		searchAdjustItems();
-	});
-
-	document.querySelectorAll('.stock-btn').forEach(function(btn) {
-		btn.addEventListener('click', function() {
-			if (!adjustModal) return;
-			var item = {
-				item_type: btn.getAttribute('data-item-type') || '',
-				item_ref_id: btn.getAttribute('data-item-ref-id') || '',
-				variation_key: btn.getAttribute('data-variation-key') || 'default',
-				school_id: Number(btn.getAttribute('data-school-id') || 0),
-				branch_id: Number(btn.getAttribute('data-branch-id') || 0),
-				product_name: btn.getAttribute('data-product-name') || '',
-				uniform_type_name: btn.getAttribute('data-uniform-type') || '',
-				gender: btn.getAttribute('data-gender') || '',
-				school_name: btn.getAttribute('data-school') || '',
-				branch_name: btn.getAttribute('data-branch') || '',
-				board_name: btn.getAttribute('data-board') || '',
-				grade_name: btn.getAttribute('data-grade') || '',
-				qty_available: btn.getAttribute('data-current-qty') || '0',
-				operation: 'add',
-				qty: 1,
-				remarks: ''
-			};
-			if (!selectedAdjustItems.some(function(s) { return itemKey(s) === itemKey(item); })) {
-				selectedAdjustItems.push(item);
-			}
-			renderSelectedAdjustItems();
-			adjustModal.show();
-		});
-	});
-
-	document.getElementById('stockAdjustForm').addEventListener('submit', function(e) {
-		if (!selectedAdjustItems.length) {
-			e.preventDefault();
-			alert('Please select at least one product.');
-			return;
-		}
-		for (var i = 0; i < selectedAdjustItems.length; i++) {
-			var item = selectedAdjustItems[i];
-			var qty = Number(item.qty || 0);
-			var current = Number(item.qty_available || 0);
-			if (qty <= 0) {
-				e.preventDefault();
-				alert('Enter valid qty for all selected rows.');
-				return;
-			}
-			if (item.operation === 'subtract' && qty > current) {
-				e.preventDefault();
-				alert('Subtract qty cannot exceed current stock for: ' + (item.product_name || 'item'));
-				return;
-			}
-		}
-
-		// Rebuild hidden inputs with latest edited values
-		var hiddenWrap = document.getElementById('adjustHiddenInputs');
-		var hidden = '';
-		selectedAdjustItems.forEach(function(item, idx) {
-			hidden += '<input type="hidden" name="adjustments[' + idx + '][item_type]" value="' + (item.item_type || '') + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][item_ref_id]" value="' + (item.item_ref_id || '') + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][variation_key]" value="' + (item.variation_key || 'default') + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][school_id]" value="' + (item.school_id || 0) + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][branch_id]" value="' + (item.branch_id || 0) + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][operation]" value="' + (item.operation || 'add') + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][qty]" value="' + (item.qty || 1) + '">' +
-				'<input type="hidden" name="adjustments[' + idx + '][remarks]" value="' + (item.remarks || '') + '">';
-		});
-		hiddenWrap.innerHTML = hidden;
-	});
-
-	document.getElementById('adjustSearchQ').addEventListener('input', function() {
-		searchAdjustItems();
-	});
-	document.getElementById('adjustSearchSchool').addEventListener('change', function() {
-		searchAdjustItems();
-	});
-	document.getElementById('adjustSearchGender').addEventListener('change', function() {
-		searchAdjustItems();
-	});
-
 	var historyModalEl = document.getElementById('stockHistoryModal');
 	var historyModal = historyModalEl ? new bootstrap.Modal(historyModalEl) : null;
 	var historyItemContext = null;

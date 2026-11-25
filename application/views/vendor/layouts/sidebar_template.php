@@ -151,6 +151,7 @@
 
 							<?php
 							$pos_feature_enabled = false;
+							$purchase_in_feature_enabled = false;
 							if (isset($enabled_features) && is_array($enabled_features)) {
 								foreach ($enabled_features as $feature_row) {
 									$feature_slug = '';
@@ -162,7 +163,9 @@
 
 									if ($feature_slug === 'pos') {
 										$pos_feature_enabled = true;
-										break;
+									}
+									if ($feature_slug === 'purchase-in-category' || $feature_slug === 'purchase_in' || $feature_slug === 'purchase-in') {
+										$purchase_in_feature_enabled = true;
 									}
 								}
 							}
@@ -196,8 +199,9 @@
 									<?php if (isset($enabled_features) && !empty($enabled_features)): ?>
 									<?php foreach ($enabled_features as $feature): ?>
 										<?php 
-										// Skip POS in Catalog; it has its own sidebar section
-										if (strtolower($feature['slug']) == 'pos') {
+										// Skip POS / Purchase In in Catalog; they have their own sidebar sections
+										$catalog_skip_slug = strtolower(trim((string)$feature['slug']));
+										if ($catalog_skip_slug === 'pos' || $catalog_skip_slug === 'purchase-in-category' || $catalog_skip_slug === 'purchase_in' || $catalog_skip_slug === 'purchase-in') {
 											continue;
 										}
 										
@@ -265,6 +269,52 @@
 										<?php endif; ?>
 									<?php endforeach; ?>
 									<?php endif; ?>
+								</ul>
+							</li>
+							<?php endif; ?>
+
+							<?php if ($purchase_in_feature_enabled): ?>
+							<?php
+								$pi_vendors_active = strpos($current_uri, 'purchase-in/vendors') !== false ? 'active' : '';
+								$pi_companies_active = strpos($current_uri, 'purchase-in/companies') !== false ? 'active' : '';
+								$pi_warehouses_active = strpos($current_uri, 'purchase-in/warehouses') !== false ? 'active' : '';
+								$pi_orders_active = strpos($current_uri, 'purchase-in/orders') !== false ? 'active' : '';
+								$pi_receipts_active = strpos($current_uri, 'purchase-in/receipts') !== false ? 'active' : '';
+								$pi_logs_active = strpos($current_uri, 'purchase-in/logs') !== false ? 'active' : '';
+							?>
+							<li class="menu-title"><span>Purchase In</span></li>
+							<li>
+								<ul>
+									<li>
+										<a href="<?php echo base_url('purchase-in/vendors'); ?>" class="<?php echo $pi_vendors_active; ?>">
+											<i class="isax isax-profile-2user"></i><span>Vendors</span>
+										</a>
+									</li>
+									<li>
+										<a href="<?php echo base_url('purchase-in/companies'); ?>" class="<?php echo $pi_companies_active; ?>">
+											<i class="isax isax-buildings"></i><span>Companies</span>
+										</a>
+									</li>
+									<li>
+										<a href="<?php echo base_url('purchase-in/warehouses'); ?>" class="<?php echo $pi_warehouses_active; ?>">
+											<i class="isax isax-house"></i><span>Warehouse</span>
+										</a>
+									</li>
+									<li>
+										<a href="<?php echo base_url('purchase-in/orders'); ?>" class="<?php echo $pi_orders_active; ?>">
+											<i class="isax isax-document-text"></i><span>Purchase Order</span>
+										</a>
+									</li>
+									<li>
+										<a href="<?php echo base_url('purchase-in/receipts'); ?>" class="<?php echo $pi_receipts_active; ?>">
+											<i class="isax isax-box"></i><span>Purchase Receipt</span>
+										</a>
+									</li>
+									<li>
+										<a href="<?php echo base_url('purchase-in/logs'); ?>" class="<?php echo $pi_logs_active; ?>">
+											<i class="isax isax-clock"></i><span>Activity Logs</span>
+										</a>
+									</li>
 								</ul>
 							</li>
 							<?php endif; ?>

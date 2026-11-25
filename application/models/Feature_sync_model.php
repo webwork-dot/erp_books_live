@@ -71,6 +71,7 @@ class Feature_sync_model extends CI_Model
 		$synced_count = 0;
 		$failed_count = 0;
 		$stock_management_enabled = FALSE;
+		$purchase_in_enabled = FALSE;
 		
 		// Sync all features (including disabled ones to prevent data loss)
 		foreach ($vendor_features as $feature)
@@ -99,6 +100,13 @@ class Feature_sync_model extends CI_Model
 				(int)$feature_data['is_enabled'] === 1
 			) {
 				$stock_management_enabled = TRUE;
+			}
+			$purchase_slug = isset($feature_data['feature_slug']) ? strtolower(trim((string)$feature_data['feature_slug'])) : '';
+			if (
+				in_array($purchase_slug, array('purchase-in', 'purchase-in-category', 'purchase_in'), TRUE) &&
+				(int)$feature_data['is_enabled'] === 1
+			) {
+				$purchase_in_enabled = TRUE;
 			}
 			
 			if ($this->syncFeatureToDatabase($vendor_db, $feature_data))
@@ -155,6 +163,17 @@ class Feature_sync_model extends CI_Model
 			{
 				$success = FALSE;
 				log_message('error', 'Failed to provision stock tables for vendor ID: ' . $vendor_id);
+			}
+		}
+
+		// Provision Purchase In tables when Purchase In feature is enabled.
+		if ($purchase_in_enabled)
+		{
+			$this->load->model('Tenant_model');
+			if (!$this->Tenant_model->ensurePurchaseInTables($vendor_db))
+			{
+				$success = FALSE;
+				log_message('error', 'Failed to provision Purchase In tables for vendor ID: ' . $vendor_id);
 			}
 		}
 		
@@ -219,6 +238,29 @@ class Feature_sync_model extends CI_Model
 		);
 		
 		$success = $this->syncFeatureToDatabase($vendor_db, $feature_data);
+
+		// When enabling Stock Management / Purchase In via single-feature sync, provision tables.
+		if ($success && $enabled)
+		{
+			$slug = strtolower(trim((string)$feature['slug']));
+			$this->load->model('Tenant_model');
+			if ($slug === 'stock_management')
+			{
+				if (!$this->Tenant_model->ensureStockManagementTables($vendor_db))
+				{
+					$success = FALSE;
+					log_message('error', 'Failed to provision stock tables on syncFeature for vendor ID: ' . $vendor_id);
+				}
+			}
+			elseif (in_array($slug, array('purchase-in', 'purchase-in-category', 'purchase_in'), TRUE))
+			{
+				if (!$this->Tenant_model->ensurePurchaseInTables($vendor_db))
+				{
+					$success = FALSE;
+					log_message('error', 'Failed to provision Purchase In tables on syncFeature for vendor ID: ' . $vendor_id);
+				}
+			}
+		}
 		
 		$vendor_db->close();
 		

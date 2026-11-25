@@ -377,6 +377,34 @@ $route['reports'] = 'Vendor/reports/index';
 $route['reports/get_data'] = 'Vendor/reports/get_data';
 $route['reports/export/(:any)'] = 'Vendor/reports/export/$1';
 
+// Purchase In routes
+$route['purchase-in/vendors'] = 'Vendor/purchase_in/vendors';
+$route['purchase-in/vendors/add'] = 'Vendor/purchase_in/vendors_add';
+$route['purchase-in/vendors/edit/(:num)'] = 'Vendor/purchase_in/vendors_edit/$1';
+$route['purchase-in/vendors/delete/(:num)'] = 'Vendor/purchase_in/vendors_delete/$1';
+$route['purchase-in/companies'] = 'Vendor/purchase_in/companies';
+$route['purchase-in/companies/add'] = 'Vendor/purchase_in/companies_add';
+$route['purchase-in/companies/edit/(:num)'] = 'Vendor/purchase_in/companies_edit/$1';
+$route['purchase-in/companies/delete/(:num)'] = 'Vendor/purchase_in/companies_delete/$1';
+$route['purchase-in/warehouses'] = 'Vendor/purchase_in/warehouses';
+$route['purchase-in/warehouses/add'] = 'Vendor/purchase_in/warehouses_add';
+$route['purchase-in/warehouses/edit/(:num)'] = 'Vendor/purchase_in/warehouses_edit/$1';
+$route['purchase-in/warehouses/delete/(:num)'] = 'Vendor/purchase_in/warehouses_delete/$1';
+$route['purchase-in/get-cities'] = 'Vendor/purchase_in/get_cities';
+$route['purchase-in/orders'] = 'Vendor/purchase_in/purchase_orders';
+$route['purchase-in/orders/add'] = 'Vendor/purchase_in/purchase_orders_add';
+$route['purchase-in/orders/view/(:num)'] = 'Vendor/purchase_in/purchase_orders_view/$1';
+$route['purchase-in/orders/save'] = 'Vendor/purchase_in/purchase_orders_save';
+$route['purchase-in/party-details'] = 'Vendor/purchase_in/party_details';
+$route['purchase-in/warehouses-by-company'] = 'Vendor/purchase_in/warehouses_by_company';
+$route['purchase-in/product-search'] = 'Vendor/purchase_in/product_search';
+$route['purchase-in/product-history'] = 'Vendor/purchase_in/product_history';
+$route['purchase-in/logs'] = 'Vendor/purchase_in/activity_logs';
+$route['purchase-in/receipts'] = 'Vendor/purchase_in/purchase_receipts';
+$route['purchase-in/receipts/view/(:num)'] = 'Vendor/purchase_in/purchase_receipts_view/$1';
+$route['purchase-in/orders/receive-data/(:num)'] = 'Vendor/purchase_in/receive_delivery_data/$1';
+$route['purchase-in/orders/receive-save'] = 'Vendor/purchase_in/receive_delivery_save';
+
 // Vendor courier routes
 $route['couriers'] = 'Vendor/couriers/index';
 $route['couriers/add'] = 'Vendor/couriers/add';
@@ -413,6 +441,9 @@ $route['products/individual-products/add_color'] = 'Vendor/products/individual_p
 $route['products/individual-products/get_sizes'] = 'Vendor/products/individual_products_get_sizes';
 $route['products/individual-products/delete/(:num)'] = 'Vendor/products/individual_products_delete/$1';
 $route['products/stock_management'] = 'Vendor/products/stock_management';
+$route['products/stock_management/update'] = 'Vendor/products/stock_management_update';
+$route['products/stock_management/import'] = 'Vendor/products/stock_management_import';
+$route['products/stock_management/import/template'] = 'Vendor/products/stock_management_import_template';
 $route['products/stock_management/adjust'] = 'Vendor/products/stock_management_adjust';
 $route['products/stock_management/adjust_bulk'] = 'Vendor/products/stock_management_adjust_bulk';
 $route['products/stock_management/search_items'] = 'Vendor/products/stock_management_search_items';

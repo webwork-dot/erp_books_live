@@ -1244,5 +1244,254 @@ class Tenant_model extends CI_Model
 		log_message('info', 'Ensured stock management tables in vendor database.');
 		return TRUE;
 	}
+
+	/**
+	 * Ensure Purchase In tables exist in a vendor database by name.
+	 *
+	 * @param	string	$database_name
+	 * @return	bool
+	 */
+	public function ensurePurchaseInTablesForDatabase($database_name)
+	{
+		$hostname = $this->db->hostname;
+		$username = $this->db->username;
+		$password = $this->db->password;
+
+		$connection = new mysqli($hostname, $username, $password, $database_name);
+		if ($connection->connect_error)
+		{
+			log_message('error', 'Failed to connect vendor DB for purchase-in tables: ' . $connection->connect_error);
+			return FALSE;
+		}
+
+		$result = $this->ensurePurchaseInTables($connection);
+		$connection->close();
+		return $result;
+	}
+
+	/**
+	 * Create Purchase In tables inside an open vendor DB connection (mysqli).
+	 *
+	 * @param	mysqli	$connection
+	 * @return	bool
+	 */
+	public function ensurePurchaseInTables($connection)
+	{
+		$queries = array(
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_vendors` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`vendor_id` INT UNSIGNED NOT NULL,
+				`vendor_name` VARCHAR(200) NOT NULL,
+				`contact_person_name` VARCHAR(150) DEFAULT NULL,
+				`contact_person_number` VARCHAR(30) DEFAULT NULL,
+				`email` VARCHAR(150) DEFAULT NULL,
+				`gst_name` VARCHAR(200) DEFAULT NULL,
+				`gst_no` VARCHAR(50) DEFAULT NULL,
+				`fssai_no` VARCHAR(50) DEFAULT NULL,
+				`address_1` TEXT DEFAULT NULL,
+				`address_2` TEXT DEFAULT NULL,
+				`state_id` INT UNSIGNED DEFAULT NULL,
+				`city_id` INT UNSIGNED DEFAULT NULL,
+				`pincode` VARCHAR(20) DEFAULT NULL,
+				`state_code` VARCHAR(20) DEFAULT NULL,
+				`status` TINYINT(1) NOT NULL DEFAULT 1,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				KEY `idx_vendor_id` (`vendor_id`),
+				KEY `idx_status` (`status`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_companies` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`vendor_id` INT UNSIGNED NOT NULL,
+				`company_name` VARCHAR(200) NOT NULL,
+				`contact_person_name` VARCHAR(150) DEFAULT NULL,
+				`contact_person_number` VARCHAR(30) DEFAULT NULL,
+				`email` VARCHAR(150) DEFAULT NULL,
+				`gst_name` VARCHAR(200) DEFAULT NULL,
+				`gst_no` VARCHAR(50) DEFAULT NULL,
+				`fssai_no` VARCHAR(50) DEFAULT NULL,
+				`address_1` TEXT DEFAULT NULL,
+				`address_2` TEXT DEFAULT NULL,
+				`address_3` TEXT DEFAULT NULL,
+				`state_id` INT UNSIGNED DEFAULT NULL,
+				`city_id` INT UNSIGNED DEFAULT NULL,
+				`pincode` VARCHAR(20) DEFAULT NULL,
+				`state_code` VARCHAR(20) DEFAULT NULL,
+				`status` TINYINT(1) NOT NULL DEFAULT 1,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				KEY `idx_vendor_id` (`vendor_id`),
+				KEY `idx_status` (`status`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_warehouses` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`vendor_id` INT UNSIGNED NOT NULL,
+				`warehouse_name` VARCHAR(200) NOT NULL,
+				`address_1` TEXT DEFAULT NULL,
+				`address_2` TEXT DEFAULT NULL,
+				`address_3` TEXT DEFAULT NULL,
+				`state_id` INT UNSIGNED DEFAULT NULL,
+				`city_id` INT UNSIGNED DEFAULT NULL,
+				`pincode` VARCHAR(20) DEFAULT NULL,
+				`status` TINYINT(1) NOT NULL DEFAULT 1,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				KEY `idx_vendor_id` (`vendor_id`),
+				KEY `idx_status` (`status`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_warehouse_companies` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`warehouse_id` INT UNSIGNED NOT NULL,
+				`company_id` INT UNSIGNED NOT NULL,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				UNIQUE KEY `uniq_warehouse_company` (`warehouse_id`,`company_id`),
+				KEY `idx_company_id` (`company_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_orders` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`vendor_id` INT UNSIGNED NOT NULL,
+				`po_no` VARCHAR(50) NOT NULL,
+				`fy_label` VARCHAR(10) NOT NULL,
+				`po_seq` INT UNSIGNED NOT NULL DEFAULT 1,
+				`company_id` INT UNSIGNED NOT NULL,
+				`warehouse_id` INT UNSIGNED NOT NULL,
+				`purchase_vendor_id` INT UNSIGNED NOT NULL,
+				`po_date` DATE NOT NULL,
+				`expected_date` DATE DEFAULT NULL,
+				`without_gst` TINYINT(1) NOT NULL DEFAULT 0,
+				`direct_purchase` TINYINT(1) NOT NULL DEFAULT 0,
+				`notes` TEXT DEFAULT NULL,
+				`discount_percent` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+				`discount_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`transport_percent` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+				`transport_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`other_charges_desc` VARCHAR(255) DEFAULT NULL,
+				`other_charges_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`round_off` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`apply_round_off` TINYINT(1) NOT NULL DEFAULT 0,
+				`basic_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`taxable_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`cgst_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`sgst_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`igst_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`grand_total` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`status` VARCHAR(30) NOT NULL DEFAULT 'draft',
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				UNIQUE KEY `uniq_po_no_vendor` (`vendor_id`,`po_no`),
+				KEY `idx_vendor_id` (`vendor_id`),
+				KEY `idx_company_id` (`company_id`),
+				KEY `idx_warehouse_id` (`warehouse_id`),
+				KEY `idx_purchase_vendor_id` (`purchase_vendor_id`),
+				KEY `idx_fy_label` (`fy_label`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_order_items` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`po_id` INT UNSIGNED NOT NULL,
+				`line_no` INT UNSIGNED NOT NULL DEFAULT 1,
+				`product_id` INT UNSIGNED DEFAULT NULL,
+				`product_type` VARCHAR(50) DEFAULT NULL,
+				`product_name` VARCHAR(500) NOT NULL,
+				`hsn` VARCHAR(50) DEFAULT NULL,
+				`gst_percent` DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+				`qty` DECIMAL(14,3) NOT NULL DEFAULT 1.000,
+				`rate` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`discount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`basic_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`taxable_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`gst_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`line_total` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				KEY `idx_po_id` (`po_id`),
+				KEY `idx_product_id` (`product_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_activity_log` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`vendor_id` INT UNSIGNED NOT NULL,
+				`entity_type` VARCHAR(40) NOT NULL,
+				`entity_id` INT UNSIGNED DEFAULT NULL,
+				`entity_label` VARCHAR(255) DEFAULT NULL,
+				`action` VARCHAR(40) NOT NULL,
+				`action_label` VARCHAR(255) DEFAULT NULL,
+				`actor_id` INT UNSIGNED DEFAULT NULL,
+				`actor_name` VARCHAR(150) DEFAULT NULL,
+				`meta_json` TEXT DEFAULT NULL,
+				`ip_address` VARCHAR(45) DEFAULT NULL,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				KEY `idx_vendor_id` (`vendor_id`),
+				KEY `idx_entity` (`entity_type`,`entity_id`),
+				KEY `idx_created_at` (`created_at`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_receipts` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`vendor_id` INT UNSIGNED NOT NULL,
+				`po_id` INT UNSIGNED NOT NULL,
+				`pr_no` VARCHAR(50) NOT NULL,
+				`fy_label` VARCHAR(10) NOT NULL,
+				`pr_seq` INT UNSIGNED NOT NULL DEFAULT 1,
+				`company_id` INT UNSIGNED NOT NULL,
+				`warehouse_id` INT UNSIGNED NOT NULL,
+				`purchase_vendor_id` INT UNSIGNED NOT NULL,
+				`invoice_no` VARCHAR(100) DEFAULT NULL,
+				`received_date` DATE NOT NULL,
+				`transport_percent` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+				`transport_amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`items_total` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`grand_total` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`notes` TEXT DEFAULT NULL,
+				`status` VARCHAR(30) NOT NULL DEFAULT 'posted',
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				`updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				UNIQUE KEY `uniq_pr_no_vendor` (`vendor_id`,`pr_no`),
+				KEY `idx_vendor_id` (`vendor_id`),
+				KEY `idx_po_id` (`po_id`),
+				KEY `idx_fy_label` (`fy_label`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+			"CREATE TABLE IF NOT EXISTS `erp_purchase_receipt_items` (
+				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`receipt_id` INT UNSIGNED NOT NULL,
+				`po_item_id` INT UNSIGNED NOT NULL,
+				`product_id` INT UNSIGNED DEFAULT NULL,
+				`product_type` VARCHAR(50) DEFAULT NULL,
+				`product_name` VARCHAR(500) NOT NULL,
+				`ordered_qty` DECIMAL(14,3) NOT NULL DEFAULT 0.000,
+				`receive_qty` DECIMAL(14,3) NOT NULL DEFAULT 0.000,
+				`rate` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+				`created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (`id`),
+				KEY `idx_receipt_id` (`receipt_id`),
+				KEY `idx_po_item_id` (`po_item_id`),
+				KEY `idx_product_id` (`product_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+		);
+
+		foreach ($queries as $sql)
+		{
+			if (!$connection->query($sql))
+			{
+				log_message('error', 'Failed purchase-in table SQL: ' . $connection->error);
+				return FALSE;
+			}
+		}
+
+		log_message('info', 'Ensured Purchase In tables in vendor database.');
+		return TRUE;
+	}
 }
 
